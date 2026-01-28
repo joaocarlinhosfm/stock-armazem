@@ -51,14 +51,18 @@ document.getElementById('form-register').addEventListener('submit', (e) => {
     
     const nome = document.getElementById('inp-nome').value.trim();
     const tipo = document.getElementById('inp-tipo').value.trim();
+    
+    // Mantemos o UpperCase para ficar tudo maiúsculo, mas aceita qualquer formato
     const loc = document.getElementById('inp-loc').value.trim().toUpperCase();
 
-    // Validação Regex Extra (Javascript)
-    const locRegex = /^\d{3}-\d{2}[A-Z]$/;
+    // --- REMOVIDO O BLOCO DE VALIDAÇÃO REGEX ---
+    /* const locRegex = /^\d{3}-\d{2}[A-Z]$/;
     if (!locRegex.test(loc)) {
-        alert('Localização inválida! Use o formato: 000-00A (ex: 501-23A)');
+        alert('Localização inválida! ...');
         return;
-    }
+    } 
+    */
+    // -------------------------------------------
 
     const novoItem = { id: Date.now(), nome, tipo, localizacao: loc };
     const stock = getStock();
@@ -68,6 +72,11 @@ document.getElementById('form-register').addEventListener('submit', (e) => {
     alert('Item registado com sucesso!');
     e.target.reset();
     nav('view-home');
+    
+    // Se já implementaste o autocomplete, chama-o aqui também para atualizar a lista
+    if(typeof atualizarSugestoes === 'function') {
+        atualizarSugestoes();
+    }
 });
 
 // Renderizar Lista (Com filtro)

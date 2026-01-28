@@ -21,19 +21,22 @@
         </div>
 
         <div id="view-register" class="view">
-            <h2>Novo Item</h2>
-            <form id="form-register">
-                <input type="text" id="inp-nome" placeholder="Nome do Item" required>
-                <input type="text" id="inp-tipo" placeholder="Tipo (ex: Elétrico)" required>
-                <input type="text" id="inp-loc" placeholder="Local (ex: 501-23A)" 
-                       pattern="[0-9]{3}-[0-9]{2}[A-Z]" 
-                       title="Formato obrigatório: 000-00A" 
-                       style="text-transform:uppercase" required>
-                
-                <button type="submit" class="btn-primary">Guardar</button>
-                <button type="button" onclick="nav('view-home')" class="btn-secondary">Voltar</button>
-            </form>
-        </div>
+<div id="view-register" class="view">
+    <h2>Novo Item</h2>
+    <form id="form-register">
+        <input type="text" id="inp-nome" placeholder="Nome do Item" required>
+        <input type="text" id="inp-tipo" placeholder="Tipo (ex: Elétrico)" required>
+        
+        <input type="text" 
+               id="inp-loc" 
+               placeholder="Localização (ex: 501-23A)" 
+               style="text-transform:uppercase" 
+               required>
+        
+        <button type="submit" class="btn-primary">Guardar</button>
+        <button type="button" onclick="nav('view-home')" class="btn-secondary">Voltar</button>
+    </form>
+</div>
 
         <div id="view-search" class="view">
 <div id="view-search" class="view">
