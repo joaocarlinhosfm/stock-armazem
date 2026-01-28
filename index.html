@@ -36,14 +36,23 @@
         </div>
 
         <div id="view-search" class="view">
-            <h2>Pesquisa</h2>
-            <input type="text" id="inp-search" placeholder="Filtrar por nome, tipo ou local...">
-            
-            <div id="stock-list">
-                </div>
-            
-            <button onclick="nav('view-home')" class="btn-secondary sticky-bottom">Voltar ao Menu</button>
+<div id="view-search" class="view">
+    <h2>Pesquisa</h2>
+    
+    <input type="text" 
+           id="inp-search" 
+           placeholder="Filtrar por nome, tipo ou local..." 
+           list="lista-sugestoes" 
+           autocomplete="off">
+
+    <datalist id="lista-sugestoes">
+        </datalist>
+    
+    <div id="stock-list">
         </div>
+    
+    <button onclick="nav('view-home')" class="btn-secondary sticky-bottom">Voltar ao Menu</button>
+</div>
     </main>
 
     <script src="app.js"></script>

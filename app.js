@@ -1,13 +1,36 @@
 // --- Configuração e Estado ---
 const STORAGE_KEY = 'stock';
 
+// --- Autocomplete ---
+function atualizarSugestoes() {
+    const stock = getStock();
+    const datalist = document.getElementById('lista-sugestoes');
+    datalist.innerHTML = ''; // Limpar sugestões antigas
+
+    // 1. Extrair apenas os nomes
+    const nomes = stock.map(item => item.nome);
+    
+    // 2. Remover duplicados (Set) para não sugerir o mesmo nome 10 vezes
+    const nomesUnicos = [...new Set(nomes)];
+
+    // 3. Criar as opções no HTML
+    nomesUnicos.forEach(nome => {
+        const option = document.createElement('option');
+        option.value = nome;
+        datalist.appendChild(option);
+    });
+}
 // --- Navegação ---
 function nav(viewId) {
-    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-    document.getElementById(viewId).classList.add('active');
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.getElementById(viewId).classList.add('active');
     
-    // Se for para a pesquisa, atualiza a lista imediatamente
-    if(viewId === 'view-search') renderList();
+    // Se for para a pesquisa, atualiza a lista e o autocomplete
+    if(viewId === 'view-search') {
+        atualizarSugestoes(); // <--- ADICIONA ISTO
+        renderList();
+    }
+}
 }
 
 // --- Lógica de Negócio ---
@@ -92,7 +115,10 @@ window.deleteItem = function(id) {
         let stock = getStock();
         stock = stock.filter(item => item.id !== id);
         saveStock(stock);
+        
+        // Atualiza a lista visual e também as sugestões
         renderList(document.getElementById('inp-search').value);
+        atualizarSugestoes(); // <--- ADICIONA ISTO
     }
 };
 
