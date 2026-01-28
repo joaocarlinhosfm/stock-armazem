@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Stock PWA</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2196F3">
+</head>
+<body>
+
+    <header>
+        <h1>Armazém PWA</h1>
+    </header>
+
+    <main>
+        <div id="view-home" class="view active">
+            <button onclick="nav('view-search')" class="btn-large">🔍 Pesquisa</button>
+            <button onclick="nav('view-register')" class="btn-large">➕ Registo</button>
+        </div>
+
+        <div id="view-register" class="view">
+            <h2>Novo Item</h2>
+            <form id="form-register">
+                <input type="text" id="inp-nome" placeholder="Nome do Item" required>
+                <input type="text" id="inp-tipo" placeholder="Tipo (ex: Elétrico)" required>
+                <input type="text" id="inp-loc" placeholder="Local (ex: 501-23A)" 
+                       pattern="[0-9]{3}-[0-9]{2}[A-Z]" 
+                       title="Formato obrigatório: 000-00A" 
+                       style="text-transform:uppercase" required>
+                
+                <button type="submit" class="btn-primary">Guardar</button>
+                <button type="button" onclick="nav('view-home')" class="btn-secondary">Voltar</button>
+            </form>
+        </div>
+
+        <div id="view-search" class="view">
+            <h2>Pesquisa</h2>
+            <input type="text" id="inp-search" placeholder="Filtrar por nome, tipo ou local...">
+            
+            <div id="stock-list">
+                </div>
+            
+            <button onclick="nav('view-home')" class="btn-secondary sticky-bottom">Voltar ao Menu</button>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
