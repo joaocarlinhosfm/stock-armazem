@@ -1,158 +1,63 @@
-// --- CONFIGURAÇÃO FIREBASE ---
-// Exemplo: https://projeto-armazem-default-rtdb.europe-west1.firebasedatabase.app/
-const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app/"; 
+// --- CONFIGURAÇÃO ---
+// ATENÇÃO: Substitui pelo teu link real. Ex: https://projeto-xyz.firebaseio.com/
+const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app"; 
 const DB_URL = `${BASE_URL}/stock.json`;
 
-// --- NAVEGAÇÃO ---
-async function nav(viewId) {
-    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-    const target = document.getElementById(viewId);
-    if (target) target.classList.add('active');
+// --- NAVEGAÇÃO (REPARADA) ---
+function nav(viewId) {
+    const views = document.querySelectorAll('.view');
+    views.forEach(el => el.classList.remove('active'));
     
-    if(viewId === 'view-search') {
-        // No modo online, renderList já trata do carregamento
-        renderList();
-        atualizarSugestoes();
+    const target = document.getElementById(viewId);
+    if (target) {
+        target.classList.add('active');
+        // Se for pesquisa, carrega os dados
+        if(viewId === 'view-search') {
+            renderList();
+            atualizarSugestoes();
+        }
     }
 }
 
-// --- LÓGICA DE BASE DE DADOS ONLINE ---
+// --- MONITOR DE LIGAÇÃO ---
+function atualizarStatusRede() {
+    const statusTexto = document.getElementById('status-texto');
+    const ponto = document.getElementById('status-ponto');
+    if (!statusTexto || !ponto) return;
 
-// LER: Vai buscar o stock ao Firebase
+    if (navigator.onLine) {
+        statusTexto.innerText = "Online";
+        document.body.classList.remove('offline');
+        ponto.style.backgroundColor = "#4CAF50";
+    } else {
+        statusTexto.innerText = "Offline";
+        document.body.classList.add('offline');
+        ponto.style.backgroundColor = "#f44336";
+    }
+}
+window.addEventListener('online', atualizarStatusRede);
+window.addEventListener('offline', atualizarStatusRede);
+
+// --- LÓGICA FIREBASE ---
+
 async function getStock() {
     try {
         const response = await fetch(DB_URL);
+        if (!response.ok) throw new Error("Erro na rede");
         const data = await response.json();
-        
         if (!data) return [];
-
-        // O Firebase devolve um objeto de objetos. Convertemos para Array:
-        return Object.keys(data).map(key => ({
-            fireId: key, // Guardamos a chave única para poder apagar depois
-            ...data[key]
-        }));
+        return Object.keys(data).map(key => ({ fireId: key, ...data[key] }));
     } catch (error) {
-        console.error("Erro ao ler dados:", error);
+        console.error("Erro ao ler:", error);
         return [];
     }
 }
 
-// ESCREVER: Guarda um novo item
-async function saveStockOnline(item) {
-    try {
-        const response = await fetch(DB_URL, {
-            method: 'POST',
-            body: JSON.stringify(item)
-        });
-        return await response.json();
-    } catch (error) {
-        console.error("Erro ao gravar:", error);
-        alert("Erro de ligação. Verifica a internet.");
-    }
-}
-
-// APAGAR: Remove do Firebase
-window.deleteItem = async function(fireId) {
-    if(confirm('Deseja apagar este item para todos os utilizadores?')) {
-        try {
-            const deleteUrl = `${BASE_URL}/stock/${fireId}.json`;
-            await fetch(deleteUrl, { method: 'DELETE' });
-            renderList(document.getElementById('inp-search').value);
-            atualizarSugestoes();
-        } catch (error) {
-            alert("Erro ao apagar item.");
-        }
-    }
-};
-
-// --- INTERFACE E EVENTOS ---
-
-// --- MONITOR DE LIGAÇÃO ---
-
-function atualizarStatusRede() {
-    const statusTexto = document.getElementById('status-texto');
-    const corpo = document.body;
-
-    if (navigator.onLine) {
-        statusTexto.innerText = "Online";
-        corpo.classList.remove('offline');
-        // Se voltou a ter net, refresca a lista para garantir dados novos
-        renderList(document.getElementById('inp-search')?.value || '');
-    } else {
-        statusTexto.innerText = "Offline (Modo de Leitura)";
-        corpo.classList.add('offline');
-    }
-}
-
-// Ouvir eventos do browser
-window.addEventListener('online', atualizarStatusRede);
-window.addEventListener('offline', atualizarStatusRede);
-
-// Executar ao iniciar para definir estado atual
-atualizarStatusRede();
-
-// --- AJUSTE NO SAVE (Opcional) ---
-
-// Podemos avisar o utilizador se ele tentar gravar sem net
-async function saveStockOnline(item) {
-    if (!navigator.onLine) {
-        alert("Atenção: Estás sem internet. O registo não será guardado na nuvem até teres ligação.");
-        return;
-    }
-    // ... resto da função fetch original ...
-}
-// Autocomplete
-async function atualizarSugestoes() {
-    const stock = await getStock();
-    const datalist = document.getElementById('lista-sugestoes');
-    if (!datalist) return;
-    
-    datalist.innerHTML = '';
-    const nomesUnicos = [...new Set(stock.map(item => item.nome))];
-
-    nomesUnicos.forEach(nome => {
-        const option = document.createElement('option');
-        option.value = nome;
-        datalist.appendChild(option);
-    });
-}
-
-// Formulário de Registo
-const formRegister = document.getElementById('form-register');
-if (formRegister) {
-    formRegister.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        // Bloquear o botão para evitar múltiplos cliques
-        const btn = e.target.querySelector('button[type="submit"]');
-        btn.disabled = true;
-        btn.innerText = "A gravar...";
-
-        const item = {
-            nome: document.getElementById('inp-nome').value.trim(),
-            tipo: document.getElementById('inp-tipo').value.trim(),
-            localizacao: document.getElementById('inp-loc').value.trim().toUpperCase(),
-            quantidade: parseInt(document.getElementById('inp-qtd').value) || 0,
-            dataCriacao: new Date().toISOString()
-        };
-
-        await saveStockOnline(item);
-        
-        btn.disabled = false;
-        btn.innerText = "Guardar";
-        
-        alert('Registo efetuado com sucesso!');
-        e.target.reset();
-        nav('view-home');
-    });
-}
-
-// Renderizar Lista com Filtro
 async function renderList(filterText = '') {
     const listEl = document.getElementById('stock-list');
     if (!listEl) return;
 
-    listEl.innerHTML = '<p style="text-align:center;">A sincronizar com a nuvem...</p>';
+    listEl.innerHTML = '<p style="text-align:center;">A carregar...</p>';
     
     const stock = await getStock();
     const term = filterText.toLowerCase();
@@ -160,15 +65,75 @@ async function renderList(filterText = '') {
     const filtered = stock.filter(item => 
         item.nome.toLowerCase().includes(term) ||
         item.tipo.toLowerCase().includes(term) ||
-        item.localizacao.toLowerCase().includes(term)
+        (item.localizacao && item.localizacao.toLowerCase().includes(term))
     );
 
-    listEl.innerHTML = ''; // Limpa o "A carregar"
-
+    listEl.innerHTML = '';
     if (filtered.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; color:#888;">Nenhum item encontrado.</p>';
+        listEl.innerHTML = '<p style="text-align:center;">Vazio.</p>';
         return;
     }
 
     filtered.forEach(item => {
-        const div = document
+        const div = document.createElement('div');
+        div.className = 'item-card';
+        const qtd = item.quantidade || 0;
+        const qtdHtml = qtd > 0 ? `<span style="color:#2196F3;"> (Qtd: ${qtd})</span>` : '';
+        
+        div.innerHTML = `
+            <div class="item-info">
+                <h3>${item.nome}${qtdHtml}</h3>
+                <p>${item.tipo} | 📍 ${item.localizacao || '---'}</p>
+            </div>
+            <button class="btn-delete" onclick="deleteItem('${item.fireId}')">Apagar</button>
+        `;
+        listEl.appendChild(div);
+    });
+}
+
+// --- REGISTO ---
+const form = document.getElementById('form-register');
+if (form) {
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!navigator.onLine) return alert("Sem internet!");
+
+        const item = {
+            nome: document.getElementById('inp-nome').value.trim(),
+            tipo: document.getElementById('inp-tipo').value.trim(),
+            localizacao: document.getElementById('inp-loc').value.trim().toUpperCase(),
+            quantidade: parseInt(document.getElementById('inp-qtd').value) || 0
+        };
+
+        try {
+            await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) });
+            alert("Guardado!");
+            form.reset();
+            nav('view-home');
+        } catch (e) { alert("Erro ao guardar"); }
+    });
+}
+
+// --- APAGAR ---
+window.deleteItem = async function(id) {
+    if (confirm("Apagar?")) {
+        await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'DELETE' });
+        renderList();
+    }
+};
+
+// --- AUTOCOMPLETE ---
+async function atualizarSugestoes() {
+    const stock = await getStock();
+    const dl = document.getElementById('lista-sugestoes');
+    if (!dl) return;
+    dl.innerHTML = '';
+    [...new Set(stock.map(i => i.nome))].forEach(n => {
+        const op = document.createElement('option');
+        op.value = n;
+        dl.appendChild(op);
+    });
+}
+
+// Inicialização
+atualizarStatusRede();

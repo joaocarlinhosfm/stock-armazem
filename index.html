@@ -11,52 +11,41 @@
 <body>
 
     <header>
-    <h1>Armazém PWA</h1>
-    <div id="status-conexao">
-        <span id="status-ponto"></span>
-        <span id="status-texto">Online</span>
-    </div>
-</header>
+        <h1>Armazém PWA</h1>
+        <div id="status-conexao">
+            <span id="status-ponto"></span>
+            <span id="status-texto">A verificar...</span>
+        </div>
     </header>
 
-    <main>
+    <main id="app-container">
         <div id="view-home" class="view active">
-            <button onclick="nav('view-search')" class="btn-large">🔍 Pesquisa</button>
-            <button onclick="nav('view-register')" class="btn-large">➕ Registo</button>
+            <button type="button" onclick="nav('view-search')" class="btn-large">🔍 Pesquisa</button>
+            <button type="button" onclick="nav('view-register')" class="btn-large">➕ Registo</button>
         </div>
 
-       <div id="view-register" class="view">
-    <h2>Novo Item</h2>
-    <form id="form-register">
-        <input type="text" id="inp-nome" placeholder="Nome do Item" required>
-        <input type="text" id="inp-tipo" placeholder="Tipo (ex: Elétrico)" required>
-        <input type="text" id="inp-loc" placeholder="Local (Opcional)" style="text-transform:uppercase">
-        
-        <input type="number" 
-               id="inp-qtd" 
-               placeholder="Quantidade (Opcional - Padrão: 0)" 
-               min="0">
-        
-        <button type="submit" class="btn-primary">Guardar</button>
-        <button type="button" onclick="nav('view-home')" class="btn-secondary">Voltar</button>
-    </form>
-</div>
+        <div id="view-register" class="view">
+            <h2>Novo Item</h2>
+            <form id="form-register">
+                <input type="text" id="inp-nome" placeholder="Nome do Item" required>
+                <input type="text" id="inp-tipo" placeholder="Tipo" required>
+                <input type="text" id="inp-loc" placeholder="Localização (Opcional)" style="text-transform:uppercase">
+                <input type="number" id="inp-qtd" placeholder="Quantidade" min="0">
+                
+                <button type="submit" class="btn-primary">Guardar Online</button>
+                <button type="button" onclick="nav('view-home')" class="btn-secondary">Voltar</button>
+            </form>
+        </div>
 
         <div id="view-search" class="view">
-            <h2>Pesquisa</h2>
-            
-            <input type="text" 
-                   id="inp-search" 
-                   placeholder="Filtrar por nome, tipo ou local..." 
-                   list="lista-sugestoes" 
-                   autocomplete="off">
-
+            <h2>Stock na Nuvem</h2>
+            <input type="text" id="inp-search" placeholder="Procurar..." list="lista-sugestoes" autocomplete="off">
             <datalist id="lista-sugestoes"></datalist>
             
             <div id="stock-list">
                 </div>
             
-            <button onclick="nav('view-home')" class="btn-secondary sticky-bottom">Voltar ao Menu</button>
+            <button type="button" onclick="nav('view-home')" class="btn-secondary">Voltar ao Menu</button>
         </div>
     </main>
 
