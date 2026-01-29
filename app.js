@@ -3,17 +3,10 @@ const STORAGE_KEY = 'stock';
 
 // --- Navegação ---
 function nav(viewId) {
-    // Esconde todas as views
     document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-    // Mostra a view desejada
     const target = document.getElementById(viewId);
-    if (target) {
-        target.classList.add('active');
-    } else {
-        console.error('Erro: Ecrã não encontrado ->', viewId);
-    }
+    if (target) target.classList.add('active');
     
-    // Se for para a pesquisa, atualiza a lista e as sugestões
     if(viewId === 'view-search') {
         atualizarSugestoes();
         renderList();
@@ -22,27 +15,25 @@ function nav(viewId) {
 
 // --- Lógica de Negócio ---
 
-// Ler dados
 function getStock() {
     return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
 }
 
-// Gravar dados
 function saveStock(data) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
-// Atualizar Sugestões (Autocomplete)
 function atualizarSugestoes() {
     const stock = getStock();
     const datalist = document.getElementById('lista-sugestoes');
+    if (!datalist) return;
     
-    if (!datalist) return; // Segurança caso o HTML não tenha a lista
-    
-    datalist.innerHTML = ''; // Limpar antigas
-
-    // Busca nomes, remove duplicados e cria opções
-    const nomes = stock.map(item => item.nome);
+    datalist.innerHTML = '';
+    // Só sugerimos nomes de itens que tenham stock > 0
+    const nomes = stock
+        .filter(item => (item.quantidade || 0) > 0) 
+        .map(item => item.nome);
+        
     const nomesUnicos = [...new Set(nomes)];
 
     nomesUnicos.forEach(nome => {
@@ -60,10 +51,21 @@ if (formRegister) {
         
         const nome = document.getElementById('inp-nome').value.trim();
         const tipo = document.getElementById('inp-tipo').value.trim();
-        // Apenas converte para maiúsculas, sem validação de formato
         const loc = document.getElementById('inp-loc').value.trim().toUpperCase();
+        
+        // --- ALTERAÇÃO: Ler Quantidade ---
+        // Se estiver vazio, assume 0. Converte para número inteiro.
+        let qtd = parseInt(document.getElementById('inp-qtd').value);
+        if (isNaN(qtd)) qtd = 0; 
+        
+        const novoItem = { 
+            id: Date.now(), 
+            nome, 
+            tipo, 
+            localizacao: loc,
+            quantidade: qtd // Guardamos a quantidade
+        };
 
-        const novoItem = { id: Date.now(), nome, tipo, localizacao: loc };
         const stock = getStock();
         stock.push(novoItem);
         saveStock(stock);
@@ -84,11 +86,17 @@ function renderList(filterText = '') {
     const stock = getStock();
     const term = filterText.toLowerCase();
 
-    const filtered = stock.filter(item => 
-        item.nome.toLowerCase().includes(term) ||
-        item.tipo.toLowerCase().includes(term) ||
-        item.localizacao.toLowerCase().includes(term)
-    );
+    const filtered = stock.filter(item => {
+        // --- ALTERAÇÃO 1: Removemos o filtro que escondia stock zero ---
+        // Agora todos passam, independentemente da quantidade.
+        
+        // Verificar Texto (Nome, Tipo ou Local)
+        const matchText = item.nome.toLowerCase().includes(term) ||
+                          item.tipo.toLowerCase().includes(term) ||
+                          item.localizacao.toLowerCase().includes(term);
+        
+        return matchText;
+    });
 
     if (filtered.length === 0) {
         listEl.innerHTML = '<p style="text-align:center; color:#888;">Nenhum item encontrado.</p>';
@@ -98,11 +106,21 @@ function renderList(filterText = '') {
     filtered.forEach(item => {
         const div = document.createElement('div');
         div.className = 'item-card';
+        
+        // Garantir que qtd é lido corretamente
+        const qtd = item.quantidade !== undefined ? item.quantidade : 0;
+
+        // --- ALTERAÇÃO 2: Lógica Visual ---
+        // Se qtd > 0, cria o HTML do texto. Se for 0, deixa string vazia.
+        const qtdHtml = qtd > 0 
+            ? `<span style="font-size:0.8em; color:#2196F3; font-weight:bold;"> (Qtd: ${qtd})</span>` 
+            : '';
+
         div.innerHTML = `
             <div class="item-info">
-                <h3>${item.nome}</h3>
+                <h3>${item.nome} ${qtdHtml}</h3> 
                 <p>Tipo: ${item.tipo}</p>
-                <p><strong>📍 ${item.localizacao}</strong></p>
+                <p><strong>📍 ${item.localizacao || 'Sem Local'}</strong></p>
             </div>
             <button class="btn-delete" onclick="deleteItem(${item.id})">Apagar</button>
         `;
@@ -118,21 +136,20 @@ if (inpSearch) {
     });
 }
 
-// Apagar Item (Global para ser acessível no HTML)
+// Apagar Item
 window.deleteItem = function(id) {
     if(confirm('Tem a certeza que deseja apagar este item?')) {
         let stock = getStock();
         stock = stock.filter(item => item.id !== id);
         saveStock(stock);
         
-        // Atualiza a visualização se estivermos no ecrã de pesquisa
         const searchVal = document.getElementById('inp-search') ? document.getElementById('inp-search').value : '';
         renderList(searchVal);
         atualizarSugestoes();
     }
 };
 
-// --- PWA: Registar Service Worker ---
+// PWA
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
         .then(() => console.log('Service Worker registado'))
