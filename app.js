@@ -1,40 +1,114 @@
-// --- Configuração e Estado ---
-const STORAGE_KEY = 'stock';
+// --- CONFIGURAÇÃO FIREBASE ---
+// Exemplo: https://projeto-armazem-default-rtdb.europe-west1.firebasedatabase.app/
+const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app/"; 
+const DB_URL = `${BASE_URL}/stock.json`;
 
-// --- Navegação ---
-function nav(viewId) {
+// --- NAVEGAÇÃO ---
+async function nav(viewId) {
     document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
     const target = document.getElementById(viewId);
     if (target) target.classList.add('active');
     
     if(viewId === 'view-search') {
-        atualizarSugestoes();
+        // No modo online, renderList já trata do carregamento
         renderList();
+        atualizarSugestoes();
     }
 }
 
-// --- Lógica de Negócio ---
+// --- LÓGICA DE BASE DE DADOS ONLINE ---
 
-function getStock() {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+// LER: Vai buscar o stock ao Firebase
+async function getStock() {
+    try {
+        const response = await fetch(DB_URL);
+        const data = await response.json();
+        
+        if (!data) return [];
+
+        // O Firebase devolve um objeto de objetos. Convertemos para Array:
+        return Object.keys(data).map(key => ({
+            fireId: key, // Guardamos a chave única para poder apagar depois
+            ...data[key]
+        }));
+    } catch (error) {
+        console.error("Erro ao ler dados:", error);
+        return [];
+    }
 }
 
-function saveStock(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+// ESCREVER: Guarda um novo item
+async function saveStockOnline(item) {
+    try {
+        const response = await fetch(DB_URL, {
+            method: 'POST',
+            body: JSON.stringify(item)
+        });
+        return await response.json();
+    } catch (error) {
+        console.error("Erro ao gravar:", error);
+        alert("Erro de ligação. Verifica a internet.");
+    }
 }
 
-function atualizarSugestoes() {
-    const stock = getStock();
+// APAGAR: Remove do Firebase
+window.deleteItem = async function(fireId) {
+    if(confirm('Deseja apagar este item para todos os utilizadores?')) {
+        try {
+            const deleteUrl = `${BASE_URL}/stock/${fireId}.json`;
+            await fetch(deleteUrl, { method: 'DELETE' });
+            renderList(document.getElementById('inp-search').value);
+            atualizarSugestoes();
+        } catch (error) {
+            alert("Erro ao apagar item.");
+        }
+    }
+};
+
+// --- INTERFACE E EVENTOS ---
+
+// --- MONITOR DE LIGAÇÃO ---
+
+function atualizarStatusRede() {
+    const statusTexto = document.getElementById('status-texto');
+    const corpo = document.body;
+
+    if (navigator.onLine) {
+        statusTexto.innerText = "Online";
+        corpo.classList.remove('offline');
+        // Se voltou a ter net, refresca a lista para garantir dados novos
+        renderList(document.getElementById('inp-search')?.value || '');
+    } else {
+        statusTexto.innerText = "Offline (Modo de Leitura)";
+        corpo.classList.add('offline');
+    }
+}
+
+// Ouvir eventos do browser
+window.addEventListener('online', atualizarStatusRede);
+window.addEventListener('offline', atualizarStatusRede);
+
+// Executar ao iniciar para definir estado atual
+atualizarStatusRede();
+
+// --- AJUSTE NO SAVE (Opcional) ---
+
+// Podemos avisar o utilizador se ele tentar gravar sem net
+async function saveStockOnline(item) {
+    if (!navigator.onLine) {
+        alert("Atenção: Estás sem internet. O registo não será guardado na nuvem até teres ligação.");
+        return;
+    }
+    // ... resto da função fetch original ...
+}
+// Autocomplete
+async function atualizarSugestoes() {
+    const stock = await getStock();
     const datalist = document.getElementById('lista-sugestoes');
     if (!datalist) return;
     
     datalist.innerHTML = '';
-    // Só sugerimos nomes de itens que tenham stock > 0
-    const nomes = stock
-        .filter(item => (item.quantidade || 0) > 0) 
-        .map(item => item.nome);
-        
-    const nomesUnicos = [...new Set(nomes)];
+    const nomesUnicos = [...new Set(stock.map(item => item.nome))];
 
     nomesUnicos.forEach(nome => {
         const option = document.createElement('option');
@@ -43,60 +117,53 @@ function atualizarSugestoes() {
     });
 }
 
-// Registo de Novo Item
+// Formulário de Registo
 const formRegister = document.getElementById('form-register');
 if (formRegister) {
-    formRegister.addEventListener('submit', (e) => {
+    formRegister.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        const nome = document.getElementById('inp-nome').value.trim();
-        const tipo = document.getElementById('inp-tipo').value.trim();
-        const loc = document.getElementById('inp-loc').value.trim().toUpperCase();
-        
-        // --- ALTERAÇÃO: Ler Quantidade ---
-        // Se estiver vazio, assume 0. Converte para número inteiro.
-        let qtd = parseInt(document.getElementById('inp-qtd').value);
-        if (isNaN(qtd)) qtd = 0; 
-        
-        const novoItem = { 
-            id: Date.now(), 
-            nome, 
-            tipo, 
-            localizacao: loc,
-            quantidade: qtd // Guardamos a quantidade
+        // Bloquear o botão para evitar múltiplos cliques
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerText = "A gravar...";
+
+        const item = {
+            nome: document.getElementById('inp-nome').value.trim(),
+            tipo: document.getElementById('inp-tipo').value.trim(),
+            localizacao: document.getElementById('inp-loc').value.trim().toUpperCase(),
+            quantidade: parseInt(document.getElementById('inp-qtd').value) || 0,
+            dataCriacao: new Date().toISOString()
         };
 
-        const stock = getStock();
-        stock.push(novoItem);
-        saveStock(stock);
-
-        alert('Item registado com sucesso!');
+        await saveStockOnline(item);
+        
+        btn.disabled = false;
+        btn.innerText = "Guardar";
+        
+        alert('Registo efetuado com sucesso!');
         e.target.reset();
         nav('view-home');
     });
 }
 
-// Renderizar Lista
-function renderList(filterText = '') {
+// Renderizar Lista com Filtro
+async function renderList(filterText = '') {
     const listEl = document.getElementById('stock-list');
     if (!listEl) return;
 
-    listEl.innerHTML = '';
+    listEl.innerHTML = '<p style="text-align:center;">A sincronizar com a nuvem...</p>';
     
-    const stock = getStock();
+    const stock = await getStock();
     const term = filterText.toLowerCase();
 
-    const filtered = stock.filter(item => {
-        // --- ALTERAÇÃO 1: Removemos o filtro que escondia stock zero ---
-        // Agora todos passam, independentemente da quantidade.
-        
-        // Verificar Texto (Nome, Tipo ou Local)
-        const matchText = item.nome.toLowerCase().includes(term) ||
-                          item.tipo.toLowerCase().includes(term) ||
-                          item.localizacao.toLowerCase().includes(term);
-        
-        return matchText;
-    });
+    const filtered = stock.filter(item => 
+        item.nome.toLowerCase().includes(term) ||
+        item.tipo.toLowerCase().includes(term) ||
+        item.localizacao.toLowerCase().includes(term)
+    );
+
+    listEl.innerHTML = ''; // Limpa o "A carregar"
 
     if (filtered.length === 0) {
         listEl.innerHTML = '<p style="text-align:center; color:#888;">Nenhum item encontrado.</p>';
@@ -104,54 +171,4 @@ function renderList(filterText = '') {
     }
 
     filtered.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'item-card';
-        
-        // Garantir que qtd é lido corretamente
-        const qtd = item.quantidade !== undefined ? item.quantidade : 0;
-
-        // --- ALTERAÇÃO 2: Lógica Visual ---
-        // Se qtd > 0, cria o HTML do texto. Se for 0, deixa string vazia.
-        const qtdHtml = qtd > 0 
-            ? `<span style="font-size:0.8em; color:#2196F3; font-weight:bold;"> (Qtd: ${qtd})</span>` 
-            : '';
-
-        div.innerHTML = `
-            <div class="item-info">
-                <h3>${item.nome} ${qtdHtml}</h3> 
-                <p>Tipo: ${item.tipo}</p>
-                <p><strong>📍 ${item.localizacao || 'Sem Local'}</strong></p>
-            </div>
-            <button class="btn-delete" onclick="deleteItem(${item.id})">Apagar</button>
-        `;
-        listEl.appendChild(div);
-    });
-}
-
-// Pesquisa em tempo real
-const inpSearch = document.getElementById('inp-search');
-if (inpSearch) {
-    inpSearch.addEventListener('input', (e) => {
-        renderList(e.target.value);
-    });
-}
-
-// Apagar Item
-window.deleteItem = function(id) {
-    if(confirm('Tem a certeza que deseja apagar este item?')) {
-        let stock = getStock();
-        stock = stock.filter(item => item.id !== id);
-        saveStock(stock);
-        
-        const searchVal = document.getElementById('inp-search') ? document.getElementById('inp-search').value : '';
-        renderList(searchVal);
-        atualizarSugestoes();
-    }
-};
-
-// PWA
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js')
-        .then(() => console.log('Service Worker registado'))
-        .catch(err => console.error('Erro SW:', err));
-}
+        const div = document
