@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stock-v5-qtd'; // Alterado para v5
+const CACHE_NAME = 'stock-6-qtd'; // Alterado para v6
 const ASSETS = [
     './',
     './index.html',
