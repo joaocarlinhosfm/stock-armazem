@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stock-v1';
+const CACHE_NAME = 'stock-v3-fix'; // Mudei para v3-fix
 const ASSETS = [
     './',
     './index.html',
