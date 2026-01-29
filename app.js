@@ -1,17 +1,17 @@
 // --- CONFIGURAÇÃO ---
-// ATENÇÃO: Substitui pelo teu link real. Ex: https://projeto-xyz.firebaseio.com/
+// ATENÇÃO: Substitui pelo teu link real do Firebase
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app"; 
 const DB_URL = `${BASE_URL}/stock.json`;
 
-// --- NAVEGAÇÃO (REPARADA) ---
+// --- NAVEGAÇÃO ---
 function nav(viewId) {
+    console.log("A navegar para:", viewId);
     const views = document.querySelectorAll('.view');
     views.forEach(el => el.classList.remove('active'));
     
     const target = document.getElementById(viewId);
     if (target) {
         target.classList.add('active');
-        // Se for pesquisa, carrega os dados
         if(viewId === 'view-search') {
             renderList();
             atualizarSugestoes();
@@ -35,6 +35,7 @@ function atualizarStatusRede() {
         ponto.style.backgroundColor = "#f44336";
     }
 }
+
 window.addEventListener('online', atualizarStatusRede);
 window.addEventListener('offline', atualizarStatusRede);
 
@@ -63,8 +64,8 @@ async function renderList(filterText = '') {
     const term = filterText.toLowerCase();
 
     const filtered = stock.filter(item => 
-        item.nome.toLowerCase().includes(term) ||
-        item.tipo.toLowerCase().includes(term) ||
+        (item.nome && item.nome.toLowerCase().includes(term)) ||
+        (item.tipo && item.tipo.toLowerCase().includes(term)) ||
         (item.localizacao && item.localizacao.toLowerCase().includes(term))
     );
 
@@ -96,7 +97,10 @@ const form = document.getElementById('form-register');
 if (form) {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (!navigator.onLine) return alert("Sem internet!");
+        if (!navigator.onLine) {
+            alert("Sem internet! Não é possível gravar online.");
+            return;
+        }
 
         const item = {
             nome: document.getElementById('inp-nome').value.trim(),
@@ -106,19 +110,31 @@ if (form) {
         };
 
         try {
-            await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) });
-            alert("Guardado!");
-            form.reset();
-            nav('view-home');
-        } catch (e) { alert("Erro ao guardar"); }
+            const response = await fetch(DB_URL, { 
+                method: 'POST', 
+                body: JSON.stringify(item) 
+            });
+            if(response.ok) {
+                alert("Guardado com sucesso!");
+                form.reset();
+                nav('view-home');
+            }
+        } catch (err) { 
+            alert("Erro ao comunicar com o servidor."); 
+        }
     });
 }
 
 // --- APAGAR ---
 window.deleteItem = async function(id) {
-    if (confirm("Apagar?")) {
-        await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'DELETE' });
-        renderList();
+    if (confirm("Apagar item para todos?")) {
+        try {
+            const deleteUrl = `${BASE_URL}/stock/${id}.json`;
+            await fetch(deleteUrl, { method: 'DELETE' });
+            renderList(document.getElementById('inp-search')?.value || '');
+        } catch (err) {
+            alert("Erro ao apagar.");
+        }
     }
 };
 
@@ -128,12 +144,31 @@ async function atualizarSugestoes() {
     const dl = document.getElementById('lista-sugestoes');
     if (!dl) return;
     dl.innerHTML = '';
-    [...new Set(stock.map(i => i.nome))].forEach(n => {
+    const nomes = stock.map(i => i.nome).filter(n => n);
+    [...new Set(nomes)].forEach(n => {
         const op = document.createElement('option');
         op.value = n;
         dl.appendChild(op);
     });
 }
 
-// Inicialização
-atualizarStatusRede();
+// --- PESQUISA ---
+const inpSearch = document.getElementById('inp-search');
+if (inpSearch) {
+    inpSearch.addEventListener('input', (e) => {
+        renderList(e.target.value);
+    });
+}
+
+// --- INICIALIZAÇÃO ---
+document.addEventListener('DOMContentLoaded', () => {
+    atualizarStatusRede();
+    console.log("App carregada.");
+});
+
+// PWA
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(console.error);
+    });
+}
