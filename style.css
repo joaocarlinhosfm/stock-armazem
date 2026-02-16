@@ -1,78 +1,37 @@
-:root {
-    --primary: #2563eb;
-    --bg: #f8fafc;
-    --card-bg: #ffffff;
-    --text-main: #1e293b;
-    --drawer-width: 280px;
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body { 
+    width: 100%; height: 100%; margin: 0; padding: 0; 
+    overflow-x: hidden; font-family: sans-serif; background: #f4f4f4; 
 }
 
-body { font-family: 'Inter', system-ui, sans-serif; margin: 0; background: var(--bg); overflow-x: hidden; }
+header { background: #2196F3; color: white; padding: 1rem; text-align: center; }
 
-/* --- HEADER --- */
-header { 
-    background: var(--primary); color: white; padding: 10px 15px; 
-    display: flex; justify-content: space-between; align-items: center;
-    position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-#menu-btn { background: none; border: none; color: white; font-size: 1.8rem; cursor: pointer; }
-header h1 { font-size: 1.2rem; margin: 0; }
+/* Evitar Zoom no Android */
+input, select, textarea, button { font-size: 16px !important; }
 
-/* --- MENU LATERAL (DRAWER) --- */
-#side-menu {
-    position: fixed; top: 0; left: 0; width: var(--drawer-width); height: 100%;
-    background: white; z-index: 1000; transform: translateX(-100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 5px 0 15px rgba(0,0,0,0.1);
-}
-#side-menu.open { transform: translateX(0); }
+#status-conexao { display: flex; align-items: center; justify-content: center; font-size: 0.85rem; margin-top: 5px; background: rgba(0,0,0,0.1); padding: 5px 12px; border-radius: 20px; width: fit-content; margin-inline: auto; }
+#status-ponto { height: 10px; width: 10px; background-color: #ccc; border-radius: 50%; display: inline-block; margin-right: 8px; }
+.offline #status-ponto { background-color: #f44336; }
 
-.menu-header { padding: 20px; background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; }
-.menu-header button { background: none; border: none; color: white; font-size: 1.2rem; }
-
-#side-menu ul { list-style: none; padding: 0; margin: 20px 0; }
-#side-menu li { padding: 15px 25px; border-bottom: 1px solid #f1f5f9; cursor: pointer; font-weight: 500; color: var(--text-main); }
-#side-menu li:active { background: #f1f5f9; }
-
-#menu-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.5); z-index: 999; display: none;
-}
-#menu-overlay.active { display: block; }
-
-/* --- CONTEÚDO PRINCIPAL --- */
-main { padding: 15px; }
-.search-container { position: sticky; top: 70px; z-index: 90; background: var(--bg); padding-bottom: 10px; }
-#inp-search { 
-    width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; 
-    font-size: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-/* --- LISTA E CARTÕES --- */
-#stock-list { margin-top: 10px; display: grid; gap: 12px; }
-.item-card { 
-    background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;
-    display: flex; flex-direction: column; position: relative;
-}
-.item-info h3 { margin: 0 0 5px 0; font-size: 1.1rem; color: var(--text-main); }
-.item-info p { margin: 0; color: #64748b; font-size: 0.85rem; }
-
-/* --- QUANTIDADE --- */
-.qtd-control { display: flex; align-items: center; margin-top: 12px; background: #f8fafc; padding: 5px; border-radius: 8px; width: fit-content; }
-.btn-qtd { background: var(--primary); color: white; border: none; width: 30px; height: 30px; border-radius: 6px; font-weight: bold; }
-.qtd-value { margin: 0 15px; font-weight: 700; }
-
-/* --- VISTAS SECUNDÁRIAS --- */
 .view { display: none; }
-.view.active { display: block; }
-.view-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.btn-close { background: none; border: none; font-size: 1.5rem; color: #64748b; }
+.view.active { display: block; padding: 15px; }
 
-/* --- STATUS --- */
-.menu-footer { position: absolute; bottom: 20px; width: 100%; text-align: center; }
-#status-conexao { font-size: 0.8rem; display: flex; align-items: center; justify-content: center; }
-#status-ponto { width: 8px; height: 8px; border-radius: 50%; background: #ccc; margin-right: 5px; }
+.btn-large { display: block; width: 100%; padding: 1.5rem; margin-bottom: 1rem; font-size: 1.2rem; background: white; border: 1px solid #ccc; border-radius: 12px; cursor: pointer; }
+.btn-primary { background: #4CAF50; color: white; width: 100%; padding: 1rem; border: none; border-radius: 8px; margin-top: 10px; }
+.btn-secondary { background: #757575; color: white; width: 100%; padding: 1rem; border: none; border-radius: 8px; margin-top: 10px; }
 
-/* Desktop Grid */
-@media (min-width: 768px) {
-    #stock-list { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
-}
+input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; }
+
+/* Cartões de Item */
+.item-card { background: white; padding: 1rem; margin-bottom: 1rem; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+.item-info h3 { margin: 0; font-size: 1.1rem; }
+.item-info p { margin: 3px 0; color: #666; font-size: 0.9rem; }
+
+/* Controlos + e - */
+.qtd-control { display: flex; align-items: center; margin-top: 10px; background: #eee; padding: 4px; border-radius: 25px; width: fit-content; }
+.btn-qtd { background: #2196F3; color: white; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 1.3rem; font-weight: bold; cursor: pointer; }
+.qtd-value { margin: 0 12px; font-weight: bold; font-size: 1.1rem; min-width: 20px; text-align: center; }
+
+.btn-delete { background: #ffeded; color: #cc0000; border: 1px solid #ffcccc; padding: 8px; border-radius: 6px; font-size: 0.8rem; }
+.sticky-bottom { position: fixed; bottom: 0; left: 0; border-radius: 0; margin: 0; }
