@@ -42,4 +42,5 @@ input { width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box;
 .item-card { background: white; padding: 1rem; margin-bottom: 0.5rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
 .item-info h3 { margin: 0 0 5px 0; font-size: 1.1rem; }
 .item-info p { margin: 0; color: #666; font-size: 0.9rem; }
+
 .btn-delete { background: #ff4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
