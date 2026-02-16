@@ -73,8 +73,23 @@
             
             <button type="button" onclick="nav('view-home')" class="btn-secondary sticky-bottom">Voltar ao Menu</button>
         </div>
+        <div id="view-search" class="view">
+            
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>Stock na Nuvem</h2>
+        <button type="button" onclick="nav('view-home')" class="btn-secondary" style="width: auto; margin: 0; padding: 10px 20px;">Voltar</button>
+    </div>
+    
+    <div style="max-width: 800px; margin: 0 auto 20px auto;">
+        <input type="text" id="inp-search" placeholder="🔍 Procurar por Código, Nome ou Local..." list="lista-sugestoes" style="padding: 20px; border-radius: 50px; border: 2px solid #e2e8f0;">
+    </div>
+
+    <div id="stock-list">
+        </div>
+</div>
     </main>
 
     <script src="app.js"></script>
 </body>
 </html>
+
