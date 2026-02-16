@@ -1,5 +1,4 @@
 // --- CONFIGURAÇÃO ---
-// Não te preocupes com a barra / no fim do link, o código corrige sozinho
 const LINK_O_TEU_FIREBASE = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app"; 
 const BASE_URL = LINK_O_TEU_FIREBASE.replace(/\/$/, ""); 
 const DB_URL = `${BASE_URL}/stock.json`;
@@ -55,24 +54,25 @@ async function renderList(filterText = '') {
     const stock = await getStock();
     const term = filterText.toLowerCase();
 
+    // Filtra agora por NOME, CÓDIGO ou LOCALIZAÇÃO
     const filtered = stock.filter(item => 
         (item.nome && item.nome.toLowerCase().includes(term)) ||
-        (item.tipo && item.tipo.toLowerCase().includes(term)) ||
+        (item.codigo && item.codigo.toLowerCase().includes(term)) ||
         (item.localizacao && item.localizacao.toLowerCase().includes(term))
     );
 
     listEl.innerHTML = '';
     if (filtered.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center;">Vazio.</p>';
+        listEl.innerHTML = '<p style="text-align:center;">Nenhum artigo encontrado.</p>';
         return;
     }
 
+    // Desenha cada cartão de produto com a nova estrutura
     filtered.forEach(item => {
         const div = document.createElement('div');
         div.className = 'item-card';
         const qtd = item.quantidade || 0;
         
-        // NOVO: Controlos de Quantidade Rápidos
         const qtdControl = `
             <div class="qtd-control">
                 <button type="button" class="btn-qtd" onclick="updateQuantity('${item.fireId}', -1)">-</button>
@@ -84,7 +84,7 @@ async function renderList(filterText = '') {
         div.innerHTML = `
             <div class="item-info">
                 <h3>${item.nome}</h3>
-                <p>${item.tipo} | 📍 ${item.localizacao || 'Sem Local'}</p>
+                <p>Ref: <strong>${item.codigo || 'S/N'}</strong> | 📍 ${item.localizacao || 'Sem Local'}</p>
                 ${qtdControl}
             </div>
             <button class="btn-delete" onclick="deleteItem('${item.fireId}')">Apagar</button>
@@ -106,20 +106,18 @@ window.updateQuantity = async function(fireId, change) {
         let novaQtd = (itemAtual.quantidade || 0) + change;
         if (novaQtd < 0) novaQtd = 0; 
 
-        // PATCH altera APENAS a quantidade
         await fetch(itemUrl, {
             method: 'PATCH',
             body: JSON.stringify({ quantidade: novaQtd })
         });
 
-        // Recarrega a lista para mostrar o novo número sem apagar a pesquisa
         renderList(document.getElementById('inp-search')?.value || '');
     } catch (err) {
         alert("Erro ao atualizar.");
     }
 };
 
-// --- REGISTO NOVO ---
+// --- REGISTO NOVO (ÚNICO) ---
 const form = document.getElementById('form-register');
 if (form) {
     form.addEventListener('submit', async (e) => {
@@ -127,18 +125,62 @@ if (form) {
         if (!navigator.onLine) return alert("Sem internet! Gravação cancelada.");
 
         const item = {
+            codigo: document.getElementById('inp-codigo').value.trim().toUpperCase(),
             nome: document.getElementById('inp-nome').value.trim(),
-            tipo: document.getElementById('inp-tipo').value.trim(),
             localizacao: document.getElementById('inp-loc').value.trim().toUpperCase(),
             quantidade: parseInt(document.getElementById('inp-qtd').value) || 0
         };
 
         try {
             await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) });
-            alert("Guardado com sucesso!");
+            alert("Artigo guardado com sucesso!");
             form.reset();
             nav('view-home');
         } catch (err) { alert("Erro ao guardar."); }
+    });
+}
+
+// --- CATALOGAÇÃO RÁPIDA (BULK) ---
+const formBulk = document.getElementById('form-bulk');
+if (formBulk) {
+    formBulk.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!navigator.onLine) return alert("Sem internet!");
+
+        const loc = document.getElementById('bulk-loc').value.trim().toUpperCase();
+        const codigoInput = document.getElementById('bulk-codigo');
+        const nomeInput = document.getElementById('bulk-nome');
+        const feedback = document.getElementById('bulk-feedback');
+
+        const item = {
+            codigo: codigoInput.value.trim().toUpperCase(),
+            nome: nomeInput.value.trim(),
+            localizacao: loc,
+            quantidade: 0 // Começa sempre a zero na catalogação
+        };
+
+        try {
+            feedback.innerText = `A gravar ${item.codigo}...`;
+            feedback.style.color = "#2196F3";
+            
+            await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) });
+            
+            // Sucesso: Limpa APENAS código e nome, mantém localização fixa
+            codigoInput.value = '';
+            nomeInput.value = '';
+            codigoInput.focus(); // Coloca o cursor no código para o próximo scan!
+            
+            feedback.innerText = `✔ ${item.codigo} guardado!`;
+            feedback.style.color = "#4CAF50";
+            
+            setTimeout(() => { 
+                if(feedback.innerText.includes(item.codigo)) feedback.innerText = ""; 
+            }, 2500);
+
+        } catch (err) { 
+            feedback.innerText = "❌ Erro ao guardar!";
+            feedback.style.color = "#f44336";
+        }
     });
 }
 
@@ -159,10 +201,12 @@ async function atualizarSugestoes() {
     const dl = document.getElementById('lista-sugestoes');
     if (!dl) return;
     dl.innerHTML = '';
-    const nomes = stock.map(i => i.nome).filter(n => n);
-    [...new Set(nomes)].forEach(n => {
+    
+    // Sugere códigos ou nomes
+    const sugestoes = [...new Set(stock.map(i => i.codigo).concat(stock.map(i => i.nome)))].filter(n => n);
+    sugestoes.forEach(s => {
         const op = document.createElement('option');
-        op.value = n;
+        op.value = s;
         dl.appendChild(op);
     });
 }
