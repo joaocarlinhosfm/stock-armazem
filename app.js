@@ -1,226 +1,116 @@
 // --- CONFIGURAÇÃO ---
-const LINK_O_TEU_FIREBASE = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app"; 
-const BASE_URL = LINK_O_TEU_FIREBASE.replace(/\/$/, ""); 
+const LINK_FIREBASE = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app"; 
+const BASE_URL = LINK_FIREBASE.replace(/\/$/, ""); 
 const DB_URL = `${BASE_URL}/stock.json`;
 
-// --- NAVEGAÇÃO ---
+// --- NAVEGAÇÃO E MENU ---
+function toggleMenu() {
+    const menu = document.getElementById('side-menu');
+    const overlay = document.getElementById('menu-overlay');
+    menu.classList.toggle('open');
+    overlay.classList.toggle('active');
+}
+
 function nav(viewId) {
     document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
     const target = document.getElementById(viewId);
     if (target) {
         target.classList.add('active');
-        if(viewId === 'view-search') {
-            renderList();
-            atualizarSugestoes();
-        }
+        if(viewId === 'view-main') renderList();
     }
+    // Fecha o menu lateral após clicar
+    document.getElementById('side-menu').classList.remove('open');
+    document.getElementById('menu-overlay').classList.remove('active');
 }
 
-// --- MONITOR DE LIGAÇÃO ---
-function atualizarStatusRede() {
-    const statusTexto = document.getElementById('status-texto');
-    const ponto = document.getElementById('status-ponto');
-    if (!statusTexto || !ponto) return;
-
-    if (navigator.onLine) {
-        statusTexto.innerText = "Online";
-        document.body.classList.remove('offline');
-        ponto.style.backgroundColor = "#4CAF50";
-    } else {
-        statusTexto.innerText = "Offline";
-        document.body.classList.add('offline');
-        ponto.style.backgroundColor = "#f44336";
-    }
-}
-window.addEventListener('online', atualizarStatusRede);
-window.addEventListener('offline', atualizarStatusRede);
-
-// --- LÓGICA FIREBASE ---
+// --- LÓGICA DE DADOS ---
 async function getStock() {
     try {
         const response = await fetch(DB_URL);
-        if (!response.ok) throw new Error("Erro de servidor");
         const data = await response.json();
-        if (!data) return [];
-        return Object.keys(data).map(key => ({ fireId: key, ...data[key] }));
-    } catch (error) { return []; }
+        return data ? Object.keys(data).map(key => ({ fireId: key, ...data[key] })) : [];
+    } catch (e) { return []; }
 }
 
 async function renderList(filterText = '') {
     const listEl = document.getElementById('stock-list');
-    if (!listEl) return;
-    listEl.innerHTML = '<p style="text-align:center;">A carregar nuvem...</p>';
+    listEl.innerHTML = '<p style="text-align:center;">A carregar stock...</p>';
     
     const stock = await getStock();
     const term = filterText.toLowerCase();
 
-    // Filtra agora por NOME, CÓDIGO ou LOCALIZAÇÃO
-    const filtered = stock.filter(item => 
-        (item.nome && item.nome.toLowerCase().includes(term)) ||
-        (item.codigo && item.codigo.toLowerCase().includes(term)) ||
-        (item.localizacao && item.localizacao.toLowerCase().includes(term))
+    const filtered = stock.filter(i => 
+        (i.nome?.toLowerCase().includes(term)) || 
+        (i.codigo?.toLowerCase().includes(term)) || 
+        (i.localizacao?.toLowerCase().includes(term))
     );
 
-    listEl.innerHTML = '';
-    if (filtered.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center;">Nenhum artigo encontrado.</p>';
-        return;
-    }
+    listEl.innerHTML = filtered.length ? '' : '<p style="text-align:center;">Vazio.</p>';
 
-    // Desenha cada cartão de produto com a nova estrutura
     filtered.forEach(item => {
         const div = document.createElement('div');
         div.className = 'item-card';
-        const qtd = item.quantidade || 0;
-        
-        const qtdControl = `
-            <div class="qtd-control">
-                <button type="button" class="btn-qtd" onclick="updateQuantity('${item.fireId}', -1)">-</button>
-                <span class="qtd-value">${qtd}</span>
-                <button type="button" class="btn-qtd" onclick="updateQuantity('${item.fireId}', 1)">+</button>
-            </div>
-        `;
-        
         div.innerHTML = `
             <div class="item-info">
                 <h3>${item.nome}</h3>
-                <p>Ref: <strong>${item.codigo || 'S/N'}</strong> | 📍 ${item.localizacao || 'Sem Local'}</p>
-                ${qtdControl}
+                <p>REF: <strong>${item.codigo || '---'}</strong> | 📍 ${item.localizacao || '---'}</p>
+                <div class="qtd-control">
+                    <button class="btn-qtd" onclick="updateQuantity('${item.fireId}', -1)">-</button>
+                    <span class="qtd-value">${item.quantidade || 0}</span>
+                    <button class="btn-qtd" onclick="updateQuantity('${item.fireId}', 1)">+</button>
+                </div>
             </div>
-            <button class="btn-delete" onclick="deleteItem('${item.fireId}')">Apagar</button>
+            <button style="position:absolute; top:10px; right:10px; background:none; border:none; color:#ccc;" onclick="deleteItem('${item.fireId}')">✕</button>
         `;
         listEl.appendChild(div);
     });
 }
 
-// --- ATUALIZAR QUANTIDADE RÁPIDA (+ E -) ---
-window.updateQuantity = async function(fireId, change) {
-    if (!navigator.onLine) return alert("Sem internet! Não podes alterar o stock agora.");
-
-    try {
-        const itemUrl = `${BASE_URL}/stock/${fireId}.json`;
-        const resp = await fetch(itemUrl);
-        const itemAtual = await resp.json();
-        if (!itemAtual) return;
-
-        let novaQtd = (itemAtual.quantidade || 0) + change;
-        if (novaQtd < 0) novaQtd = 0; 
-
-        await fetch(itemUrl, {
-            method: 'PATCH',
-            body: JSON.stringify({ quantidade: novaQtd })
-        });
-
-        renderList(document.getElementById('inp-search')?.value || '');
-    } catch (err) {
-        alert("Erro ao atualizar.");
-    }
+// --- QUANTIDADE RÁPIDA ---
+window.updateQuantity = async function(id, change) {
+    const url = `${BASE_URL}/stock/${id}.json`;
+    const resp = await fetch(url);
+    const item = await resp.json();
+    let novaQtd = (item.quantidade || 0) + change;
+    if (novaQtd < 0) novaQtd = 0;
+    await fetch(url, { method: 'PATCH', body: JSON.stringify({ quantidade: novaQtd }) });
+    renderList(document.getElementById('inp-search').value);
 };
 
-// --- REGISTO NOVO (ÚNICO) ---
-const form = document.getElementById('form-register');
-if (form) {
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!navigator.onLine) return alert("Sem internet! Gravação cancelada.");
+// --- REGISTOS (Único e Bulk) ---
+document.getElementById('form-register')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const item = {
+        codigo: document.getElementById('inp-codigo').value.toUpperCase(),
+        nome: document.getElementById('inp-nome').value,
+        localizacao: document.getElementById('inp-loc').value.toUpperCase(),
+        quantidade: parseInt(document.getElementById('inp-qtd').value) || 0
+    };
+    await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) });
+    e.target.reset();
+    nav('view-main');
+});
 
-        const item = {
-            codigo: document.getElementById('inp-codigo').value.trim().toUpperCase(),
-            nome: document.getElementById('inp-nome').value.trim(),
-            localizacao: document.getElementById('inp-loc').value.trim().toUpperCase(),
-            quantidade: parseInt(document.getElementById('inp-qtd').value) || 0
-        };
+document.getElementById('form-bulk')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const feedback = document.getElementById('bulk-feedback');
+    const codigoInput = document.getElementById('bulk-codigo');
+    const nomeInput = document.getElementById('bulk-nome');
+    const item = {
+        codigo: codigoInput.value.toUpperCase(),
+        nome: nomeInput.value,
+        localizacao: document.getElementById('bulk-loc').value.toUpperCase(),
+        quantidade: 0
+    };
+    feedback.innerText = "A gravar...";
+    await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) });
+    codigoInput.value = ''; nomeInput.value = ''; codigoInput.focus();
+    feedback.innerText = `✔ ${item.codigo} guardado!`;
+});
 
-        try {
-            await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) });
-            alert("Artigo guardado com sucesso!");
-            form.reset();
-            nav('view-home');
-        } catch (err) { alert("Erro ao guardar."); }
-    });
-}
-
-// --- CATALOGAÇÃO RÁPIDA (BULK) ---
-const formBulk = document.getElementById('form-bulk');
-if (formBulk) {
-    formBulk.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!navigator.onLine) return alert("Sem internet!");
-
-        const loc = document.getElementById('bulk-loc').value.trim().toUpperCase();
-        const codigoInput = document.getElementById('bulk-codigo');
-        const nomeInput = document.getElementById('bulk-nome');
-        const feedback = document.getElementById('bulk-feedback');
-
-        const item = {
-            codigo: codigoInput.value.trim().toUpperCase(),
-            nome: nomeInput.value.trim(),
-            localizacao: loc,
-            quantidade: 0 // Começa sempre a zero na catalogação
-        };
-
-        try {
-            feedback.innerText = `A gravar ${item.codigo}...`;
-            feedback.style.color = "#2196F3";
-            
-            await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) });
-            
-            // Sucesso: Limpa APENAS código e nome, mantém localização fixa
-            codigoInput.value = '';
-            nomeInput.value = '';
-            codigoInput.focus(); // Coloca o cursor no código para o próximo scan!
-            
-            feedback.innerText = `✔ ${item.codigo} guardado!`;
-            feedback.style.color = "#4CAF50";
-            
-            setTimeout(() => { 
-                if(feedback.innerText.includes(item.codigo)) feedback.innerText = ""; 
-            }, 2500);
-
-        } catch (err) { 
-            feedback.innerText = "❌ Erro ao guardar!";
-            feedback.style.color = "#f44336";
-        }
-    });
-}
-
-// --- APAGAR ITEM TODO ---
-window.deleteItem = async function(id) {
-    if (confirm("Tens a certeza que queres eliminar este produto todo?")) {
-        try {
-            await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'DELETE' });
-            renderList(document.getElementById('inp-search')?.value || '');
-            atualizarSugestoes();
-        } catch (err) { alert("Erro ao apagar."); }
-    }
-};
-
-// --- AUTOCOMPLETE ---
-async function atualizarSugestoes() {
-    const stock = await getStock();
-    const dl = document.getElementById('lista-sugestoes');
-    if (!dl) return;
-    dl.innerHTML = '';
-    
-    // Sugere códigos ou nomes
-    const sugestoes = [...new Set(stock.map(i => i.codigo).concat(stock.map(i => i.nome)))].filter(n => n);
-    sugestoes.forEach(s => {
-        const op = document.createElement('option');
-        op.value = s;
-        dl.appendChild(op);
-    });
-}
-
-// --- PESQUISA ---
-const inpSearch = document.getElementById('inp-search');
-if (inpSearch) {
-    inpSearch.addEventListener('input', (e) => renderList(e.target.value));
-}
-
-// --- ARRANQUE INICIAL ---
+// --- INICIALIZAÇÃO ---
+document.getElementById('inp-search').addEventListener('input', (e) => renderList(e.target.value));
 document.addEventListener('DOMContentLoaded', () => {
-    atualizarStatusRede();
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js').catch(console.error);
-    }
+    renderList(); // Carrega logo a lista ao abrir
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
 });
