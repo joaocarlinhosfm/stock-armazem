@@ -1,6 +1,6 @@
 {
   "name": "Stock Hiperfrio",
-  "short_name": "Stock Hiperfrio",
+  "short_name": "Stock Hiper",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -20,4 +20,5 @@
     }
   ]
 }
+
 
