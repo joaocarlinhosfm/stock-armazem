@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gestão de Stock PWA</title>
+    <title>Stock Pro PWA</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2196F3">
@@ -18,29 +18,32 @@
         </div>
     </header>
 
+    <datalist id="lista-sugestoes"></datalist>
+
     <main id="app-container">
         <div id="view-home" class="view active">
-            <button type="button" onclick="nav('view-search')" class="btn-large">🔍 Pesquisa e Stock</button>
-            <button type="button" onclick="nav('view-register')" class="btn-large">➕ Novo Registo</button>
+            <button type="button" onclick="nav('view-search')" class="btn-large">🔍 Consultar Stock</button>
+            <button type="button" onclick="nav('view-register')" class="btn-large">➕ Registo Rápido (Bulk)</button>
         </div>
 
         <div id="view-register" class="view">
-            <h2>Novo Produto</h2>
+            <h2>Catalogar em Massa</h2>
             <form id="form-register">
-                <input type="text" id="inp-nome" placeholder="Nome do Item" list="lista-sugestoes" required>
-                <input type="text" id="inp-tipo" placeholder="Tipo (ex: Elétrico)" required>
-                <input type="text" id="inp-loc" placeholder="Localização" style="text-transform:uppercase">
-                <input type="number" id="inp-qtd" placeholder="Quantidade Inicial" min="0">
+                <input type="text" id="inp-nome" placeholder="Nome do Item" list="lista-sugestoes" required autocomplete="off">
+                <input type="text" id="inp-tipo" placeholder="Tipo (ex: Ferramenta)" required>
+                <input type="text" id="inp-loc" placeholder="Localização (📍)" style="text-transform:uppercase">
+                <input type="number" id="inp-qtd" placeholder="Qtd Inicial" min="0">
                 
-                <button type="submit" class="btn-primary">Guardar Online</button>
-                <button type="button" onclick="nav('view-home')" class="btn-secondary">Voltar</button>
+                <div class="bulk-actions">
+                    <button type="submit" class="btn-primary">✅ Guardar e Próximo</button>
+                    <button type="button" onclick="nav('view-home')" class="btn-secondary">Sair do Modo Bulk</button>
+                </div>
             </form>
-        </div>
+            <div id="bulk-feedback"></div> </div>
 
         <div id="view-search" class="view">
-            <h2>Stock</h2>
-            <input type="text" id="inp-search" placeholder="Procurar nome ou local..." list="lista-sugestoes" autocomplete="off">
-            <datalist id="lista-sugestoes"></datalist>
+            <h2>Stock Online</h2>
+            <input type="text" id="inp-search" placeholder="Procurar no armazém..." list="lista-sugestoes" autocomplete="off">
             
             <div id="stock-list"></div>
             
