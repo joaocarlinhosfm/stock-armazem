@@ -21,25 +21,51 @@
     <main id="app-container">
         <div id="view-home" class="view active">
             <button type="button" onclick="nav('view-search')" class="btn-large">🔍 Pesquisa e Stock</button>
-            <button type="button" onclick="nav('view-register')" class="btn-large">➕ Novo Registo</button>
+            <button type="button" onclick="nav('view-register')" class="btn-large">➕ Novo Produto (Único)</button>
+            <button type="button" onclick="nav('view-bulk')" class="btn-large" style="background: #ff9800; color: white;">📦 Catalogação Rápida (Lote)</button>
         </div>
 
         <div id="view-register" class="view">
             <h2>Novo Produto</h2>
             <form id="form-register">
-                <input type="text" id="inp-nome" placeholder="Nome do Item" required>
-                <input type="text" id="inp-tipo" placeholder="Tipo (ex: Elétrico)" required>
-                <input type="text" id="inp-loc" placeholder="Localização (Opcional)" style="text-transform:uppercase">
-                <input type="number" id="inp-qtd" placeholder="Quantidade Inicial" min="0">
+                <input type="text" id="inp-codigo" placeholder="1º - Código do Artigo (Ex: REF123)" required>
+                <input type="text" id="inp-nome" placeholder="2º - Nome do Produto" required>
+                <input type="text" id="inp-loc" placeholder="3º - Localização (Opcional)" style="text-transform:uppercase">
+                <input type="number" id="inp-qtd" placeholder="4º - Quantidade Inicial" min="0">
                 
                 <button type="submit" class="btn-primary">Guardar Online</button>
                 <button type="button" onclick="nav('view-home')" class="btn-secondary">Voltar</button>
             </form>
         </div>
 
+        <div id="view-bulk" class="view">
+            <h2>Catalogação por Zona</h2>
+            <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
+                1. Fixa a localização da prateleira.<br>
+                2. Insere os códigos e nomes em sequência.<br>
+                3. A quantidade assumida será sempre zero.
+            </p>
+            
+            <form id="form-bulk">
+                <div style="background: #e3f2fd; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #90caf9;">
+                    <label style="font-weight: bold; font-size: 0.9rem; color: #1565c0;">📌 Dados Fixos (Não muda):</label>
+                    <input type="text" id="bulk-loc" placeholder="Localização (ex: CORREDOR A)" style="text-transform:uppercase; margin-top: 8px;" required>
+                </div>
+                
+                <label style="font-weight: bold; font-size: 0.9rem;">🏷️ Artigos (Muda a cada scan):</label>
+                <input type="text" id="bulk-codigo" placeholder="Código (Scan ou teclado)" style="border: 2px solid #ff9800; margin-top: 5px;" required>
+                <input type="text" id="bulk-nome" placeholder="Nome do Produto" style="border: 2px solid #ff9800; margin-bottom: 10px;" required>
+                
+                <button type="submit" class="btn-primary" style="background: #ff9800;">Gravar e Seguir para o Próximo</button>
+                <button type="button" onclick="nav('view-home')" class="btn-secondary">Concluir Zona / Voltar</button>
+            </form>
+            
+            <div id="bulk-feedback" style="margin-top: 15px; text-align: center; font-weight: bold; height: 20px;"></div>
+        </div>
+
         <div id="view-search" class="view">
             <h2>Stock na Nuvem</h2>
-            <input type="text" id="inp-search" placeholder="Procurar nome ou local..." list="lista-sugestoes" autocomplete="off">
+            <input type="text" id="inp-search" placeholder="Procurar por Código, Nome ou Local..." list="lista-sugestoes" autocomplete="off">
             <datalist id="lista-sugestoes"></datalist>
             
             <div id="stock-list">
