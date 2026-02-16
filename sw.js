@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stock-pwa-v10-final';
+const CACHE_NAME = 'stock-pwa-v11-final';
 
 const ASSETS = [
     './',
@@ -39,3 +39,4 @@ self.addEventListener('fetch', (e) => {
         caches.match(e.request).then((response) => response || fetch(e.request))
     );
 });
+
