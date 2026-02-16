@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stock-pwa-v11-final';
+const CACHE_NAME = 'stock-pwa-v13-codigo';
 
 const ASSETS = [
     './',
@@ -11,12 +11,15 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
-    e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
-    // Força o SW a ativar-se sem esperar
+    e.waitUntil(
+        caches.open(CACHE_NAME).then((cache) => {
+            console.log('Cacheando nova versão (V13 - Código)...');
+            return cache.addAll(ASSETS);
+        })
+    );
     self.skipWaiting();
 });
 
-// Ao ativar, limpa caches velhos (essencial para atualizações fluídas)
 self.addEventListener('activate', (e) => {
     e.waitUntil(
         caches.keys().then((keys) => {
@@ -29,14 +32,10 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-    // IMPORTANTE: NÃO FAZER CACHE DO FIREBASE
     if (e.request.url.includes('firebaseio.com') || e.request.url.includes('firebasedatabase.app')) {
-        return; // Deixa ir à internet sempre
+        return; 
     }
-    
-    // Para ficheiros visuais (HTML/CSS), usa o cache ou vai à rede
     e.respondWith(
         caches.match(e.request).then((response) => response || fetch(e.request))
     );
 });
-
