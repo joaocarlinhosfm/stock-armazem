@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stock-v12';
+const CACHE_NAME = 'stock-v13';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
