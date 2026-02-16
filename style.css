@@ -1,29 +1,24 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow-x: hidden; font-family: sans-serif; background: #f4f4f4; }
-header { background: #2196F3; color: white; padding: 1rem; text-align: center; }
+header { background: #2196F3; color: white; padding: 1rem; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
-input, select, textarea, button { font-size: 16px !important; }
+input { font-size: 16px !important; width: 100%; padding: 14px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 8px; }
 
-#status-conexao { display: flex; align-items: center; justify-content: center; font-size: 0.85rem; margin-top: 5px; background: rgba(0,0,0,0.1); padding: 5px 12px; border-radius: 20px; width: fit-content; margin-inline: auto; }
-#status-ponto { height: 10px; width: 10px; background-color: #ccc; border-radius: 50%; display: inline-block; margin-right: 8px; }
-.offline #status-ponto { background-color: #f44336; }
+#status-conexao { display: flex; align-items: center; justify-content: center; font-size: 0.8rem; margin-top: 5px; background: rgba(0,0,0,0.15); padding: 5px 12px; border-radius: 20px; width: fit-content; margin-inline: auto; }
+#status-ponto { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; transition: 0.3s; }
 
-.view { display: none; }
-.view.active { display: block; padding: 15px; }
+.view { display: none; padding: 15px; }
+.view.active { display: block; }
 
-.btn-large { display: block; width: 100%; padding: 1.5rem; margin-bottom: 1rem; font-size: 1.2rem; background: white; border: 1px solid #ccc; border-radius: 12px; cursor: pointer; text-align: left; }
-.btn-primary { background: #4CAF50; color: white; width: 100%; padding: 1rem; border: none; border-radius: 8px; margin-top: 10px; font-weight: bold; }
-.btn-secondary { background: #757575; color: white; width: 100%; padding: 1rem; border: none; border-radius: 8px; margin-top: 10px; }
+.btn-large { display: block; width: 100%; padding: 1.8rem; margin-bottom: 1rem; font-size: 1.2rem; background: white; border: 2px solid #2196F3; border-radius: 15px; cursor: pointer; color: #2196F3; font-weight: bold; }
+.btn-primary { background: #2ecc71; color: white; width: 100%; padding: 1.2rem; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; }
+.btn-secondary { background: #95a5a6; color: white; width: 100%; padding: 1rem; border: none; border-radius: 8px; margin-top: 10px; cursor: pointer; }
 
-input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); }
+/* Cartões de Stock */
+.item-card { background: white; padding: 1rem; margin-bottom: 1rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; border-left: 6px solid #2196F3; }
+.qtd-control { display: flex; align-items: center; margin-top: 10px; background: #f1f1f1; padding: 5px; border-radius: 30px; }
+.btn-qtd { background: #2196F3; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 1.5rem; cursor: pointer; }
+.qtd-value { margin: 0 15px; font-weight: bold; font-size: 1.2rem; }
 
-.item-card { background: white; padding: 1rem; margin-bottom: 1rem; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #2196F3; }
-.item-info h3 { margin: 0; font-size: 1.1rem; color: #333; }
-.item-info p { margin: 3px 0; color: #666; font-size: 0.9rem; }
-
-.qtd-control { display: flex; align-items: center; margin-top: 10px; background: #eee; padding: 4px; border-radius: 25px; width: fit-content; }
-.btn-qtd { background: #2196F3; color: white; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 1.3rem; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; }
-.qtd-value { margin: 0 12px; font-weight: bold; font-size: 1.1rem; min-width: 20px; text-align: center; }
-
-.btn-delete { background: #fff1f1; color: #d32f2f; border: 1px solid #ffcdd2; padding: 8px; border-radius: 6px; font-size: 0.8rem; }
-.sticky-bottom { position: fixed; bottom: 0; left: 0; border-radius: 0; margin: 0; }
+#bulk-feedback { margin-top: 20px; font-size: 0.9rem; color: #27ae60; text-align: center; font-weight: bold; }
+.sticky-bottom { position: fixed; bottom: 0; left: 0; width: 100%; border-radius: 0; margin: 0; }
