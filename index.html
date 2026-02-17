@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stock Hiperfrio Pro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Hiperfrio Stock Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2563eb">
 </head>
 <body>
 
@@ -15,87 +14,85 @@
 
     <nav id="side-menu">
         <div class="menu-header">
-            <h3>Gestão de Armazém</h3>
+            <h3>Hiperfrio Armazém</h3>
             <button onclick="toggleMenu()">✕</button>
         </div>
         <ul>
-            <li onclick="nav('view-search')">🔍 Consultar Stock</li>
-            <li onclick="nav('view-register')">➕ Novo Produto</li>
-            <li onclick="nav('view-bulk')">📦 Catalogar Lote</li>
+            <li onclick="nav('view-search')"><span>🔍</span> Consultar Stock</li>
+            <li onclick="nav('view-register')"><span>➕</span> Novo Produto</li>
+            <li onclick="nav('view-bulk')"><span>📦</span> Catalogar Lote</li>
         </ul>
         <div class="menu-footer">
             <div id="status-conexao">
                 <span id="status-ponto"></span>
-                <span id="status-texto">Verificando...</span>
+                <span id="status-texto">A verificar rede...</span>
             </div>
         </div>
     </nav>
 
     <header>
         <button id="menu-btn" onclick="toggleMenu()">☰</button>
-        <h1>Hiperfrio</h1>
-        <div style="width: 40px;"></div>
+        <h1>HIPERFRIO</h1>
+        <div style="width: 30px;"></div>
     </header>
 
     <main id="app-container">
         
         <div id="view-search" class="view active">
             <div class="search-container">
-                <input type="text" id="inp-search" placeholder="Procurar REF, Nome ou Local..." autocomplete="off">
+                <input type="text" id="inp-search" placeholder="Procurar Ref, Artigo ou Local..." autocomplete="off">
             </div>
             <div id="stock-list"></div>
         </div>
 
         <div id="view-register" class="view">
-            <div class="view-header">
-                <h2>Registar Produto</h2>
-                <button class="btn-close" onclick="nav('view-search')">✕</button>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2>Novo Produto</h2>
+                <button onclick="nav('view-search')" style="background:none; border:none; font-size:1.5rem;">✕</button>
             </div>
             <form id="form-register" class="pro-form">
-                <label>Referência / Código</label>
-                <input type="text" id="inp-codigo" placeholder="Ex: REF1234" required>
+                <label>REFERÊNCIA (Obrigatório)</label>
+                <input type="text" id="inp-codigo" placeholder="Ex: REF-9900" required>
                 
-                <label>Nome do Artigo</label>
-                <input type="text" id="inp-nome" placeholder="Ex: Unidade Condensadora" required>
+                <label>NOME DO MATERIAL</label>
+                <input type="text" id="inp-nome" placeholder="Ex: Compressor 1/2 HP" required>
                 
                 <div class="form-row">
                     <div>
-                        <label>Tipo</label>
-                        <input type="text" id="inp-tipo" placeholder="Ex: Peças">
+                        <label>TIPO</label>
+                        <input type="text" id="inp-tipo" placeholder="Ex: Frio">
                     </div>
                     <div>
-                        <label>Localização</label>
-                        <input type="text" id="inp-loc" placeholder="Ex: A1" style="text-transform:uppercase">
+                        <label>LOCAL</label>
+                        <input type="text" id="inp-loc" placeholder="A1" style="text-transform:uppercase">
                     </div>
                 </div>
 
-                <label>Quantidade Inicial</label>
+                <label>STOCK INICIAL</label>
                 <input type="number" id="inp-qtd" value="0" min="0">
                 
-                <button type="submit" class="btn-primary">Guardar no Sistema</button>
+                <button type="submit" class="btn-primary">Criar Ficha de Produto</button>
             </form>
         </div>
 
         <div id="view-bulk" class="view">
-            <div class="view-header">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
                 <h2>Catalogar Lote</h2>
-                <button class="btn-close" onclick="nav('view-search')">✕</button>
+                <button onclick="nav('view-search')" style="background:none; border:none; font-size:1.5rem;">✕</button>
             </div>
             <form id="form-bulk" class="pro-form">
-                <div class="sticky-info">
-                    <label>Zona de Trabalho (Fixa)</label>
-                    <input type="text" id="bulk-loc" placeholder="Ex: CORREDOR B" style="text-transform:uppercase" required>
-                </div>
+                <label>ZONA DE ARRUMAÇÃO</label>
+                <input type="text" id="bulk-loc" placeholder="ZONA FIXA" style="text-transform:uppercase" required>
                 
-                <label>Código do Item (Scan)</label>
-                <input type="text" id="bulk-codigo" placeholder="Leia o código..." required>
+                <label>REFERÊNCIA DO ITEM</label>
+                <input type="text" id="bulk-codigo" placeholder="Scan ou Digite..." required>
                 
-                <label>Nome do Item</label>
-                <input type="text" id="bulk-nome" placeholder="Nome do artigo..." required>
+                <label>NOME DO ITEM</label>
+                <input type="text" id="bulk-nome" placeholder="Nome para o sistema..." required>
                 
-                <button type="submit" class="btn-primary btn-alt">Gravar e Próximo</button>
+                <button type="submit" class="btn-primary" style="background:#0f172a;">Gravar e Continuar</button>
             </form>
-            <div id="bulk-feedback"></div>
+            <div id="bulk-feedback" style="text-align:center; margin-top:15px; font-weight:bold; color:var(--primary);"></div>
         </div>
 
     </main>
