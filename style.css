@@ -1,87 +1,98 @@
 :root {
     --primary: #2563eb;
+    --primary-soft: #eff6ff;
     --bg: #f8fafc;
     --card-bg: #ffffff;
-    --text: #1e293b;
-    --drawer-width: 280px;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --danger: #fee2e2;
+    --danger-text: #ef4444;
 }
 
 body { 
-    font-family: system-ui, -apple-system, sans-serif; 
-    margin: 0; background: var(--bg); color: var(--text);
+    font-family: 'Inter', sans-serif; 
+    margin: 0; background: var(--bg); color: var(--text-main);
     overflow-x: hidden;
 }
 
+/* --- UI ELEMENTS --- */
 header { 
     background: var(--primary); color: white; padding: 12px 15px; 
     display: flex; justify-content: space-between; align-items: center;
     position: sticky; top: 0; z-index: 100;
 }
-#menu-btn { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+#menu-btn { background: none; border: none; color: white; font-size: 1.5rem; }
 
-/* --- MENU LATERAL & FIX ANDROID --- */
+/* Menu Lateral Fix Android */
 #menu-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.5); z-index: 998; display: none;
-    pointer-events: none;
+    background: rgba(0,0,0,0.4); z-index: 998; display: none; pointer-events: none;
 }
 #menu-overlay.active { display: block; pointer-events: auto; }
 
 #side-menu {
-    position: fixed; top: 0; left: 0; width: var(--drawer-width); height: 100%;
+    position: fixed; top: 0; left: 0; width: 280px; height: 100%;
     background: white; z-index: 999; transform: translateX(-100%);
     transition: transform 0.3s ease; visibility: hidden;
 }
 #side-menu.open { transform: translateX(0); visibility: visible; }
+#side-menu ul { list-style: none; padding: 0; margin-top: 20px; }
+#side-menu li { padding: 16px 24px; border-bottom: 1px solid #f1f5f9; font-weight: 500; }
 
-.menu-header { padding: 20px; background: var(--primary); color: white; display: flex; justify-content: space-between; }
-#side-menu ul { list-style: none; padding: 0; }
-#side-menu li { padding: 18px 25px; border-bottom: 1px solid #f1f5f9; cursor: pointer; font-weight: 500; }
-
-/* --- LISTAGEM --- */
-main { padding: 15px; }
-.search-container { margin-bottom: 15px; position: sticky; top: 60px; z-index: 50; }
-#inp-search { width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #cbd5e1; box-sizing: border-box; font-size: 1rem; }
-
+/* --- CARTÕES DE STOCK --- */
 .item-card { 
-    background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px;
-    border: 1px solid #e2e8f0; position: relative;
+    background: white; padding: 18px; border-radius: 16px; margin-bottom: 12px;
+    border: 1px solid var(--border); position: relative;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
-.qtd-control { display: flex; align-items: center; margin-top: 10px; gap: 15px; }
-.btn-qtd { background: var(--primary); color: white; border: none; width: 35px; height: 35px; border-radius: 8px; font-weight: bold; }
-.qtd-value { font-weight: bold; font-size: 1.2rem; }
 
+.item-ref { 
+    display: block; font-size: 1.2rem; font-weight: 800; 
+    color: var(--primary); margin-bottom: 4px;
+}
+.item-name { display: block; font-size: 0.95rem; font-weight: 500; color: var(--text-main); margin-bottom: 10px; }
+.badge-loc { 
+    font-size: 0.75rem; background: var(--bg); color: var(--text-muted); 
+    padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border);
+}
 
-/* --- BOTÃO APAGAR PRODUTO --- */
+.qtd-pill {
+    display: flex; align-items: center; background: #f1f5f9; 
+    border-radius: 50px; width: fit-content; padding: 4px; margin-top: 15px;
+}
+.btn-qtd { 
+    background: white; border: 1px solid var(--border); width: 34px; height: 34px; 
+    border-radius: 50%; font-weight: bold; font-size: 1.2rem; cursor: pointer;
+}
+.qtd-value { min-width: 40px; text-align: center; font-weight: 700; font-size: 1.1rem; }
+
 .btn-delete { 
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background: transparent; 
-    color: #ef4444; 
-    border: 1px solid #ef4444; 
-    border-radius: 6px;
-    padding: 6px 12px; 
-    cursor: pointer;
-    font-size: 0.8rem;
-    font-weight: bold;
-    transition: all 0.2s;
+    position: absolute; top: 18px; right: 18px;
+    background: var(--danger); color: var(--danger-text); border: none;
+    padding: 5px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700;
 }
 
-.btn-delete:hover { 
-    background: #ef4444; 
-    color: white; 
-}
-
-/* --- FORMULÁRIOS --- */
-.view { display: none; }
+/* --- FORMULÁRIOS PROFISSIONAIS --- */
+.view { display: none; padding: 15px; }
 .view.active { display: block; }
-input { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; }
-.btn-primary { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-.btn-close { background: none; border: none; font-size: 1.5rem; color: #64748b; }
-.view-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 
+.pro-form label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; margin-top: 10px; }
+.pro-form input { 
+    width: 100%; padding: 12px; border: 1.5px solid var(--border); 
+    border-radius: 10px; font-size: 1rem; font-family: inherit; box-sizing: border-box;
+}
+.pro-form input:focus { border-color: var(--primary); outline: none; }
 
-#status-conexao { padding: 20px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; }
-#status-ponto { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; background: #ccc; }
+.form-row { display: flex; gap: 10px; }
+.form-row > div { flex: 1; }
 
+.btn-primary { 
+    width: 100%; padding: 16px; background: var(--primary); color: white; 
+    border: none; border-radius: 12px; font-weight: 700; font-size: 1rem; 
+    margin-top: 25px; cursor: pointer;
+}
+.btn-alt { background: #0f172a; }
+
+.search-container { position: sticky; top: 60px; z-index: 10; background: var(--bg); padding-bottom: 10px; }
+#inp-search { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid var(--border); box-sizing: border-box; font-size: 1rem; }
