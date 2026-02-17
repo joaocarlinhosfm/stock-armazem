@@ -23,16 +23,20 @@ function nav(viewId) {
     document.getElementById('menu-overlay').classList.remove('active');
 }
 
+
 async function renderList(filter = "") {
     const listEl = document.getElementById('stock-list');
-    listEl.innerHTML = "<div style='text-align:center; padding:40px; color:gray;'>A sincronizar stock...</div>";
+    // Só mostramos o "A carregar" na primeira vez, não nas atualizações de quantidade
+    if (!filter && listEl.innerHTML === "") {
+        listEl.innerHTML = "<div style='text-align:center; padding:40px; color:gray;'>A sincronizar stock...</div>";
+    }
     
     try {
         const resp = await fetch(DB_URL);
         const data = await resp.json();
         listEl.innerHTML = "";
         
-        if(!data) return listEl.innerHTML = "<div style='text-align:center; padding:20px;'>Sem produtos no sistema.</div>";
+        if(!data) return listEl.innerHTML = "<div style='text-align:center; padding:20px;'>Sem produtos.</div>";
 
         const term = filter.toLowerCase();
         Object.keys(data).forEach(id => {
@@ -40,6 +44,9 @@ async function renderList(filter = "") {
             if (item.nome.toLowerCase().includes(term) || item.codigo.toLowerCase().includes(term) || (item.localizacao || "").toLowerCase().includes(term)) {
                 const div = document.createElement('div');
                 div.className = 'item-card';
+                // Adicionamos o atributo data-id para o JavaScript encontrar este cartão específico
+                div.setAttribute('data-id', id); 
+                
                 div.innerHTML = `
                     <button class="btn-delete" onclick="apagarProduto('${id}')">Apagar</button>
                     <span class="item-ref">${item.codigo}</span>
@@ -55,18 +62,36 @@ async function renderList(filter = "") {
                 listEl.appendChild(div);
             }
         });
-    } catch (e) { listEl.innerHTML = "<div style='color:red; text-align:center;'>Erro de ligação.</div>"; }
+    } catch (e) { console.error("Erro ao carregar:", e); }
 }
 
 async function changeQtd(id, delta) {
-    const resp = await fetch(`${BASE_URL}/stock/${id}.json`);
-    const item = await resp.json();
-    const novaQtd = Math.max(0, (item.quantidade || 0) + delta);
-    await fetch(`${BASE_URL}/stock/${id}.json`, {
-        method: 'PATCH',
-        body: JSON.stringify({ quantidade: novaQtd })
-    });
-    renderList(document.getElementById('inp-search').value);
+    // 1. Localizar o elemento exato no ecrã
+    const card = document.querySelector(`.item-card[data-id="${id}"]`);
+    const qtdSpan = card.querySelector('.qtd-value');
+    
+    // 2. Obter valor atual e calcular novo valor localmente
+    let qtdAtual = parseInt(qtdSpan.innerText);
+    let novaQtd = Math.max(0, qtdAtual + delta);
+    
+    // 3. ATUALIZAÇÃO INSTANTÂNEA NA UI (Sem piscar o ecrã)
+    qtdSpan.innerText = novaQtd;
+    
+    // 4. Feedback visual opcional (pisca apenas o número suavemente)
+    qtdSpan.style.color = var(--primary);
+    setTimeout(() => { qtdSpan.style.color = "inherit"; }, 200)
+
+    // 5. Enviar para o Firebase em segundo plano (silenciosamente)
+    try {
+        await fetch(`${BASE_URL}/stock/${id}.json`, {
+            method: 'PATCH',
+            body: JSON.stringify({ quantidade: novaQtd })
+        });
+    } catch (e) {
+        // Se a internet falhar, avisa e reverte o número para o que estava
+        alert("Erro ao sincronizar com a nuvem. A repor valor...");
+        qtdSpan.innerText = qtdAtual;
+    }
 }
 
 async function apagarProduto(id) {
@@ -114,3 +139,4 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('status-texto').innerText = "Ligado à Nuvem";
     }
 });
+
