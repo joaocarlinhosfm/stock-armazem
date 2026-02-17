@@ -4,8 +4,7 @@ const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase
 function toggleMenu() {
     const menu = document.getElementById('side-menu');
     const overlay = document.getElementById('menu-overlay');
-    const isOpen = menu.classList.contains('open');
-    if (isOpen) {
+    if (menu.classList.contains('open')) {
         menu.classList.remove('open');
         overlay.classList.remove('active');
     } else {
@@ -19,21 +18,21 @@ function nav(viewId) {
     document.getElementById(viewId).classList.add('active');
     if(viewId === 'view-search') renderList();
     
-    // Fecha o menu sem alternar (evita o bug de abrir sozinho)
+    // Fecha o menu de forma segura
     document.getElementById('side-menu').classList.remove('open');
     document.getElementById('menu-overlay').classList.remove('active');
 }
 
 async function renderList(filter = "") {
     const listEl = document.getElementById('stock-list');
-    listEl.innerHTML = "<div style='text-align:center; padding:20px;'>A carregar stock...</div>";
+    listEl.innerHTML = "<div style='text-align:center; padding:40px; color:gray;'>A sincronizar stock...</div>";
     
     try {
         const resp = await fetch(DB_URL);
         const data = await resp.json();
         listEl.innerHTML = "";
         
-        if(!data) return listEl.innerHTML = "Stock vazio.";
+        if(!data) return listEl.innerHTML = "<div style='text-align:center; padding:20px;'>Sem produtos no sistema.</div>";
 
         const term = filter.toLowerCase();
         Object.keys(data).forEach(id => {
@@ -42,10 +41,10 @@ async function renderList(filter = "") {
                 const div = document.createElement('div');
                 div.className = 'item-card';
                 div.innerHTML = `
-                    <button class="btn-delete" onclick="apagarProduto('${id}')">APAGAR</button>
+                    <button class="btn-delete" onclick="apagarProduto('${id}')">Apagar</button>
                     <span class="item-ref">${item.codigo}</span>
                     <span class="item-name">${item.nome}</span>
-                    <span class="badge-loc">📍 ${item.localizacao || 'Sem Local'}</span>
+                    <span class="badge-loc">📍 ${item.localizacao || 'S/ Local'}</span>
                     
                     <div class="qtd-pill">
                         <button class="btn-qtd" onclick="changeQtd('${id}', -1)">-</button>
@@ -56,7 +55,7 @@ async function renderList(filter = "") {
                 listEl.appendChild(div);
             }
         });
-    } catch (e) { listEl.innerHTML = "Erro ao carregar dados."; }
+    } catch (e) { listEl.innerHTML = "<div style='color:red; text-align:center;'>Erro de ligação.</div>"; }
 }
 
 async function changeQtd(id, delta) {
@@ -71,7 +70,7 @@ async function changeQtd(id, delta) {
 }
 
 async function apagarProduto(id) {
-    if(confirm("Deseja eliminar este produto permanentemente?")) {
+    if(confirm("Deseja eliminar este item permanentemente?")) {
         await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'DELETE' });
         renderList(document.getElementById('inp-search').value);
     }
@@ -103,7 +102,7 @@ document.getElementById('form-bulk').onsubmit = async (e) => {
     document.getElementById('bulk-codigo').value = "";
     document.getElementById('bulk-nome').value = "";
     document.getElementById('bulk-codigo').focus();
-    document.getElementById('bulk-feedback').innerText = "✔ Registado!";
+    document.getElementById('bulk-feedback').innerText = "✔ Item Guardado";
     setTimeout(() => document.getElementById('bulk-feedback').innerText = "", 1500);
 };
 
@@ -112,6 +111,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('inp-search').oninput = (e) => renderList(e.target.value);
     if (navigator.onLine) {
         document.getElementById('status-ponto').style.background = "#22c55e";
-        document.getElementById('status-texto').innerText = "Online";
+        document.getElementById('status-texto').innerText = "Ligado à Nuvem";
     }
 });
