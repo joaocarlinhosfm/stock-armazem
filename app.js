@@ -16,6 +16,8 @@ function toggleMenu() {
 function nav(viewId) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
+    
+    // Atualiza a lista caso voltemos ao ecrã principal
     if(viewId === 'view-search') renderList();
     
     // Fecha o menu de forma segura
@@ -25,7 +27,8 @@ function nav(viewId) {
 
 async function renderList(filter = "") {
     const listEl = document.getElementById('stock-list');
-    // Só mostramos o "A carregar" na primeira vez, não nas atualizações de quantidade
+    
+    // Apenas mostra "A carregar" se a lista estiver completamente vazia
     if (!filter && listEl.innerHTML === "") {
         listEl.innerHTML = "<div style='text-align:center; padding:40px; color:gray;'>A sincronizar stock...</div>";
     }
@@ -35,7 +38,7 @@ async function renderList(filter = "") {
         const data = await resp.json();
         listEl.innerHTML = "";
         
-        if(!data) return listEl.innerHTML = "<div style='text-align:center; padding:20px;'>Sem produtos.</div>";
+        if(!data) return listEl.innerHTML = "<div style='text-align:center; padding:20px;'>Sem produtos no sistema.</div>";
 
         const term = filter.toLowerCase();
         Object.keys(data).forEach(id => {
@@ -43,8 +46,7 @@ async function renderList(filter = "") {
             if (item.nome.toLowerCase().includes(term) || item.codigo.toLowerCase().includes(term) || (item.localizacao || "").toLowerCase().includes(term)) {
                 const div = document.createElement('div');
                 div.className = 'item-card';
-                // Adicionamos o atributo data-id para o JavaScript encontrar este cartão específico
-                div.setAttribute('data-id', id); 
+                div.setAttribute('data-id', id); // Essencial para a atualização rápida
                 
                 div.innerHTML = `
                     <button class="btn-delete" onclick="apagarProduto('${id}')">Apagar</button>
@@ -61,41 +63,47 @@ async function renderList(filter = "") {
                 listEl.appendChild(div);
             }
         });
-    } catch (e) { console.error("Erro ao carregar:", e); }
+    } catch (e) { 
+        listEl.innerHTML = "<div style='color:red; text-align:center; padding:20px;'>Erro de ligação à rede.</div>"; 
+        console.error("Erro ao obter dados:", e);
+    }
 }
 
+// ATUALIZAÇÃO INSTANTÂNEA E SILENCIOSA (Corrigida)
 async function changeQtd(id, delta) {
-    // 1. Localizar o elemento exato no ecrã
+    if(!navigator.onLine) return alert("Sem ligação à Internet!");
+    
     const card = document.querySelector(`.item-card[data-id="${id}"]`);
+    if(!card) return;
     const qtdSpan = card.querySelector('.qtd-value');
     
-    // 2. Obter valor atual e calcular novo valor localmente
+    // Lê o valor atual na tela e calcula o novo
     let qtdAtual = parseInt(qtdSpan.innerText);
     let novaQtd = Math.max(0, qtdAtual + delta);
     
-    // 3. ATUALIZAÇÃO INSTANTÂNEA NA UI (Sem piscar o ecrã)
+    // Atualiza imediatamente na tela (Optimistic UI)
     qtdSpan.innerText = novaQtd;
     
-    // 4. Feedback visual opcional (pisca apenas o número suavemente)
-    qtdSpan.style.color = var(--primary);
-    setTimeout(() => { qtdSpan.style.color = "inherit"; }, 200)
+    // Feedback visual (O erro de código estava aqui, já corrigido com aspas)
+    qtdSpan.style.color = "#2563eb"; 
+    setTimeout(() => { qtdSpan.style.color = "inherit"; }, 200);
 
-    // 5. Enviar para o Firebase em segundo plano (silenciosamente)
     try {
+        // Envia para o Firebase em segundo plano
         await fetch(`${BASE_URL}/stock/${id}.json`, {
             method: 'PATCH',
             body: JSON.stringify({ quantidade: novaQtd })
         });
     } catch (e) {
-        // Se a internet falhar, avisa e reverte o número para o que estava
-        alert("Erro ao sincronizar com a nuvem. A repor valor...");
-        qtdSpan.innerText = qtdAtual;
+        alert("Erro ao sincronizar. O valor foi reposto.");
+        qtdSpan.innerText = qtdAtual; // Reverte o número em caso de erro de rede
     }
 }
 
 async function apagarProduto(id) {
     if(confirm("Deseja eliminar este item permanentemente?")) {
         await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'DELETE' });
+        // Recarrega a lista para remover o item eliminado
         renderList(document.getElementById('inp-search').value);
     }
 }
@@ -130,13 +138,19 @@ document.getElementById('form-bulk').onsubmit = async (e) => {
     setTimeout(() => document.getElementById('bulk-feedback').innerText = "", 1500);
 };
 
+// Quando a app arranca
 document.addEventListener('DOMContentLoaded', () => {
     renderList();
-    document.getElementById('inp-search').oninput = (e) => renderList(e.target.value);
+    
+    const searchInput = document.getElementById('inp-search');
+    if(searchInput) {
+        searchInput.oninput = (e) => renderList(e.target.value);
+    }
+    
     if (navigator.onLine) {
-        document.getElementById('status-ponto').style.background = "#22c55e";
-        document.getElementById('status-texto').innerText = "Ligado à Nuvem";
+        const ponto = document.getElementById('status-ponto');
+        const texto = document.getElementById('status-texto');
+        if(ponto) ponto.style.background = "#22c55e";
+        if(texto) texto.innerText = "Ligado à Nuvem";
     }
 });
-
-
