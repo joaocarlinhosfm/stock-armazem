@@ -6,7 +6,7 @@
     --text-main: #0f172a;
     --text-muted: #64748b;
     --border: #e2e8f0;
-    --danger: #ef4444; /* Vermelho mais vivo para o swipe */
+    --danger: #ef4444; 
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -15,10 +15,10 @@ body {
     font-family: 'Inter', sans-serif; 
     margin: 0; background: var(--bg); color: var(--text-main);
     overflow-x: hidden;
-    overscroll-behavior-y: contain; /* Evita "pull-to-refresh" acidental */
+    overscroll-behavior-y: contain; 
 }
 
-/* --- HEADER & MENU (Sem alterações) --- */
+/* --- HEADER & MENU --- */
 header { 
     background: var(--primary); color: white; padding: 12px 16px; 
     display: flex; justify-content: space-between; align-items: center;
@@ -39,68 +39,82 @@ header h1 { font-size: 1.2rem; margin: 0; font-weight: 700; }
 #side-menu li:active { background: var(--primary-soft); }
 .menu-footer { padding: 20px; border-top: 1px solid var(--border); background: #fcfcfc; text-align: center; }
 
-/* --- STOCK CARDS (NOVO DESIGN COMPACTO & SWIPE) --- */
+/* --- STOCK CARDS --- */
 .view { display: none; padding: 16px; }
 .view.active { display: block; }
 .search-container { position: sticky; top: 60px; z-index: 10; background: var(--bg); padding: 4px 0 12px 0; }
 #inp-search { width: 100%; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); font-size: 1rem; }
 
-/* Contentor principal do cartão */
 .item-card { 
     position: relative;
-    background: var(--danger); /* Fundo vermelho visível ao deslizar */
+    background: var(--danger); 
     border-radius: 12px; 
     margin-bottom: 10px;
-    overflow: hidden; /* Esconde o que sai para fora */
+    overflow: hidden; 
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-/* Camada de fundo (Lixo) */
 .card-delete-layer {
-    position: absolute;
-    top: 0; right: 0; bottom: 0;
-    width: 100%;
+    position: absolute; top: 0; right: 0; bottom: 0; width: 100%;
     display: flex; align-items: center; justify-content: flex-end;
-    padding-right: 20px;
-    color: white;
-    font-weight: bold;
-    font-size: 1.2rem;
-    z-index: 0;
+    padding-right: 20px; color: white; font-weight: bold; font-size: 1.2rem; z-index: 0;
 }
 
-/* Camada da frente (Conteúdo Branco) - É esta que se move */
 .card-content {
-    position: relative;
-    background: white;
-    padding: 12px 16px; /* Padding reduzido para ser mais compacto */
-    border-radius: 12px;
-    z-index: 1;
-    transition: transform 0.2s ease-out; /* Retorno suave se não apagar */
-    user-select: none;
-    border: 1px solid var(--border);
+    position: relative; background: white; padding: 12px 16px; 
+    border-radius: 12px; z-index: 1; transition: transform 0.2s ease-out; 
+    user-select: none; border: 1px solid var(--border);
 }
-
-/* Classe adicionada via JS enquanto se arrasta para remover a transição */
 .card-content.swiping { transition: none; }
 
-/* Layout Compacto do Conteúdo */
-.card-header-compact { margin-bottom: 8px; }
+.card-header-compact { margin-bottom: 12px; }
 .item-ref { display: block; font-size: 1.1rem; font-weight: 800; color: var(--primary); letter-spacing: -0.02em; line-height: 1.1; }
-.item-name { display: block; font-size: 0.9rem; font-weight: 500; color: var(--text-main); line-height: 1.3; margin-top: 2px;}
+.item-name { display: block; font-size: 0.9rem; font-weight: 500; color: var(--text-main); line-height: 1.3; margin-top: 4px;}
 
+/* -- ALINHAMENTO PERFEITO LOCALIZAÇÃO / QUANTIDADE -- */
 .card-footer-compact {
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between;
 }
-.badge-loc { font-size: 0.7rem; background: var(--bg); color: var(--text-muted); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); font-weight: 600; }
 
-.qtd-pill { display: flex; align-items: center; background: #f1f5f9; border-radius: 50px; padding: 2px; }
-.btn-qtd { background: white; border: 1px solid var(--border); width: 32px; height: 32px; border-radius: 50%; font-weight: bold; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center;}
+.badge-loc { 
+    display: flex;
+    align-items: center; /* Centra o texto verticalmente na etiqueta */
+    height: 36px; /* Mesma altura total da zona de quantidade */
+    font-size: 0.75rem; 
+    background: var(--bg); 
+    color: var(--text-muted); 
+    padding: 0 10px; 
+    border-radius: 8px; 
+    border: 1px solid var(--border); 
+    font-weight: 600; 
+}
+
+.qtd-pill { 
+    display: flex; 
+    align-items: center; 
+    background: #f1f5f9; 
+    border-radius: 50px; 
+    padding: 2px; 
+    height: 36px; /* Altura forçada para alinhar com a badge */
+}
+
+.btn-qtd { 
+    background: white; 
+    border: 1px solid var(--border); 
+    width: 32px; height: 32px; 
+    border-radius: 50%; 
+    font-weight: bold; font-size: 1.1rem; 
+    color: var(--text-main);
+    cursor: pointer; 
+    display: flex; align-items: center; justify-content: center;
+}
 .qtd-value { min-width: 35px; text-align: center; font-weight: 700; font-size: 1rem; transition: color 0.2s ease; }
 
-/* Removemos o botão de apagar antigo pois agora temos swipe */
 .btn-delete { display: none; } 
 
-/* --- FORMS & STATUS (Sem alterações) --- */
+/* --- FORMS & STATUS --- */
 .pro-form label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; margin-top: 14px; }
 .pro-form input { width: 100%; padding: 14px; border: 1.5px solid var(--border); border-radius: 12px; font-size: 1rem; font-family: inherit; }
 .pro-form input:focus { border-color: var(--primary); outline: none; background: #fff; }
