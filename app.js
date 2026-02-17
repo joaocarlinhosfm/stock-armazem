@@ -137,6 +137,36 @@ function setupSwipe(cardContainer, id) {
     });
 }
 
+// --- GESTÃO DE TEMA (DARK MODE) ---
+function toggleTheme() {
+    const isDark = document.body.classList.toggle('dark-mode');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+}
+
+function loadTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    const toggleInput = document.getElementById('theme-toggle');
+    
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        if(toggleInput) toggleInput.checked = true;
+    }
+}
+
+// --- ATUALIZAÇÃO DO DOMCONTENTLOADED ---
+document.addEventListener('DOMContentLoaded', () => {
+    loadTheme(); // Carrega o tema primeiro para evitar flash branco
+    renderList();
+    
+    document.getElementById('inp-search').oninput = (e) => renderList(e.target.value);
+    
+    if (navigator.onLine) {
+        const ponto = document.getElementById('status-ponto');
+        if(ponto) ponto.style.background = "#22c55e";
+        document.getElementById('status-texto').innerText = "Online";
+    }
+});
+
 // --- FUNÇÕES DE DADOS ---
 async function changeQtd(id, delta) {
     if(!navigator.onLine) return alert("Offline");
@@ -180,3 +210,4 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('inp-search').oninput = (e) => renderList(e.target.value);
     if (navigator.onLine) { document.getElementById('status-ponto').style.background = "#22c55e"; document.getElementById('status-texto').innerText = "Online"; }
 });
+
