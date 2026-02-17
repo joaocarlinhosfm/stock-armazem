@@ -83,6 +83,7 @@ header h1 { font-size: 1.2rem; margin: 0; font-weight: 700; }
 
 .qtd-pill { display: flex; align-items: center; background: #f1f5f9; border-radius: 50px; width: fit-content; padding: 4px; margin-top: 16px; }
 .btn-qtd { background: white; border: 1px solid var(--border); width: 36px; height: 36px; border-radius: 50%; font-weight: bold; font-size: 1.2rem; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.qtd-value { min-width: 45px; text-align: center; font-weight: 700; font-size: 1.1rem; }
 .qtd-value { 
     min-width: 45px; 
     text-align: center; 
@@ -110,4 +111,5 @@ header h1 { font-size: 1.2rem; margin: 0; font-weight: 700; }
 
 #status-conexao { display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
 #status-ponto { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; background: #cbd5e1; }
+
 
