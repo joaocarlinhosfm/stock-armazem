@@ -19,7 +19,10 @@ function nav(viewId) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
     if(viewId === 'view-search') renderList();
-    toggleMenu(); // Fecha o menu ao navegar
+    
+    // CORREÇÃO DO BUG: Em vez de "toggle", garantimos apenas que o menu se fecha!
+    document.getElementById('side-menu').classList.remove('open');
+    document.getElementById('menu-overlay').classList.remove('active');
 }
 
 async function renderList(filter = "") {
@@ -40,13 +43,14 @@ async function renderList(filter = "") {
                 const div = document.createElement('div');
                 div.className = 'item-card';
                 div.innerHTML = `
-                    <div style="font-weight:bold">${item.nome}</div>
-                    <div style="font-size:0.8rem; color:gray">REF: ${item.codigo} | Local: ${item.localizacao || '---'}</div>
+                    <div style="font-weight:bold; padding-right: 80px;">${item.nome}</div>
+                    <div style="font-size:0.8rem; color:gray; margin-top:5px;">REF: ${item.codigo} | Local: ${item.localizacao || '---'}</div>
                     <div class="qtd-control">
                         <button class="btn-qtd" onclick="changeQtd('${id}', -1)">-</button>
                         <span class="qtd-value">${item.quantidade || 0}</span>
                         <button class="btn-qtd" onclick="changeQtd('${id}', 1)">+</button>
                     </div>
+                    <button class="btn-delete" onclick="apagarProduto('${id}')">Apagar</button>
                 `;
                 listEl.appendChild(div);
             }
@@ -55,14 +59,27 @@ async function renderList(filter = "") {
 }
 
 async function changeQtd(id, delta) {
+    if(!navigator.onLine) return alert("Sem ligação à Internet!");
     const resp = await fetch(`${BASE_URL}/stock/${id}.json`);
     const item = await resp.json();
+    
+    // Math.max garante que a quantidade nunca fica abaixo de zero
     const novaQtd = Math.max(0, (item.quantidade || 0) + delta);
+    
     await fetch(`${BASE_URL}/stock/${id}.json`, {
         method: 'PATCH',
         body: JSON.stringify({ quantidade: novaQtd })
     });
+    // Atualiza a lista mantendo o texto da pesquisa
     renderList(document.getElementById('inp-search').value);
+}
+
+async function apagarProduto(id) {
+    if(!navigator.onLine) return alert("Sem ligação à Internet!");
+    if(confirm("Tem a certeza que deseja apagar este produto definitivamente?")) {
+        await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'DELETE' });
+        renderList(document.getElementById('inp-search').value);
+    }
 }
 
 // Formulários
@@ -77,7 +94,7 @@ document.getElementById('form-register').onsubmit = async (e) => {
     };
     await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) });
     e.target.reset();
-    nav('view-search');
+    nav('view-search'); // Agora já não abre o menu graças à correção em cima
 };
 
 document.getElementById('form-bulk').onsubmit = async (e) => {
