@@ -23,7 +23,6 @@ function nav(viewId) {
     document.getElementById('menu-overlay').classList.remove('active');
 }
 
-
 async function renderList(filter = "") {
     const listEl = document.getElementById('stock-list');
     // Só mostramos o "A carregar" na primeira vez, não nas atualizações de quantidade
@@ -139,4 +138,5 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('status-texto').innerText = "Ligado à Nuvem";
     }
 });
+
 
