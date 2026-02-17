@@ -27,7 +27,7 @@ header {
 #menu-btn { background: none; border: none; color: white; font-size: 1.8rem; cursor: pointer; padding: 0; }
 header h1 { font-size: 1.2rem; margin: 0; font-weight: 700; }
 
-/* --- MENU LATERAL (CORREÇÃO DE ESTRUTURA) --- */
+/* --- MENU LATERAL (FLEXBOX) --- */
 #menu-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(15, 23, 42, 0.5); z-index: 998; display: none; pointer-events: none;
@@ -40,7 +40,7 @@ header h1 { font-size: 1.2rem; margin: 0; font-weight: 700; }
     background: white; z-index: 999; transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     visibility: hidden;
-    display: flex; flex-direction: column; /* Organiza Topo, Lista e Rodapé */
+    display: flex; flex-direction: column;
 }
 #side-menu.open { transform: translateX(0); visibility: visible; }
 
@@ -76,6 +76,8 @@ header h1 { font-size: 1.2rem; margin: 0; font-weight: 700; }
 .item-card { 
     background: white; padding: 20px; border-radius: 16px; margin-bottom: 12px;
     border: 1px solid var(--border); position: relative;
+    user-select: none; /* Impede que o texto seja sublinhado ao clicar rápido nos botões */
+    -webkit-user-select: none;
 }
 .item-ref { display: block; font-size: 1.3rem; font-weight: 800; color: var(--primary); margin-bottom: 4px; letter-spacing: -0.02em; }
 .item-name { display: block; font-size: 0.95rem; font-weight: 500; color: var(--text-main); margin-bottom: 12px; line-height: 1.4; }
@@ -83,22 +85,9 @@ header h1 { font-size: 1.2rem; margin: 0; font-weight: 700; }
 
 .qtd-pill { display: flex; align-items: center; background: #f1f5f9; border-radius: 50px; width: fit-content; padding: 4px; margin-top: 16px; }
 .btn-qtd { background: white; border: 1px solid var(--border); width: 36px; height: 36px; border-radius: 50%; font-weight: bold; font-size: 1.2rem; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-.qtd-value { min-width: 45px; text-align: center; font-weight: 700; font-size: 1.1rem; }
-.qtd-value { 
-    min-width: 45px; 
-    text-align: center; 
-    font-weight: 700; 
-    font-size: 1.1rem; 
-    transition: color 0.2s ease; /* Transição suave de cor ao clicar */
-}
+.qtd-value { min-width: 45px; text-align: center; font-weight: 700; font-size: 1.1rem; transition: color 0.2s ease; }
 
-/* Evita que o texto seja selecionado ao clicar rápido nos botões + e - */
-.item-card {
-    user-select: none;
-    -webkit-user-select: none;
-}
-
-.btn-delete { position: absolute; top: 20px; right: 20px; background: var(--danger); color: var(--danger-text); border: none; padding: 6px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+.btn-delete { position: absolute; top: 20px; right: 20px; background: var(--danger); color: var(--danger-text); border: none; padding: 6px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; cursor: pointer;}
 
 /* --- FORMS --- */
 .pro-form label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; margin-top: 14px; }
@@ -111,5 +100,3 @@ header h1 { font-size: 1.2rem; margin: 0; font-weight: 700; }
 
 #status-conexao { display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
 #status-ponto { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; background: #cbd5e1; }
-
-
