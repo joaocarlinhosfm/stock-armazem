@@ -48,16 +48,22 @@ function toggleMenu() {
     }
 }
 
-function nav(viewId) {
-    if (viewId === 'view-register' && editModeId === null) {
+function nav(viewId, isEdit = false) {
+    // Se estiver a abrir o registo e NÃO for uma edição (ou seja, clicou no menu), faz reset total
+    if (viewId === 'view-register' && !isEdit) {
         resetRegisterForm("Novo Produto");
     }
+    
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
+    
     if(viewId === 'view-search') renderList();
+    
     document.getElementById('side-menu').classList.remove('open');
     document.getElementById('menu-overlay').classList.remove('active');
 }
+   
+
 
 // --- RENDERIZAÇÃO DA LISTA COM DUAL SWIPE ---
 async function renderList(filter = "") {
@@ -167,25 +173,19 @@ function startEditMode(id) {
     const inpCodigo = document.getElementById('inp-codigo');
     const inpQtd = document.getElementById('inp-qtd');
     
+    // Bloqueia Referência e Quantidade
     inpCodigo.value = item.codigo;
     inpCodigo.disabled = true;
     inpQtd.value = item.quantidade;
     inpQtd.disabled = true;
     
+    // Preenche os campos editáveis
     document.getElementById('inp-nome').value = item.nome;
     document.getElementById('inp-tipo').value = item.tipo || '';
     document.getElementById('inp-loc').value = item.localizacao || '';
 
-    nav('view-register');
-}
-
-function resetRegisterForm(title) {
-    editModeId = null;
-    document.getElementById('form-add').reset();
-    document.getElementById('form-title').innerText = title;
-    document.getElementById('btn-form-submit').innerText = "Criar Ficha de Produto";
-    document.getElementById('inp-codigo').disabled = false;
-    document.getElementById('inp-qtd').disabled = false;
+    // Passamos o parâmetro "true" para avisar a navegação que ISTO É UMA EDIÇÃO
+    nav('view-register', true);
 }
 
 // --- AÇÕES DE DADOS ---
@@ -286,3 +286,4 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('status-texto').innerText = "Online"; 
     }
 });
+
