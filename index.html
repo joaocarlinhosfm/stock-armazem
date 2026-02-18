@@ -30,25 +30,19 @@
         </ul>
         
         <div class="menu-footer">
-    <div class="footer-row">
-        <div id="status-conexao">
-            <span id="status-ponto"></span>
-            <span id="status-texto">Online</span>
-        </div>
+            <div class="footer-row">
+                <div id="status-conexao">
+                    <span id="status-ponto"></span>
+                    <span id="status-texto">Online</span>
+                </div>
 
-        <label class="compact-switch">
-            <input type="checkbox" id="theme-toggle" onchange="toggleTheme()">
-            <span class="compact-slider">
-                <span class="sun-icon">☀️</span>
-                <span class="moon-icon">🌙</span>
-            </span>
-        </label>
-    </div>
-</div>
-
-            <div id="status-conexao">
-                <span id="status-ponto"></span>
-                <span id="status-texto">A verificar rede...</span>
+                <label class="compact-switch">
+                    <input type="checkbox" id="theme-toggle" onchange="toggleTheme()">
+                    <span class="compact-slider">
+                        <span class="sun-icon">☀️</span>
+                        <span class="moon-icon">🌙</span>
+                    </span>
+                </label>
             </div>
         </div>
     </nav>
@@ -67,8 +61,8 @@
                 <button onclick="nav('view-search')" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color: var(--text-main);">✕</button>
             </div>
             <form id="form-add" class="pro-form">
-                <label>REFERÊNCIA / CÓDIGO (Fixo na edição)</label>
-                <input type="text" id="inp-codigo" placeholder="Scan ou digite..." style="text-transform:uppercase" required>
+                <label>REFERÊNCIA / CÓDIGO</label>
+                <input type="text" id="inp-codigo" placeholder="Digite os números..." style="text-transform:uppercase" required>
                 
                 <label>NOME DO ITEM</label>
                 <input type="text" id="inp-nome" placeholder="Ex: Compressor Xpto..." required>
@@ -87,7 +81,7 @@
                 <label>STOCK ATUAL</label>
                 <input type="number" id="inp-qtd" value="0" min="0">
                 
-                <button type="submit" id="btn-form-submit" class="btn-primary">Criar Ficha de Produto</button>
+                <button type="submit" id="btn-form-submit" class="btn-primary">Gravar Produto</button>
             </form>
         </div>
 
@@ -101,11 +95,11 @@
                 <input type="text" id="bulk-loc" placeholder="ZONA FIXA" style="text-transform:uppercase" required>
                 
                 <label>REFERÊNCIA DO ITEM</label>
-                <input type="text" id="bulk-codigo" placeholder="Scan ou Digite..." required>
+                <input type="text" id="bulk-codigo" placeholder="Digite os números..." required>
                 
                 <label>NOME DO ITEM</label>
                 <input type="text" id="bulk-nome" placeholder="Nome para o sistema..." required>
-                
+
                 <label>QUANTIDADE (Opcional)</label>
                 <input type="number" id="bulk-qtd" placeholder="Padrão: 0" min="0">
                 
@@ -115,9 +109,6 @@
     </main>
 
     <div id="toast-container"></div>
-
     <script src="app.js"></script>
 </body>
 </html>
-
-
