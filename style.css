@@ -103,3 +103,41 @@ input:checked + .compact-slider:before { transform: translateX(26px); }
 #toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 90%; max-width: 350px; pointer-events: none; }
 .toast { background: var(--card-bg); padding: 15px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 10px; border-left: 5px solid var(--success); margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; }
 .toast-error { border-left-color: var(--danger); }
+
+/* --- AJUSTE DO BOTÃO FECHAR NO MENU --- */
+.menu-header { 
+    padding: 0 20px; 
+    height: 60px; /* Mesma altura do header principal */
+    border-bottom: 1px solid var(--border); 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    background: var(--card-bg);
+}
+
+.menu-header strong {
+    font-size: 1.1rem;
+    color: var(--text-main);
+}
+
+#close-menu { 
+    background: none; 
+    border: none; 
+    font-size: 1.8rem; /* Aumentado para ser mais fácil de tocar no telemóvel */
+    color: var(--text-muted); 
+    cursor: pointer; 
+    padding: 10px; /* Aumenta a área de toque */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+#close-menu:active {
+    color: var(--danger); /* Feedback visual ao tocar */
+}
+
+/* Garante visibilidade no Dark Mode */
+.dark-mode #close-menu {
+    color: var(--text-main);
+}
