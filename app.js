@@ -11,13 +11,11 @@ function showToast(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     
-    // Ícone baseado no tipo de notificação
     const icon = type === 'success' ? '✅' : '❌';
     toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
     
     container.appendChild(toast);
 
-    // Desaparece automaticamente após 3 segundos
     setTimeout(() => {
         toast.classList.add('fade-out');
         toast.addEventListener('animationend', () => toast.remove());
@@ -49,21 +47,15 @@ function toggleMenu() {
 }
 
 function nav(viewId, isEdit = false) {
-    // Se estiver a abrir o registo e NÃO for uma edição (ou seja, clicou no menu), faz reset total
     if (viewId === 'view-register' && !isEdit) {
         resetRegisterForm("Novo Produto");
     }
-    
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
-    
     if(viewId === 'view-search') renderList();
-    
     document.getElementById('side-menu').classList.remove('open');
     document.getElementById('menu-overlay').classList.remove('active');
 }
-   
-
 
 // --- RENDERIZAÇÃO DA LISTA COM DUAL SWIPE ---
 async function renderList(filter = "") {
@@ -96,7 +88,6 @@ async function renderList(filter = "") {
             el.className = 'item-card';
             el.dataset.id = item.id;
             
-            // Lógica para Alerta Visual de Stock Baixo
             const qtd = item.quantidade || 0;
             const lowStockClass = qtd <= 2 ? 'low-stock' : '';
 
@@ -173,11 +164,10 @@ function startEditMode(id) {
     const inpCodigo = document.getElementById('inp-codigo');
     const inpQtd = document.getElementById('inp-qtd');
     
-    // Agora SÓ a referência fica bloqueada
+    // Na edição, bloqueamos o Código, mas a Quantidade fica livre!
     inpCodigo.value = item.codigo;
     inpCodigo.disabled = true;
     
-    // A quantidade é preenchida, mas continua editável
     inpQtd.value = item.quantidade;
     inpQtd.disabled = false; 
     
@@ -185,7 +175,17 @@ function startEditMode(id) {
     document.getElementById('inp-tipo').value = item.tipo || '';
     document.getElementById('inp-loc').value = item.localizacao || '';
 
+    // Passar true para não limpar o formulário
     nav('view-register', true);
+}
+
+function resetRegisterForm(title) {
+    editModeId = null;
+    document.getElementById('form-add').reset();
+    document.getElementById('form-title').innerText = title;
+    document.getElementById('btn-form-submit').innerText = "Criar Ficha de Produto";
+    document.getElementById('inp-codigo').disabled = false;
+    document.getElementById('inp-qtd').disabled = false;
 }
 
 // --- AÇÕES DE DADOS ---
@@ -198,7 +198,6 @@ async function changeQtd(id, delta) {
     
     qtdSpan.innerText = novaQtd;
     
-    // Atualiza a classe de stock baixo dinamicamente
     if (novaQtd <= 2) {
         qtdSpan.classList.add('low-stock');
     } else {
@@ -214,7 +213,6 @@ async function changeQtd(id, delta) {
 }
 
 async function deleteItem(id, cardElement) {
-    // Aqui mantemos o 'confirm' normal porque é uma medida drástica (apagar dados)
     if(confirm("Tem a certeza que deseja apagar este item?")) {
         cardElement.style.transform = `translateX(-100%)`; 
         setTimeout(() => cardElement.remove(), 200);
@@ -229,19 +227,18 @@ async function deleteItem(id, cardElement) {
     }
 }
 
-// --- SUBMISSÃO DO FORMULÁRIO (REGISTAR OU EDITAR) ---
+// --- SUBMISSÃO DO FORMULÁRIO (NOVO OU EDIÇÃO) ---
 document.getElementById('form-add').onsubmit = async (e) => {
     e.preventDefault();
     const payload = {};
     
-    // O código só é enviado se for um NOVO produto
     if (editModeId === null) {
+        // Só tenta ler e enviar o código se for um item novo
         payload.codigo = document.getElementById('inp-codigo').value.toUpperCase();
     }
     
-    // A QUANTIDADE agora é enviada sempre (novo ou edição)
+    // A quantidade e os restantes dados são enviados sempre
     payload.quantidade = parseInt(document.getElementById('inp-qtd').value) || 0;
-    
     payload.nome = document.getElementById('inp-nome').value;
     payload.tipo = document.getElementById('inp-tipo').value;
     payload.localizacao = document.getElementById('inp-loc').value.toUpperCase();
@@ -259,9 +256,41 @@ document.getElementById('form-add').onsubmit = async (e) => {
     }
 };
 
+// --- SUBMISSÃO DO CATALOGAR LOTE (Função C) ---
+document.getElementById('form-bulk').onsubmit = async (e) => { 
+    e.preventDefault(); 
+    
+    // Lemos também o novo campo bulk-qtd opcional
+    const qtdInput = document.getElementById('bulk-qtd');
+    const quantidadeDesejada = qtdInput && qtdInput.value ? parseInt(qtdInput.value) : 0;
+
+    const item = { 
+        codigo: document.getElementById('bulk-codigo').value.toUpperCase(), 
+        nome: document.getElementById('bulk-nome').value, 
+        localizacao: document.getElementById('bulk-loc').value.toUpperCase(), 
+        quantidade: quantidadeDesejada 
+    }; 
+    
+    try {
+        await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) }); 
+        
+        // Limpar o formulário para o próximo item
+        document.getElementById('bulk-codigo').value = ""; 
+        document.getElementById('bulk-nome').value = ""; 
+        if(qtdInput) qtdInput.value = ""; 
+        
+        document.getElementById('bulk-codigo').focus(); 
+        showToast("Lote guardado com sucesso!");
+    } catch(err) {
+        showToast("Erro ao guardar lote.", "error");
+    }
+};
+
+// --- ARRANQUE DA APLICAÇÃO ---
 document.addEventListener('DOMContentLoaded', () => {
     const toggle = document.getElementById('theme-toggle');
     if (toggle) toggle.checked = document.body.classList.contains('dark-mode');
+    
     renderList();
     document.getElementById('inp-search').oninput = (e) => renderList(e.target.value);
     
@@ -270,6 +299,3 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('status-texto').innerText = "Online"; 
     }
 });
-
-
-
