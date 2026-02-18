@@ -173,18 +173,18 @@ function startEditMode(id) {
     const inpCodigo = document.getElementById('inp-codigo');
     const inpQtd = document.getElementById('inp-qtd');
     
-    // Bloqueia Referência e Quantidade
+    // Agora SÓ a referência fica bloqueada
     inpCodigo.value = item.codigo;
     inpCodigo.disabled = true;
-    inpQtd.value = item.quantidade;
-    inpQtd.disabled = true;
     
-    // Preenche os campos editáveis
+    // A quantidade é preenchida, mas continua editável
+    inpQtd.value = item.quantidade;
+    inpQtd.disabled = false; 
+    
     document.getElementById('inp-nome').value = item.nome;
     document.getElementById('inp-tipo').value = item.tipo || '';
     document.getElementById('inp-loc').value = item.localizacao || '';
 
-    // Passamos o parâmetro "true" para avisar a navegação que ISTO É UMA EDIÇÃO
     nav('view-register', true);
 }
 
@@ -286,4 +286,5 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('status-texto').innerText = "Online"; 
     }
 });
+
 
