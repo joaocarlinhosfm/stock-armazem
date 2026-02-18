@@ -12,8 +12,9 @@
 
     <header>
         <button id="menu-btn" onclick="toggleMenu()">☰</button>
-        <h1>Stock Braga</h1>
-        <div style="width: 30px;"></div> </header>
+        <h1>O Meu Stock</h1>
+        <div style="width: 30px;"></div>
+    </header>
 
     <div id="menu-overlay" onclick="toggleMenu()"></div>
 
@@ -55,11 +56,11 @@
 
         <div id="view-register" class="view">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-                <h2>Novo Produto</h2>
+                <h2 id="form-title">Novo Produto</h2>
                 <button onclick="nav('view-search')" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color: var(--text-main);">✕</button>
             </div>
             <form id="form-add" class="pro-form">
-                <label>REFERÊNCIA / CÓDIGO</label>
+                <label>REFERÊNCIA / CÓDIGO (Fixo na edição)</label>
                 <input type="text" id="inp-codigo" placeholder="Scan ou digite..." style="text-transform:uppercase" required>
                 
                 <label>NOME DO ITEM</label>
@@ -67,7 +68,7 @@
                 
                 <div class="form-row">
                     <div>
-                        <label>TIPO/CATEGORIA</label>
+                        <label>TIPO</label>
                         <input type="text" id="inp-tipo" placeholder="Ex: Gás">
                     </div>
                     <div>
@@ -76,10 +77,10 @@
                     </div>
                 </div>
                 
-                <label>STOCK INICIAL</label>
+                <label>STOCK ATUAL (Fixo na edição)</label>
                 <input type="number" id="inp-qtd" value="0" min="0">
                 
-                <button type="submit" class="btn-primary">Criar Ficha de Produto</button>
+                <button type="submit" id="btn-form-submit" class="btn-primary">Criar Ficha de Produto</button>
             </form>
         </div>
 
