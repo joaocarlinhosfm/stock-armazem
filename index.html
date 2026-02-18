@@ -10,6 +10,11 @@
 </head>
 <body>
 
+    <header>
+        <button id="menu-btn" onclick="toggleMenu()">☰</button>
+        <h1>Stock Braga</h1>
+        <div style="width: 30px;"></div> </header>
+
     <div id="menu-overlay" onclick="toggleMenu()"></div>
 
     <nav id="side-menu">
@@ -22,8 +27,8 @@
             <li onclick="nav('view-register')"><span>➕</span> Novo Produto</li>
             <li onclick="nav('view-bulk')"><span>📦</span> Catalogar Lote</li>
         </ul>
+        
         <div class="menu-footer">
-            
             <div class="theme-pill">
                 <span class="theme-icon">☀️</span>
                 <label class="switch">
@@ -40,62 +45,64 @@
         </div>
     </nav>
 
-    <div id="view-search" class="view active">
-        <div class="search-container">
-            <input type="text" id="inp-search" placeholder="Procurar nome ou ref..." autocomplete="off">
-        </div>
-        <div id="stock-list"></div>
-    </div>
-
-    <div id="view-register" class="view">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h2>Novo Produto</h2>
-            <button onclick="nav('view-search')" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color: var(--text-main);">✕</button>
-        </div>
-        <form id="form-add" class="pro-form">
-            <label>REFERÊNCIA / CÓDIGO</label>
-            <input type="text" id="inp-codigo" placeholder="Scan ou digite..." style="text-transform:uppercase" required>
-            
-            <label>NOME DO ITEM</label>
-            <input type="text" id="inp-nome" placeholder="Ex: Compressor Xpto..." required>
-            
-            <div class="form-row">
-                <div>
-                    <label>TIPO/CATEGORIA</label>
-                    <input type="text" id="inp-tipo" placeholder="Ex: Gás">
-                </div>
-                <div>
-                    <label>LOCALIZAÇÃO</label>
-                    <input type="text" id="inp-loc" placeholder="A1, B2..." style="text-transform:uppercase">
-                </div>
+    <main>
+        <div id="view-search" class="view active">
+            <div class="search-container">
+                <input type="text" id="inp-search" placeholder="Procurar nome ou ref..." autocomplete="off">
             </div>
-            
-            <label>STOCK INICIAL</label>
-            <input type="number" id="inp-qtd" value="0" min="0">
-            
-            <button type="submit" class="btn-primary">Criar Ficha de Produto</button>
-        </form>
-    </div>
-
-    <div id="view-bulk" class="view">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h2>Catalogar Lote</h2>
-            <button onclick="nav('view-search')" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color: var(--text-main);">✕</button>
+            <div id="stock-list"></div>
         </div>
-        <form id="form-bulk" class="pro-form">
-            <label>ZONA DE ARRUMAÇÃO</label>
-            <input type="text" id="bulk-loc" placeholder="ZONA FIXA" style="text-transform:uppercase" required>
-            
-            <label>REFERÊNCIA DO ITEM</label>
-            <input type="text" id="bulk-codigo" placeholder="Scan ou Digite..." required>
-            
-            <label>NOME DO ITEM</label>
-            <input type="text" id="bulk-nome" placeholder="Nome para o sistema..." required>
-            
-            <button type="submit" class="btn-primary">Gravar e Continuar</button>
-        </form>
-        <div id="bulk-feedback" style="text-align:center; margin-top:15px; font-weight:bold; color: var(--text-main);"></div>
-    </div>
+
+        <div id="view-register" class="view">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <h2>Novo Produto</h2>
+                <button onclick="nav('view-search')" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color: var(--text-main);">✕</button>
+            </div>
+            <form id="form-add" class="pro-form">
+                <label>REFERÊNCIA / CÓDIGO</label>
+                <input type="text" id="inp-codigo" placeholder="Scan ou digite..." style="text-transform:uppercase" required>
+                
+                <label>NOME DO ITEM</label>
+                <input type="text" id="inp-nome" placeholder="Ex: Compressor Xpto..." required>
+                
+                <div class="form-row">
+                    <div>
+                        <label>TIPO/CATEGORIA</label>
+                        <input type="text" id="inp-tipo" placeholder="Ex: Gás">
+                    </div>
+                    <div>
+                        <label>LOCALIZAÇÃO</label>
+                        <input type="text" id="inp-loc" placeholder="A1, B2..." style="text-transform:uppercase">
+                    </div>
+                </div>
+                
+                <label>STOCK INICIAL</label>
+                <input type="number" id="inp-qtd" value="0" min="0">
+                
+                <button type="submit" class="btn-primary">Criar Ficha de Produto</button>
+            </form>
+        </div>
+
+        <div id="view-bulk" class="view">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <h2>Catalogar Lote</h2>
+                <button onclick="nav('view-search')" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color: var(--text-main);">✕</button>
+            </div>
+            <form id="form-bulk" class="pro-form">
+                <label>ZONA DE ARRUMAÇÃO</label>
+                <input type="text" id="bulk-loc" placeholder="ZONA FIXA" style="text-transform:uppercase" required>
+                
+                <label>REFERÊNCIA DO ITEM</label>
+                <input type="text" id="bulk-codigo" placeholder="Scan ou Digite..." required>
+                
+                <label>NOME DO ITEM</label>
+                <input type="text" id="bulk-nome" placeholder="Nome para o sistema..." required>
+                
+                <button type="submit" class="btn-primary">Gravar e Continuar</button>
+            </form>
+            <div id="bulk-feedback" style="text-align:center; margin-top:15px; font-weight:bold; color: var(--text-main);"></div>
+        </div>
+    </main>
 
     <script src="app.js"></script>
 </body>
