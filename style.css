@@ -8,6 +8,7 @@
     --border: #e2e8f0;
     --danger: #ef4444;
     --success: #22c55e;
+    --header-h: 60px;
 }
 
 .dark-mode {
@@ -15,28 +16,76 @@
     --text-muted: #94a3b8; --border: #334155; --primary-soft: #1e293b;
 }
 
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-body { font-family: 'Inter', sans-serif; margin: 0; background: var(--bg); color: var(--text-main); overflow-x: hidden; overscroll-behavior-y: contain; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
 
-header { background: var(--primary); color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; height: 60px; }
-#menu-btn { background: none; border: none; color: white; font-size: 1.8rem; cursor: pointer; }
+body { 
+    font-family: 'Inter', sans-serif; 
+    margin: 0; background: var(--bg); color: var(--text-main);
+    padding-top: var(--header-h); /* Garante que o conteúdo não fica por baixo do header */
+}
 
-#side-menu { position: fixed; top: 0; left: -280px; width: 280px; height: 100%; background: var(--card-bg); z-index: 200; transition: 0.3s ease; display: flex; flex-direction: column; box-shadow: 5px 0 15px rgba(0,0,0,0.1); }
-#side-menu.open { left: 0; }
-#menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; z-index: 150; }
+/* --- HEADER FIXO --- */
+header { 
+    background: var(--primary); color: white; padding: 0 16px; 
+    display: flex; justify-content: space-between; align-items: center;
+    position: fixed; top: 0; left: 0; right: 0; 
+    z-index: 1000; height: var(--header-h);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+#menu-btn { background: none; border: none; color: white; font-size: 1.8rem; cursor: pointer; padding: 10px; }
+header h1 { font-size: 1.1rem; margin: 0; font-weight: 700; flex-grow: 1; text-align: center; }
+
+/* --- MENU LATERAL --- */
+#side-menu { position: fixed; top: 0; left: -280px; width: 280px; height: 100%; background: var(--card-bg); z-index: 2000; transition: 0.3s ease; display: flex; flex-direction: column; }
+#side-menu.open { left: 0; box-shadow: 10px 0 30px rgba(0,0,0,0.3); }
+#menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; z-index: 1500; backdrop-filter: blur(2px); }
 #menu-overlay.active { display: block; }
 
 .menu-header { padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
 #side-menu ul { list-style: none; padding: 10px; margin: 0; }
-#side-menu li { padding: 16px; border-radius: 12px; margin-bottom: 5px; display: flex; align-items: center; gap: 15px; cursor: pointer; font-weight: 500; }
+#side-menu li { padding: 16px; border-radius: 12px; margin-bottom: 5px; display: flex; align-items: center; gap: 15px; cursor: pointer; font-weight: 500; color: var(--text-main); }
 #side-menu li:active { background: var(--primary-soft); }
 
-/* FOOTER COMPACTO */
 .menu-footer { padding: 20px; border-top: 1px solid var(--border); margin-top: auto; }
 .footer-row { display: flex; align-items: center; justify-content: space-between; }
-#status-conexao { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
-#status-ponto { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
 
+/* --- BARRA DE PESQUISA (Corrigida para Android) --- */
+.search-container { 
+    position: sticky; 
+    top: var(--header-h); 
+    background: var(--bg); 
+    padding: 12px 0; 
+    z-index: 900;
+}
+#inp-search { 
+    width: 100%; padding: 14px 18px; border-radius: 14px; 
+    border: 2px solid var(--border); background: var(--card-bg); 
+    color: var(--text-main); font-size: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+#inp-search:focus { border-color: var(--primary); }
+
+/* --- LISTA E CARDS --- */
+main { padding: 0 16px 30px 16px; max-width: 600px; margin: 0 auto; }
+.view { display: none; padding-top: 10px; }
+.view.active { display: block; }
+
+.item-card { position: relative; background: var(--card-bg); border-radius: 16px; margin-bottom: 12px; overflow: hidden; border: 1px solid var(--border); touch-action: pan-y; }
+.card-content { position: relative; background: var(--card-bg); padding: 16px; z-index: 2; transition: transform 0.2s ease; }
+.card-bg-layer { position: absolute; top: 0; height: 100%; width: 100%; display: flex; align-items: center; padding: 0 25px; color: white; font-weight: 700; z-index: 1; }
+.layer-edit { background: #f59e0b; justify-content: flex-start; }
+.layer-delete { background: var(--danger); justify-content: flex-end; }
+
+/* --- STOCK ZERO PULSAR --- */
+.low-stock { 
+    color: var(--danger) !important; font-weight: 800; display: inline-block;
+    animation: pulse-ruptura 1.5s infinite; 
+}
+@keyframes pulse-ruptura { 
+    0%, 100% { transform: scale(1); } 
+    50% { transform: scale(1.2); text-shadow: 0 0 5px rgba(239, 68, 68, 0.4); } 
+}
+
+/* --- TOGGLE TEMA COMPACTO --- */
 .compact-switch { position: relative; width: 54px; height: 28px; }
 .compact-switch input { opacity: 0; width: 0; height: 0; }
 .compact-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #e2e8f0; transition: .3s; border-radius: 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 6px; }
@@ -45,30 +94,12 @@ header { background: var(--primary); color: white; padding: 12px 16px; display: 
 input:checked + .compact-slider { background-color: #334155; }
 input:checked + .compact-slider:before { transform: translateX(26px); }
 
-/* PULSAR STOCK ZERO */
-.low-stock { 
-    color: var(--danger) !important; font-weight: 800; display: inline-block;
-    animation: pulse-ruptura 1.5s infinite; 
-}
-@keyframes pulse-ruptura { 
-    0%, 100% { transform: scale(1); opacity: 1; } 
-    50% { transform: scale(1.3); opacity: 0.7; text-shadow: 0 0 8px var(--danger); } 
-}
+/* --- FORMULÁRIOS --- */
+.pro-form label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; margin-top: 15px; }
+.pro-form input { width: 100%; padding: 14px; border: 1.5px solid var(--border); border-radius: 12px; background: var(--card-bg); color: var(--text-main); font-size: 1rem; }
+.btn-primary { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; margin-top: 20px; font-size: 1rem; }
 
-/* CARDS & TOASTS */
-.item-card { position: relative; background: var(--card-bg); border-radius: 16px; margin-bottom: 12px; overflow: hidden; border: 1px solid var(--border); }
-.card-content { position: relative; background: var(--card-bg); padding: 16px; z-index: 2; transition: transform 0.2s ease; }
-.card-bg-layer { position: absolute; top: 0; height: 100%; width: 100%; display: flex; align-items: center; padding: 0 25px; color: white; font-weight: 700; }
-.layer-edit { background: #f59e0b; justify-content: flex-start; }
-.layer-delete { background: var(--danger); justify-content: flex-end; }
-
-#toast-container { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; width: 90%; max-width: 350px; pointer-events: none; }
-.toast { background: var(--card-bg); padding: 14px 20px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 12px; border-left: 5px solid var(--success); animation: slideUp 0.3s forwards; }
+/* --- TOASTS --- */
+#toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 90%; max-width: 350px; pointer-events: none; }
+.toast { background: var(--card-bg); padding: 15px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 10px; border-left: 5px solid var(--success); margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; }
 .toast-error { border-left-color: var(--danger); }
-@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
-/* FORMS */
-.pro-form input { width: 100%; padding: 14px; border: 1.5px solid var(--border); border-radius: 12px; background: var(--card-bg); color: var(--text-main); margin-bottom: 10px; }
-.btn-primary { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; }
-.view { display: none; }
-.view.active { display: block; }
