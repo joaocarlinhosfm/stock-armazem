@@ -4,6 +4,42 @@ const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase
 let editModeId = null; 
 let cachedData = {};   
 
+// Ajuste na função setupSwipe para Android
+function setupSwipe(el, id) {
+    const content = el.querySelector('.card-content');
+    let startX = 0, startY = 0, currentX = 0, isScrolling = false;
+
+    content.addEventListener('touchstart', e => {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        isScrolling = false;
+        content.style.transition = 'none';
+    }, {passive: true});
+
+    content.addEventListener('touchmove', e => {
+        currentX = e.touches[0].clientX - startX;
+        let currentY = e.touches[0].clientY - startY;
+
+        // Se o movimento vertical for maior que o horizontal, o utilizador quer fazer scroll
+        if (Math.abs(currentY) > Math.abs(currentX)) {
+            isScrolling = true;
+        }
+
+        if (!isScrolling && Math.abs(currentX) > 10) {
+            content.style.transform = `translateX(${currentX}px)`;
+        }
+    }, {passive: true});
+
+    content.addEventListener('touchend', () => {
+        content.style.transition = 'transform 0.3s ease';
+        if (!isScrolling) {
+            if (currentX > 80) startEditMode(id);
+            else if (currentX < -80) deleteItem(id, el);
+        }
+        content.style.transform = `translateX(0px)`;
+        currentX = 0;
+    });
+}
 // NOTIFICAÇÕES
 function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
@@ -174,3 +210,4 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('inp-search').oninput = (e) => renderList(e.target.value);
     if (navigator.onLine) document.getElementById('status-ponto').style.background = "#22c55e";
 });
+
