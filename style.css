@@ -141,3 +141,61 @@ input:checked + .slider:before { transform: translateX(20px); }
 .btn-primary:active { opacity: 0.8; }
 #status-conexao { display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
 #status-ponto { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; background: #cbd5e1; }
+
+/* --- NOTIFICAÇÕES (TOASTS) --- */
+#toast-container {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none; /* Permite clicar "através" da zona das notificações */
+    width: 90%;
+    max-width: 400px;
+}
+
+.toast {
+    background: var(--card-bg);
+    color: var(--text-main);
+    padding: 14px 20px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    font-size: 0.95rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: slideUpToast 0.3s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid var(--border);
+    border-left-width: 5px; /* Faixa lateral de cor */
+}
+
+.toast-success { border-left-color: var(--success); }
+.toast-error { border-left-color: var(--danger); }
+
+.toast.fade-out { animation: fadeOutToast 0.3s forwards; }
+
+@keyframes slideUpToast {
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeOutToast {
+    to { opacity: 0; transform: translateY(-20px); }
+}
+
+/* --- ALERTA DE STOCK BAIXO --- */
+.low-stock {
+    color: var(--danger) !important;
+    animation: pulse-danger 2s infinite;
+}
+
+@keyframes pulse-danger {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+}
+
