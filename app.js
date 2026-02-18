@@ -2,8 +2,27 @@ const DB_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.a
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
 // --- ESTADO GLOBAL ---
-let editModeId = null; // Guarda o ID se estivermos a editar, null se for novo
-let cachedData = {};   // Guarda os dados para acesso rápido na edição
+let editModeId = null; 
+let cachedData = {};   
+
+// --- SISTEMA DE NOTIFICAÇÕES (TOAST) ---
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    
+    // Ícone baseado no tipo de notificação
+    const icon = type === 'success' ? '✅' : '❌';
+    toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+    
+    container.appendChild(toast);
+
+    // Desaparece automaticamente após 3 segundos
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        toast.addEventListener('animationend', () => toast.remove());
+    }, 3000);
+}
 
 // --- INICIALIZAÇÃO E TEMA ---
 function toggleTheme() {
@@ -30,11 +49,9 @@ function toggleMenu() {
 }
 
 function nav(viewId) {
-    // Se for para a vista de registo sem ser via swipe, resetamos o modo de edição
     if (viewId === 'view-register' && editModeId === null) {
         resetRegisterForm("Novo Produto");
     }
-
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
     if(viewId === 'view-search') renderList();
@@ -52,7 +69,7 @@ async function renderList(filter = "") {
     try {
         const res = await fetch(DB_URL);
         const data = await res.json();
-        cachedData = data || {}; // Guardar em cache para edição rápida
+        cachedData = data || {}; 
         
         listEl.innerHTML = ''; 
         if (!data) return listEl.innerHTML = '<div style="text-align:center; padding:40px; color:gray;">Sem dados.</div>';
@@ -73,7 +90,10 @@ async function renderList(filter = "") {
             el.className = 'item-card';
             el.dataset.id = item.id;
             
-            // Estrutura com 3 camadas: Fundo Edit (Esq), Fundo Delete (Dir), Conteúdo (Frente)
+            // Lógica para Alerta Visual de Stock Baixo
+            const qtd = item.quantidade || 0;
+            const lowStockClass = qtd <= 2 ? 'low-stock' : '';
+
             el.innerHTML = `
                 <div class="card-bg-layer layer-edit">✏️ Editar</div>
                 <div class="card-bg-layer layer-delete">🗑️ Apagar</div>
@@ -87,7 +107,7 @@ async function renderList(filter = "") {
                         <div class="badge-loc">📍 ${item.localizacao || 'S/ LOC'}</div>
                         <div class="qtd-pill">
                             <button class="btn-qtd" onclick="changeQtd('${item.id}', -1)">−</button>
-                            <span class="qtd-value">${item.quantidade || 0}</span>
+                            <span class="qtd-value ${lowStockClass}">${qtd}</span>
                             <button class="btn-qtd" onclick="changeQtd('${item.id}', 1)">+</button>
                         </div>
                     </div>
@@ -101,15 +121,14 @@ async function renderList(filter = "") {
     }
 }
 
-// --- LÓGICA DE SWIPE DUPLO (DIREITA E ESQUERDA) ---
+// --- LÓGICA DE SWIPE DUPLO ---
 function setupDualSwipe(cardElement, id) {
     const content = cardElement.querySelector('.card-content');
     let startX = 0;
     let currentX = 0;
-    const threshold = 80; // Distância mínima para ativar a ação
+    const threshold = 80;
 
     content.addEventListener('touchstart', e => {
-        // Ignora se tocar nos botões de quantidade
         if(e.target.closest('.btn-qtd')) return;
         startX = e.touches[0].clientX;
         content.classList.add('swiping');
@@ -119,22 +138,17 @@ function setupDualSwipe(cardElement, id) {
         if(e.target.closest('.btn-qtd')) return;
         const touch = e.touches[0].clientX;
         currentX = touch - startX;
-        // Move o cartão com o dedo
         content.style.transform = `translateX(${currentX}px)`;
     }, {passive: true});
 
     content.addEventListener('touchend', () => {
         content.classList.remove('swiping');
-        
         if (currentX > threshold) {
-            // --- SWIPE RIGHT -> EDITAR ---
-            content.style.transform = `translateX(0px)`; // Volta ao sítio
+            content.style.transform = `translateX(0px)`; 
             startEditMode(id);
         } else if (currentX < -threshold) {
-            // --- SWIPE LEFT -> APAGAR ---
             deleteItem(id, cardElement);
         } else {
-            // --- CANCELADO ---
             content.style.transform = `translateX(0px)`;
         }
         currentX = 0;
@@ -144,33 +158,27 @@ function setupDualSwipe(cardElement, id) {
 // --- MODO DE EDIÇÃO ---
 function startEditMode(id) {
     const item = cachedData[id];
-    if (!item) return alert("Erro ao carregar dados do item.");
+    if (!item) return showToast("Erro ao carregar dados do item.", "error");
 
-    editModeId = id; // Marca que estamos a editar este ID
-
-    // Preenche o formulário existente
+    editModeId = id; 
     document.getElementById('form-title').innerText = "Editar Produto";
     document.getElementById('btn-form-submit').innerText = "Guardar Alterações";
     
     const inpCodigo = document.getElementById('inp-codigo');
     const inpQtd = document.getElementById('inp-qtd');
     
-    // Preenche e bloqueia campos que não se podem mudar
     inpCodigo.value = item.codigo;
     inpCodigo.disabled = true;
     inpQtd.value = item.quantidade;
     inpQtd.disabled = true;
     
-    // Preenche campos editáveis
     document.getElementById('inp-nome').value = item.nome;
     document.getElementById('inp-tipo').value = item.tipo || '';
     document.getElementById('inp-loc').value = item.localizacao || '';
 
-    // Navega para a vista do formulário
     nav('view-register');
 }
 
-// Função auxiliar para limpar o formulário para modo "Novo"
 function resetRegisterForm(title) {
     editModeId = null;
     document.getElementById('form-add').reset();
@@ -182,43 +190,53 @@ function resetRegisterForm(title) {
 
 // --- AÇÕES DE DADOS ---
 async function changeQtd(id, delta) {
-    // (Esta função mantém-se igual à anterior, podes manter a que tinhas)
     const card = document.querySelector(`.item-card[data-id="${id}"]`);
     if(!card) return;
     const qtdSpan = card.querySelector('.qtd-value');
     let qtdAtual = parseInt(qtdSpan.innerText);
     let novaQtd = Math.max(0, qtdAtual + delta);
+    
     qtdSpan.innerText = novaQtd;
-    qtdSpan.style.color = "var(--primary)";
-    setTimeout(() => { qtdSpan.style.color = "var(--text-main)"; }, 200);
-    try { await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: novaQtd }) }); } 
-    catch (e) { qtdSpan.innerText = qtdAtual; }
+    
+    // Atualiza a classe de stock baixo dinamicamente
+    if (novaQtd <= 2) {
+        qtdSpan.classList.add('low-stock');
+    } else {
+        qtdSpan.classList.remove('low-stock');
+    }
+
+    try { 
+        await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: novaQtd }) }); 
+    } catch (e) { 
+        qtdSpan.innerText = qtdAtual; 
+        showToast("Erro de ligação. A quantidade não foi gravada.", "error");
+    }
 }
 
 async function deleteItem(id, cardElement) {
+    // Aqui mantemos o 'confirm' normal porque é uma medida drástica (apagar dados)
     if(confirm("Tem a certeza que deseja apagar este item?")) {
-        cardElement.style.transform = `translateX(-100%)`; // Animação de saída
+        cardElement.style.transform = `translateX(-100%)`; 
         setTimeout(() => cardElement.remove(), 200);
-        try { await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'DELETE' }); } catch(e) {};
+        try { 
+            await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'DELETE' }); 
+            showToast("Produto apagado com sucesso.");
+        } catch(e) {
+            showToast("Erro ao apagar no servidor.", "error");
+        };
     } else {
-        // Se cancelar, volta o cartão ao sítio
         cardElement.querySelector('.card-content').style.transform = 'translateX(0px)';
     }
 }
 
-// --- SUBMISSÃO DO FORMULÁRIO (REGISTAR OU EDITAR) ---
+// --- SUBMISSÃO DO FORMULÁRIO ---
 document.getElementById('form-add').onsubmit = async (e) => {
     e.preventDefault();
-    
     const payload = {};
-    // Se for novo, precisamos de tudo. Se for edição, só do que muda.
     if (editModeId === null) {
-        // --- MODO NOVO (POST) ---
         payload.codigo = document.getElementById('inp-codigo').value.toUpperCase();
         payload.quantidade = parseInt(document.getElementById('inp-qtd').value) || 0;
     }
-    
-    // Campos sempre enviáveis (Nome, Tipo, Local)
     payload.nome = document.getElementById('inp-nome').value;
     payload.tipo = document.getElementById('inp-tipo').value;
     payload.localizacao = document.getElementById('inp-loc').value.toUpperCase();
@@ -230,18 +248,41 @@ document.getElementById('form-add').onsubmit = async (e) => {
         await fetch(url, { method: method, body: JSON.stringify(payload) });
         e.target.reset();
         nav('view-search');
+        showToast(editModeId ? "Alterações guardadas!" : "Novo produto criado!");
     } catch (err) {
-        alert("Erro ao guardar. Tente novamente.");
+        showToast("Erro ao guardar. Tente novamente.", "error");
     }
 };
 
-// (O resto do ficheiro mantém-se igual: form-bulk, DOMContentLoaded...)
-document.getElementById('form-bulk').onsubmit = async (e) => { /* ... (Mantém o teu código do bulk) ... */ e.preventDefault(); const item = { codigo: document.getElementById('bulk-codigo').value.toUpperCase(), nome: document.getElementById('bulk-nome').value, localizacao: document.getElementById('bulk-loc').value.toUpperCase(), quantidade: 0 }; await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) }); document.getElementById('bulk-codigo').value = ""; document.getElementById('bulk-nome').value = ""; document.getElementById('bulk-codigo').focus(); const feedback = document.getElementById('bulk-feedback'); feedback.innerText = "✔ Guardado"; setTimeout(() => feedback.innerText = "", 1500); };
+document.getElementById('form-bulk').onsubmit = async (e) => { 
+    e.preventDefault(); 
+    const item = { 
+        codigo: document.getElementById('bulk-codigo').value.toUpperCase(), 
+        nome: document.getElementById('bulk-nome').value, 
+        localizacao: document.getElementById('bulk-loc').value.toUpperCase(), 
+        quantidade: 0 
+    }; 
+    try {
+        await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) }); 
+        document.getElementById('bulk-codigo').value = ""; 
+        document.getElementById('bulk-nome').value = ""; 
+        document.getElementById('bulk-codigo').focus(); 
+        
+        // Substituído o texto estático por uma notificação flutuante
+        showToast("Lote guardado com sucesso!");
+    } catch(err) {
+        showToast("Erro ao guardar lote.", "error");
+    }
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     const toggle = document.getElementById('theme-toggle');
     if (toggle) toggle.checked = document.body.classList.contains('dark-mode');
     renderList();
     document.getElementById('inp-search').oninput = (e) => renderList(e.target.value);
-    if (navigator.onLine) { document.getElementById('status-ponto').style.background = "#22c55e"; document.getElementById('status-texto').innerText = "Online"; }
+    
+    if (navigator.onLine) { 
+        document.getElementById('status-ponto').style.background = "#22c55e"; 
+        document.getElementById('status-texto').innerText = "Online"; 
+    }
 });
