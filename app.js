@@ -229,14 +229,19 @@ async function deleteItem(id, cardElement) {
     }
 }
 
-// --- SUBMISSÃO DO FORMULÁRIO ---
+// --- SUBMISSÃO DO FORMULÁRIO (REGISTAR OU EDITAR) ---
 document.getElementById('form-add').onsubmit = async (e) => {
     e.preventDefault();
     const payload = {};
+    
+    // O código só é enviado se for um NOVO produto
     if (editModeId === null) {
         payload.codigo = document.getElementById('inp-codigo').value.toUpperCase();
-        payload.quantidade = parseInt(document.getElementById('inp-qtd').value) || 0;
     }
+    
+    // A QUANTIDADE agora é enviada sempre (novo ou edição)
+    payload.quantidade = parseInt(document.getElementById('inp-qtd').value) || 0;
+    
     payload.nome = document.getElementById('inp-nome').value;
     payload.tipo = document.getElementById('inp-tipo').value;
     payload.localizacao = document.getElementById('inp-loc').value.toUpperCase();
@@ -254,27 +259,6 @@ document.getElementById('form-add').onsubmit = async (e) => {
     }
 };
 
-document.getElementById('form-bulk').onsubmit = async (e) => { 
-    e.preventDefault(); 
-    const item = { 
-        codigo: document.getElementById('bulk-codigo').value.toUpperCase(), 
-        nome: document.getElementById('bulk-nome').value, 
-        localizacao: document.getElementById('bulk-loc').value.toUpperCase(), 
-        quantidade: 0 
-    }; 
-    try {
-        await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) }); 
-        document.getElementById('bulk-codigo').value = ""; 
-        document.getElementById('bulk-nome').value = ""; 
-        document.getElementById('bulk-codigo').focus(); 
-        
-        // Substituído o texto estático por uma notificação flutuante
-        showToast("Lote guardado com sucesso!");
-    } catch(err) {
-        showToast("Erro ao guardar lote.", "error");
-    }
-};
-
 document.addEventListener('DOMContentLoaded', () => {
     const toggle = document.getElementById('theme-toggle');
     if (toggle) toggle.checked = document.body.classList.contains('dark-mode');
@@ -286,5 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('status-texto').innerText = "Online"; 
     }
 });
+
 
 
