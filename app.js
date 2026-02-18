@@ -1,6 +1,19 @@
 const DB_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app/stock.json";
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
+// --- INICIALIZAÇÃO E TEMA (Executa Imediatamente) ---
+function toggleTheme() {
+    const isDark = document.body.classList.toggle('dark-mode');
+    localStorage.setItem('hiperfrio-tema', isDark ? 'dark' : 'light');
+}
+
+(function applyThemeOnLoad() {
+    const savedTheme = localStorage.getItem('hiperfrio-tema');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+    }
+})();
+
 // --- NAVEGAÇÃO ---
 function toggleMenu() {
     const menu = document.getElementById('side-menu');
@@ -28,155 +41,176 @@ async function renderList(filter = "") {
     if (!filter && listEl.innerHTML === "") {
         listEl.innerHTML = "<div style='text-align:center; padding:40px; color:gray;'>A sincronizar stock...</div>";
     }
-    
+
     try {
-        const resp = await fetch(DB_URL);
-        const data = await resp.json();
-        listEl.innerHTML = "";
+        const res = await fetch(DB_URL);
+        const data = await res.json();
+        listEl.innerHTML = '';
+        if (!data) return listEl.innerHTML = '<div style="text-align:center; padding:40px; color:gray;">Sem dados.</div>';
+
+        let topHtml = `<header style="margin:-16px -16px 16px -16px;">
+            <button id="menu-btn" onclick="toggleMenu()">☰</button>
+            <h1>O Meu Stock</h1>
+            <div style="width: 30px;"></div>
+        </header>`;
         
-        if(!data) return listEl.innerHTML = "<div style='text-align:center; padding:20px;'>Sem produtos.</div>";
+        listEl.innerHTML = topHtml;
 
-        const term = filter.toLowerCase();
-        Object.keys(data).forEach(id => {
-            const item = data[id];
-            if (item.nome.toLowerCase().includes(term) || item.codigo.toLowerCase().includes(term) || (item.localizacao || "").toLowerCase().includes(term)) {
-                
-                // 1. Criar o contentor principal
-                const cardContainer = document.createElement('div');
-                cardContainer.className = 'item-card';
-                cardContainer.setAttribute('data-id', id);
-                
-                // 2. Injetar a estrutura HTML (Fundo Vermelho + Conteúdo Branco)
-                cardContainer.innerHTML = `
-                    <div class="card-delete-layer">
-                        <span>🗑️ Apagar</span>
-                    </div>
-                    
-                    <div class="card-content">
-                        <div class="card-header-compact">
-                            <span class="item-ref">${item.codigo}</span>
-                            <span class="item-name">${item.nome}</span>
-                        </div>
-                        
-                        <div class="card-footer-compact">
-                            <span class="badge-loc">📍 ${item.localizacao || 'S/ Local'}</span>
-                            <div class="qtd-pill">
-                                <button class="btn-qtd" ontouchstart="event.stopPropagation()" onclick="changeQtd('${id}', -1)">-</button>
-                                <span class="qtd-value">${item.quantidade || 0}</span>
-                                <button class="btn-qtd" ontouchstart="event.stopPropagation()" onclick="changeQtd('${id}', 1)">+</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                // 3. Adicionar o cartão à lista
-                listEl.appendChild(cardContainer);
+        const itens = Object.entries(data)
+            .map(([id, val]) => ({ id, ...val }))
+            .filter(i => 
+                (i.nome && i.nome.toLowerCase().includes(filter.toLowerCase())) ||
+                (i.codigo && i.codigo.toLowerCase().includes(filter.toLowerCase())) ||
+                (i.localizacao && i.localizacao.toLowerCase().includes(filter.toLowerCase()))
+            )
+            .reverse();
 
-                // 4. Ativar a funcionalidade de Swipe para este cartão
-                setupSwipe(cardContainer, id);
-            }
+        if(itens.length === 0) {
+            listEl.innerHTML += '<div style="text-align:center; padding:40px; color:gray;">Nenhum produto encontrado.</div>';
+            return;
+        }
+
+        itens.forEach(item => {
+            const el = document.createElement('div');
+            el.className = 'item-card';
+            el.dataset.id = item.id;
+            
+            el.innerHTML = `
+                <div class="card-delete-layer">🗑️ Apagar</div>
+                <div class="card-content">
+                    <div class="card-header-compact">
+                        <span class="item-ref">${item.codigo || '-'}</span>
+                        <span class="item-name">${item.nome || '-'}</span>
+                    </div>
+                    <div class="card-footer-compact">
+                        <div class="badge-loc">📍 ${item.localizacao || 'S/ LOC'}</div>
+                        <div class="qtd-pill">
+                            <button class="btn-qtd" onclick="changeQtd('${item.id}', -1)">−</button>
+                            <span class="qtd-value">${item.quantidade || 0}</span>
+                            <button class="btn-qtd" onclick="changeQtd('${item.id}', 1)">+</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            listEl.appendChild(el);
+            setupSwipe(el, item.id);
         });
-    } catch (e) { listEl.innerHTML = "<div style='color:red; text-align:center; padding:20px;'>Erro de rede.</div>"; }
+    } catch (e) {
+        listEl.innerHTML = "<div style='text-align:center; padding:40px; color:red;'>Erro de ligação. Modo Offline ativo.</div>";
+    }
 }
 
-// --- LÓGICA DO GMAIL SWIPE-TO-DELETE ---
-function setupSwipe(cardContainer, id) {
-    const content = cardContainer.querySelector('.card-content');
+// --- LOGICA DE SWIPE (Isolada à Camada de Cima) ---
+function setupSwipe(cardElement, id) {
+    const content = cardElement.querySelector('.card-content');
     let startX = 0;
     let currentX = 0;
-    let isDragging = false;
-    const threshold = window.innerWidth * 0.4; // 40% do ecrã para ativar o delete
+    const threshold = -80; 
 
-    // Início do toque
-    cardContainer.addEventListener('touchstart', (e) => {
+    content.addEventListener('touchstart', e => {
         startX = e.touches[0].clientX;
-        isDragging = true;
-        content.classList.add('swiping'); // Remove transições suaves durante o arraste
-    }, { passive: true });
+        content.classList.add('swiping');
+    }, {passive: true});
 
-    // Movimento do dedo
-    cardContainer.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
-        currentX = e.touches[0].clientX;
-        const diff = currentX - startX;
-
-        // Só permite arrastar para a esquerda (valores negativos)
+    content.addEventListener('touchmove', e => {
+        const touch = e.touches[0].clientX;
+        const diff = touch - startX;
+        
         if (diff < 0) {
-            // Move o conteúdo com o dedo
-            content.style.transform = `translateX(${diff}px)`;
+            currentX = diff;
+            content.style.transform = `translateX(${currentX}px)`;
         }
-    }, { passive: true });
+    }, {passive: true});
 
-    // Fim do toque (levantar o dedo)
-    cardContainer.addEventListener('touchend', () => {
-        if (!isDragging) return;
-        isDragging = false;
-        content.classList.remove('swiping'); // Reativa transições suaves
-        const diff = currentX - startX;
-
-        if (diff < -threshold) {
-            // --- CONFIRMADO O DELETE ---
-            // 1. Anima o cartão para fora do ecrã
-            content.style.transform = `translateX(-110%)`;
-            // 2. Pergunta se quer mesmo apagar (segurança)
-            setTimeout(() => {
-                if(confirm("Pretende eliminar este produto permanentemente?")) {
-                    apagarProduto(id);
-                    cardContainer.style.display = 'none'; // Esconde imediatamente
-                } else {
-                     // Se cancelar, volta o cartão ao sítio
-                     content.style.transform = 'translateX(0)';
-                }
-            }, 300); // Espera a animação terminar
-
+    content.addEventListener('touchend', () => {
+        content.classList.remove('swiping');
+        
+        if (currentX < threshold) {
+            deleteItem(id, cardElement);
         } else {
-            // --- CANCELADO (não arrastou o suficiente) ---
-            // Volta o cartão à posição inicial suavemente
-            content.style.transform = 'translateX(0)';
+            content.style.transform = `translateX(0px)`;
         }
+        currentX = 0;
     });
 }
 
-// --- FUNÇÕES DE DADOS ---
+// --- AÇÕES ---
 async function changeQtd(id, delta) {
-    if(!navigator.onLine) return alert("Offline");
     const card = document.querySelector(`.item-card[data-id="${id}"]`);
     if(!card) return;
     const qtdSpan = card.querySelector('.qtd-value');
     let qtdAtual = parseInt(qtdSpan.innerText);
     let novaQtd = Math.max(0, qtdAtual + delta);
+    
     qtdSpan.innerText = novaQtd;
-    qtdSpan.style.color = "#2563eb"; 
-    setTimeout(() => { qtdSpan.style.color = "inherit"; }, 200);
+    qtdSpan.style.color = "var(--primary)";
+    setTimeout(() => { qtdSpan.style.color = "var(--text-main)"; }, 200);
+
     try {
-        await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: novaQtd }) });
-    } catch (e) { qtdSpan.innerText = qtdAtual; }
+        await fetch(`${BASE_URL}/stock/${id}.json`, {
+            method: 'PATCH',
+            body: JSON.stringify({ quantidade: novaQtd })
+        });
+    } catch (e) { 
+        qtdSpan.innerText = qtdAtual; 
+        alert("Erro ao sincronizar. Verifica a net.");
+    }
 }
 
-async function apagarProduto(id) {
-    if(!navigator.onLine) return alert("Offline");
-    // A confirmação agora é feita no evento do Swipe
-    await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'DELETE' });
-    renderList(document.getElementById('inp-search').value);
+async function deleteItem(id, cardElement) {
+    cardElement.style.opacity = '0';
+    setTimeout(() => cardElement.remove(), 300);
+    try {
+        await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'DELETE' });
+    } catch(e) {
+        alert("Erro ao apagar no servidor. Atualize a página.");
+    }
 }
 
-// --- FORMULÁRIOS & INIT ---
-document.getElementById('form-register').onsubmit = async (e) => {
+// --- FORMULÁRIOS ---
+document.getElementById('form-add').onsubmit = async (e) => {
     e.preventDefault();
-    // (Código do formulário igual ao anterior...)
-    const item = { codigo: document.getElementById('inp-codigo').value.toUpperCase(), nome: document.getElementById('inp-nome').value, tipo: document.getElementById('inp-tipo').value, localizacao: document.getElementById('inp-loc').value.toUpperCase(), quantidade: parseInt(document.getElementById('inp-qtd').value) || 0 };
-    await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) }); e.target.reset(); nav('view-search');
+    const item = { 
+        codigo: document.getElementById('inp-codigo').value.toUpperCase(), 
+        nome: document.getElementById('inp-nome').value, 
+        tipo: document.getElementById('inp-tipo').value, 
+        localizacao: document.getElementById('inp-loc').value.toUpperCase(), 
+        quantidade: parseInt(document.getElementById('inp-qtd').value) || 0 
+    };
+    await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) }); 
+    e.target.reset(); 
+    nav('view-search');
 };
 
 document.getElementById('form-bulk').onsubmit = async (e) => {
     e.preventDefault();
-    // (Código do bulk igual ao anterior...)
-    const item = { codigo: document.getElementById('bulk-codigo').value.toUpperCase(), nome: document.getElementById('bulk-nome').value, localizacao: document.getElementById('bulk-loc').value.toUpperCase(), quantidade: 0 };
-    await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) }); document.getElementById('bulk-codigo').value = ""; document.getElementById('bulk-nome').value = ""; document.getElementById('bulk-codigo').focus(); document.getElementById('bulk-feedback').innerText = "✔ Guardado"; setTimeout(() => document.getElementById('bulk-feedback').innerText = "", 1500);
+    const item = { 
+        codigo: document.getElementById('bulk-codigo').value.toUpperCase(), 
+        nome: document.getElementById('bulk-nome').value, 
+        localizacao: document.getElementById('bulk-loc').value.toUpperCase(), 
+        quantidade: 0 
+    };
+    await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) }); 
+    document.getElementById('bulk-codigo').value = ""; 
+    document.getElementById('bulk-nome').value = ""; 
+    document.getElementById('bulk-codigo').focus(); 
+    const feedback = document.getElementById('bulk-feedback');
+    feedback.innerText = "✔ Guardado"; 
+    setTimeout(() => feedback.innerText = "", 1500);
 };
 
+// --- ARRANQUE --
 document.addEventListener('DOMContentLoaded', () => {
+    // Sincronizar o estado visual do interruptor com o tema carregado
+    const toggle = document.getElementById('theme-toggle');
+    if (toggle) toggle.checked = document.body.classList.contains('dark-mode');
+
     renderList();
     document.getElementById('inp-search').oninput = (e) => renderList(e.target.value);
-    if (navigator.onLine) { document.getElementById('status-ponto').style.background = "#22c55e"; document.getElementById('status-texto').innerText = "Online"; }
+    
+    if (navigator.onLine) { 
+        document.getElementById('status-ponto').style.background = "#22c55e"; 
+        document.getElementById('status-texto').innerText = "Online"; 
+    }
 });
+a
