@@ -1,55 +1,34 @@
 const DB_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app/stock.json";
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
-// --- ESTADO GLOBAL ---
 let editModeId = null; 
 let cachedData = {};   
 
-// --- SISTEMA DE NOTIFICAÇÕES (TOAST) ---
+// NOTIFICAÇÕES
 function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    
-    const icon = type === 'success' ? '✅' : '❌';
-    toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
-    
+    toast.innerHTML = `<span>${type === 'success' ? '✅' : '❌'}</span> <span>${message}</span>`;
     container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.classList.add('fade-out');
-        toast.addEventListener('animationend', () => toast.remove());
-    }, 3000);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
 }
 
-// --- INICIALIZAÇÃO E TEMA ---
+// TEMA
 function toggleTheme() {
     const isDark = document.body.classList.toggle('dark-mode');
     localStorage.setItem('hiperfrio-tema', isDark ? 'dark' : 'light');
 }
+(function(){ if(localStorage.getItem('hiperfrio-tema')==='dark') document.body.classList.add('dark-mode'); })();
 
-(function applyThemeOnLoad() {
-    const savedTheme = localStorage.getItem('hiperfrio-tema');
-    if (savedTheme === 'dark') document.body.classList.add('dark-mode');
-})();
-
-// --- NAVEGAÇÃO ---
+// NAVEGAÇÃO
 function toggleMenu() {
-    const menu = document.getElementById('side-menu');
-    const overlay = document.getElementById('menu-overlay');
-    if (menu.classList.contains('open')) {
-        menu.classList.remove('open');
-        overlay.classList.remove('active');
-    } else {
-        menu.classList.add('open');
-        overlay.classList.add('active');
-    }
+    document.getElementById('side-menu').classList.toggle('open');
+    document.getElementById('menu-overlay').classList.toggle('active');
 }
 
 function nav(viewId, isEdit = false) {
-    if (viewId === 'view-register' && !isEdit) {
-        resetRegisterForm("Novo Produto");
-    }
+    if (viewId === 'view-register' && !isEdit) resetRegisterForm("Novo Produto");
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
     if(viewId === 'view-search') renderList();
@@ -57,125 +36,83 @@ function nav(viewId, isEdit = false) {
     document.getElementById('menu-overlay').classList.remove('active');
 }
 
-// --- RENDERIZAÇÃO DA LISTA COM DUAL SWIPE ---
+// LISTA E SWIPE
 async function renderList(filter = "") {
     const listEl = document.getElementById('stock-list');
-    if (!filter && listEl.innerHTML === "") {
-        listEl.innerHTML = "<div style='text-align:center; padding:40px; color:gray;'>A sincronizar stock...</div>";
-    }
-
     try {
         const res = await fetch(DB_URL);
         const data = await res.json();
         cachedData = data || {}; 
-        
-        listEl.innerHTML = ''; 
-        if (!data) return listEl.innerHTML = '<div style="text-align:center; padding:40px; color:gray;">Sem dados.</div>';
+        listEl.innerHTML = '';
+        if (!data) return;
 
-        const itens = Object.entries(data)
-            .map(([id, val]) => ({ id, ...val }))
-            .filter(i => 
-                (i.nome && i.nome.toLowerCase().includes(filter.toLowerCase())) ||
-                (i.codigo && i.codigo.toLowerCase().includes(filter.toLowerCase())) ||
-                (i.localizacao && i.localizacao.toLowerCase().includes(filter.toLowerCase()))
-            )
-            .reverse();
-
-        if(itens.length === 0) return listEl.innerHTML = '<div style="text-align:center; padding:40px; color:gray;">Nenhum produto encontrado.</div>';
-
-        itens.forEach(item => {
+        Object.entries(data).reverse().forEach(([id, item]) => {
+            if (filter && !item.nome.toLowerCase().includes(filter.toLowerCase()) && !item.codigo.toLowerCase().includes(filter.toLowerCase())) return;
+            
             const el = document.createElement('div');
             el.className = 'item-card';
-            el.dataset.id = item.id;
-            
-            const qtd = item.quantidade || 0;
-            const lowStockClass = qtd <= 2 ? 'low-stock' : '';
+            const lowStockClass = item.quantidade === 0 ? 'low-stock' : '';
 
             el.innerHTML = `
                 <div class="card-bg-layer layer-edit">✏️ Editar</div>
                 <div class="card-bg-layer layer-delete">🗑️ Apagar</div>
-                
                 <div class="card-content">
-                    <div class="card-header-compact">
-                        <span class="item-ref">${item.codigo || '-'}</span>
-                        <span class="item-name">${item.nome || '-'}</span>
+                    <div style="display:flex; flex-direction:column; margin-bottom:10px;">
+                        <small style="color:var(--primary); font-weight:800;">${item.codigo}</small>
+                        <strong style="font-size:1.1rem;">${item.nome}</strong>
                     </div>
-                    <div class="card-footer-compact">
-                        <div class="badge-loc">📍 ${item.localizacao || 'S/ LOC'}</div>
-                        <div class="qtd-pill">
-                            <button class="btn-qtd" onclick="changeQtd('${item.id}', -1)">−</button>
-                            <span class="qtd-value ${lowStockClass}">${qtd}</span>
-                            <button class="btn-qtd" onclick="changeQtd('${item.id}', 1)">+</button>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="background:var(--primary-soft); padding:4px 8px; border-radius:6px; font-size:0.8rem;">📍 ${item.localizacao || 'S/ LOC'}</span>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <button onclick="changeQtd('${id}', -1)" style="width:30px; height:30px; border-radius:50%; border:1px solid var(--border); background:none; color:var(--text-main);">-</button>
+                            <span class="qtd-val ${lowStockClass}" data-id="${id}">${item.quantidade}</span>
+                            <button onclick="changeQtd('${id}', 1)" style="width:30px; height:30px; border-radius:50%; border:1px solid var(--border); background:none; color:var(--text-main);">+</button>
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
             listEl.appendChild(el);
-            setupDualSwipe(el, item.id);
+            setupSwipe(el, id);
         });
-    } catch (e) {
-        listEl.innerHTML = "<div style='text-align:center; padding:40px; color:var(--danger);'>Erro de ligação.</div>";
-    }
+    } catch (e) { showToast("Erro ao carregar stock", "error"); }
 }
 
-// --- LÓGICA DE SWIPE DUPLO ---
-function setupDualSwipe(cardElement, id) {
-    const content = cardElement.querySelector('.card-content');
-    let startX = 0;
-    let currentX = 0;
-    const threshold = 80;
-
-    content.addEventListener('touchstart', e => {
-        if(e.target.closest('.btn-qtd')) return;
-        startX = e.touches[0].clientX;
-        content.classList.add('swiping');
-    }, {passive: true});
-
+function setupSwipe(el, id) {
+    const content = el.querySelector('.card-content');
+    let startX = 0, currentX = 0;
+    content.addEventListener('touchstart', e => startX = e.touches[0].clientX);
     content.addEventListener('touchmove', e => {
-        if(e.target.closest('.btn-qtd')) return;
-        const touch = e.touches[0].clientX;
-        currentX = touch - startX;
-        content.style.transform = `translateX(${currentX}px)`;
-    }, {passive: true});
-
+        currentX = e.touches[0].clientX - startX;
+        if(Math.abs(currentX) > 20) content.style.transform = `translateX(${currentX}px)`;
+    });
     content.addEventListener('touchend', () => {
-        content.classList.remove('swiping');
-        if (currentX > threshold) {
-            content.style.transform = `translateX(0px)`; 
-            startEditMode(id);
-        } else if (currentX < -threshold) {
-            deleteItem(id, cardElement);
-        } else {
-            content.style.transform = `translateX(0px)`;
-        }
+        if (currentX > 80) startEditMode(id);
+        else if (currentX < -80) deleteItem(id, el);
+        content.style.transform = `translateX(0px)`;
         currentX = 0;
     });
 }
 
-// --- MODO DE EDIÇÃO ---
+// EDIÇÃO E BOTÕES QTD
+async function changeQtd(id, delta) {
+    const span = document.querySelector(`.qtd-val[data-id="${id}"]`);
+    let novaQtd = Math.max(0, parseInt(span.innerText) + delta);
+    span.innerText = novaQtd;
+    novaQtd === 0 ? span.classList.add('low-stock') : span.classList.remove('low-stock');
+    try { await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: novaQtd }) }); } 
+    catch(e) { showToast("Erro ao gravar", "error"); }
+}
+
 function startEditMode(id) {
     const item = cachedData[id];
-    if (!item) return showToast("Erro ao carregar dados do item.", "error");
-
-    editModeId = id; 
+    editModeId = id;
     document.getElementById('form-title').innerText = "Editar Produto";
-    document.getElementById('btn-form-submit').innerText = "Guardar Alterações";
-    
-    const inpCodigo = document.getElementById('inp-codigo');
-    const inpQtd = document.getElementById('inp-qtd');
-    
-    // Na edição, bloqueamos o Código, mas a Quantidade fica livre!
-    inpCodigo.value = item.codigo;
-    inpCodigo.disabled = true;
-    
-    inpQtd.value = item.quantidade;
-    inpQtd.disabled = false; 
-    
+    document.getElementById('inp-codigo').value = item.codigo;
+    document.getElementById('inp-codigo').disabled = true;
     document.getElementById('inp-nome').value = item.nome;
     document.getElementById('inp-tipo').value = item.tipo || '';
     document.getElementById('inp-loc').value = item.localizacao || '';
-
-    // Passar true para não limpar o formulário
+    document.getElementById('inp-qtd').value = item.quantidade;
+    document.getElementById('inp-qtd').disabled = false;
     nav('view-register', true);
 }
 
@@ -183,119 +120,57 @@ function resetRegisterForm(title) {
     editModeId = null;
     document.getElementById('form-add').reset();
     document.getElementById('form-title').innerText = title;
-    document.getElementById('btn-form-submit').innerText = "Criar Ficha de Produto";
     document.getElementById('inp-codigo').disabled = false;
     document.getElementById('inp-qtd').disabled = false;
 }
 
-// --- AÇÕES DE DADOS ---
-async function changeQtd(id, delta) {
-    const card = document.querySelector(`.item-card[data-id="${id}"]`);
-    if(!card) return;
-    const qtdSpan = card.querySelector('.qtd-value');
-    let qtdAtual = parseInt(qtdSpan.innerText);
-    let novaQtd = Math.max(0, qtdAtual + delta);
-    
-    qtdSpan.innerText = novaQtd;
-    
-    if (novaQtd <= 2) {
-        qtdSpan.classList.add('low-stock');
-    } else {
-        qtdSpan.classList.remove('low-stock');
-    }
-
-    try { 
-        await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: novaQtd }) }); 
-    } catch (e) { 
-        qtdSpan.innerText = qtdAtual; 
-        showToast("Erro de ligação. A quantidade não foi gravada.", "error");
-    }
-}
-
-async function deleteItem(id, cardElement) {
-    if(confirm("Tem a certeza que deseja apagar este item?")) {
-        cardElement.style.transform = `translateX(-100%)`; 
-        setTimeout(() => cardElement.remove(), 200);
-        try { 
-            await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'DELETE' }); 
-            showToast("Produto apagado com sucesso.");
-        } catch(e) {
-            showToast("Erro ao apagar no servidor.", "error");
-        };
-    } else {
-        cardElement.querySelector('.card-content').style.transform = 'translateX(0px)';
-    }
-}
-
-// --- SUBMISSÃO DO FORMULÁRIO (NOVO OU EDIÇÃO) ---
+// SUBMISSÕES
 document.getElementById('form-add').onsubmit = async (e) => {
     e.preventDefault();
-    const payload = {};
-    
-    if (editModeId === null) {
-        // Só tenta ler e enviar o código se for um item novo
-        payload.codigo = document.getElementById('inp-codigo').value.toUpperCase();
-    }
-    
-    // A quantidade e os restantes dados são enviados sempre
-    payload.quantidade = parseInt(document.getElementById('inp-qtd').value) || 0;
-    payload.nome = document.getElementById('inp-nome').value;
-    payload.tipo = document.getElementById('inp-tipo').value;
-    payload.localizacao = document.getElementById('inp-loc').value.toUpperCase();
+    const payload = {
+        nome: document.getElementById('inp-nome').value,
+        tipo: document.getElementById('inp-tipo').value,
+        localizacao: document.getElementById('inp-loc').value.toUpperCase(),
+        quantidade: parseInt(document.getElementById('inp-qtd').value) || 0
+    };
+    if (!editModeId) payload.codigo = document.getElementById('inp-codigo').value.toUpperCase();
 
     const url = editModeId ? `${BASE_URL}/stock/${editModeId}.json` : DB_URL;
-    const method = editModeId ? 'PATCH' : 'POST';
-
     try {
-        await fetch(url, { method: method, body: JSON.stringify(payload) });
-        e.target.reset();
+        await fetch(url, { method: editModeId ? 'PATCH' : 'POST', body: JSON.stringify(payload) });
+        showToast("Gravado com sucesso!");
         nav('view-search');
-        showToast(editModeId ? "Alterações guardadas!" : "Novo produto criado!");
-    } catch (err) {
-        showToast("Erro ao guardar. Tente novamente.", "error");
-    }
+    } catch(e) { showToast("Erro ao guardar", "error"); }
 };
 
-// --- SUBMISSÃO DO CATALOGAR LOTE (Função C) ---
-document.getElementById('form-bulk').onsubmit = async (e) => { 
-    e.preventDefault(); 
-    
-    // Lemos também o novo campo bulk-qtd opcional
-    const qtdInput = document.getElementById('bulk-qtd');
-    const quantidadeDesejada = qtdInput && qtdInput.value ? parseInt(qtdInput.value) : 0;
-
-    const item = { 
-        codigo: document.getElementById('bulk-codigo').value.toUpperCase(), 
-        nome: document.getElementById('bulk-nome').value, 
-        localizacao: document.getElementById('bulk-loc').value.toUpperCase(), 
-        quantidade: quantidadeDesejada 
-    }; 
-    
+document.getElementById('form-bulk').onsubmit = async (e) => {
+    e.preventDefault();
+    const item = {
+        codigo: document.getElementById('bulk-codigo').value.toUpperCase(),
+        nome: document.getElementById('bulk-nome').value,
+        localizacao: document.getElementById('bulk-loc').value.toUpperCase(),
+        quantidade: parseInt(document.getElementById('bulk-qtd').value) || 0
+    };
     try {
-        await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) }); 
-        
-        // Limpar o formulário para o próximo item
-        document.getElementById('bulk-codigo').value = ""; 
-        document.getElementById('bulk-nome').value = ""; 
-        if(qtdInput) qtdInput.value = ""; 
-        
-        document.getElementById('bulk-codigo').focus(); 
-        showToast("Lote guardado com sucesso!");
-    } catch(err) {
-        showToast("Erro ao guardar lote.", "error");
-    }
+        await fetch(DB_URL, { method: 'POST', body: JSON.stringify(item) });
+        showToast("Lote adicionado!");
+        document.getElementById('bulk-codigo').value = '';
+        document.getElementById('bulk-nome').value = '';
+        document.getElementById('bulk-qtd').value = '';
+        document.getElementById('bulk-codigo').focus();
+    } catch(e) { showToast("Erro no lote", "error"); }
 };
 
-// --- ARRANQUE DA APLICAÇÃO ---
+async function deleteItem(id, el) {
+    if(confirm("Apagar item?")) {
+        el.remove();
+        await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'DELETE' });
+        showToast("Item removido");
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    const toggle = document.getElementById('theme-toggle');
-    if (toggle) toggle.checked = document.body.classList.contains('dark-mode');
-    
     renderList();
     document.getElementById('inp-search').oninput = (e) => renderList(e.target.value);
-    
-    if (navigator.onLine) { 
-        document.getElementById('status-ponto').style.background = "#22c55e"; 
-        document.getElementById('status-texto').innerText = "Online"; 
-    }
+    if (navigator.onLine) document.getElementById('status-ponto').style.background = "#22c55e";
 });
