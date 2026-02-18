@@ -30,14 +30,21 @@
         </ul>
         
         <div class="menu-footer">
-            <div class="theme-pill">
-                <span class="theme-icon">☀️</span>
-                <label class="switch">
-                    <input type="checkbox" id="theme-toggle" onchange="toggleTheme()">
-                    <span class="slider"></span>
-                </label>
-                <span class="theme-icon">🌙</span>
-            </div>
+    <div class="footer-row">
+        <div id="status-conexao">
+            <span id="status-ponto"></span>
+            <span id="status-texto">Online</span>
+        </div>
+
+        <label class="compact-switch">
+            <input type="checkbox" id="theme-toggle" onchange="toggleTheme()">
+            <span class="compact-slider">
+                <span class="sun-icon">☀️</span>
+                <span class="moon-icon">🌙</span>
+            </span>
+        </label>
+    </div>
+</div>
 
             <div id="status-conexao">
                 <span id="status-ponto"></span>
@@ -112,4 +119,5 @@
     <script src="app.js"></script>
 </body>
 </html>
+
 
