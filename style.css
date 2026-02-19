@@ -141,3 +141,76 @@ input:checked + .compact-slider:before { transform: translateX(26px); }
 .dark-mode #close-menu {
     color: var(--text-main);
 }
+
+/* =========================================
+   MÓDULO DE FERRAMENTAS E FUNCIONÁRIOS
+   ========================================= */
+
+/* Estilos dos Cartões de Ferramentas */
+.tool-card {
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 15px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.1s, box-shadow 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.tool-card:active { transform: scale(0.98); }
+
+.tool-info h3 { margin: 0 0 5px 0; font-size: 1.1rem; }
+.tool-status { font-size: 0.8rem; font-weight: 700; display: inline-block; padding: 4px 10px; border-radius: 8px; margin-top: 5px; }
+
+/* ESTADO: DISPONÍVEL (Verde) */
+.tool-available {
+    background-color: #dcfce7; /* Verde clarinho */
+    border-color: #22c55e;
+    color: #166534;
+}
+.tool-available .tool-status { background: #bbf7d0; color: #166534; }
+
+/* ESTADO: ALOCADA (Vermelho) */
+.tool-allocated {
+    background-color: #fee2e2; /* Vermelho clarinho */
+    border-color: #ef4444;
+    color: #991b1b;
+}
+.tool-allocated .tool-status { background: #fecaca; color: #991b1b; }
+
+/* Ajustes para Modo Escuro nas Ferramentas */
+.dark-mode .tool-available { background-color: rgba(34, 197, 94, 0.15); color: #4ade80; }
+.dark-mode .tool-available .tool-status { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+.dark-mode .tool-allocated { background-color: rgba(239, 68, 68, 0.15); color: #f87171; }
+.dark-mode .tool-allocated .tool-status { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+/* Modal (Janela Flutuante) */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); display: none; z-index: 3000;
+    align-items: center; justify-content: center; backdrop-filter: blur(3px);
+}
+.modal-overlay.active { display: flex; animation: fadeIn 0.2s; }
+.modal-content {
+    background: var(--card-bg); padding: 25px; border-radius: 20px;
+    width: 90%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    border: 1px solid var(--border);
+}
+
+/* Lista de Trabalhadores no Modal */
+.worker-option {
+    padding: 16px; border-bottom: 1px solid var(--border);
+    font-size: 1.1rem; font-weight: 600; cursor: pointer; color: var(--text-main);
+    display: flex; align-items: center; gap: 10px;
+}
+.worker-option:last-child { border-bottom: none; }
+.worker-option:active { background: var(--primary-soft); border-radius: 10px; }
+
+/* Lista de Trabalhadores na Vista de Gestão */
+.worker-card {
+    background: var(--card-bg); padding: 15px; border-radius: 12px;
+    border: 1px solid var(--border); margin-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-weight: 600;
+}
