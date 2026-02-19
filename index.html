@@ -11,7 +11,7 @@
 
     <header>
         <button id="menu-btn" onclick="toggleMenu()">☰</button>
-        <h1>HIPERFRIO STOCK</h1>
+        <h1> STOCK ARMAZEM BRAGA </h1>
         <div style="width: 44px;"></div>
     </header>
 
@@ -24,9 +24,9 @@
         </div>
         <ul>
             <li onclick="nav('view-search')"><span>🔍</span> Consultar Stock</li>
-            <li onclick="nav('view-tools')"><span>🛠️</span> Painel de Ferramentas</li>
             <li onclick="nav('view-register')"><span>➕</span> Novo Produto</li>
             <li onclick="nav('view-bulk')"><span>📦</span> Catalogar Lote</li>
+            <li onclick="nav('view-tools')"><span>🛠️</span> Painel de Ferramentas</li>
             <hr style="border:0; border-top:1px solid var(--border); margin:10px 0;">
             <li onclick="nav('view-admin')"><span>⚙️</span> Gestão & Definições</li>
         </ul>
@@ -75,7 +75,7 @@
                     <div style="flex:1"><label>TIPO</label><input type="text" id="inp-tipo"></div>
                     <div style="flex:1"><label>LOCALIZAÇÃO</label><input type="text" id="inp-loc" style="text-transform:uppercase"></div>
                 </div>
-                <label>QUANTIDADE EM STOCK</label>
+                <label>QUANTIDADE</label>
                 <input type="number" id="inp-qtd" value="0">
                 <button type="submit" id="btn-form-submit" class="btn-primary">Gravar Produto</button>
             </form>
@@ -84,7 +84,7 @@
         <div id="view-bulk" class="view">
             <h2>Catalogar Lote</h2>
             <form id="form-bulk" class="pro-form">
-                <label>ZONA / LOCALIZAÇÃO FIXA</label>
+                <label>LOCALIZAÇÃO FIXA</label>
                 <input type="text" id="bulk-loc" style="text-transform:uppercase" required>
                 <label>REFERÊNCIA</label>
                 <input type="text" id="bulk-codigo" style="text-transform:uppercase" required>
