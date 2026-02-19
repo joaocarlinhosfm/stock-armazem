@@ -6,17 +6,16 @@ let cachedData = {};
 let cachedWorkers = [];
 let toolToAllocate = null;
 
-// --- SISTEMA DE TOASTS ---
 function showToast(msg, type = 'success') {
     const container = document.getElementById('toast-container');
     const t = document.createElement('div');
-    t.className = `toast ${type === 'error' ? 'toast-error' : ''}`;
+    t.className = 'toast';
+    if(type === 'error') t.style.borderLeftColor = 'var(--danger)';
     t.innerHTML = `<span>${type === 'success' ? '✅' : '❌'}</span><span>${msg}</span>`;
     container.appendChild(t);
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
 }
 
-// --- NAVEGAÇÃO ---
 function toggleMenu() {
     document.getElementById('side-menu').classList.toggle('open');
     document.getElementById('menu-overlay').classList.toggle('active');
@@ -36,7 +35,7 @@ function nav(viewId, isEdit = false) {
     window.scrollTo(0,0);
 }
 
-// --- LOGICA DE STOCK ---
+// --- STOCK ---
 async function renderList(filter = "") {
     const listEl = document.getElementById('stock-list');
     try {
@@ -44,66 +43,51 @@ async function renderList(filter = "") {
         const data = await res.json();
         cachedData = data || {};
         listEl.innerHTML = '';
-        if(!data) return listEl.innerHTML = '<div style="text-align:center; padding:40px; color:gray;">Sem produtos.</div>';
-
+        if(!data) return;
         Object.entries(data).reverse().forEach(([id, item]) => {
             if(filter && !item.nome.toLowerCase().includes(filter.toLowerCase()) && !String(item.codigo).toUpperCase().includes(filter.toUpperCase())) return;
             const el = document.createElement('div'); el.className = 'item-card';
             const lowClass = (item.quantidade || 0) === 0 ? 'low-stock' : '';
             el.innerHTML = `
-                <div class="card-bg-layer layer-edit">✏️ Editar</div>
-                <div class="card-bg-layer layer-delete">🗑️ Apagar</div>
                 <div class="card-content">
                     <div style="font-size:0.75rem; font-weight:800; color:var(--primary)">REF: ${item.codigo}</div>
                     <div style="font-size:1.15rem; font-weight:700; margin:4px 0">${item.nome}</div>
                     <div style="display:flex; justify-content:space-between; align-items:center">
                         <span style="font-size:0.85rem; color:var(--text-muted)">📍 ${item.localizacao || 'S/ LOC'}</span>
                         <div style="display:flex; align-items:center; gap:12px">
-                            <button onclick="changeQtd('${id}', -1)" style="width:36px; height:36px; border-radius:50%; border:1px solid var(--border); background:var(--card-bg); color:var(--text-main); font-weight:bold;">−</button>
+                            <button onclick="changeQtd('${id}', -1)" style="width:36px; height:36px; border-radius:50%; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-weight:bold;">−</button>
                             <span class="${lowClass}" data-id="${id}" style="font-weight:800; font-size:1.1rem">${item.quantidade || 0}</span>
-                            <button onclick="changeQtd('${id}', 1)" style="width:36px; height:36px; border-radius:50%; border:1px solid var(--border); background:var(--card-bg); color:var(--text-main); font-weight:bold;">+</button>
+                            <button onclick="changeQtd('${id}', 1)" style="width:36px; height:36px; border-radius:50%; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-weight:bold;">+</button>
                         </div>
                     </div>
                 </div>`;
-            listEl.appendChild(el); setupSwipe(el, id);
+            listEl.appendChild(el);
         });
-    } catch (e) { showToast("Erro de rede", "error"); }
+    } catch (e) { showToast("Erro de ligação", "error"); }
 }
 
 async function changeQtd(id, delta) {
     const span = document.querySelector(`span[data-id="${id}"]`);
     let n = Math.max(0, parseInt(span.innerText) + delta);
     span.innerText = n;
-    n === 0 ? span.classList.add('low-stock') : span.classList.remove('low-stock');
     await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: n }) });
 }
 
-// --- LOGICA DE FERRAMENTAS ---
+// --- FERRAMENTAS ---
 async function renderTools(filter = "") {
     const list = document.getElementById('tools-list');
-    list.innerHTML = "<div style='text-align:center; padding:20px;'>A carregar...</div>";
     try {
         const res = await fetch(`${BASE_URL}/ferramentas.json`);
         const data = await res.json();
-        const resW = await fetch(`${BASE_URL}/funcionarios.json`);
-        const dataW = await resW.json();
-        cachedWorkers = dataW ? Object.entries(dataW).map(([id, v]) => ({id, nome: v.nome})) : [];
-        
         list.innerHTML = '';
-        if(!data) return list.innerHTML = '<div style="text-align:center; padding:20px; color:gray;">Nenhuma ferramenta.</div>';
-        
+        if(!data) return;
         Object.entries(data).reverse().forEach(([id, t]) => {
             if(filter && !t.nome.toLowerCase().includes(filter.toLowerCase())) return;
             const isAv = t.status === 'disponivel';
             const el = document.createElement('div');
             el.className = `tool-card ${isAv ? 'tool-available' : 'tool-allocated'}`;
             el.onclick = () => isAv ? openModal(id) : returnTool(id);
-            el.innerHTML = `
-                <div>
-                    <div style="font-weight:800; font-size:1.1rem">${t.nome}</div>
-                    <div style="font-size:0.85rem; margin-top:5px; font-weight:600;">${isAv ? '📦 EM ARMAZÉM' : '👤 COM: ' + t.colaborador.toUpperCase()}</div>
-                </div>
-                <span style="font-size:1.5rem; opacity:0.6;">${isAv ? '➔' : '↩'}</span>`;
+            el.innerHTML = `<div><div style="font-weight:800;">${t.nome}</div><div style="font-size:0.8rem; opacity:0.8;">${isAv ? '📦 EM ARMAZÉM' : '👤 ' + t.colaborador.toUpperCase()}</div></div><span>${isAv ? '➔' : '↩'}</span>`;
             list.appendChild(el);
         });
     } catch(e) {}
@@ -114,12 +98,12 @@ async function renderAdminTools() {
     try {
         const res = await fetch(`${BASE_URL}/ferramentas.json`);
         const data = await res.json();
-        list.innerHTML = '<h4 style="margin:10px 0;">📦 Inventário Ativo</h4>';
-        if(!data) return list.innerHTML += '<p style="font-size:0.8rem; color:gray;">Vazio.</p>';
+        list.innerHTML = '<h4 style="margin-bottom:10px; font-size:0.9rem;">Inventário Registado</h4>';
+        if(!data) return;
         Object.entries(data).forEach(([id, t]) => {
             const row = document.createElement('div');
-            row.style = "display:flex; justify-content:space-between; align-items:center; padding:10px; background:var(--bg); border-radius:10px; margin-bottom:6px; border:1px solid var(--border)";
-            row.innerHTML = `<span style="font-weight:600; font-size:0.9rem;">${t.nome}</span><button onclick="deleteTool('${id}')" style="background:none; border:none; color:var(--danger); font-size:1.2rem; cursor:pointer;">🗑️</button>`;
+            row.style = "display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--bg); border-radius:10px; margin-bottom:8px; border:1px solid var(--border)";
+            row.innerHTML = `<span style="font-weight:600;">${t.nome}</span><button onclick="deleteTool('${id}')" style="background:none; border:none; color:var(--danger); font-size:1.2rem;">🗑️</button>`;
             list.appendChild(row);
         });
     } catch(e){}
@@ -132,27 +116,25 @@ async function renderWorkers() {
         const data = await res.json();
         cachedWorkers = data ? Object.entries(data).map(([id, v]) => ({id, nome: v.nome})) : [];
         list.innerHTML = '';
-        if(cachedWorkers.length === 0) list.innerHTML = '<p style="color:gray; font-size:0.8rem;">Sem funcionários.</p>';
         cachedWorkers.forEach(w => {
-            list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:10px; background:var(--bg); border-radius:10px; margin-bottom:6px; border:1px solid var(--border)">
+            list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:12px; background:var(--bg); border-radius:10px; margin-bottom:8px; border:1px solid var(--border)">
                 <span style="font-weight:600;">👤 ${w.nome}</span>
-                <button onclick="deleteWorker('${w.id}')" style="background:none; border:none; color:var(--danger); font-size:1.2rem; cursor:pointer;">🗑️</button>
+                <button onclick="deleteWorker('${w.id}')" style="background:none; border:none; color:var(--danger); font-size:1.2rem;">🗑️</button>
             </div>`;
         });
     } catch(e){}
 }
 
-// --- SUBMISSÕES ---
 document.getElementById('form-add').onsubmit = async (e) => {
     e.preventDefault();
     const payload = {
         nome: document.getElementById('inp-nome').value,
         tipo: document.getElementById('inp-tipo').value,
         localizacao: document.getElementById('inp-loc').value.toUpperCase(),
-        quantidade: parseInt(document.getElementById('inp-qtd').value) || 0
+        quantidade: parseInt(document.getElementById('inp-qtd').value) || 0,
+        codigo: document.getElementById('inp-codigo').value.toUpperCase()
     };
-    if(!editModeId) payload.codigo = document.getElementById('inp-codigo').value.toUpperCase();
-    await fetch(editModeId ? `${BASE_URL}/stock/${editModeId}.json` : DB_URL, { method: editModeId ? 'PATCH' : 'POST', body: JSON.stringify(payload) });
+    await fetch(DB_URL, { method: 'POST', body: JSON.stringify(payload) });
     showToast("Produto guardado!"); nav('view-search');
 };
 
@@ -160,19 +142,18 @@ document.getElementById('form-worker').onsubmit = async (e) => {
     e.preventDefault();
     const nome = document.getElementById('worker-name').value;
     await fetch(`${BASE_URL}/funcionarios.json`, { method: 'POST', body: JSON.stringify({ nome }) });
-    document.getElementById('worker-name').value = ''; renderWorkers(); showToast("Funcionário adicionado!");
+    document.getElementById('worker-name').value = ''; renderWorkers();
 };
 
 document.getElementById('form-tool-reg').onsubmit = async (e) => {
     e.preventDefault();
     const nome = document.getElementById('reg-tool-name').value;
     await fetch(`${BASE_URL}/ferramentas.json`, { method: 'POST', body: JSON.stringify({ nome, status: 'disponivel' }) });
-    document.getElementById('reg-tool-name').value = ''; renderAdminTools(); showToast("Ferramenta registada!");
+    document.getElementById('reg-tool-name').value = ''; renderAdminTools();
 };
 
-// --- MODAL E ALOCAÇÃO ---
 function openModal(id) {
-    if(cachedWorkers.length === 0) return showToast("Adicione funcionários primeiro", "error");
+    if(cachedWorkers.length === 0) return showToast("Adicione funcionários na Gestão", "error");
     toolToAllocate = id;
     const container = document.getElementById('worker-select-list');
     container.innerHTML = cachedWorkers.map(w => `<div class="worker-option" onclick="assignTool('${w.nome}')">👤 ${w.nome}</div>`).join('');
@@ -182,51 +163,26 @@ function closeModal() { document.getElementById('worker-modal').classList.remove
 
 async function assignTool(worker) {
     await fetch(`${BASE_URL}/ferramentas/${toolToAllocate}.json`, { method: 'PATCH', body: JSON.stringify({ status: 'alocada', colaborador: worker }) });
-    closeModal(); renderTools(); showToast(`Entregue a ${worker}`);
+    closeModal(); renderTools(); showToast("Entregue!");
 }
 
 async function returnTool(id) {
-    if(confirm("Confirmar devolução ao armazém?")) {
+    if(confirm("Confirmar devolução?")) {
         await fetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'PATCH', body: JSON.stringify({ status: 'disponivel', colaborador: '' }) });
-        renderTools(); showToast("Ferramenta devolvida!");
+        renderTools(); showToast("Devolvida!");
     }
 }
 
-async function deleteTool(id) { if(confirm("Apagar ferramenta do sistema?")) { await fetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'DELETE' }); renderAdminTools(); } }
+async function deleteTool(id) { if(confirm("Apagar ferramenta?")) { await fetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'DELETE' }); renderAdminTools(); } }
 async function deleteWorker(id) { if(confirm("Apagar funcionário?")) { await fetch(`${BASE_URL}/funcionarios/${id}.json`, { method: 'DELETE' }); renderWorkers(); } }
 
-// --- SWIPE E TEMA ---
-function setupSwipe(el, id) {
-    const content = el.querySelector('.card-content');
-    let startX = 0, currentX = 0, isScrolling = false;
-    content.addEventListener('touchstart', e => { startX = e.touches[0].clientX; content.style.transition = 'none'; isScrolling = false; }, {passive:true});
-    content.addEventListener('touchmove', e => {
-        currentX = e.touches[0].clientX - startX;
-        if(Math.abs(e.touches[0].clientY - startX) > Math.abs(currentX)) isScrolling = true;
-        if(!isScrolling) content.style.transform = `translateX(${currentX}px)`;
-    }, {passive:true});
-    content.addEventListener('touchend', () => {
-        content.style.transition = 'transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
-        if(currentX > 100 && !isScrolling) startEditMode(id);
-        else if(currentX < -100 && !isScrolling) deleteItem(id, el);
-        content.style.transform = 'translateX(0)';
-    });
+function toggleTheme() { 
+    document.body.classList.toggle('dark-mode'); 
+    localStorage.setItem('hiperfrio-tema', document.body.classList.contains('dark-mode') ? 'dark' : 'light'); 
 }
 
-function toggleTheme() { document.body.classList.toggle('dark-mode'); localStorage.setItem('hiperfrio-tema', document.body.classList.contains('dark-mode') ? 'dark' : 'light'); }
-function resetRegisterForm(t) { editModeId = null; document.getElementById('form-add').reset(); document.getElementById('form-title').innerText = t; document.getElementById('inp-codigo').disabled = false; }
-async function deleteItem(id, el) { if(confirm("Apagar este produto?")) { await fetch(`${BASE_URL}/stock/${id}.json`, {method:'DELETE'}); el.remove(); showToast("Removido!"); } }
+function resetRegisterForm(t) { document.getElementById('form-add').reset(); document.getElementById('form-title').innerText = t; }
 
-function startEditMode(id) {
-    const item = cachedData[id]; if(!item) return; editModeId = id;
-    document.getElementById('form-title').innerText = "Editar Produto";
-    document.getElementById('inp-codigo').value = item.codigo; document.getElementById('inp-codigo').disabled = true;
-    document.getElementById('inp-nome').value = item.nome; document.getElementById('inp-tipo').value = item.tipo || '';
-    document.getElementById('inp-loc').value = item.localizacao || ''; document.getElementById('inp-qtd').value = item.quantidade || 0;
-    nav('view-register', true);
-}
-
-// --- START ---
 document.addEventListener('DOMContentLoaded', () => {
     if(localStorage.getItem('hiperfrio-tema') === 'dark') { document.body.classList.add('dark-mode'); document.getElementById('theme-toggle').checked = true; }
     renderList();
