@@ -22,43 +22,42 @@
             <strong>Menu Principal</strong>
             <button id="close-menu" onclick="toggleMenu()">✕</button>
         </div>
-        <ul>
+        
+        <ul class="menu-items">
             <li onclick="nav('view-search')"><span>🔍</span> Consultar Stock</li>
             <li onclick="nav('view-tools')"><span>🛠️</span> Painel de Ferramentas</li>
             <li onclick="nav('view-register')"><span>➕</span> Novo Produto</li>
             <li onclick="nav('view-bulk')"><span>📦</span> Catalogar Lote</li>
-            <hr style="border:0; border-top:1px solid var(--border); margin:10px 0;">
+            <hr class="menu-divider">
             <li onclick="nav('view-admin')"><span>⚙️</span> Gestão & Definições</li>
         </ul>
         
         <div class="menu-footer">
-            <div class="footer-row">
-                <div id="status-conexao">
-                    <span id="status-ponto"></span>
-                    <span id="status-texto">Online</span>
-                </div>
-                <label class="compact-switch">
-                    <input type="checkbox" id="theme-toggle" onchange="toggleTheme()">
-                    <span class="compact-slider">
-                        <span class="sun-icon">☀️</span>
-                        <span class="moon-icon">🌙</span>
-                    </span>
-                </label>
+            <div id="status-conexao">
+                <span id="status-ponto"></span>
+                <span id="status-texto">Sistema Online</span>
             </div>
+            <label class="compact-switch">
+                <input type="checkbox" id="theme-toggle" onchange="toggleTheme()">
+                <span class="compact-slider">
+                    <span class="sun-icon">☀️</span>
+                    <span class="moon-icon">🌙</span>
+                </span>
+            </label>
         </div>
     </nav>
 
     <main>
         <div id="view-search" class="view active">
             <div class="search-container">
-                <input type="text" id="inp-search" placeholder="Pesquisar por código ou nome..." autocomplete="off">
+                <input type="text" id="inp-search" placeholder="Pesquisar código ou nome..." autocomplete="off">
             </div>
             <div id="stock-list"></div>
         </div>
 
         <div id="view-tools" class="view">
             <h2>Painel de Ferramentas</h2>
-            <div class="search-container" style="position:static; margin-bottom:15px;">
+            <div class="search-container" style="position:static; margin-bottom:20px;">
                 <input type="text" id="inp-search-tools" placeholder="Procurar ferramenta..." autocomplete="off">
             </div>
             <div id="tools-list"></div>
@@ -67,16 +66,22 @@
         <div id="view-register" class="view">
             <h2 id="form-title">Novo Produto</h2>
             <form id="form-add" class="pro-form">
-                <label>REFERÊNCIA / CÓDIGO</label>
-                <input type="text" id="inp-codigo" style="text-transform:uppercase" required>
-                <label>NOME DO PRODUTO</label>
-                <input type="text" id="inp-nome" required>
-                <div style="display:flex; gap:10px;">
-                    <div style="flex:1"><label>TIPO</label><input type="text" id="inp-tipo"></div>
-                    <div style="flex:1"><label>LOCALIZAÇÃO</label><input type="text" id="inp-loc" style="text-transform:uppercase"></div>
+                <div class="form-group">
+                    <label>REFERÊNCIA / CÓDIGO</label>
+                    <input type="text" id="inp-codigo" style="text-transform:uppercase" required>
                 </div>
-                <label>QUANTIDADE</label>
-                <input type="number" id="inp-qtd" value="0">
+                <div class="form-group">
+                    <label>NOME DO PRODUTO</label>
+                    <input type="text" id="inp-nome" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>TIPO</label><input type="text" id="inp-tipo"></div>
+                    <div class="form-group"><label>LOCALIZAÇÃO</label><input type="text" id="inp-loc" style="text-transform:uppercase"></div>
+                </div>
+                <div class="form-group">
+                    <label>QUANTIDADE ATUAL</label>
+                    <input type="number" id="inp-qtd" value="0">
+                </div>
                 <button type="submit" id="btn-form-submit" class="btn-primary">Gravar Produto</button>
             </form>
         </div>
@@ -84,14 +89,22 @@
         <div id="view-bulk" class="view">
             <h2>Catalogar Lote</h2>
             <form id="form-bulk" class="pro-form">
-                <label>LOCALIZAÇÃO FIXA</label>
-                <input type="text" id="bulk-loc" style="text-transform:uppercase" required>
-                <label>REFERÊNCIA</label>
-                <input type="text" id="bulk-codigo" style="text-transform:uppercase" required>
-                <label>NOME</label>
-                <input type="text" id="bulk-nome" required>
-                <label>QUANTIDADE</label>
-                <input type="number" id="bulk-qtd" placeholder="0">
+                <div class="form-group">
+                    <label>ZONA DE ARMAZENAMENTO</label>
+                    <input type="text" id="bulk-loc" style="text-transform:uppercase" required>
+                </div>
+                <div class="form-group">
+                    <label>REFERÊNCIA</label>
+                    <input type="text" id="bulk-codigo" style="text-transform:uppercase" required>
+                </div>
+                <div class="form-group">
+                    <label>NOME</label>
+                    <input type="text" id="bulk-nome" required>
+                </div>
+                <div class="form-group">
+                    <label>QUANTIDADE</label>
+                    <input type="number" id="bulk-qtd" placeholder="0">
+                </div>
                 <button type="submit" class="btn-primary">Adicionar ao Lote</button>
             </form>
         </div>
@@ -100,7 +113,7 @@
             <h2>Gestão & Definições</h2>
             
             <section class="admin-section">
-                <h3>👥 Funcionários</h3>
+                <h3>👥 Gerir Funcionários</h3>
                 <form id="form-worker" class="pro-form-inline">
                     <input type="text" id="worker-name" placeholder="Nome do funcionário" required>
                     <button type="submit" class="btn-primary">+</button>
@@ -111,10 +124,12 @@
             <section class="admin-section">
                 <h3>🪛 Inventário de Ferramentas</h3>
                 <form id="form-tool-reg" class="pro-form">
-                    <input type="text" id="reg-tool-name" placeholder="Ex: Berbequim Bosch" required>
-                    <button type="submit" class="btn-primary" style="margin-top:10px;">Registar Nova Máquina</button>
+                    <div class="form-group">
+                        <input type="text" id="reg-tool-name" placeholder="Nome da ferramenta (ex: Hilti)" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Registar Nova Máquina</button>
                 </form>
-                <div id="admin-tools-list" class="scroll-list" style="margin-top:15px; border-top:1px dashed var(--border); padding-top:15px;"></div>
+                <div id="admin-tools-list" class="scroll-list admin-tool-list-container"></div>
             </section>
         </div>
     </main>
