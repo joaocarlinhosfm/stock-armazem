@@ -3,28 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hiperfrio Stock</title>
+    <title>Hiperfrio Stock Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
 </head>
 <body>
 
     <header>
         <button id="menu-btn" onclick="toggleMenu()">☰</button>
-        <h1>STOCK ARMAZEM BRAGA</h1>
-        <div style="width: 44px;"></div> </header>
+        <h1>HIPERFRIO APP</h1>
+        <div style="width: 44px;"></div>
+    </header>
 
     <div id="menu-overlay" onclick="toggleMenu()"></div>
 
     <nav id="side-menu">
         <div class="menu-header">
             <strong>Menu Principal</strong>
-            <button onclick="toggleMenu()">✕</button>
+            <button id="close-menu" onclick="toggleMenu()">✕</button>
         </div>
         <ul>
-            <li onclick="nav('view-search')">🔍 Consultar Stock</li>
-            <li onclick="nav('view-register')">➕ Novo Produto</li>
-            <li onclick="nav('view-bulk')">📦 Catalogar Lote</li>
+            <div style="padding: 10px 15px; font-size: 0.75rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Armazém & Stock</div>
+            <li onclick="nav('view-search')"><span>🔍</span> Consultar Stock</li>
+            <li onclick="nav('view-register')"><span>➕</span> Novo Produto</li>
+            <li onclick="nav('view-bulk')"><span>📦</span> Catalogar Lote</li>
+            
+            <div style="padding: 10px 15px; margin-top: 10px; font-size: 0.75rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Equipamentos</div>
+            <li onclick="nav('view-tools')"><span>🛠️</span> Painel de Ferramentas</li>
+            <li onclick="nav('view-tool-reg')"><span>🪛</span> Registar Ferramenta</li>
+            <li onclick="nav('view-workers')"><span>👥</span> Gerir Funcionários</li>
         </ul>
         
         <div class="menu-footer">
@@ -46,34 +54,20 @@
 
     <main>
         <div id="view-search" class="view active">
-            <div class="search-container">
-                <input type="text" id="inp-search" placeholder="Pesquisar por código ou nome..." autocomplete="off">
-            </div>
+            <div class="search-container"><input type="text" id="inp-search" placeholder="Procurar nome ou ref..." autocomplete="off"></div>
             <div id="stock-list"></div>
         </div>
 
         <div id="view-register" class="view">
             <h2 id="form-title">Novo Produto</h2>
             <form id="form-add" class="pro-form">
-        
-                <label>REFERÊNCIA / CÓDIGO</label>
-                <input type="text" id="inp-codigo" style="text-transform:uppercase" required>
-
-                
+                <label>REFERÊNCIA / CÓDIGO</label><input type="text" id="inp-codigo" style="text-transform:uppercase" required>
+                <label>NOME DO ITEM</label><input type="text" id="inp-nome" required>
                 <div style="display:flex; gap:10px;">
-                    <div style="flex:1">
-                        <label>TIPO</label>
-                        <input type="text" id="inp-tipo">
-                    </div>
-                    <div style="flex:1">
-                        <label>LOCALIZAÇÃO</label>
-                        <input type="text" id="inp-loc" style="text-transform:uppercase">
-                    </div>
+                    <div style="flex:1"><label>TIPO</label><input type="text" id="inp-tipo"></div>
+                    <div style="flex:1"><label>LOCALIZAÇÃO</label><input type="text" id="inp-loc" style="text-transform:uppercase"></div>
                 </div>
-                
-                <label>QUANTIDADE EM STOCK</label>
-                <input type="number" id="inp-qtd" value="0">
-                
+                <label>STOCK ATUAL</label><input type="number" id="inp-qtd" value="0" min="0">
                 <button type="submit" id="btn-form-submit" class="btn-primary">Gravar Produto</button>
             </form>
         </div>
@@ -81,29 +75,52 @@
         <div id="view-bulk" class="view">
             <h2>Catalogar Lote</h2>
             <form id="form-bulk" class="pro-form">
-                <label>ZONA / LOCALIZAÇÃO FIXA</label>
-                <input type="text" id="bulk-loc" placeholder="Ex: ARM1" style="text-transform:uppercase" required>
-                
-                <label>REFERÊNCIA DO ITEM</label>
-                <input type="text" id="bulk-codigo" style="text-transform:uppercase" required>
-
-                
-                <label>NOME</label>
-                <input type="text" id="bulk-nome" required>
-
-                <label>QUANTIDADE (OPCIONAL)</label>
-                <input type="number" id="bulk-qtd" placeholder="0">
-                
-                <button type="submit" class="btn-primary">Adicionar ao Lote</button>
+                <label>ZONA DE ARRUMAÇÃO</label><input type="text" id="bulk-loc" style="text-transform:uppercase" required>
+                <label>REFERÊNCIA DO ITEM</label><input type="text" id="bulk-codigo" style="text-transform:uppercase" required>
+                <label>NOME DO ITEM</label><input type="text" id="bulk-nome" required>
+                <label>QUANTIDADE (Opcional)</label><input type="number" id="bulk-qtd" placeholder="0" min="0">
+                <button type="submit" class="btn-primary">Gravar e Continuar</button>
             </form>
+        </div>
+
+        <div id="view-tools" class="view">
+            <h2>Gestão de Ferramentas</h2>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">Toque num cartão verde para alocar. Toque num vermelho para devolver.</p>
+            <div class="search-container" style="position:static; margin-bottom:15px;"><input type="text" id="inp-search-tools" placeholder="Procurar ferramenta..." autocomplete="off"></div>
+            <div id="tools-list"></div>
+        </div>
+
+        <div id="view-tool-reg" class="view">
+            <h2>Registar Ferramenta</h2>
+            <form id="form-tool-reg" class="pro-form">
+                <label>NOME DA MÁQUINA / FERRAMENTA</label>
+                <input type="text" id="reg-tool-name" placeholder="Ex: Berbequim Bosch 18V" required>
+                <button type="submit" class="btn-primary">Adicionar ao Inventário</button>
+            </form>
+        </div>
+
+        <div id="view-workers" class="view">
+            <h2>Funcionários</h2>
+            <form id="form-worker" class="pro-form" style="margin-bottom:20px; padding-bottom:20px; border-bottom:1px solid var(--border);">
+                <label>NOME DO FUNCIONÁRIO</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="worker-name" placeholder="Ex: João Silva" required style="margin-bottom:0;">
+                    <button type="submit" class="btn-primary" style="margin-top:0; width:auto; padding:0 20px;">Adicionar</button>
+                </div>
+            </form>
+            <div id="workers-list"></div>
         </div>
     </main>
 
-    <div id="toast-container"></div>
+    <div id="worker-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top:0;">Entregar Ferramenta a:</h3>
+            <div id="worker-select-list" style="margin: 20px 0; max-height: 50vh; overflow-y: auto;"></div>
+            <button onclick="closeModal()" style="width:100%; padding:14px; border:none; border-radius:10px; background:var(--bg); color:var(--text-main); font-weight:bold; cursor:pointer;">Cancelar</button>
+        </div>
+    </div>
 
+    <div id="toast-container"></div>
     <script src="app.js"></script>
 </body>
 </html>
-
-
-
