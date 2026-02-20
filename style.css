@@ -1,45 +1,80 @@
 :root {
-    --primary: #2563eb; --primary-soft: #eff6ff;
-    --bg: #f8fafc; --card-bg: #ffffff;
+    --primary: #2563eb; 
+    --primary-soft: #eff6ff;
+    --bg: #f8fafc; 
+    --card-bg: #ffffff;
     --input-fill: #f0f7ff; 
-    --text-main: #0f172a; --text-muted: #64748b;
-    --border: #e2e8f0; --danger: #ef4444; --success: #22c55e;
+    --text-main: #0f172a; 
+    --text-muted: #64748b;
+    --border: #e2e8f0; 
+    --danger: #ef4444; 
+    --success: #22c55e;
     --header-h: 60px;
 }
 
 .dark-mode {
-    --bg: #0f172a; --card-bg: #1e293b; 
+    --bg: #0f172a; 
+    --card-bg: #1e293b; 
     --input-fill: #26334a;
-    --text-main: #f8fafc; --text-muted: #94a3b8; --border: #334155;
+    --text-main: #f8fafc; 
+    --text-muted: #94a3b8; 
+    --border: #334155;
 }
 
 * { 
-    box-sizing: border-box; margin: 0; padding: 0; 
-    -webkit-tap-highlight-color: transparent; outline: none; 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+    -webkit-tap-highlight-color: transparent; 
+    outline: none; 
 }
 
-body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-main); padding-top: var(--header-h); min-height: 100vh; }
+body { 
+    font-family: 'Inter', sans-serif; 
+    background: var(--bg); 
+    color: var(--text-main); 
+    padding-top: var(--header-h); 
+    min-height: 100vh; 
+}
 
-/* HEADER */
+/* --- HEADER --- */
 header { 
-    background: var(--primary); color: white; padding: 0 10px; 
-    display: flex; align-items: center; justify-content: space-between;
-    position: fixed; top: 0; left: 0; right: 0; z-index: 1000; height: var(--header-h);
+    background: var(--primary); 
+    color: white; 
+    padding: 0 10px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between;
+    position: fixed; 
+    top: 0; left: 0; right: 0; 
+    z-index: 1000; 
+    height: var(--header-h);
 }
 
 #menu-btn { 
-    background: transparent !important; border: none !important; color: white; 
-    font-size: 1.8rem; width: 48px; height: 48px; display: flex; 
-    align-items: center; justify-content: center; cursor: pointer;
+    background: transparent !important; 
+    border: none !important; 
+    color: white; 
+    font-size: 1.8rem; 
+    width: 48px; height: 48px; 
+    display: flex; align-items: center; justify-content: center; 
+    cursor: pointer;
 }
 
-header h1 { flex: 1; text-align: center; font-size: 0.9rem; font-weight: 800; letter-spacing: 1px; }
+header h1 { 
+    flex: 1; 
+    text-align: center; 
+    font-size: 1rem; 
+    font-weight: 800; 
+    letter-spacing: 1px; 
+}
+
 .header-spacer { width: 48px; }
 
-/* BARRA DE PESQUISA (FIXA NO TOPO) */
+/* --- BARRA DE PESQUISA (FIXA NO TOPO) --- */
 .search-container {
     position: sticky;
-    top: 0; /* Cola logo abaixo do header */
+    top: 0;
     background: var(--bg);
     padding: 15px 0;
     margin-bottom: 5px;
@@ -58,7 +93,7 @@ header h1 { flex: 1; text-align: center; font-size: 0.9rem; font-weight: 800; le
     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
 }
 
-/* CARDS DE STOCK */
+/* --- CARDS DE STOCK --- */
 .item-card {
     background: var(--card-bg);
     border-radius: 20px;
@@ -68,55 +103,92 @@ header h1 { flex: 1; text-align: center; font-size: 0.9rem; font-weight: 800; le
     box-shadow: 0 2px 6px rgba(0,0,0,0.02);
 }
 
+/* Destaque da Referência */
 .ref-label { font-size: 0.65rem; font-weight: 800; color: var(--primary); letter-spacing: 1px; }
 .ref-value { font-size: 1.4rem; font-weight: 900; color: var(--text-main); display: block; margin-bottom: 4px; }
 
+/* Pílula de Localização Colorida */
 .loc-pill {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: var(--input-fill);
-    color: var(--primary);
-    padding: 6px 14px;
+    background: #e0f2fe; /* Azul claro vibrante */
+    color: #0369a1;      /* Azul escuro contraste */
+    padding: 6px 16px;
     border-radius: 50px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    border: 1px solid var(--border);
+    font-size: 0.85rem;
+    font-weight: 800;
+    border: 2px solid #7dd3fc;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
+.dark-mode .loc-pill {
+    background: #0c4a6e;
+    color: #bae6fd;
+    border-color: #0ea5e9;
+}
+
+/* Pílula de Controlos (Quantidade) */
 .qty-pill-box {
     display: flex;
     align-items: center;
     gap: 12px;
     background: var(--primary-soft);
-    padding: 5px;
+    padding: 4px;
     border-radius: 50px;
+    border: 1px solid var(--border);
 }
 
 .btn-qty {
-    width: 36px; height: 36px; border-radius: 50%; border: none;
-    background: white; color: var(--primary); font-size: 1.2rem;
-    font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; 
+    border-radius: 50%; border: none;
+    background: white; color: var(--primary); 
+    font-size: 1.2rem; font-weight: 800; 
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.qty-display { font-weight: 900; font-size: 1.1rem; min-width: 25px; text-align: center; color: var(--primary); }
+.dark-mode .btn-qty { background: var(--input-fill); }
 
-/* MENU LATERAL */
+.qty-display { 
+    font-weight: 900; font-size: 1.1rem; 
+    min-width: 30px; text-align: center; color: var(--primary); 
+}
+
+/* --- MENU LATERAL --- */
 #side-menu { 
     position: fixed; top: 0; left: -280px; width: 280px; height: 100%; 
     background: var(--card-bg); z-index: 2000; transition: 0.3s;
     display: flex; flex-direction: column; 
 }
 #side-menu.open { left: 0; box-shadow: 15px 0 30px rgba(0,0,0,0.3); }
-.menu-header { height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px 0 20px; border-bottom: 1px solid var(--border); }
-.menu-items { list-style: none; padding: 20px 12px; flex-grow: 1; overflow-y: auto; }
-.menu-items li { padding: 16px; border-radius: 14px; display: flex; align-items: center; gap: 15px; font-weight: 600; cursor: pointer; margin-bottom: 8px; }
+
+.menu-header { 
+    height: 70px; display: flex; align-items: center; justify-content: space-between; 
+    padding: 0 15px 0 20px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+
+.menu-items { 
+    list-style: none; padding: 20px 12px; flex-grow: 1; overflow-y: auto; 
+}
+
+.menu-items li { 
+    padding: 16px; border-radius: 14px; display: flex; align-items: center; 
+    gap: 15px; font-weight: 600; cursor: pointer; margin-bottom: 10px; transition: 0.2s;
+}
+
 .menu-items li:active { background: var(--primary-soft); color: var(--primary); }
+.menu-divider { border: 0; border-top: 1px solid var(--border); margin: 15px 5px; }
 #close-menu { background: transparent !important; border: none; font-size: 1.8rem; color: var(--text-muted); }
 
-/* VISTAS & MODAL (FIX DE TEXTO PERSISTENTE) */
+.menu-footer { 
+    padding: 20px; border-top: 1px solid var(--border); display: flex; 
+    justify-content: space-between; align-items: center; background: var(--card-bg); flex-shrink: 0; 
+}
+
+/* --- VISTAS & MODAL --- */
 .view { display: none !important; }
-.view.active { display: block !important; }
+.view.active { display: block !important; animation: fadeIn 0.2s ease-out; }
 
 .modal-overlay { 
     position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 5000; 
@@ -124,9 +196,12 @@ header h1 { flex: 1; text-align: center; font-size: 0.9rem; font-weight: 800; le
     backdrop-filter: blur(8px); 
 }
 .modal-overlay.active { display: flex !important; }
-.modal-content { background: var(--card-bg); width: 90%; max-width: 400px; padding: 25px; border-radius: 24px; }
 
-/* TOASTS & SWITCH */
+.modal-content { background: var(--card-bg); width: 90%; max-width: 400px; padding: 25px; border-radius: 24px; }
+.worker-option { padding: 16px; background: var(--bg); border: 1px solid var(--border); margin-bottom: 10px; border-radius: 12px; font-weight: 600; cursor: pointer; }
+.btn-cancel { width: 100%; padding: 12px; background: none; border: none; color: var(--danger); font-weight: 700; margin-top: 10px; }
+
+/* --- TOASTS & SWITCH --- */
 #toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 90%; pointer-events: none; }
 .toast { background: var(--card-bg); padding: 15px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 10px; border-left: 6px solid var(--success); display: flex; align-items: center; gap: 12px; font-weight: 700; }
 
@@ -137,8 +212,14 @@ header h1 { flex: 1; text-align: center; font-size: 0.9rem; font-weight: 800; le
 input:checked + .compact-slider { background: #334155; }
 input:checked + .compact-slider:before { transform: translateX(26px); }
 
+/* --- FORMULÁRIOS & GERAL --- */
 main { padding: 10px 16px; max-width: 600px; margin: 0 auto; }
 .pro-form { display: flex; flex-direction: column; gap: 15px; }
+.pro-form-inline { display: flex; gap: 10px; margin-bottom: 15px; }
 .form-group { display: flex; flex-direction: column; gap: 5px; }
-.blue-input { width: 100%; padding: 14px; border-radius: 12px; border: 2px solid var(--border); background: var(--input-fill); color: var(--text-main); }
+.form-group label { font-size: 0.8rem; font-weight: 800; color: var(--text-muted); }
+.blue-input { width: 100%; padding: 14px; border-radius: 12px; border: 2px solid var(--border); background: var(--input-fill); color: var(--text-main); font-size: 1rem; }
 .btn-primary { background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 700; width: 100%; padding: 15px; cursor: pointer; }
+.btn-primary:active { opacity: 0.8; transform: scale(0.98); }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
