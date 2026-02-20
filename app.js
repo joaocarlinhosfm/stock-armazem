@@ -53,15 +53,15 @@ async function renderList(filter = "") {
                 <div class="ref-label">REFERÊNCIA</div>
                 <div class="ref-value">${String(item.codigo).toUpperCase()}</div>
                 
-                <div style="font-size: 1rem; font-weight: 600; color: var(--text-muted); margin-bottom: 18px;">
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted); margin-bottom: 12px; line-height: 1.2;">
                     ${item.nome}
                 </div>
 
-                <hr style="border:0; border-top:1px solid var(--border); margin-bottom:15px; opacity: 0.5;">
+                <hr style="border:0; border-top:1px solid var(--border); margin-bottom:10px; opacity: 0.5;">
 
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div class="loc-pill">
-                        <span style="font-size: 1rem;">📍</span> 
+                        <span style="font-size: 0.85rem;">📍</span> 
                         ${item.localizacao ? item.localizacao.toUpperCase() : 'SEM LOCAL'}
                     </div>
                     
@@ -78,7 +78,6 @@ async function renderList(filter = "") {
         console.error("Erro ao carregar o stock:", e); 
     }
 }
-
 async function changeQtd(id, delta) {
     // Adiciona uma vibração ligeira em dispositivos móveis suportados
     if (navigator.vibrate) navigator.vibrate(50);
@@ -257,3 +256,4 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput.oninput = (e) => renderList(e.target.value);
     }
 });
+
