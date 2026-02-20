@@ -21,21 +21,31 @@ function toggleMenu() {
     document.getElementById('menu-overlay').classList.toggle('active');
 }
 
+// NAVEGAÇÃO LIMPA
 function nav(viewId, isEdit = false) {
     if (viewId === 'view-register' && !isEdit) resetRegisterForm("Novo Produto");
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.getElementById(viewId).classList.add('active');
     
+    // Esconde todas as vistas
+    document.querySelectorAll('.view').forEach(v => {
+        v.classList.remove('active');
+    });
+
+    // Mostra apenas a vista selecionada
+    const targetView = document.getElementById(viewId);
+    if(targetView) targetView.classList.add('active');
+    
+    // Carrega dados específicos
     if(viewId === 'view-search') renderList();
     if(viewId === 'view-tools') renderTools();
     if(viewId === 'view-admin') { renderWorkers(); renderAdminTools(); }
     
+    // Fecha o menu
     document.getElementById('side-menu').classList.remove('open');
     document.getElementById('menu-overlay').classList.remove('active');
     window.scrollTo(0,0);
 }
 
-// --- STOCK ---
+// STOCK
 async function renderList(filter = "") {
     const listEl = document.getElementById('stock-list');
     try {
@@ -46,41 +56,43 @@ async function renderList(filter = "") {
         if(!data) return;
         Object.entries(data).reverse().forEach(([id, item]) => {
             if(filter && !item.nome.toLowerCase().includes(filter.toLowerCase()) && !String(item.codigo).toUpperCase().includes(filter.toUpperCase())) return;
-            const el = document.createElement('div'); el.className = 'item-card';
-            const lowClass = (item.quantidade || 0) === 0 ? 'low-stock' : '';
+            const el = document.createElement('div');
+            el.className = 'item-card';
+            el.style = "background:var(--card-bg); border-radius:18px; margin-bottom:15px; border:1px solid var(--border); padding:16px;";
             el.innerHTML = `
-                <div class="card-content">
-                    <div style="font-size:0.75rem; font-weight:800; color:var(--primary)">REF: ${item.codigo}</div>
-                    <div style="font-size:1.15rem; font-weight:700; margin:4px 0">${item.nome}</div>
-                    <div style="display:flex; justify-content:space-between; align-items:center">
-                        <span style="font-size:0.85rem; color:var(--text-muted)">📍 ${item.localizacao || 'S/ LOC'}</span>
-                        <div style="display:flex; align-items:center; gap:12px">
-                            <button onclick="changeQtd('${id}', -1)" style="width:36px; height:36px; border-radius:50%; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-weight:bold;">−</button>
-                            <span class="${lowClass}" data-id="${id}" style="font-weight:800; font-size:1.1rem">${item.quantidade || 0}</span>
-                            <button onclick="changeQtd('${id}', 1)" style="width:36px; height:36px; border-radius:50%; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-weight:bold;">+</button>
-                        </div>
+                <div style="font-size:0.75rem; font-weight:800; color:var(--primary)">REF: ${item.codigo}</div>
+                <div style="font-size:1.15rem; font-weight:700; margin:4px 0">${item.nome}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center">
+                    <span style="font-size:0.85rem; color:var(--text-muted)">📍 ${item.localizacao || 'S/ LOC'}</span>
+                    <div style="display:flex; align-items:center; gap:12px">
+                        <button onclick="changeQtd('${id}', -1)" style="width:36px; height:36px; border-radius:50%; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-weight:bold;">−</button>
+                        <span style="font-weight:800; font-size:1.1rem">${item.quantidade || 0}</span>
+                        <button onclick="changeQtd('${id}', 1)" style="width:36px; height:36px; border-radius:50%; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-weight:bold;">+</button>
                     </div>
                 </div>`;
             listEl.appendChild(el);
         });
-    } catch (e) { showToast("Erro de ligação", "error"); }
+    } catch (e) {}
 }
 
 async function changeQtd(id, delta) {
-    const span = document.querySelector(`span[data-id="${id}"]`);
-    let n = Math.max(0, parseInt(span.innerText) + delta);
-    span.innerText = n;
+    const res = await fetch(`${BASE_URL}/stock/${id}.json`);
+    const item = await res.json();
+    let n = Math.max(0, (item.quantidade || 0) + delta);
     await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: n }) });
+    renderList(document.getElementById('inp-search').value);
 }
 
-// --- FERRAMENTAS ---
+// FERRAMENTAS
 async function renderTools(filter = "") {
     const list = document.getElementById('tools-list');
+    if(!list) return;
+    list.innerHTML = "<div style='text-align:center; padding:20px; color:gray;'>A carregar ferramentas...</div>";
     try {
         const res = await fetch(`${BASE_URL}/ferramentas.json`);
         const data = await res.json();
         list.innerHTML = '';
-        if(!data) return;
+        if(!data) return list.innerHTML = "Nenhuma ferramenta registada.";
         Object.entries(data).reverse().forEach(([id, t]) => {
             if(filter && !t.nome.toLowerCase().includes(filter.toLowerCase())) return;
             const isAv = t.status === 'disponivel';
@@ -95,6 +107,7 @@ async function renderTools(filter = "") {
 
 async function renderAdminTools() {
     const list = document.getElementById('admin-tools-list');
+    if(!list) return;
     try {
         const res = await fetch(`${BASE_URL}/ferramentas.json`);
         const data = await res.json();
@@ -111,6 +124,7 @@ async function renderAdminTools() {
 
 async function renderWorkers() {
     const list = document.getElementById('workers-list');
+    if(!list) return;
     try {
         const res = await fetch(`${BASE_URL}/funcionarios.json`);
         const data = await res.json();
@@ -125,6 +139,7 @@ async function renderWorkers() {
     } catch(e){}
 }
 
+// FORMULÁRIOS
 document.getElementById('form-add').onsubmit = async (e) => {
     e.preventDefault();
     const payload = {
@@ -142,16 +157,17 @@ document.getElementById('form-worker').onsubmit = async (e) => {
     e.preventDefault();
     const nome = document.getElementById('worker-name').value;
     await fetch(`${BASE_URL}/funcionarios.json`, { method: 'POST', body: JSON.stringify({ nome }) });
-    document.getElementById('worker-name').value = ''; renderWorkers();
+    document.getElementById('worker-name').value = ''; renderWorkers(); showToast("Funcionário criado!");
 };
 
 document.getElementById('form-tool-reg').onsubmit = async (e) => {
     e.preventDefault();
     const nome = document.getElementById('reg-tool-name').value;
     await fetch(`${BASE_URL}/ferramentas.json`, { method: 'POST', body: JSON.stringify({ nome, status: 'disponivel' }) });
-    document.getElementById('reg-tool-name').value = ''; renderAdminTools();
+    document.getElementById('reg-tool-name').value = ''; renderAdminTools(); showToast("Máquina registada!");
 };
 
+// MODAL
 function openModal(id) {
     if(cachedWorkers.length === 0) return showToast("Adicione funcionários na Gestão", "error");
     toolToAllocate = id;
