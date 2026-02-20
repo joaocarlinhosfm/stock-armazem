@@ -19,11 +19,16 @@ function toggleMenu() {
     document.getElementById('menu-overlay').classList.toggle('active');
 }
 
+// NAVEGAÇÃO LIMPA
 function nav(viewId) {
+    // Esconde TUDO primeiro
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    
+    // Mostra apenas o pretendido
     const target = document.getElementById(viewId);
     if(target) target.classList.add('active');
     
+    // Carrega dados se necessário
     if(viewId === 'view-search') renderList();
     if(viewId === 'view-tools') renderTools();
     if(viewId === 'view-admin') { renderWorkers(); renderAdminTools(); }
@@ -32,9 +37,9 @@ function nav(viewId) {
     window.scrollTo(0,0);
 }
 
-// --- STOCK ---
 async function renderList(filter = "") {
     const listEl = document.getElementById('stock-list');
+    if(!listEl) return;
     try {
         const res = await fetch(DB_URL);
         const data = await res.json();
@@ -60,17 +65,9 @@ async function renderList(filter = "") {
     } catch (e) {}
 }
 
-async function changeQtd(id, delta) {
-    const res = await fetch(`${BASE_URL}/stock/${id}.json`);
-    const item = await res.json();
-    let n = Math.max(0, (item.quantidade || 0) + delta);
-    await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: n }) });
-    renderList(document.getElementById('inp-search').value);
-}
-
-// --- FERRAMENTAS ---
 async function renderTools(filter = "") {
     const list = document.getElementById('tools-list');
+    if(!list) return;
     try {
         const res = await fetch(`${BASE_URL}/ferramentas.json`);
         const data = await res.json();
@@ -90,10 +87,11 @@ async function renderTools(filter = "") {
 
 async function renderAdminTools() {
     const list = document.getElementById('admin-tools-list');
+    if(!list) return;
     try {
         const res = await fetch(`${BASE_URL}/ferramentas.json`);
         const data = await res.json();
-        list.innerHTML = '<h4 style="margin-bottom:10px; font-size:0.9rem;">Inventário Registado</h4>';
+        list.innerHTML = '';
         if(!data) return;
         Object.entries(data).forEach(([id, t]) => {
             const row = document.createElement('div');
@@ -106,6 +104,7 @@ async function renderAdminTools() {
 
 async function renderWorkers() {
     const list = document.getElementById('workers-list');
+    if(!list) return;
     try {
         const res = await fetch(`${BASE_URL}/funcionarios.json`);
         const data = await res.json();
@@ -120,7 +119,14 @@ async function renderWorkers() {
     } catch(e){}
 }
 
-// --- SUBMISSÕES ---
+async function changeQtd(id, delta) {
+    const res = await fetch(`${BASE_URL}/stock/${id}.json`);
+    const item = await res.json();
+    let n = Math.max(0, (item.quantidade || 0) + delta);
+    await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: n }) });
+    renderList(document.getElementById('inp-search').value);
+}
+
 document.getElementById('form-add').onsubmit = async (e) => {
     e.preventDefault();
     const payload = {
@@ -148,7 +154,6 @@ document.getElementById('form-tool-reg').onsubmit = async (e) => {
     document.getElementById('reg-tool-name').value = ''; renderAdminTools();
 };
 
-// --- MODAL ---
 function openModal(id) {
     if(cachedWorkers.length === 0) return showToast("Adicione funcionários na Gestão", "error");
     toolToAllocate = id;
