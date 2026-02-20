@@ -35,7 +35,7 @@
         <div class="menu-footer">
             <div id="status-conexao">
                 <span id="status-ponto"></span>
-                <span id="status-texto">Sistema Online</span>
+                <span id="status-texto">Online</span>
             </div>
             <label class="compact-switch">
                 <input type="checkbox" id="theme-toggle" onchange="toggleTheme()">
@@ -47,7 +47,7 @@
         </div>
     </nav>
 
-    <main>
+    <main id="main-content">
         <div id="view-search" class="view active">
             <div class="search-container">
                 <input type="text" id="inp-search" placeholder="Pesquisar código ou nome..." autocomplete="off">
@@ -68,19 +68,19 @@
             <form id="form-add" class="pro-form">
                 <div class="form-group">
                     <label>REFERÊNCIA / CÓDIGO</label>
-                    <input type="text" id="inp-codigo" style="text-transform:uppercase" required>
+                    <input type="text" id="inp-codigo" class="blue-input" style="text-transform:uppercase" required>
                 </div>
                 <div class="form-group">
                     <label>NOME DO PRODUTO</label>
-                    <input type="text" id="inp-nome" required>
+                    <input type="text" id="inp-nome" class="blue-input" required>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>TIPO</label><input type="text" id="inp-tipo"></div>
-                    <div class="form-group"><label>LOCALIZAÇÃO</label><input type="text" id="inp-loc" style="text-transform:uppercase"></div>
+                    <div class="form-group"><label>TIPO</label><input type="text" id="inp-tipo" class="blue-input"></div>
+                    <div class="form-group"><label>LOCALIZAÇÃO</label><input type="text" id="inp-loc" class="blue-input" style="text-transform:uppercase"></div>
                 </div>
                 <div class="form-group">
                     <label>QUANTIDADE ATUAL</label>
-                    <input type="number" id="inp-qtd" value="0">
+                    <input type="number" id="inp-qtd" class="blue-input" value="0">
                 </div>
                 <button type="submit" id="btn-form-submit" class="btn-primary">Gravar Produto</button>
             </form>
@@ -91,19 +91,19 @@
             <form id="form-bulk" class="pro-form">
                 <div class="form-group">
                     <label>ZONA DE ARMAZENAMENTO</label>
-                    <input type="text" id="bulk-loc" style="text-transform:uppercase" required>
+                    <input type="text" id="bulk-loc" class="blue-input" style="text-transform:uppercase" required>
                 </div>
                 <div class="form-group">
                     <label>REFERÊNCIA</label>
-                    <input type="text" id="bulk-codigo" style="text-transform:uppercase" required>
+                    <input type="text" id="bulk-codigo" class="blue-input" style="text-transform:uppercase" required>
                 </div>
                 <div class="form-group">
                     <label>NOME</label>
-                    <input type="text" id="bulk-nome" required>
+                    <input type="text" id="bulk-nome" class="blue-input" required>
                 </div>
                 <div class="form-group">
                     <label>QUANTIDADE</label>
-                    <input type="number" id="bulk-qtd" placeholder="0">
+                    <input type="number" id="bulk-qtd" class="blue-input" placeholder="0">
                 </div>
                 <button type="submit" class="btn-primary">Adicionar ao Lote</button>
             </form>
@@ -115,7 +115,7 @@
             <section class="admin-section">
                 <h3>👥 Gerir Funcionários</h3>
                 <form id="form-worker" class="pro-form-inline">
-                    <input type="text" id="worker-name" placeholder="Nome do funcionário" required>
+                    <input type="text" id="worker-name" class="blue-input" placeholder="Nome do funcionário" required>
                     <button type="submit" class="btn-primary">+</button>
                 </form>
                 <div id="workers-list" class="scroll-list"></div>
@@ -125,7 +125,7 @@
                 <h3>🪛 Inventário de Ferramentas</h3>
                 <form id="form-tool-reg" class="pro-form">
                     <div class="form-group">
-                        <input type="text" id="reg-tool-name" placeholder="Nome da ferramenta (ex: Hilti)" required>
+                        <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta (ex: Hilti)" required>
                     </div>
                     <button type="submit" class="btn-primary">Registar Nova Máquina</button>
                 </form>
