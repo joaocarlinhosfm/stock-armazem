@@ -12,7 +12,8 @@
     <header>
         <button id="menu-btn" onclick="toggleMenu()">☰</button>
         <h1>HIPERFRIO STOCK</h1>
-        <div class="header-spacer"></div> </header>
+        <div class="header-spacer"></div>
+    </header>
 
     <div id="menu-overlay" onclick="toggleMenu()"></div>
 
@@ -34,7 +35,7 @@
         <div class="menu-footer">
             <div id="status-conexao">
                 <span id="status-ponto"></span>
-                <span id="status-texto">Online</span>
+                <span id="status-texto">Sistema Online</span>
             </div>
             <label class="compact-switch">
                 <input type="checkbox" id="theme-toggle" onchange="toggleTheme()">
@@ -110,14 +111,16 @@
 
         <div id="view-admin" class="view">
             <h2>Gestão & Definições</h2>
+            
             <section class="admin-section">
                 <h3>👥 Gerir Funcionários</h3>
                 <form id="form-worker" class="pro-form-inline">
-                    <input type="text" id="worker-name" class="blue-input" placeholder="Nome do funcionário" required>
+                    <input type="text" id="worker-name" class="blue-input" placeholder="Nome" required>
                     <button type="submit" class="btn-primary">+</button>
                 </form>
                 <div id="workers-list" class="scroll-list"></div>
             </section>
+
             <section class="admin-section">
                 <h3>🪛 Inventário de Ferramentas</h3>
                 <form id="form-tool-reg" class="pro-form">
