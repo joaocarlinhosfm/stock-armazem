@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hiperfrio Stock Pro</title>
+    <title>Hiperfrio Stock</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -19,29 +19,29 @@
 
     <nav id="side-menu">
         <div class="menu-header">
-            <strong>Menu Principal</strong>
+            <strong>MENU</strong>
             <button id="close-menu" onclick="toggleMenu()">✕</button>
         </div>
         
         <ul class="menu-items">
             <li onclick="nav('view-search')"><span>🔍</span> Consultar Stock</li>
-            <li onclick="nav('view-tools')"><span>🛠️</span> Painel de Ferramentas</li>
+            <li onclick="nav('view-tools')"><span>🛠️</span> Ferramentas</li>
             <li onclick="nav('view-register')"><span>➕</span> Novo Produto</li>
             <li onclick="nav('view-bulk')"><span>📦</span> Catalogar Lote</li>
             <hr class="menu-divider">
-            <li onclick="nav('view-admin')"><span>⚙️</span> Gestão & Definições</li>
+            <li onclick="nav('view-admin')"><span>⚙️</span> Administração</li>
         </ul>
         
         <div class="menu-footer">
-            <div id="status-conexao">
-                <span id="status-ponto"></span>
-                <span id="status-texto">Sistema Online</span>
+            <div id="status-conexao" style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; color: var(--success);">
+                <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></span>
+                ONLINE
             </div>
             <label class="compact-switch">
                 <input type="checkbox" id="theme-toggle" onchange="toggleTheme()">
                 <span class="compact-slider">
-                    <span class="sun-icon">☀️</span>
-                    <span class="moon-icon">🌙</span>
+                    <span>☀️</span>
+                    <span>🌙</span>
                 </span>
             </label>
         </div>
@@ -49,39 +49,25 @@
 
     <main id="main-content">
         <div id="view-search" class="view active">
-            <div class="search-container">
-                <input type="text" id="inp-search" placeholder="Pesquisar código ou nome..." autocomplete="off">
-            </div>
+            <div class="search-container"><input type="text" id="inp-search" placeholder="Pesquisar..." autocomplete="off"></div>
             <div id="stock-list"></div>
         </div>
 
         <div id="view-tools" class="view">
             <h2>Painel de Ferramentas</h2>
-            <div class="search-container" style="position:static; margin-bottom:20px;">
-                <input type="text" id="inp-search-tools" placeholder="Procurar ferramenta..." autocomplete="off">
-            </div>
             <div id="tools-list"></div>
         </div>
 
         <div id="view-register" class="view">
             <h2>Novo Produto</h2>
             <form id="form-add" class="pro-form">
-                <div class="form-group">
-                    <label>REFERÊNCIA / CÓDIGO</label>
-                    <input type="text" id="inp-codigo" class="blue-input" style="text-transform:uppercase" required>
-                </div>
-                <div class="form-group">
-                    <label>NOME DO PRODUTO</label>
-                    <input type="text" id="inp-nome" class="blue-input" required>
-                </div>
+                <div class="form-group"><label>REFERÊNCIA</label><input type="text" id="inp-codigo" class="blue-input" required></div>
+                <div class="form-group"><label>NOME</label><input type="text" id="inp-nome" class="blue-input" required></div>
                 <div class="form-row">
                     <div class="form-group"><label>TIPO</label><input type="text" id="inp-tipo" class="blue-input"></div>
-                    <div class="form-group"><label>LOCALIZAÇÃO</label><input type="text" id="inp-loc" class="blue-input" style="text-transform:uppercase"></div>
+                    <div class="form-group"><label>LOCAL</label><input type="text" id="inp-loc" class="blue-input"></div>
                 </div>
-                <div class="form-group">
-                    <label>QUANTIDADE ATUAL</label>
-                    <input type="number" id="inp-qtd" class="blue-input" value="0">
-                </div>
+                <div class="form-group"><label>QUANTIDADE</label><input type="number" id="inp-qtd" class="blue-input" value="0"></div>
                 <button type="submit" class="btn-primary">Gravar Produto</button>
             </form>
         </div>
@@ -89,47 +75,27 @@
         <div id="view-bulk" class="view">
             <h2>Catalogar Lote</h2>
             <form id="form-bulk" class="pro-form">
-                <div class="form-group">
-                    <label>ZONA DE ARMAZENAMENTO</label>
-                    <input type="text" id="bulk-loc" class="blue-input" style="text-transform:uppercase" required>
-                </div>
-                <div class="form-group">
-                    <label>REFERÊNCIA</label>
-                    <input type="text" id="bulk-codigo" class="blue-input" style="text-transform:uppercase" required>
-                </div>
-                <div class="form-group">
-                    <label>NOME</label>
-                    <input type="text" id="bulk-nome" class="blue-input" required>
-                </div>
-                <div class="form-group">
-                    <label>QUANTIDADE</label>
-                    <input type="number" id="bulk-qtd" class="blue-input" placeholder="0">
-                </div>
+                <div class="form-group"><label>ZONA</label><input type="text" id="bulk-loc" class="blue-input" required></div>
+                <div class="form-group"><label>REFERÊNCIA</label><input type="text" id="bulk-codigo" class="blue-input" required></div>
+                <div class="form-group"><label>NOME</label><input type="text" id="bulk-nome" class="blue-input" required></div>
+                <div class="form-group"><label>QUANTIDADE</label><input type="number" id="bulk-qtd" class="blue-input"></div>
                 <button type="submit" class="btn-primary">Adicionar ao Lote</button>
             </form>
         </div>
 
         <div id="view-admin" class="view">
-            <h2>Gestão & Definições</h2>
-            
+            <h2>Administração</h2>
             <section class="admin-section">
-                <h3>👥 Gerir Funcionários</h3>
+                <h3>👥 Funcionários</h3>
                 <form id="form-worker" class="pro-form-inline">
                     <input type="text" id="worker-name" class="blue-input" placeholder="Nome" required>
                     <button type="submit" class="btn-primary">+</button>
                 </form>
                 <div id="workers-list" class="scroll-list"></div>
             </section>
-
             <section class="admin-section">
-                <h3>🪛 Inventário de Ferramentas</h3>
-                <form id="form-tool-reg" class="pro-form">
-                    <div class="form-group">
-                        <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required>
-                    </div>
-                    <button type="submit" class="btn-primary">Registar Máquina</button>
-                </form>
-                <h4 style="margin: 20px 0 10px 0; font-size: 0.8rem; color: var(--text-muted); font-weight: 800;">MÁQUINAS REGISTADAS</h4>
+                <h3>🪛 Inventário Máquinas</h3>
+                <form id="form-tool-reg" class="pro-form"><input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required><button type="submit" class="btn-primary">Registar</button></form>
                 <div id="admin-tools-list" class="scroll-list"></div>
             </section>
         </div>
