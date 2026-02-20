@@ -4,6 +4,7 @@ const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase
 let cachedWorkers = [];
 let toolToAllocate = null;
 
+// --- TOASTS & NAVEGAÇÃO ---
 function showToast(msg, type = 'success') {
     const container = document.getElementById('toast-container');
     const t = document.createElement('div');
@@ -16,19 +17,23 @@ function showToast(msg, type = 'success') {
 
 function toggleMenu() {
     document.getElementById('side-menu').classList.toggle('open');
-    document.getElementById('menu-overlay').classList.toggle('active');
+    const overlay = document.getElementById('menu-overlay');
+    if(overlay) overlay.classList.toggle('active');
 }
 
 function nav(viewId) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
+    
     if(viewId === 'view-search') renderList();
     if(viewId === 'view-tools') renderTools();
     if(viewId === 'view-admin') { renderWorkers(); renderAdminTools(); }
+    
     toggleMenu();
     window.scrollTo(0,0);
 }
 
+// --- RENDERIZAÇÃO DE STOCK ---
 async function renderList(filter = "") {
     const listEl = document.getElementById('stock-list');
     if(!listEl) return;
@@ -39,6 +44,7 @@ async function renderList(filter = "") {
         if(!data) return;
 
         Object.entries(data).reverse().forEach(([id, item]) => {
+            // Filtro por nome ou referência
             if(filter && !item.nome.toLowerCase().includes(filter.toLowerCase()) && !String(item.codigo).toUpperCase().includes(filter.toUpperCase())) return;
             
             const el = document.createElement('div');
@@ -47,15 +53,16 @@ async function renderList(filter = "") {
                 <div class="ref-label">REFERÊNCIA</div>
                 <div class="ref-value">${String(item.codigo).toUpperCase()}</div>
                 
-                <div style="font-size: 1rem; font-weight: 600; color: var(--text-muted); margin-bottom: 15px;">
+                <div style="font-size: 1rem; font-weight: 600; color: var(--text-muted); margin-bottom: 18px;">
                     ${item.nome}
                 </div>
 
-                <hr style="border:0; border-top:1px solid var(--border); margin-bottom:15px;">
+                <hr style="border:0; border-top:1px solid var(--border); margin-bottom:15px; opacity: 0.5;">
 
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div class="loc-pill">
-                        <span>📍</span> ${item.localizacao || 'SEM LOCAL'}
+                        <span style="font-size: 1rem;">📍</span> 
+                        ${item.localizacao ? item.localizacao.toUpperCase() : 'SEM LOCAL'}
                     </div>
                     
                     <div class="qty-pill-box">
@@ -67,92 +74,186 @@ async function renderList(filter = "") {
             `;
             listEl.appendChild(el);
         });
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+        console.error("Erro ao carregar o stock:", e); 
+    }
 }
 
 async function changeQtd(id, delta) {
+    // Adiciona uma vibração ligeira em dispositivos móveis suportados
+    if (navigator.vibrate) navigator.vibrate(50);
+
     const res = await fetch(`${BASE_URL}/stock/${id}.json`);
     const item = await res.json();
     let n = Math.max(0, (item.quantidade || 0) + delta);
     await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: n }) });
+    
+    // Atualiza a lista mantendo a pesquisa atual
     renderList(document.getElementById('inp-search').value);
 }
 
+// --- RENDERIZAÇÃO DE FERRAMENTAS ---
 async function renderTools() {
     const list = document.getElementById('tools-list');
+    if(!list) return;
     const res = await fetch(`${BASE_URL}/ferramentas.json`);
     const data = await res.json();
     list.innerHTML = '';
     if(!data) return;
+    
     Object.entries(data).reverse().forEach(([id, t]) => {
         const isAv = t.status === 'disponivel';
         list.innerHTML += `
             <div onclick="${isAv ? `openModal('${id}')` : `returnTool('${id}')`}" 
-                 style="padding:18px; border-radius:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; background:${isAv ? '#dcfce7' : '#fee2e2'}; color:${isAv ? '#166534' : '#991b1b'}; border:1px solid ${isAv ? '#22c55e' : '#ef4444'}">
-                <div><div style="font-weight:800;">${t.nome}</div><div style="font-size:0.8rem;">${isAv ? 'EM ARMAZÉM' : t.colaborador.toUpperCase()}</div></div>
-                <span>${isAv ? '➔' : '↩'}</span>
+                 style="padding:18px; border-radius:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; background:${isAv ? '#dcfce7' : '#fee2e2'}; color:${isAv ? '#166534' : '#991b1b'}; border:1px solid ${isAv ? '#22c55e' : '#ef4444'}">
+                <div>
+                    <div style="font-weight:800;">${t.nome}</div>
+                    <div style="font-size:0.8rem; margin-top:4px; font-weight:600;">
+                        ${isAv ? '📦 EM ARMAZÉM' : '👤 ' + t.colaborador.toUpperCase()}
+                    </div>
+                </div>
+                <span style="font-size:1.2rem;">${isAv ? '➔' : '↩'}</span>
             </div>`;
     });
 }
 
+// --- RENDERIZAÇÃO DE ADMINISTRAÇÃO ---
 async function renderWorkers() {
     const res = await fetch(`${BASE_URL}/funcionarios.json`);
     const data = await res.json();
     cachedWorkers = data ? Object.entries(data).map(([id, v]) => ({id, nome: v.nome})) : [];
     const list = document.getElementById('workers-list');
-    list.innerHTML = cachedWorkers.map(w => `<div style="display:flex; justify-content:space-between; padding:12px; background:var(--bg); border-radius:10px; margin-bottom:8px; border:1px solid var(--border);"><span style="font-weight:600;">👤 ${w.nome}</span><button onclick="deleteWorker('${w.id}')" style="color:var(--danger); background:none; border:none; font-size:1.2rem;">🗑️</button></div>`).join('');
+    if(!list) return;
+    
+    list.innerHTML = cachedWorkers.map(w => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--bg); border-radius:10px; margin-bottom:8px; border:1px solid var(--border);">
+            <span style="font-weight:600;">👤 ${w.nome}</span>
+            <button onclick="deleteWorker('${w.id}')" style="color:var(--danger); background:none; border:none; font-size:1.2rem; cursor:pointer;">🗑️</button>
+        </div>`).join('');
 }
 
 async function renderAdminTools() {
     const res = await fetch(`${BASE_URL}/ferramentas.json`);
     const data = await res.json();
     const list = document.getElementById('admin-tools-list');
-    list.innerHTML = data ? Object.entries(data).map(([id, t]) => `<div style="display:flex; justify-content:space-between; padding:12px; background:var(--bg); border-radius:10px; margin-bottom:8px; border:1px solid var(--border);"><span style="font-weight:600;">🪛 ${t.nome}</span><button onclick="deleteTool('${id}')" style="color:var(--danger); background:none; border:none; font-size:1.2rem;">🗑️</button></div>`).join('') : '';
+    if(!list) return;
+    
+    list.innerHTML = data ? Object.entries(data).map(([id, t]) => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--bg); border-radius:10px; margin-bottom:8px; border:1px solid var(--border);">
+            <span style="font-weight:600;">🪛 ${t.nome}</span>
+            <button onclick="deleteTool('${id}')" style="color:var(--danger); background:none; border:none; font-size:1.2rem; cursor:pointer;">🗑️</button>
+        </div>`).join('') : '';
 }
 
-document.getElementById('form-add').onsubmit = async (e) => {
-    e.preventDefault();
-    const payload = {
-        nome: document.getElementById('inp-nome').value,
-        tipo: document.getElementById('inp-tipo').value || 'Geral',
-        localizacao: document.getElementById('inp-loc').value.toUpperCase(),
-        quantidade: parseInt(document.getElementById('inp-qtd').value) || 0,
-        codigo: document.getElementById('inp-codigo').value.toUpperCase()
+// --- SUBMISSÕES DE FORMULÁRIOS ---
+const formAdd = document.getElementById('form-add');
+if(formAdd) {
+    formAdd.onsubmit = async (e) => {
+        e.preventDefault();
+        const payload = {
+            nome: document.getElementById('inp-nome').value,
+            tipo: document.getElementById('inp-tipo').value || 'Geral',
+            localizacao: document.getElementById('inp-loc').value.toUpperCase(),
+            quantidade: parseInt(document.getElementById('inp-qtd').value) || 0,
+            codigo: document.getElementById('inp-codigo').value.toUpperCase()
+        };
+        await fetch(DB_URL, { method: 'POST', body: JSON.stringify(payload) });
+        showToast("Produto Registado!"); 
+        nav('view-search'); 
+        e.target.reset();
     };
-    await fetch(DB_URL, { method: 'POST', body: JSON.stringify(payload) });
-    showToast("Produto Registado!"); nav('view-search'); e.target.reset();
-};
+}
 
+const formWorker = document.getElementById('form-worker');
+if(formWorker) {
+    formWorker.onsubmit = async (e) => {
+        e.preventDefault();
+        const nome = document.getElementById('worker-name').value;
+        await fetch(`${BASE_URL}/funcionarios.json`, { method: 'POST', body: JSON.stringify({ nome }) });
+        document.getElementById('worker-name').value = ''; 
+        renderWorkers();
+        showToast("Funcionário adicionado");
+    };
+}
+
+const formToolReg = document.getElementById('form-tool-reg');
+if(formToolReg) {
+    formToolReg.onsubmit = async (e) => {
+        e.preventDefault();
+        const nome = document.getElementById('reg-tool-name').value;
+        await fetch(`${BASE_URL}/ferramentas.json`, { method: 'POST', body: JSON.stringify({ nome, status: 'disponivel' }) });
+        document.getElementById('reg-tool-name').value = ''; 
+        renderAdminTools();
+        showToast("Ferramenta registada");
+    };
+}
+
+// --- LÓGICA DO MODAL DE FERRAMENTAS ---
 function openModal(id) {
     if(cachedWorkers.length === 0) return showToast("Adicione funcionários na Gestão", "error");
     toolToAllocate = id;
-    document.getElementById('worker-select-list').innerHTML = cachedWorkers.map(w => `<div class="worker-option" onclick="assignTool('${w.nome}')">👤 ${w.nome}</div>`).join('');
+    document.getElementById('worker-select-list').innerHTML = cachedWorkers.map(w => 
+        `<div class="worker-option" onclick="assignTool('${w.nome}')">👤 ${w.nome}</div>`
+    ).join('');
     document.getElementById('worker-modal').classList.add('active');
 }
-function closeModal() { document.getElementById('worker-modal').classList.remove('active'); }
+
+function closeModal() { 
+    document.getElementById('worker-modal').classList.remove('active'); 
+}
 
 async function assignTool(worker) {
-    await fetch(`${BASE_URL}/ferramentas/${toolToAllocate}.json`, { method: 'PATCH', body: JSON.stringify({ status: 'alocada', colaborador: worker }) });
-    closeModal(); renderTools(); showToast("Entregue!");
+    await fetch(`${BASE_URL}/ferramentas/${toolToAllocate}.json`, { 
+        method: 'PATCH', 
+        body: JSON.stringify({ status: 'alocada', colaborador: worker }) 
+    });
+    closeModal(); 
+    renderTools(); 
+    showToast(`Entregue a ${worker}!`);
 }
 
 async function returnTool(id) {
-    if(confirm("Confirmar devolução?")) {
-        await fetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'PATCH', body: JSON.stringify({ status: 'disponivel', colaborador: '' }) });
-        renderTools(); showToast("Devolvida!");
+    if(confirm("Confirmar devolução da ferramenta ao armazém?")) {
+        await fetch(`${BASE_URL}/ferramentas/${id}.json`, { 
+            method: 'PATCH', 
+            body: JSON.stringify({ status: 'disponivel', colaborador: '' }) 
+        });
+        renderTools(); 
+        showToast("Ferramenta devolvida!");
     }
 }
 
-async function deleteTool(id) { if(confirm("Apagar ferramenta?")) { await fetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'DELETE' }); renderAdminTools(); } }
-async function deleteWorker(id) { if(confirm("Apagar funcionário?")) { await fetch(`${BASE_URL}/funcionarios/${id}.json`, { method: 'DELETE' }); renderWorkers(); } }
+// --- APAGAR ITENS ---
+async function deleteTool(id) { 
+    if(confirm("Apagar ferramenta do sistema?")) { 
+        await fetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'DELETE' }); 
+        renderAdminTools(); 
+    } 
+}
+async function deleteWorker(id) { 
+    if(confirm("Apagar funcionário do sistema?")) { 
+        await fetch(`${BASE_URL}/funcionarios/${id}.json`, { method: 'DELETE' }); 
+        renderWorkers(); 
+    } 
+}
 
+// --- TEMA E INICIALIZAÇÃO ---
 function toggleTheme() { 
     document.body.classList.toggle('dark-mode'); 
     localStorage.setItem('hiperfrio-tema', document.body.classList.contains('dark-mode') ? 'dark' : 'light'); 
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    if(localStorage.getItem('hiperfrio-tema') === 'dark') { document.body.classList.add('dark-mode'); }
+    if(localStorage.getItem('hiperfrio-tema') === 'dark') { 
+        document.body.classList.add('dark-mode'); 
+        const toggle = document.getElementById('theme-toggle');
+        if(toggle) toggle.checked = true;
+    }
+    
     renderList();
-    document.getElementById('inp-search').oninput = (e) => renderList(e.target.value);
+    
+    const searchInput = document.getElementById('inp-search');
+    if(searchInput) {
+        searchInput.oninput = (e) => renderList(e.target.value);
+    }
 });
