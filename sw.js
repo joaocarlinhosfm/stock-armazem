@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stock-v19.1';
+const CACHE_NAME = 'stock-v19.2';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', (e) => {
@@ -14,6 +14,7 @@ self.addEventListener('fetch', (e) => {
     if (e.request.url.includes('firebaseio.com')) return;
     e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)));
 });
+
 
 
 
