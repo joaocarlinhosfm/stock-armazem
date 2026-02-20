@@ -1,8 +1,6 @@
 const DB_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app/stock.json";
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
-let editModeId = null;
-let cachedData = {};
 let cachedWorkers = [];
 let toolToAllocate = null;
 
@@ -21,50 +19,37 @@ function toggleMenu() {
     document.getElementById('menu-overlay').classList.toggle('active');
 }
 
-// NAVEGAÇÃO LIMPA
-function nav(viewId, isEdit = false) {
-    if (viewId === 'view-register' && !isEdit) resetRegisterForm("Novo Produto");
+function nav(viewId) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    const target = document.getElementById(viewId);
+    if(target) target.classList.add('active');
     
-    // Esconde todas as vistas
-    document.querySelectorAll('.view').forEach(v => {
-        v.classList.remove('active');
-    });
-
-    // Mostra apenas a vista selecionada
-    const targetView = document.getElementById(viewId);
-    if(targetView) targetView.classList.add('active');
-    
-    // Carrega dados específicos
     if(viewId === 'view-search') renderList();
     if(viewId === 'view-tools') renderTools();
     if(viewId === 'view-admin') { renderWorkers(); renderAdminTools(); }
     
-    // Fecha o menu
-    document.getElementById('side-menu').classList.remove('open');
-    document.getElementById('menu-overlay').classList.remove('active');
+    toggleMenu();
     window.scrollTo(0,0);
 }
 
-// STOCK
+// --- STOCK ---
 async function renderList(filter = "") {
     const listEl = document.getElementById('stock-list');
     try {
         const res = await fetch(DB_URL);
         const data = await res.json();
-        cachedData = data || {};
         listEl.innerHTML = '';
         if(!data) return;
         Object.entries(data).reverse().forEach(([id, item]) => {
             if(filter && !item.nome.toLowerCase().includes(filter.toLowerCase()) && !String(item.codigo).toUpperCase().includes(filter.toUpperCase())) return;
             const el = document.createElement('div');
             el.className = 'item-card';
-            el.style = "background:var(--card-bg); border-radius:18px; margin-bottom:15px; border:1px solid var(--border); padding:16px;";
             el.innerHTML = `
                 <div style="font-size:0.75rem; font-weight:800; color:var(--primary)">REF: ${item.codigo}</div>
-                <div style="font-size:1.15rem; font-weight:700; margin:4px 0">${item.nome}</div>
-                <div style="display:flex; justify-content:space-between; align-items:center">
+                <div style="font-size:1.1rem; font-weight:700; margin:4px 0">${item.nome}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
                     <span style="font-size:0.85rem; color:var(--text-muted)">📍 ${item.localizacao || 'S/ LOC'}</span>
-                    <div style="display:flex; align-items:center; gap:12px">
+                    <div style="display:flex; align-items:center; gap:15px">
                         <button onclick="changeQtd('${id}', -1)" style="width:36px; height:36px; border-radius:50%; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-weight:bold;">−</button>
                         <span style="font-weight:800; font-size:1.1rem">${item.quantidade || 0}</span>
                         <button onclick="changeQtd('${id}', 1)" style="width:36px; height:36px; border-radius:50%; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-weight:bold;">+</button>
@@ -83,16 +68,14 @@ async function changeQtd(id, delta) {
     renderList(document.getElementById('inp-search').value);
 }
 
-// FERRAMENTAS
+// --- FERRAMENTAS ---
 async function renderTools(filter = "") {
     const list = document.getElementById('tools-list');
-    if(!list) return;
-    list.innerHTML = "<div style='text-align:center; padding:20px; color:gray;'>A carregar ferramentas...</div>";
     try {
         const res = await fetch(`${BASE_URL}/ferramentas.json`);
         const data = await res.json();
         list.innerHTML = '';
-        if(!data) return list.innerHTML = "Nenhuma ferramenta registada.";
+        if(!data) return;
         Object.entries(data).reverse().forEach(([id, t]) => {
             if(filter && !t.nome.toLowerCase().includes(filter.toLowerCase())) return;
             const isAv = t.status === 'disponivel';
@@ -107,7 +90,6 @@ async function renderTools(filter = "") {
 
 async function renderAdminTools() {
     const list = document.getElementById('admin-tools-list');
-    if(!list) return;
     try {
         const res = await fetch(`${BASE_URL}/ferramentas.json`);
         const data = await res.json();
@@ -124,7 +106,6 @@ async function renderAdminTools() {
 
 async function renderWorkers() {
     const list = document.getElementById('workers-list');
-    if(!list) return;
     try {
         const res = await fetch(`${BASE_URL}/funcionarios.json`);
         const data = await res.json();
@@ -139,7 +120,7 @@ async function renderWorkers() {
     } catch(e){}
 }
 
-// FORMULÁRIOS
+// --- SUBMISSÕES ---
 document.getElementById('form-add').onsubmit = async (e) => {
     e.preventDefault();
     const payload = {
@@ -157,17 +138,17 @@ document.getElementById('form-worker').onsubmit = async (e) => {
     e.preventDefault();
     const nome = document.getElementById('worker-name').value;
     await fetch(`${BASE_URL}/funcionarios.json`, { method: 'POST', body: JSON.stringify({ nome }) });
-    document.getElementById('worker-name').value = ''; renderWorkers(); showToast("Funcionário criado!");
+    document.getElementById('worker-name').value = ''; renderWorkers();
 };
 
 document.getElementById('form-tool-reg').onsubmit = async (e) => {
     e.preventDefault();
     const nome = document.getElementById('reg-tool-name').value;
     await fetch(`${BASE_URL}/ferramentas.json`, { method: 'POST', body: JSON.stringify({ nome, status: 'disponivel' }) });
-    document.getElementById('reg-tool-name').value = ''; renderAdminTools(); showToast("Máquina registada!");
+    document.getElementById('reg-tool-name').value = ''; renderAdminTools();
 };
 
-// MODAL
+// --- MODAL ---
 function openModal(id) {
     if(cachedWorkers.length === 0) return showToast("Adicione funcionários na Gestão", "error");
     toolToAllocate = id;
@@ -196,8 +177,6 @@ function toggleTheme() {
     document.body.classList.toggle('dark-mode'); 
     localStorage.setItem('hiperfrio-tema', document.body.classList.contains('dark-mode') ? 'dark' : 'light'); 
 }
-
-function resetRegisterForm(t) { document.getElementById('form-add').reset(); document.getElementById('form-title').innerText = t; }
 
 document.addEventListener('DOMContentLoaded', () => {
     if(localStorage.getItem('hiperfrio-tema') === 'dark') { document.body.classList.add('dark-mode'); document.getElementById('theme-toggle').checked = true; }
