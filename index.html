@@ -12,8 +12,7 @@
     <header>
         <button id="menu-btn" onclick="toggleMenu()">☰</button>
         <h1>HIPERFRIO STOCK</h1>
-        <div style="width: 44px;"></div>
-    </header>
+        <div class="header-spacer"></div> </header>
 
     <div id="menu-overlay" onclick="toggleMenu()"></div>
 
@@ -111,7 +110,6 @@
 
         <div id="view-admin" class="view">
             <h2>Gestão & Definições</h2>
-            
             <section class="admin-section">
                 <h3>👥 Gerir Funcionários</h3>
                 <form id="form-worker" class="pro-form-inline">
@@ -120,12 +118,11 @@
                 </form>
                 <div id="workers-list" class="scroll-list"></div>
             </section>
-
             <section class="admin-section">
                 <h3>🪛 Inventário de Ferramentas</h3>
                 <form id="form-tool-reg" class="pro-form">
                     <div class="form-group">
-                        <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta (ex: Hilti)" required>
+                        <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required>
                     </div>
                     <button type="submit" class="btn-primary">Registar Nova Máquina</button>
                 </form>
