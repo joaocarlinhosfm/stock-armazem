@@ -262,8 +262,8 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js')
             .then(reg => console.log('Service Worker registado com sucesso!'))
             .catch(err => console.warn('Erro ao registar o Service Worker:', err));
-}   
 });
 }
+
 
 
