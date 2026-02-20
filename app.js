@@ -19,16 +19,11 @@ function toggleMenu() {
     document.getElementById('menu-overlay').classList.toggle('active');
 }
 
-// NAVEGAÇÃO LIMPA
 function nav(viewId) {
-    // Esconde TUDO primeiro
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    
-    // Mostra apenas o pretendido
     const target = document.getElementById(viewId);
     if(target) target.classList.add('active');
     
-    // Carrega dados se necessário
     if(viewId === 'view-search') renderList();
     if(viewId === 'view-tools') renderTools();
     if(viewId === 'view-admin') { renderWorkers(); renderAdminTools(); }
@@ -37,6 +32,7 @@ function nav(viewId) {
     window.scrollTo(0,0);
 }
 
+// --- LOGICA DE STOCK ---
 async function renderList(filter = "") {
     const listEl = document.getElementById('stock-list');
     if(!listEl) return;
@@ -65,6 +61,15 @@ async function renderList(filter = "") {
     } catch (e) {}
 }
 
+async function changeQtd(id, delta) {
+    const res = await fetch(`${BASE_URL}/stock/${id}.json`);
+    const item = await res.json();
+    let n = Math.max(0, (item.quantidade || 0) + delta);
+    await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: n }) });
+    renderList(document.getElementById('inp-search').value);
+}
+
+// --- FERRAMENTAS ---
 async function renderTools(filter = "") {
     const list = document.getElementById('tools-list');
     if(!list) return;
@@ -119,14 +124,7 @@ async function renderWorkers() {
     } catch(e){}
 }
 
-async function changeQtd(id, delta) {
-    const res = await fetch(`${BASE_URL}/stock/${id}.json`);
-    const item = await res.json();
-    let n = Math.max(0, (item.quantidade || 0) + delta);
-    await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: n }) });
-    renderList(document.getElementById('inp-search').value);
-}
-
+// --- SUBMISSÕES ---
 document.getElementById('form-add').onsubmit = async (e) => {
     e.preventDefault();
     const payload = {
@@ -137,7 +135,7 @@ document.getElementById('form-add').onsubmit = async (e) => {
         codigo: document.getElementById('inp-codigo').value.toUpperCase()
     };
     await fetch(DB_URL, { method: 'POST', body: JSON.stringify(payload) });
-    showToast("Produto guardado!"); nav('view-search');
+    showToast("Produto guardado!"); nav('view-search'); e.target.reset();
 };
 
 document.getElementById('form-worker').onsubmit = async (e) => {
@@ -154,6 +152,7 @@ document.getElementById('form-tool-reg').onsubmit = async (e) => {
     document.getElementById('reg-tool-name').value = ''; renderAdminTools();
 };
 
+// --- MODAL ---
 function openModal(id) {
     if(cachedWorkers.length === 0) return showToast("Adicione funcionários na Gestão", "error");
     toolToAllocate = id;
@@ -165,13 +164,13 @@ function closeModal() { document.getElementById('worker-modal').classList.remove
 
 async function assignTool(worker) {
     await fetch(`${BASE_URL}/ferramentas/${toolToAllocate}.json`, { method: 'PATCH', body: JSON.stringify({ status: 'alocada', colaborador: worker }) });
-    closeModal(); renderTools(); showToast("Entregue!");
+    closeModal(); renderTools(); showToast("Ferramenta Entregue!");
 }
 
 async function returnTool(id) {
-    if(confirm("Confirmar devolução?")) {
+    if(confirm("Confirmar devolução para o armazém?")) {
         await fetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'PATCH', body: JSON.stringify({ status: 'disponivel', colaborador: '' }) });
-        renderTools(); showToast("Devolvida!");
+        renderTools(); showToast("Ferramenta Devolvida!");
     }
 }
 
