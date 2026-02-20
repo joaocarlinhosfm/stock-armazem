@@ -20,7 +20,7 @@
 
 body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-main); padding-top: var(--header-h); min-height: 100vh; }
 
-/* HEADER & BOTÕES SEM FUNDO */
+/* HEADER */
 header { 
     background: var(--primary); color: white; padding: 0 10px; 
     display: flex; align-items: center; justify-content: space-between;
@@ -28,40 +28,68 @@ header {
 }
 
 #menu-btn { 
-    background: transparent !important; 
-    background-color: transparent !important;
-    border: none !important; 
-    box-shadow: none !important;
-    color: white; 
-    font-size: 1.8rem; 
-    width: 48px; height: 48px; 
-    display: flex; align-items: center; justify-content: center; 
-    cursor: pointer; -webkit-appearance: none;
+    background: transparent !important; border: none !important; color: white; 
+    font-size: 1.8rem; width: 48px; height: 48px; display: flex; 
+    align-items: center; justify-content: center; cursor: pointer;
 }
 
 header h1 { flex: 1; text-align: center; font-size: 1rem; font-weight: 800; letter-spacing: 1px; }
 .header-spacer { width: 48px; }
 
-/* VISTAS */
-.view { display: none !important; }
-.view.active { display: block !important; animation: fadeIn 0.2s ease-out; }
+/* MENU LATERAL (CORRIGIDO) */
+#side-menu { 
+    position: fixed; top: 0; left: -280px; width: 280px; height: 100%; 
+    background: var(--card-bg); z-index: 2000; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex; flex-direction: column; 
+}
+#side-menu.open { left: 0; box-shadow: 15px 0 30px rgba(0,0,0,0.3); }
 
-/* MODAL (CORREÇÃO DO TEXTO PERSISTENTE) */
+.menu-header { 
+    height: 70px; display: flex; align-items: center; justify-content: space-between; 
+    padding: 0 15px 0 20px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+
+.menu-items { 
+    list-style: none; 
+    padding: 20px 12px; /* Espaço no topo e laterais */
+    flex-grow: 1; 
+    overflow-y: auto; 
+}
+
+.menu-items li { 
+    padding: 16px; 
+    border-radius: 14px; 
+    display: flex; 
+    align-items: center; 
+    gap: 15px; 
+    font-weight: 600; 
+    cursor: pointer; 
+    margin-bottom: 10px; /* Mais espaço entre botões */
+    transition: 0.2s;
+    color: var(--text-main);
+}
+
+.menu-items li:active { background: var(--primary-soft); color: var(--primary); }
+.menu-divider { border: 0; border-top: 1px solid var(--border); margin: 15px 5px; }
+
+.menu-footer { 
+    padding: 20px; border-top: 1px solid var(--border); 
+    display: flex; justify-content: space-between; align-items: center; 
+    background: var(--card-bg); flex-shrink: 0; 
+}
+
+/* VISTAS & MODAL */
+.view { display: none !important; }
+.view.active { display: block !important; }
+
 .modal-overlay { 
     position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 5000; 
     display: none !important; align-items: center; justify-content: center; 
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px); 
 }
 .modal-overlay.active { display: flex !important; }
 
 .modal-content { background: var(--card-bg); width: 90%; max-width: 400px; padding: 25px; border-radius: 24px; }
-.worker-option { padding: 16px; background: var(--bg); border: 1px solid var(--border); margin-bottom: 10px; border-radius: 12px; font-weight: 600; cursor: pointer; }
-.btn-cancel { width: 100%; padding: 12px; background: none; border: none; color: var(--danger); font-weight: 700; margin-top: 10px; }
-
-/* MENU LATERAL */
-#side-menu { position: fixed; top: 0; left: -280px; width: 280px; height: 100%; background: var(--card-bg); z-index: 2000; transition: 0.3s; display: flex; flex-direction: column; }
-#side-menu.open { left: 0; box-shadow: 15px 0 30px rgba(0,0,0,0.3); }
-.menu-header { height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px 0 20px; border-bottom: 1px solid var(--border); }
 #close-menu { background: transparent !important; border: none; font-size: 1.8rem; color: var(--text-muted); }
 
 /* CARDS & INPUTS */
@@ -69,17 +97,8 @@ main { padding: 20px 16px; max-width: 600px; margin: 0 auto; }
 .item-card { background: var(--card-bg); border-radius: 18px; margin-bottom: 15px; border: 1px solid var(--border); padding: 16px; }
 .blue-input { width: 100%; padding: 14px; border-radius: 12px; border: 2px solid var(--border); background: var(--input-fill); color: var(--text-main); font-size: 1rem; }
 .btn-primary { background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 700; width: 100%; padding: 15px; cursor: pointer; }
-.btn-primary:active { opacity: 0.8; transform: scale(0.98); }
 
-.tool-card { border-radius: 16px; padding: 18px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border: 2px solid transparent; }
-.tool-available { background: #dcfce7; color: #166534; border-color: #22c55e; }
-.tool-allocated { background: #fee2e2; color: #991b1b; border-color: #ef4444; }
-
-/* TOASTS */
-#toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 90%; pointer-events: none; }
-.toast { background: var(--card-bg); padding: 15px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 10px; border-left: 6px solid var(--success); display: flex; align-items: center; gap: 12px; font-weight: 700; }
-
-/* SWITCH */
+/* SWITCH & TOASTS */
 .compact-switch { position: relative; width: 54px; height: 28px; }
 .compact-switch input { opacity: 0; width: 0; height: 0; }
 .compact-slider { position: absolute; inset: 0; background: #cbd5e1; border-radius: 30px; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: space-between; padding: 0 6px; }
@@ -87,4 +106,5 @@ main { padding: 20px 16px; max-width: 600px; margin: 0 auto; }
 input:checked + .compact-slider { background: #334155; }
 input:checked + .compact-slider:before { transform: translateX(26px); }
 
-@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+#toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 90%; pointer-events: none; }
+.toast { background: var(--card-bg); padding: 15px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 10px; border-left: 6px solid var(--success); display: flex; align-items: center; gap: 12px; font-weight: 700; }
