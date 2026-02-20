@@ -255,5 +255,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if(searchInput) {
         searchInput.oninput = (e) => renderList(e.target.value);
     }
+
+ // --- REGISTO DO SERVICE WORKER (PARA PERMITIR INSTALAÇÃO PWA) ---
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('Service Worker registado com sucesso!'))
+            .catch(err => console.warn('Erro ao registar o Service Worker:', err));
+}   
 });
+}
+
 
