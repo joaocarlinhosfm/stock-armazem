@@ -31,29 +31,43 @@ function nav(viewId) {
 
 async function renderList(filter = "") {
     const listEl = document.getElementById('stock-list');
+    if(!listEl) return;
     try {
         const res = await fetch(DB_URL);
         const data = await res.json();
         listEl.innerHTML = '';
         if(!data) return;
+
         Object.entries(data).reverse().forEach(([id, item]) => {
             if(filter && !item.nome.toLowerCase().includes(filter.toLowerCase()) && !String(item.codigo).toUpperCase().includes(filter.toUpperCase())) return;
+            
             const el = document.createElement('div');
             el.className = 'item-card';
             el.innerHTML = `
-                <div style="font-size:0.7rem; font-weight:800; color:var(--primary)">REF: ${item.codigo}</div>
-                <div style="font-size:1.1rem; font-weight:700; margin:4px 0">${item.nome}</div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-                    <span style="font-size:0.8rem; color:var(--text-muted)">📍 ${item.localizacao || 'S/ LOC'}</span>
-                    <div style="display:flex; align-items:center; gap:12px">
-                        <button onclick="changeQtd('${id}', -1)" style="width:34px; height:34px; border-radius:50%; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-weight:bold;">−</button>
-                        <span style="font-weight:800;">${item.quantidade || 0}</span>
-                        <button onclick="changeQtd('${id}', 1)" style="width:34px; height:34px; border-radius:50%; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-weight:bold;">+</button>
+                <div class="ref-label">REFERÊNCIA</div>
+                <div class="ref-value">${String(item.codigo).toUpperCase()}</div>
+                
+                <div style="font-size: 1rem; font-weight: 600; color: var(--text-muted); margin-bottom: 15px;">
+                    ${item.nome}
+                </div>
+
+                <hr style="border:0; border-top:1px solid var(--border); margin-bottom:15px;">
+
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="loc-pill">
+                        <span>📍</span> ${item.localizacao || 'SEM LOCAL'}
                     </div>
-                </div>`;
+                    
+                    <div class="qty-pill-box">
+                        <button class="btn-qty" onclick="changeQtd('${id}', -1)">−</button>
+                        <span class="qty-display">${item.quantidade || 0}</span>
+                        <button class="btn-qty" onclick="changeQtd('${id}', 1)">+</button>
+                    </div>
+                </div>
+            `;
             listEl.appendChild(el);
         });
-    } catch (e) {}
+    } catch (e) { console.error(e); }
 }
 
 async function changeQtd(id, delta) {
@@ -72,11 +86,12 @@ async function renderTools() {
     if(!data) return;
     Object.entries(data).reverse().forEach(([id, t]) => {
         const isAv = t.status === 'disponivel';
-        const el = document.createElement('div');
-        el.className = `tool-card ${isAv ? 'tool-available' : 'tool-allocated'}`;
-        el.onclick = () => isAv ? openModal(id) : returnTool(id);
-        el.innerHTML = `<div><div style="font-weight:800;">${t.nome}</div><div style="font-size:0.8rem;">${isAv ? 'DISPONÍVEL' : t.colaborador}</div></div><span>${isAv ? '➔' : '↩'}</span>`;
-        list.appendChild(el);
+        list.innerHTML += `
+            <div onclick="${isAv ? `openModal('${id}')` : `returnTool('${id}')`}" 
+                 style="padding:18px; border-radius:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; background:${isAv ? '#dcfce7' : '#fee2e2'}; color:${isAv ? '#166534' : '#991b1b'}; border:1px solid ${isAv ? '#22c55e' : '#ef4444'}">
+                <div><div style="font-weight:800;">${t.nome}</div><div style="font-size:0.8rem;">${isAv ? 'EM ARMAZÉM' : t.colaborador.toUpperCase()}</div></div>
+                <span>${isAv ? '➔' : '↩'}</span>
+            </div>`;
     });
 }
 
@@ -85,56 +100,59 @@ async function renderWorkers() {
     const data = await res.json();
     cachedWorkers = data ? Object.entries(data).map(([id, v]) => ({id, nome: v.nome})) : [];
     const list = document.getElementById('workers-list');
-    list.innerHTML = cachedWorkers.map(w => `<div style="display:flex; justify-content:space-between; padding:10px; background:var(--bg); border-radius:10px; margin-bottom:5px;"><span>${w.nome}</span><button onclick="deleteWorker('${w.id}')" style="color:red; background:none; border:none;">🗑️</button></div>`).join('');
+    list.innerHTML = cachedWorkers.map(w => `<div style="display:flex; justify-content:space-between; padding:12px; background:var(--bg); border-radius:10px; margin-bottom:8px; border:1px solid var(--border);"><span style="font-weight:600;">👤 ${w.nome}</span><button onclick="deleteWorker('${w.id}')" style="color:var(--danger); background:none; border:none; font-size:1.2rem;">🗑️</button></div>`).join('');
 }
 
 async function renderAdminTools() {
     const res = await fetch(`${BASE_URL}/ferramentas.json`);
     const data = await res.json();
     const list = document.getElementById('admin-tools-list');
-    list.innerHTML = data ? Object.entries(data).map(([id, t]) => `<div style="display:flex; justify-content:space-between; padding:10px; background:var(--bg); border-radius:10px; margin-bottom:5px;"><span>${t.nome}</span><button onclick="deleteTool('${id}')" style="color:red; background:none; border:none;">🗑️</button></div>`).join('') : '';
+    list.innerHTML = data ? Object.entries(data).map(([id, t]) => `<div style="display:flex; justify-content:space-between; padding:12px; background:var(--bg); border-radius:10px; margin-bottom:8px; border:1px solid var(--border);"><span style="font-weight:600;">🪛 ${t.nome}</span><button onclick="deleteTool('${id}')" style="color:var(--danger); background:none; border:none; font-size:1.2rem;">🗑️</button></div>`).join('') : '';
 }
 
 document.getElementById('form-add').onsubmit = async (e) => {
     e.preventDefault();
     const payload = {
         nome: document.getElementById('inp-nome').value,
-        tipo: document.getElementById('inp-tipo').value,
+        tipo: document.getElementById('inp-tipo').value || 'Geral',
         localizacao: document.getElementById('inp-loc').value.toUpperCase(),
         quantidade: parseInt(document.getElementById('inp-qtd').value) || 0,
         codigo: document.getElementById('inp-codigo').value.toUpperCase()
     };
     await fetch(DB_URL, { method: 'POST', body: JSON.stringify(payload) });
-    showToast("Sucesso!"); nav('view-search'); e.target.reset();
+    showToast("Produto Registado!"); nav('view-search'); e.target.reset();
 };
 
 function openModal(id) {
     if(cachedWorkers.length === 0) return showToast("Adicione funcionários na Gestão", "error");
     toolToAllocate = id;
-    document.getElementById('worker-select-list').innerHTML = cachedWorkers.map(w => `<div class="worker-option" onclick="assignTool('${w.nome}')">${w.nome}</div>`).join('');
+    document.getElementById('worker-select-list').innerHTML = cachedWorkers.map(w => `<div class="worker-option" onclick="assignTool('${w.nome}')">👤 ${w.nome}</div>`).join('');
     document.getElementById('worker-modal').classList.add('active');
 }
-
 function closeModal() { document.getElementById('worker-modal').classList.remove('active'); }
 
 async function assignTool(worker) {
     await fetch(`${BASE_URL}/ferramentas/${toolToAllocate}.json`, { method: 'PATCH', body: JSON.stringify({ status: 'alocada', colaborador: worker }) });
-    closeModal(); renderTools();
+    closeModal(); renderTools(); showToast("Entregue!");
 }
 
 async function returnTool(id) {
     if(confirm("Confirmar devolução?")) {
         await fetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'PATCH', body: JSON.stringify({ status: 'disponivel', colaborador: '' }) });
-        renderTools();
+        renderTools(); showToast("Devolvida!");
     }
 }
 
-async function deleteTool(id) { if(confirm("Apagar?")) { await fetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'DELETE' }); renderAdminTools(); } }
-async function deleteWorker(id) { if(confirm("Apagar?")) { await fetch(`${BASE_URL}/funcionarios/${id}.json`, { method: 'DELETE' }); renderWorkers(); } }
+async function deleteTool(id) { if(confirm("Apagar ferramenta?")) { await fetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'DELETE' }); renderAdminTools(); } }
+async function deleteWorker(id) { if(confirm("Apagar funcionário?")) { await fetch(`${BASE_URL}/funcionarios/${id}.json`, { method: 'DELETE' }); renderWorkers(); } }
 
-function toggleTheme() { document.body.classList.toggle('dark-mode'); }
+function toggleTheme() { 
+    document.body.classList.toggle('dark-mode'); 
+    localStorage.setItem('hiperfrio-tema', document.body.classList.contains('dark-mode') ? 'dark' : 'light'); 
+}
 
 document.addEventListener('DOMContentLoaded', () => {
+    if(localStorage.getItem('hiperfrio-tema') === 'dark') { document.body.classList.add('dark-mode'); }
     renderList();
     document.getElementById('inp-search').oninput = (e) => renderList(e.target.value);
 });
