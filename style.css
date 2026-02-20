@@ -13,45 +13,32 @@
     --text-main: #f8fafc; --text-muted: #94a3b8; --border: #334155;
 }
 
-/* RESET GERAL MOBILE */
 * { 
-    box-sizing: border-box; 
-    margin: 0; padding: 0; 
-    -webkit-tap-highlight-color: transparent; /* Remove o flash azul/cinza ao tocar */
-    outline: none; 
+    box-sizing: border-box; margin: 0; padding: 0; 
+    -webkit-tap-highlight-color: transparent; outline: none; 
 }
 
 body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-main); padding-top: var(--header-h); min-height: 100vh; }
 
-/* HEADER & BOTÕES SEM FUNDO */
+/* HEADER LIMPO (CORRIGIDO) */
 header { 
     background: var(--primary); color: white; padding: 0 10px; 
     display: flex; align-items: center; justify-content: space-between;
     position: fixed; top: 0; left: 0; right: 0; z-index: 1000; height: var(--header-h);
 }
 
-header h1 { flex: 1; text-align: center; font-size: 1rem; font-weight: 800; letter-spacing: 1px; white-space: nowrap; }
-.header-spacer { width: 48px; }
-
-#menu-btn, #close-menu { 
-    background: none !important; 
-    background-color: transparent !important;
-    border: none !important; 
-    box-shadow: none !important;
-    color: white; 
-    font-size: 1.8rem; 
-    width: 48px; 
-    height: 48px; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-    cursor: pointer;
-    -webkit-appearance: none; /* Remove estilo do Safari */
-    -moz-appearance: none;
-    appearance: none;
+#menu-btn { 
+    background: transparent !important; border: none !important; color: white; 
+    font-size: 1.8rem; width: 48px; height: 48px; display: flex; align-items: center; 
+    justify-content: center; cursor: pointer; -webkit-appearance: none;
 }
 
-#close-menu { color: var(--text-muted); }
+header h1 { flex: 1; text-align: center; font-size: 1rem; font-weight: 800; letter-spacing: 1px; }
+.header-spacer { width: 48px; }
+
+/* VISTAS (BLOQUEIO TOTAL) */
+.view { display: none !important; }
+.view.active { display: block !important; }
 
 /* MENU LATERAL */
 #side-menu { 
@@ -60,58 +47,44 @@ header h1 { flex: 1; text-align: center; font-size: 1rem; font-weight: 800; lett
     display: flex; flex-direction: column; 
 }
 #side-menu.open { left: 0; box-shadow: 15px 0 30px rgba(0,0,0,0.3); }
-
 .menu-header { height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px 0 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+#close-menu { background: transparent !important; border: none; font-size: 1.8rem; color: var(--text-muted); cursor: pointer; }
+
 .menu-items { list-style: none; padding: 10px; flex-grow: 1; overflow-y: auto; }
-.menu-items li { padding: 14px 16px; border-radius: 12px; display: flex; align-items: center; gap: 12px; font-weight: 600; cursor: pointer; margin-bottom: 4px; color: var(--text-main); }
+.menu-items li { padding: 14px 16px; border-radius: 12px; display: flex; align-items: center; gap: 12px; font-weight: 600; cursor: pointer; margin-bottom: 4px; }
 .menu-items li:active { background: var(--primary-soft); }
 .menu-divider { border: 0; border-top: 1px solid var(--border); margin: 10px 0; }
 .menu-footer { padding: 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); flex-shrink: 0; }
 
-/* INPUTS AZUL SUAVE */
+/* FORMULÁRIOS */
 .blue-input { 
     width: 100%; padding: 14px; border-radius: 12px; border: 2px solid var(--border); 
-    background: var(--input-fill); color: var(--text-main); font-size: 1rem; transition: 0.2s;
-    -webkit-appearance: none;
+    background: var(--input-fill); color: var(--text-main); font-size: 1rem; 
 }
-.blue-input:focus { border-color: var(--primary); background: var(--card-bg); }
-
 .pro-form { display: flex; flex-direction: column; gap: 18px; }
 .form-group { display: flex; flex-direction: column; gap: 8px; }
 .form-row { display: flex; gap: 12px; }
 .form-row .form-group { flex: 1; }
-label { font-size: 0.75rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.5px; }
+label { font-size: 0.75rem; font-weight: 800; color: var(--text-muted); }
 
-/* VISTAS */
+/* CARDS & LISTAS */
 main { padding: 20px 16px; max-width: 600px; margin: 0 auto; }
-.view { display: none; }
-.view.active { display: block !important; }
-
-/* CARDS */
 .item-card { background: var(--card-bg); border-radius: 18px; margin-bottom: 15px; border: 1px solid var(--border); padding: 16px; }
 .btn-primary { background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 700; width: 100%; padding: 15px; cursor: pointer; }
-.btn-primary:active { opacity: 0.8; transform: scale(0.98); }
 
-/* ADMIN */
-.admin-section { background: var(--card-bg); padding: 20px; border-radius: 18px; border: 1px solid var(--border); margin-bottom: 25px; }
-.pro-form-inline { display: flex; gap: 10px; align-items: center; }
-.pro-form-inline .btn-primary { width: 52px; height: 52px; padding: 0; font-size: 1.5rem; flex-shrink: 0; }
-.scroll-list { max-height: 250px; overflow-y: auto; margin-top: 15px; }
-
-/* FERRAMENTAS */
 .tool-card { border-radius: 16px; padding: 18px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border: 2px solid transparent; }
 .tool-available { background: #dcfce7; color: #166534; border-color: #22c55e; }
 .tool-allocated { background: #fee2e2; color: #991b1b; border-color: #ef4444; }
 
-/* OUTROS */
+/* SWITCH & OUTROS */
 #menu-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; z-index: 1500; backdrop-filter: blur(2px); }
 #menu-overlay.active { display: block; }
-#toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 90%; pointer-events: none; }
-.toast { background: var(--card-bg); padding: 15px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 10px; border-left: 6px solid var(--success); display: flex; align-items: center; gap: 12px; font-weight: 700; }
-
 .compact-switch { position: relative; width: 54px; height: 28px; }
 .compact-switch input { opacity: 0; width: 0; height: 0; }
 .compact-slider { position: absolute; inset: 0; background: #cbd5e1; border-radius: 30px; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: space-between; padding: 0 6px; }
-.compact-slider:before { content: ""; position: absolute; height: 22px; width: 22px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; z-index: 2; }
+.compact-slider:before { content: ""; position: absolute; height: 22px; width: 22px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
 input:checked + .compact-slider { background: #334155; }
 input:checked + .compact-slider:before { transform: translateX(26px); }
+
+#toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 90%; pointer-events: none; }
+.toast { background: var(--card-bg); padding: 15px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 10px; border-left: 6px solid var(--success); display: flex; align-items: center; gap: 12px; font-weight: 700; }
