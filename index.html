@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-PT">
 <head>
@@ -15,15 +16,7 @@
     <header>
         <button id="menu-btn" onclick="toggleMenu()">☰</button>
         <h1>HIPERFRIO STOCK</h1>
-        <div class="header-spacer">
-            <label class="compact-switch">
-                <input type="checkbox" id="theme-toggle" onchange="toggleTheme()">
-                <span class="compact-slider">
-                    <span>☀️</span>
-                    <span>🌙</span>
-                </span>
-            </label>
-        </div>
+        <div class="header-spacer"></div>
     </header>
 
     <div id="menu-overlay" onclick="toggleMenu()"></div>
@@ -50,13 +43,6 @@
                     <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></span>
                     ONLINE
                 </div>
-                <label class="compact-switch desktop-theme-switch">
-                    <input type="checkbox" id="theme-toggle-desktop" onchange="toggleTheme(true)">
-                    <span class="compact-slider">
-                        <span>☀️</span>
-                        <span>🌙</span>
-                    </span>
-                </label>
             </div>
         </nav>
 
@@ -98,18 +84,44 @@
 
         <div id="view-admin" class="view">
             <h2>Administração</h2>
-            <section class="admin-section">
-                <h3>👥 Funcionários</h3>
+
+            <!-- Tab buttons -->
+            <div class="admin-tabs">
+                <button class="admin-tab active" id="tab-workers" onclick="switchAdminTab('workers')">👥 Funcionários</button>
+                <button class="admin-tab" id="tab-tools" onclick="switchAdminTab('tools')">🪛 Ferramentas</button>
+                <button class="admin-tab" id="tab-settings" onclick="switchAdminTab('settings')">⚙️ Definições</button>
+            </div>
+
+            <!-- Tab: Funcionários -->
+            <section class="admin-panel active" id="panel-workers">
                 <form id="form-worker" class="pro-form-inline">
-                    <input type="text" id="worker-name" class="blue-input" placeholder="Nome" required>
+                    <input type="text" id="worker-name" class="blue-input" placeholder="Nome do funcionário" required>
                     <button type="submit" class="btn-primary">+</button>
                 </form>
                 <div id="workers-list" class="scroll-list"></div>
             </section>
-            <section class="admin-section">
-                <h3>🪛 Inventário Máquinas</h3>
-                <form id="form-tool-reg" class="pro-form"><input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required><button type="submit" class="btn-primary">Registar</button></form>
-                <div id="admin-tools-list" class="scroll-list"></div>
+
+            <!-- Tab: Ferramentas -->
+            <section class="admin-panel" id="panel-tools">
+                <form id="form-tool-reg" class="pro-form">
+                    <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required>
+                    <button type="submit" class="btn-primary">Registar Ferramenta</button>
+                </form>
+                <div id="admin-tools-list" class="scroll-list" style="margin-top: 16px;"></div>
+            </section>
+
+            <!-- Tab: Definições -->
+            <section class="admin-panel" id="panel-settings">
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Tema Escuro</span>
+                        <span class="settings-item-desc">Alterna entre modo claro e escuro</span>
+                    </div>
+                    <label class="compact-switch">
+                        <input type="checkbox" id="theme-toggle-admin" onchange="toggleTheme()">
+                        <span class="compact-slider"><span>☀️</span><span>🌙</span></span>
+                    </label>
+                </div>
             </section>
         </div>
         </main>
