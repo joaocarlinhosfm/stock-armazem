@@ -1,4 +1,3 @@
-
 const DB_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app/stock.json";
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
@@ -53,9 +52,9 @@ function nav(viewId) {
     const bnavBtn = document.getElementById(viewToBnav[viewId]);
     if(bnavBtn) bnavBtn.classList.add('active');
 
-    // Close mobile menu if open
-    const isDesktop = window.innerWidth >= 768;
-    if(!isDesktop) toggleMenu();
+    // Close mobile menu only if it's currently open
+    const menu = document.getElementById('side-menu');
+    if(menu && menu.classList.contains('open')) toggleMenu();
     window.scrollTo(0,0);
 }
 
@@ -254,4 +253,3 @@ if ('serviceWorker' in navigator) {
             .catch(err => console.warn('PWA: Erro no Service Worker', err));
     });
 }
-
