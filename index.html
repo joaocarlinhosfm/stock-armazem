@@ -15,31 +15,7 @@
     <header>
         <button id="menu-btn" onclick="toggleMenu()">☰</button>
         <h1>HIPERFRIO STOCK</h1>
-        <div class="header-spacer"></div>
-    </header>
-
-    <div id="menu-overlay" onclick="toggleMenu()"></div>
-
-    <nav id="side-menu">
-        <div class="menu-header">
-            <strong>MENU</strong>
-            <button id="close-menu" onclick="toggleMenu()">✕</button>
-        </div>
-        
-        <ul class="menu-items">
-            <li onclick="nav('view-search')"><span>🔍</span> Consultar Stock</li>
-            <li onclick="nav('view-tools')"><span>🛠️</span> Ferramentas</li>
-            <li onclick="nav('view-register')"><span>➕</span> Novo Produto</li>
-            <li onclick="nav('view-bulk')"><span>📦</span> Catalogar Lote</li>
-            <hr class="menu-divider">
-            <li onclick="nav('view-admin')"><span>⚙️</span> Administração</li>
-        </ul>
-        
-        <div class="menu-footer">
-            <div id="status-conexao" style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; color: var(--success);">
-                <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></span>
-                ONLINE
-            </div>
+        <div class="header-spacer">
             <label class="compact-switch">
                 <input type="checkbox" id="theme-toggle" onchange="toggleTheme()">
                 <span class="compact-slider">
@@ -48,9 +24,43 @@
                 </span>
             </label>
         </div>
-    </nav>
+    </header>
 
-    <main id="main-content">
+    <div id="menu-overlay" onclick="toggleMenu()"></div>
+
+    <div id="app-layout">
+
+        <nav id="side-menu">
+            <div class="menu-header">
+                <strong>HIPERFRIO</strong>
+                <button id="close-menu" onclick="toggleMenu()">✕</button>
+            </div>
+            
+            <ul class="menu-items">
+                <li id="nav-search" class="active" onclick="nav('view-search')"><span>🔍</span> Consultar Stock</li>
+                <li id="nav-tools" onclick="nav('view-tools')"><span>🛠️</span> Ferramentas</li>
+                <li id="nav-register" onclick="nav('view-register')"><span>➕</span> Novo Produto</li>
+                <li id="nav-bulk" onclick="nav('view-bulk')"><span>📦</span> Catalogar Lote</li>
+                <hr class="menu-divider">
+                <li id="nav-admin" onclick="nav('view-admin')"><span>⚙️</span> Administração</li>
+            </ul>
+            
+            <div class="menu-footer">
+                <div id="status-conexao" style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; color: var(--success);">
+                    <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></span>
+                    ONLINE
+                </div>
+                <label class="compact-switch desktop-theme-switch">
+                    <input type="checkbox" id="theme-toggle-desktop" onchange="toggleTheme(true)">
+                    <span class="compact-slider">
+                        <span>☀️</span>
+                        <span>🌙</span>
+                    </span>
+                </label>
+            </div>
+        </nav>
+
+        <main id="main-content">
         <div id="view-search" class="view active">
             <div class="search-container"><input type="text" id="inp-search" placeholder="Pesquisar..." autocomplete="off"></div>
             <div id="stock-list"></div>
@@ -102,7 +112,33 @@
                 <div id="admin-tools-list" class="scroll-list"></div>
             </section>
         </div>
-    </main>
+        </main>
+
+    </div><!-- end app-layout -->
+
+    <!-- BOTTOM NAV (mobile only) -->
+    <nav id="bottom-nav">
+        <button class="bottom-nav-item active" id="bnav-search" onclick="nav('view-search')">
+            <span class="bnav-icon">🔍</span>
+            <span class="bnav-label">Stock</span>
+        </button>
+        <button class="bottom-nav-item" id="bnav-tools" onclick="nav('view-tools')">
+            <span class="bnav-icon">🛠️</span>
+            <span class="bnav-label">Ferramentas</span>
+        </button>
+        <button class="bottom-nav-item" id="bnav-register" onclick="nav('view-register')">
+            <span class="bnav-icon">➕</span>
+            <span class="bnav-label">Produto</span>
+        </button>
+        <button class="bottom-nav-item" id="bnav-bulk" onclick="nav('view-bulk')">
+            <span class="bnav-icon">📦</span>
+            <span class="bnav-label">Lote</span>
+        </button>
+        <button class="bottom-nav-item" id="bnav-admin" onclick="nav('view-admin')">
+            <span class="bnav-icon">⚙️</span>
+            <span class="bnav-label">Admin</span>
+        </button>
+    </nav>
 
     <div id="worker-modal" class="modal-overlay">
         <div class="modal-content">
