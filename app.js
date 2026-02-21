@@ -220,25 +220,28 @@ async function returnTool(id) {
 async function deleteTool(id) { if(confirm("Apagar ferramenta?")) { await fetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'DELETE' }); renderAdminTools(); } }
 async function deleteWorker(id) { if(confirm("Apagar funcionário?")) { await fetch(`${BASE_URL}/funcionarios/${id}.json`, { method: 'DELETE' }); renderWorkers(); } }
 
-function toggleTheme(fromDesktop = false) { 
+// ADMIN TABS
+function switchAdminTab(tab) {
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+}
+
+function toggleTheme() { 
     document.body.classList.toggle('dark-mode'); 
     const isDark = document.body.classList.contains('dark-mode');
     localStorage.setItem('hiperfrio-tema', isDark ? 'dark' : 'light');
-    // Sync both toggles
-    const t1 = document.getElementById('theme-toggle');
-    const t2 = document.getElementById('theme-toggle-desktop');
-    if(t1) t1.checked = isDark;
-    if(t2) t2.checked = isDark;
+    const adminToggle = document.getElementById('theme-toggle-admin');
+    if(adminToggle) adminToggle.checked = isDark;
 }
 
 // INICIALIZAÇÃO
 document.addEventListener('DOMContentLoaded', () => {
     if(localStorage.getItem('hiperfrio-tema') === 'dark') { 
         document.body.classList.add('dark-mode'); 
-        const t1 = document.getElementById('theme-toggle');
-        const t2 = document.getElementById('theme-toggle-desktop');
-        if(t1) t1.checked = true;
-        if(t2) t2.checked = true;
+        const adminToggle = document.getElementById('theme-toggle-admin');
+        if(adminToggle) adminToggle.checked = true;
     }
     renderList();
     const searchInput = document.getElementById('inp-search');
