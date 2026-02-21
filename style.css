@@ -65,7 +65,8 @@ header {
     color: white; 
     font-size: 1.8rem; 
     width: 48px; height: 48px; 
-    display: flex; align-items: center; justify-content: center; 
+    display: none;
+    align-items: center; justify-content: center; 
     cursor: pointer;
 }
 
@@ -79,7 +80,7 @@ header h1 {
 
 .header-spacer { 
     width: 48px; 
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: flex-end;
 }
@@ -393,7 +394,8 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
     }
 
     /* Hide mobile-only controls */
-    #menu-btn { display: none; }
+    /* #menu-btn already hidden globally */
+    .header-spacer { display: flex; }
     #close-menu { display: none; }
     #menu-overlay { display: none !important; }
     #bottom-nav { display: none; }
