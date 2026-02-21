@@ -1,3 +1,4 @@
+
 const DB_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app/stock.json";
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
@@ -27,8 +28,34 @@ function nav(viewId) {
     if(viewId === 'view-search') renderList();
     if(viewId === 'view-tools') renderTools();
     if(viewId === 'view-admin') { renderWorkers(); renderAdminTools(); }
-    
-    toggleMenu();
+
+    // Update sidebar active state
+    document.querySelectorAll('.menu-items li').forEach(li => li.classList.remove('active'));
+    const viewToNavId = {
+        'view-search': 'nav-search',
+        'view-tools': 'nav-tools',
+        'view-register': 'nav-register',
+        'view-bulk': 'nav-bulk',
+        'view-admin': 'nav-admin'
+    };
+    const navLi = document.getElementById(viewToNavId[viewId]);
+    if(navLi) navLi.classList.add('active');
+
+    // Update bottom nav active state
+    document.querySelectorAll('.bottom-nav-item').forEach(btn => btn.classList.remove('active'));
+    const viewToBnav = {
+        'view-search': 'bnav-search',
+        'view-tools': 'bnav-tools',
+        'view-register': 'bnav-register',
+        'view-bulk': 'bnav-bulk',
+        'view-admin': 'bnav-admin'
+    };
+    const bnavBtn = document.getElementById(viewToBnav[viewId]);
+    if(bnavBtn) bnavBtn.classList.add('active');
+
+    // Close mobile menu if open
+    const isDesktop = window.innerWidth >= 768;
+    if(!isDesktop) toggleMenu();
     window.scrollTo(0,0);
 }
 
@@ -194,17 +221,25 @@ async function returnTool(id) {
 async function deleteTool(id) { if(confirm("Apagar ferramenta?")) { await fetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'DELETE' }); renderAdminTools(); } }
 async function deleteWorker(id) { if(confirm("Apagar funcionário?")) { await fetch(`${BASE_URL}/funcionarios/${id}.json`, { method: 'DELETE' }); renderWorkers(); } }
 
-function toggleTheme() { 
+function toggleTheme(fromDesktop = false) { 
     document.body.classList.toggle('dark-mode'); 
-    localStorage.setItem('hiperfrio-tema', document.body.classList.contains('dark-mode') ? 'dark' : 'light'); 
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('hiperfrio-tema', isDark ? 'dark' : 'light');
+    // Sync both toggles
+    const t1 = document.getElementById('theme-toggle');
+    const t2 = document.getElementById('theme-toggle-desktop');
+    if(t1) t1.checked = isDark;
+    if(t2) t2.checked = isDark;
 }
 
 // INICIALIZAÇÃO
 document.addEventListener('DOMContentLoaded', () => {
     if(localStorage.getItem('hiperfrio-tema') === 'dark') { 
         document.body.classList.add('dark-mode'); 
-        const toggle = document.getElementById('theme-toggle');
-        if(toggle) toggle.checked = true;
+        const t1 = document.getElementById('theme-toggle');
+        const t2 = document.getElementById('theme-toggle-desktop');
+        if(t1) t1.checked = true;
+        if(t2) t2.checked = true;
     }
     renderList();
     const searchInput = document.getElementById('inp-search');
@@ -219,3 +254,4 @@ if ('serviceWorker' in navigator) {
             .catch(err => console.warn('PWA: Erro no Service Worker', err));
     });
 }
+
