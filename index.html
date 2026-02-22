@@ -12,6 +12,31 @@
 </head>
 <body>
 
+    <!-- Ecrã de seleção de perfil -->
+    <div id="role-screen">
+        <div id="role-screen-inner">
+            <div id="role-logo">❄️</div>
+            <h1 id="role-title">HIPERFRIO STOCK</h1>
+            <p id="role-subtitle">Como queres entrar?</p>
+            <div id="role-buttons">
+                <button class="role-btn role-btn-worker" onclick="enterAsWorker()">
+                    <span class="role-btn-icon">👤</span>
+                    <div>
+                        <span class="role-btn-label">Funcionário</span>
+                        <span class="role-btn-desc">Consulta de stock e ferramentas</span>
+                    </div>
+                </button>
+                <button class="role-btn role-btn-manager" onclick="enterAsManager()">
+                    <span class="role-btn-icon">🔑</span>
+                    <div>
+                        <span class="role-btn-label">Gestor</span>
+                        <span class="role-btn-desc">Acesso completo com PIN</span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Banner offline -->
     <div id="offline-banner" style="display:none;">
         <span>📡 Sem ligação — as alterações serão guardadas e sincronizadas quando voltar online</span>
@@ -37,10 +62,10 @@
             <ul class="menu-items">
                 <li id="nav-search" class="active" onclick="nav('view-search')"><span>🔍</span> Consultar Stock</li>
                 <li id="nav-tools" onclick="nav('view-tools')"><span>🛠️</span> Ferramentas</li>
-                <li id="nav-register" onclick="nav('view-register')"><span>➕</span> Novo Produto</li>
-                <li id="nav-bulk" onclick="nav('view-bulk')"><span>📦</span> Catalogar Lote</li>
+                <li id="nav-register" onclick="nav('view-register')" data-manager-only><span>➕</span> Novo Produto</li>
+                <li id="nav-bulk" onclick="nav('view-bulk')" data-manager-only><span>📦</span> Catalogar Lote</li>
                 <hr class="menu-divider">
-                <li id="nav-admin" onclick="nav('view-admin')"><span>⚙️</span> Administração</li>
+                <li id="nav-admin" onclick="nav('view-admin')" data-manager-only><span>⚙️</span> Administração</li>
             </ul>
             
             <div class="menu-footer">
@@ -139,6 +164,15 @@
                     <button class="btn-settings-action" id="pin-action-btn" onclick="openPinSetupModal()">Definir</button>
                 </div>
 
+                <div class="settings-group-label">PERFIL</div>
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Trocar de Perfil</span>
+                        <span class="settings-item-desc">Volta ao ecrã de seleção de acesso</span>
+                    </div>
+                    <button class="btn-settings-action" onclick="switchRole()">Trocar</button>
+                </div>
+
                 <div class="settings-group-label">DADOS</div>
                 <div class="settings-item">
                     <div class="settings-item-info">
@@ -164,15 +198,15 @@
             <span class="bnav-icon">🛠️</span>
             <span class="bnav-label">Ferramentas</span>
         </button>
-        <button class="bottom-nav-item" id="bnav-register" onclick="nav('view-register')">
+        <button class="bottom-nav-item" id="bnav-register" onclick="nav('view-register')" data-manager-only>
             <span class="bnav-icon">➕</span>
             <span class="bnav-label">Produto</span>
         </button>
-        <button class="bottom-nav-item" id="bnav-bulk" onclick="nav('view-bulk')">
+        <button class="bottom-nav-item" id="bnav-bulk" onclick="nav('view-bulk')" data-manager-only>
             <span class="bnav-icon">📦</span>
             <span class="bnav-label">Lote</span>
         </button>
-        <button class="bottom-nav-item" id="bnav-admin" onclick="nav('view-admin')">
+        <button class="bottom-nav-item" id="bnav-admin" onclick="nav('view-admin')" data-manager-only>
             <span class="bnav-icon">⚙️</span>
             <span class="bnav-label">Admin</span>
         </button>
@@ -192,7 +226,7 @@
         <div class="modal-content">
             <div class="modal-icon">🔐</div>
             <h3 id="pin-modal-title">Área Restrita</h3>
-            <p class="modal-desc">Introduz o PIN para aceder à Administração</p>
+            <p class="modal-desc" id="pin-modal-desc">Introduz o PIN de Gestor</p>
             <div class="pin-dots" id="pin-dots">
                 <span></span><span></span><span></span><span></span>
             </div>
