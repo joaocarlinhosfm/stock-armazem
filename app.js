@@ -12,6 +12,74 @@ function escapeHtml(str) {
 }
 
 // =============================================
+// PERFIL — Funcionário vs Gestor
+// =============================================
+const ROLE_KEY    = 'hiperfrio-role';   // 'worker' | 'manager'
+let   currentRole = null;               // definido no arranque
+
+// Aplica o perfil à UI — chamado uma vez no boot
+function applyRole(role) {
+    currentRole = role;
+    document.body.classList.toggle('worker-mode', role === 'worker');
+
+    // Badge no header
+    let badge = document.getElementById('role-badge');
+    if (!badge) {
+        badge = document.createElement('span');
+        badge.id = 'role-badge';
+        document.querySelector('header')?.appendChild(badge);
+    }
+    if (role === 'worker') {
+        badge.textContent = '👤 FUNCIONÁRIO';
+        badge.className   = 'role-badge-worker';
+    } else {
+        badge.textContent = '🔑 GESTOR';
+        badge.className   = 'role-badge-manager';
+    }
+
+    // Esconde o ecrã de seleção
+    document.getElementById('role-screen')?.classList.add('hidden');
+}
+
+// Botão "Funcionário" no ecrã de seleção
+function enterAsWorker() {
+    localStorage.setItem(ROLE_KEY, 'worker');
+    applyRole('worker');
+    bootApp();
+}
+
+// Botão "Gestor" no ecrã de seleção
+function enterAsManager() {
+    const hasPin = !!localStorage.getItem('hiperfrio-pin-hash');
+    if (!hasPin) {
+        // Sem PIN configurado — entra diretamente e sugere definir
+        localStorage.setItem(ROLE_KEY, 'manager');
+        applyRole('manager');
+        bootApp();
+        setTimeout(() => showToast('Recomendamos definir um PIN de Gestor nas Definições'), 1500);
+    } else {
+        // Tem PIN — pede verificação antes de entrar
+        openPinModal('role'); // modo 'role' = ao confirmar, guarda role e faz boot
+    }
+}
+
+// Trocar de perfil (botão nas Definições)
+function switchRole() {
+    localStorage.removeItem(ROLE_KEY);
+    // Recarrega a página — forma mais limpa de repor o estado
+    window.location.reload();
+}
+
+// Inicializa a app após o perfil estar definido
+function bootApp() {
+    renderList();
+    fetchCollection('ferramentas');
+    fetchCollection('funcionarios');
+    updatePinStatusUI();
+    updateOfflineBanner();
+}
+
+// =============================================
 // PIN — hash SHA-256
 // =============================================
 async function hashPin(pin) {
@@ -640,6 +708,8 @@ document.addEventListener('mouseup', () => {
 });
 
 function attachSwipe(card, wrapper, id, item) {
+    // Funcionários não têm swipe — apenas leitura
+    if (currentRole === 'worker') return;
     card.addEventListener('touchstart', e => _onSwipeStart(card, wrapper, id, item, e.touches[0].clientX, e.touches[0].clientY), { passive:true });
     card.addEventListener('touchmove',  e => _onSwipeMove(e.touches[0].clientX, e.touches[0].clientY), { passive:true });
     card.addEventListener('touchend',   _onSwipeEnd);
@@ -711,16 +781,26 @@ let pinBuffer          = '';
 let pendingAdminNav    = false;
 
 function checkAdminAccess() {
+    // Managers already verified at login — full access
+    if (currentRole === 'manager') return true;
+    // Legacy: non-role-based PIN check (fallback)
     const hash = localStorage.getItem('hiperfrio-pin-hash');
     if (!hash || pinSessionVerified) return true;
     pendingAdminNav = true;
-    openPinModal();
+    openPinModal('admin');
     return false;
 }
 
-function openPinModal() {
+let pinMode = 'admin'; // 'admin' | 'role'
+
+function openPinModal(mode = 'admin') {
+    pinMode   = mode;
     pinBuffer = '';
     updatePinDots('pin-dots', 0);
+    const desc = document.getElementById('pin-modal-desc');
+    if (desc) desc.textContent = mode === 'role'
+        ? 'Introduz o PIN para entrar como Gestor'
+        : 'Introduz o PIN de Gestor';
     document.getElementById('pin-error').textContent = '';
     document.getElementById('pin-modal').classList.add('active');
     focusModal('pin-modal');
@@ -741,9 +821,17 @@ async function validatePin() {
     const savedHash = localStorage.getItem('hiperfrio-pin-hash');
     const entered   = await hashPin(pinBuffer);
     if (entered === savedHash) {
-        pinSessionVerified = true;
         document.getElementById('pin-modal').classList.remove('active');
-        if (pendingAdminNav) { pendingAdminNav = false; nav('view-admin'); }
+        if (pinMode === 'role') {
+            // Entrar como Gestor a partir do ecrã de seleção
+            localStorage.setItem(ROLE_KEY, 'manager');
+            applyRole('manager');
+            bootApp();
+        } else {
+            // PIN de acesso ao painel Admin (fluxo anterior)
+            pinSessionVerified = true;
+            if (pendingAdminNav) { pendingAdminNav = false; nav('view-admin'); }
+        }
     } else {
         showPinError('pin-dots','pin-error','PIN incorreto');
         pinBuffer = '';
@@ -894,11 +982,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Carrega dados
-    renderList();
-    fetchCollection('ferramentas');
-    fetchCollection('funcionarios');
-    updatePinStatusUI();
+    // Verifica perfil guardado — se existir, arranca diretamente
+    const savedRole = localStorage.getItem(ROLE_KEY);
+    if (savedRole === 'worker' || savedRole === 'manager') {
+        applyRole(savedRole);
+        bootApp();
+    }
+    // Se não há perfil guardado, o ecrã de seleção fica visível (default no HTML)
 
     // Pesquisa com debounce
     const searchInput = document.getElementById('inp-search');
@@ -927,7 +1017,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Online/Offline
-    updateOfflineBanner();
+    // (updateOfflineBanner é chamado por bootApp — aqui só registamos os eventos)
     window.addEventListener('offline', () => {
         updateOfflineBanner();
         showToast('Sem ligação — alterações guardadas localmente', 'error');
