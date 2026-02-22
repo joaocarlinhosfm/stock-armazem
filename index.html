@@ -154,11 +154,57 @@
         </button>
     </nav>
 
+    <!-- Modal: Entregar ferramenta -->
     <div id="worker-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Entregar a:</h3>
             <div id="worker-select-list"></div>
             <button onclick="closeModal()" class="btn-cancel">CANCELAR</button>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmar apagar produto -->
+    <div id="delete-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-icon">🗑️</div>
+            <h3>Apagar Produto?</h3>
+            <p id="delete-modal-desc" class="modal-desc"></p>
+            <button id="delete-confirm-btn" class="btn-danger-full">Apagar</button>
+            <button onclick="closeDeleteModal()" class="btn-cancel">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Modal: Editar produto -->
+    <div id="edit-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>✏️ Editar Produto</h3>
+            <form id="form-edit" class="pro-form" style="margin-top:16px;">
+                <input type="hidden" id="edit-id">
+                <div class="form-group">
+                    <label>REFERÊNCIA</label>
+                    <input type="text" id="edit-codigo" class="blue-input" required>
+                </div>
+                <div class="form-group">
+                    <label>NOME</label>
+                    <input type="text" id="edit-nome" class="blue-input" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>TIPO</label>
+                        <input type="text" id="edit-tipo" class="blue-input">
+                    </div>
+                    <div class="form-group">
+                        <label>LOCAL</label>
+                        <input type="text" id="edit-loc" class="blue-input">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>QUANTIDADE</label>
+                    <input type="number" id="edit-qtd" class="blue-input" min="0">
+                </div>
+                <button type="submit" class="btn-primary">Guardar Alterações</button>
+                <button type="button" onclick="closeEditModal()" class="btn-cancel">Cancelar</button>
+            </form>
         </div>
     </div>
 
