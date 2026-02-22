@@ -49,17 +49,17 @@ function enterAsWorker() {
 }
 
 // Botão "Gestor" no ecrã de seleção
-function enterAsManager() {
-    const hasPin = !!localStorage.getItem('hiperfrio-pin-hash');
+async function enterAsManager() {
+    const hasPin = await hasPinConfigured();
     if (!hasPin) {
         // Sem PIN configurado — entra diretamente e sugere definir
         localStorage.setItem(ROLE_KEY, 'manager');
         applyRole('manager');
         bootApp();
-        setTimeout(() => showToast('Recomendamos definir um PIN de Gestor nas Definições'), 1500);
+        setTimeout(() => showToast('Define um PIN de Gestor nas Definições'), 1500);
     } else {
         // Tem PIN — pede verificação antes de entrar
-        openPinModal('role'); // modo 'role' = ao confirmar, guarda role e faz boot
+        openPinModal('role');
     }
 }
 
@@ -86,6 +86,51 @@ async function hashPin(pin) {
     const data    = new TextEncoder().encode(pin + 'hiperfrio-salt');
     const hashBuf = await crypto.subtle.digest('SHA-256', data);
     return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// PIN guardado na Firebase — partilhado entre dispositivos
+const PIN_URL = `${BASE_URL}/config/pinHash.json`;
+let   _cachedPinHash = null; // cache em memória para não ir à Firebase em cada tecla
+
+async function getPinHash() {
+    if (_cachedPinHash !== null) return _cachedPinHash;
+    // Tenta Firebase primeiro; fallback para localStorage (offline)
+    try {
+        const res  = await fetch(PIN_URL);
+        const data = await res.json();
+        _cachedPinHash = data || null;
+        // Guarda localmente como fallback offline
+        if (_cachedPinHash) localStorage.setItem('hiperfrio-pin-hash-cache', _cachedPinHash);
+        else                 localStorage.removeItem('hiperfrio-pin-hash-cache');
+    } catch {
+        // Offline — usa cache local
+        _cachedPinHash = localStorage.getItem('hiperfrio-pin-hash-cache') || null;
+    }
+    return _cachedPinHash;
+}
+
+async function setPinHash(hash) {
+    _cachedPinHash = hash;
+    // Guarda sempre localmente como fallback offline
+    if (hash) localStorage.setItem('hiperfrio-pin-hash-cache', hash);
+    else       localStorage.removeItem('hiperfrio-pin-hash-cache');
+    // Envia para Firebase
+    await fetch(PIN_URL, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(hash)
+    });
+}
+
+async function deletePinHash() {
+    _cachedPinHash = null;
+    localStorage.removeItem('hiperfrio-pin-hash-cache');
+    await fetch(PIN_URL, { method: 'DELETE' });
+}
+
+async function hasPinConfigured() {
+    const hash = await getPinHash();
+    return !!hash;
 }
 
 // =============================================
@@ -781,14 +826,9 @@ let pinBuffer          = '';
 let pendingAdminNav    = false;
 
 function checkAdminAccess() {
-    // Managers already verified at login — full access
+    // Gestores já verificados no arranque — acesso total
     if (currentRole === 'manager') return true;
-    // Legacy: non-role-based PIN check (fallback)
-    const hash = localStorage.getItem('hiperfrio-pin-hash');
-    if (!hash || pinSessionVerified) return true;
-    pendingAdminNav = true;
-    openPinModal('admin');
-    return false;
+    return true; // sem role-system, acesso livre
 }
 
 let pinMode = 'admin'; // 'admin' | 'role'
@@ -818,7 +858,7 @@ function pinKey(digit) {
 function pinDel() { pinBuffer = pinBuffer.slice(0,-1); updatePinDots('pin-dots', pinBuffer.length); }
 
 async function validatePin() {
-    const savedHash = localStorage.getItem('hiperfrio-pin-hash');
+    const savedHash = await getPinHash();
     const entered   = await hashPin(pinBuffer);
     if (entered === savedHash) {
         document.getElementById('pin-modal').classList.remove('active');
@@ -841,7 +881,7 @@ async function validatePin() {
 let pinSetupBuffer = '', pinSetupFirstEntry = '', pinSetupStep = 'first';
 
 function openPinSetupModal() {
-    const hasPin = !!localStorage.getItem('hiperfrio-pin-hash');
+    const hasPin = !!_cachedPinHash;
     pinSetupBuffer = ''; pinSetupFirstEntry = ''; pinSetupStep = 'first';
     updatePinDots('pin-setup-dots', 0);
     document.getElementById('pin-setup-error').textContent = '';
@@ -868,9 +908,9 @@ async function handlePinSetupStep() {
         document.getElementById('pin-setup-desc').textContent = 'Repete o PIN para confirmar';
     } else {
         if (pinSetupBuffer === pinSetupFirstEntry) {
-            localStorage.setItem('hiperfrio-pin-hash', await hashPin(pinSetupBuffer));
+            const hash = await hashPin(pinSetupBuffer);
+            await setPinHash(hash);
             localStorage.removeItem('hiperfrio-pin'); // remove legado
-            pinSessionVerified = true;
             closePinSetupModal(); updatePinStatusUI(); showToast('PIN definido!');
         } else {
             showPinError('pin-setup-dots','pin-setup-error','PINs não coincidem. Tenta novamente.');
@@ -880,10 +920,9 @@ async function handlePinSetupStep() {
     }
 }
 function pinSetupDel() { pinSetupBuffer = pinSetupBuffer.slice(0,-1); updatePinDots('pin-setup-dots', pinSetupBuffer.length); }
-function removePin() {
-    localStorage.removeItem('hiperfrio-pin-hash');
+async function removePin() {
+    await deletePinHash();
     localStorage.removeItem('hiperfrio-pin');
-    pinSessionVerified = false;
     closePinSetupModal(); updatePinStatusUI(); showToast('PIN removido');
 }
 function updatePinDots(cId, count) {
@@ -900,10 +939,10 @@ function showPinError(dotsId, errorId, msg) {
     }, 1000);
 }
 function updatePinStatusUI() {
-    const hasPin = !!localStorage.getItem('hiperfrio-pin-hash');
+    const hasPin = !!_cachedPinHash;
     const desc   = document.getElementById('pin-status-desc');
     const btn    = document.getElementById('pin-action-btn');
-    if (desc) desc.textContent = hasPin ? 'PIN ativo — acesso protegido' : 'Protege o acesso à área de administração';
+    if (desc) desc.textContent = hasPin ? 'PIN ativo — partilhado entre dispositivos' : 'Protege o acesso como Gestor';
     if (btn)  btn.textContent  = hasPin ? 'Alterar' : 'Definir';
 }
 
@@ -973,12 +1012,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (t) t.checked = true;
     }
 
-    // Migração PIN legado (texto simples → hash)
+    // Migração: PIN legado em texto simples → hash na Firebase
     const legacyPin = localStorage.getItem('hiperfrio-pin');
-    if (legacyPin && !localStorage.getItem('hiperfrio-pin-hash')) {
-        hashPin(legacyPin).then(h => {
-            localStorage.setItem('hiperfrio-pin-hash', h);
+    if (legacyPin) {
+        hashPin(legacyPin).then(h => setPinHash(h).then(() => {
             localStorage.removeItem('hiperfrio-pin');
+        }));
+    }
+
+    // Migração: hash em localStorage → Firebase
+    const legacyHash = localStorage.getItem('hiperfrio-pin-hash');
+    if (legacyHash && !legacyPin) {
+        setPinHash(legacyHash).then(() => {
+            localStorage.removeItem('hiperfrio-pin-hash');
         });
     }
 
