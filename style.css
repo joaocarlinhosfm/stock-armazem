@@ -528,3 +528,115 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
         align-items: flex-start;
     }
 }
+
+/* =============================================
+   SWIPE GESTURES — STOCK CARDS
+   ============================================= */
+.swipe-wrapper {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    margin-bottom: 12px;
+}
+
+/* Background revealed on swipe */
+.swipe-bg {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    border-radius: 16px;
+    pointer-events: none;
+}
+
+.swipe-bg-left {
+    background: var(--danger);
+    justify-content: flex-end;
+    padding-right: 24px;
+}
+
+.swipe-bg-right {
+    background: #2563eb;
+    justify-content: flex-start;
+    padding-left: 24px;
+}
+
+.swipe-bg-icon {
+    font-size: 1.4rem;
+    opacity: 0;
+    transition: opacity 0.1s;
+}
+
+.swipe-wrapper.swiping-left  .swipe-bg-left  .swipe-bg-icon,
+.swipe-wrapper.swiping-right .swipe-bg-right .swipe-bg-icon {
+    opacity: 1;
+}
+
+/* The card itself slides */
+.item-card {
+    position: relative;
+    transition: transform 0.25s ease;
+    margin-bottom: 0; /* margin now on wrapper */
+    z-index: 1;
+    will-change: transform;
+    cursor: grab;
+    user-select: none;
+}
+
+.item-card.is-swiping {
+    transition: none; /* instant follow during drag */
+    cursor: grabbing;
+}
+
+.item-card.snap-back {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Swipe hint shown on first load */
+.swipe-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding: 0 4px 14px;
+    letter-spacing: 0.3px;
+}
+
+.swipe-hint span { display: flex; align-items: center; gap: 5px; }
+
+/* =============================================
+   MODAL EXTRAS
+   ============================================= */
+.modal-icon {
+    font-size: 2.5rem;
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+.modal-desc {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin: 8px 0 20px;
+    line-height: 1.4;
+}
+
+.btn-danger-full {
+    width: 100%;
+    padding: 14px;
+    background: var(--danger);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 1rem;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    margin-bottom: 8px;
+}
+
+.btn-danger-full:active { opacity: 0.8; }
