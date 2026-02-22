@@ -855,3 +855,144 @@ body.is-offline #app-layout {
    ============================================= */
 .modal-overlay:focus { outline: none; }
 .modal-overlay.active { isolation: isolate; }
+
+/* =============================================
+   ECRÃ DE SELEÇÃO DE PERFIL
+   ============================================= */
+#role-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+#role-screen.hidden {
+    display: none;
+}
+
+#role-screen-inner {
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+}
+
+#role-logo {
+    font-size: 4rem;
+    margin-bottom: 12px;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2));
+}
+
+#role-title {
+    color: white;
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: 1px;
+    margin: 0 0 6px;
+}
+
+#role-subtitle {
+    color: rgba(255,255,255,0.75);
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin: 0 0 36px;
+}
+
+#role-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.role-btn {
+    width: 100%;
+    background: white;
+    border: none;
+    border-radius: 18px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    cursor: pointer;
+    text-align: left;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.role-btn:active {
+    transform: scale(0.97);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.role-btn-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.role-btn-label {
+    display: block;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 2px;
+}
+
+.role-btn-desc {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.role-btn-worker .role-btn-icon { color: #2563eb; }
+.role-btn-manager .role-btn-icon { color: #d97706; }
+
+/* =============================================
+   WORKER MODE — esconde elementos de gestor
+   ============================================= */
+body.worker-mode [data-manager-only] {
+    display: none !important;
+}
+
+/* Stock em modo funcionário: sem swipe, sem qty buttons */
+body.worker-mode .swipe-wrapper {
+    overflow: visible;
+}
+body.worker-mode .swipe-bg {
+    display: none;
+}
+body.worker-mode .item-card {
+    cursor: default;
+    touch-action: auto;
+}
+body.worker-mode .qty-pill-box {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+/* Ferramentas em modo funcionário: sem clique para entregar/devolver */
+body.worker-mode .tool-card {
+    cursor: default;
+    pointer-events: none;
+}
+
+/* Badge de perfil no header — mostra modo atual */
+#role-badge {
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+.role-badge-worker {
+    background: rgba(255,255,255,0.2);
+    color: white;
+}
+.role-badge-manager {
+    background: rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.9);
+}
