@@ -222,6 +222,14 @@ async function changeQtd(id, delta) {
 }
 
 // =============================================
+// Formata data ISO para "DD/MM/YYYY HH:MM"
+function formatDate(iso) {
+    if (!iso) return 'Data desconhecida';
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // FERRAMENTAS — RENDER & MUTAÇÕES
 // =============================================
 async function renderTools() {
@@ -245,7 +253,7 @@ async function renderTools() {
             <div>
                 <div style="font-weight:800;font-size:0.95rem;">${t.nome}</div>
                 <div style="font-size:0.75rem;margin-top:4px;font-weight:600;">
-                    ${isAv ? '📦 EM ARMAZÉM' : '👤 ' + t.colaborador.toUpperCase()}
+                    ${isAv ? '📦 EM ARMAZÉM' : `👤 ${t.colaborador.toUpperCase()}<br><span style="font-size:0.7rem;opacity:0.85;">📅 ${formatDate(t.dataEntrega)}</span>`}
                 </div>
             </div>
             <span style="font-size:1.1rem;">${isAv ? '➔' : '↩'}</span>`;
@@ -268,11 +276,13 @@ async function renderAdminTools() {
 }
 
 async function assignTool(worker) {
+    const dataEntrega = new Date().toISOString();
     // Atualização otimista no cache
     cache.ferramentas.data[toolToAllocate] = {
         ...cache.ferramentas.data[toolToAllocate],
         status: 'alocada',
-        colaborador: worker
+        colaborador: worker,
+        dataEntrega
     };
     closeModal();
     renderTools();
@@ -281,7 +291,7 @@ async function assignTool(worker) {
     try {
         await fetch(`${BASE_URL}/ferramentas/${toolToAllocate}.json`, {
             method: 'PATCH',
-            body: JSON.stringify({ status: 'alocada', colaborador: worker })
+            body: JSON.stringify({ status: 'alocada', colaborador: worker, dataEntrega })
         });
     } catch (e) {
         invalidateCache('ferramentas');
@@ -296,7 +306,8 @@ async function returnTool(id) {
     cache.ferramentas.data[id] = {
         ...cache.ferramentas.data[id],
         status: 'disponivel',
-        colaborador: ''
+        colaborador: '',
+        dataEntrega: ''
     };
     renderTools();
     showToast("Devolvida!");
@@ -304,7 +315,7 @@ async function returnTool(id) {
     try {
         await fetch(`${BASE_URL}/ferramentas/${id}.json`, {
             method: 'PATCH',
-            body: JSON.stringify({ status: 'disponivel', colaborador: '' })
+            body: JSON.stringify({ status: 'disponivel', colaborador: '', dataEntrega: '' })
         });
     } catch (e) {
         invalidateCache('ferramentas');
