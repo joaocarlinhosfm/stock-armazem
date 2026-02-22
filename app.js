@@ -927,12 +927,13 @@ async function handlePinSetupStep() {
         document.getElementById('pin-setup-desc').textContent = 'Repete o PIN para confirmar';
     } else {
         if (pinSetupBuffer === pinSetupFirstEntry) {
-            const hash = await hashPin(pinSetupBuffer);
+            const hash         = await hashPin(pinSetupBuffer);
+            const wasFirstTime = pinSetupMode === 'first-time'; // guarda antes de closePinSetupModal resetar
             await setPinHash(hash);
             localStorage.removeItem('hiperfrio-pin'); // remove legado
             closePinSetupModal(); updatePinStatusUI(); showToast('PIN definido!');
             // Se foi a primeira configuração, entra logo como Gestor
-            if (pinSetupMode === 'first-time') {
+            if (wasFirstTime) {
                 localStorage.setItem(ROLE_KEY, 'manager');
                 applyRole('manager');
                 bootApp();
