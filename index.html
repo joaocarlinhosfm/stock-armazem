@@ -332,6 +332,17 @@
         </div>
     </div>
 
+    <!-- Modal: Trocar de perfil -->
+    <div id="switch-role-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="switch-role-title">
+        <div class="modal-content">
+            <div class="modal-icon">👤</div>
+            <h3 id="switch-role-title">Terminar Sessão</h3>
+            <p class="modal-desc">Voltar ao ecrã de seleção de perfil?</p>
+            <button onclick="switchRole()" class="btn-primary">Mudar de Utilizador</button>
+            <button onclick="closeSwitchRoleModal()" class="btn-cancel">Cancelar</button>
+        </div>
+    </div>
+
     <div id="toast-container"></div>
     <script src="app.js"></script>
 </body>
