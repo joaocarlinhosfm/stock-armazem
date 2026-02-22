@@ -22,18 +22,19 @@ function applyRole(role) {
     currentRole = role;
     document.body.classList.toggle('worker-mode', role === 'worker');
 
-    // Badge no header
+    // Badge no header — clicável para trocar de perfil
     let badge = document.getElementById('role-badge');
     if (!badge) {
-        badge = document.createElement('span');
-        badge.id = 'role-badge';
+        badge = document.createElement('button');
+        badge.id      = 'role-badge';
+        badge.onclick = () => openSwitchRoleModal();
         document.querySelector('header')?.appendChild(badge);
     }
     if (role === 'worker') {
-        badge.textContent = '👤 FUNCIONÁRIO';
+        badge.textContent = '👤 Funcionário ▾';
         badge.className   = 'role-badge-worker';
     } else {
-        badge.textContent = '🔑 GESTOR';
+        badge.textContent = '🔑 Gestor ▾';
         badge.className   = 'role-badge-manager';
     }
 
@@ -62,9 +63,17 @@ async function enterAsManager() {
 
 // Trocar de perfil (botão nas Definições)
 function switchRole() {
+    closeSwitchRoleModal();
     localStorage.removeItem(ROLE_KEY);
-    // Recarrega a página — forma mais limpa de repor o estado
     window.location.reload();
+}
+
+function openSwitchRoleModal() {
+    document.getElementById('switch-role-modal')?.classList.add('active');
+    focusModal('switch-role-modal');
+}
+function closeSwitchRoleModal() {
+    document.getElementById('switch-role-modal')?.classList.remove('active');
 }
 
 // Inicializa a app após o perfil estar definido
@@ -1072,6 +1081,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'delete-modal',    close: closeDeleteModal },
             { id: 'edit-modal',      close: closeEditModal },
             { id: 'confirm-modal',   close: closeConfirmModal },
+            { id: 'switch-role-modal', close: closeSwitchRoleModal },
         ];
         for (const { id, close } of modals) {
             if (document.getElementById(id)?.classList.contains('active')) { close(); break; }
