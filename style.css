@@ -798,3 +798,60 @@ body.is-offline #app-layout {
 .qty-display.is-zero {
     color: var(--danger);
 }
+
+/* =============================================
+   TOOL CARDS — cores via CSS (dark mode safe)
+   ============================================= */
+.tool-card {
+    padding: 14px;
+    border-radius: 14px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.tool-card:active { opacity: 0.8; }
+
+.tool-available {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #22c55e;
+}
+.tool-allocated {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #ef4444;
+}
+
+/* Dark mode overrides */
+.dark-mode .tool-available {
+    background: #14532d;
+    color: #86efac;
+    border-color: #16a34a;
+}
+.dark-mode .tool-allocated {
+    background: #450a0a;
+    color: #fca5a5;
+    border-color: #dc2626;
+}
+
+/* =============================================
+   SWIPE — prevent scroll conflict on mobile
+   Uses touch-action: pan-y so vertical scroll
+   is handled by browser; we detect horizontal
+   in JS and block vertical only when swiping
+   ============================================= */
+.item-card {
+    touch-action: pan-y;
+}
+.item-card.is-swiping {
+    touch-action: none;
+}
+
+/* =============================================
+   MODAL — focus trap outline
+   ============================================= */
+.modal-overlay:focus { outline: none; }
+.modal-overlay.active { isolation: isolate; }
