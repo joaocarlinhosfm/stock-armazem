@@ -862,7 +862,7 @@ body.is-offline #app-layout {
 #role-screen {
     position: fixed;
     inset: 0;
-    z-index: 10000;
+    z-index: 4999; /* abaixo dos modais (5000) para que o PIN setup apareça por cima */
     background: var(--primary);
     display: flex;
     align-items: center;
@@ -1017,4 +1017,3 @@ body.worker-mode .tool-card {
 }
 .role-badge-worker { color: white; }
 .role-badge-manager { color: rgba(255,255,255,0.9); }
-a
