@@ -126,6 +126,15 @@ async function renderList(filter = "", force = false) {
         return;
     }
 
+    // Show swipe hint on first load (only if never dismissed)
+    if (!filter && !localStorage.getItem('swipe-hint-seen')) {
+        const hint = document.createElement('div');
+        hint.className = 'swipe-hint';
+        hint.innerHTML = `<span>✏️ Swipe direita para editar</span><span>🗑️ Swipe esquerda para apagar</span>`;
+        listEl.appendChild(hint);
+        localStorage.setItem('swipe-hint-seen', '1');
+    }
+
     const filterLower = filter.toLowerCase();
     let found = 0;
 
@@ -135,6 +144,13 @@ async function renderList(filter = "", force = false) {
             !String(item.codigo).toUpperCase().includes(filter.toUpperCase())) return;
 
         found++;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'swipe-wrapper';
+
+        wrapper.innerHTML = `
+            <div class="swipe-bg swipe-bg-left"><span class="swipe-bg-icon">🗑️</span></div>
+            <div class="swipe-bg swipe-bg-right"><span class="swipe-bg-icon">✏️</span></div>`;
+
         const el = document.createElement('div');
         el.className = 'item-card';
         el.innerHTML = `
@@ -153,7 +169,10 @@ async function renderList(filter = "", force = false) {
                     <button class="btn-qty" onclick="changeQtd('${id}', 1)">+</button>
                 </div>
             </div>`;
-        listEl.appendChild(el);
+
+        attachSwipe(el, wrapper, id, item);
+        wrapper.appendChild(el);
+        listEl.appendChild(wrapper);
     });
 
     if (filter && found === 0) {
@@ -503,8 +522,165 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchCollection('funcionarios');
 
     const searchInput = document.getElementById('inp-search');
-    if (searchInput) searchInput.oninput = (e) => renderList(e.target.value);
+    if (searchInput) {
+        let debounceTimer;
+        searchInput.oninput = (e) => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => renderList(e.target.value), 300);
+        };
+    }
 });
+
+
+// =============================================
+// SWIPE GESTURES
+// =============================================
+const SWIPE_THRESHOLD = 80; // px to trigger action
+
+function attachSwipe(card, wrapper, id, item) {
+    let startX = 0, currentX = 0, isDragging = false;
+
+    function onStart(x) {
+        startX = x;
+        currentX = 0;
+        isDragging = true;
+        card.classList.add('is-swiping');
+    }
+
+    function onMove(x) {
+        if (!isDragging) return;
+        currentX = x - startX;
+        // Limit drag to 140px each side
+        const clamped = Math.max(-140, Math.min(140, currentX));
+        card.style.transform = `translateX(${clamped}px)`;
+
+        // Update background indicator
+        wrapper.classList.remove('swiping-left', 'swiping-right');
+        if (clamped < -20) wrapper.classList.add('swiping-left');
+        else if (clamped > 20) wrapper.classList.add('swiping-right');
+    }
+
+    function onEnd() {
+        if (!isDragging) return;
+        isDragging = false;
+        card.classList.remove('is-swiping');
+        wrapper.classList.remove('swiping-left', 'swiping-right');
+
+        if (currentX < -SWIPE_THRESHOLD) {
+            // Swipe left → delete confirmation
+            snapBack(card);
+            openDeleteModal(id, item);
+        } else if (currentX > SWIPE_THRESHOLD) {
+            // Swipe right → edit form
+            snapBack(card);
+            openEditModal(id, item);
+        } else {
+            snapBack(card);
+        }
+    }
+
+    // Touch events
+    card.addEventListener('touchstart', e => onStart(e.touches[0].clientX), { passive: true });
+    card.addEventListener('touchmove',  e => onMove(e.touches[0].clientX),  { passive: true });
+    card.addEventListener('touchend',   () => onEnd());
+
+    // Mouse events (desktop)
+    card.addEventListener('mousedown', e => { onStart(e.clientX); e.preventDefault(); });
+    window.addEventListener('mousemove', e => { if (isDragging) onMove(e.clientX); });
+    window.addEventListener('mouseup',   () => { if (isDragging) onEnd(); });
+}
+
+function snapBack(card) {
+    card.classList.add('snap-back');
+    card.style.transform = 'translateX(0)';
+    card.addEventListener('transitionend', () => card.classList.remove('snap-back'), { once: true });
+}
+
+// =============================================
+// DELETE MODAL
+// =============================================
+let pendingDeleteId = null;
+
+function openDeleteModal(id, item) {
+    pendingDeleteId = id;
+    document.getElementById('delete-modal-desc').textContent =
+        `"${String(item.codigo).toUpperCase()} — ${item.nome}" será removido permanentemente.`;
+    document.getElementById('delete-modal').classList.add('active');
+}
+
+function closeDeleteModal() {
+    pendingDeleteId = null;
+    document.getElementById('delete-modal').classList.remove('active');
+}
+
+document.getElementById('delete-confirm-btn').onclick = async () => {
+    if (!pendingDeleteId) return;
+    const id = pendingDeleteId;
+    closeDeleteModal();
+
+    // Remove do cache e re-renderiza imediatamente
+    const item = cache.stock.data[id];
+    delete cache.stock.data[id];
+    renderList(document.getElementById('inp-search')?.value || '');
+    showToast('Produto apagado');
+
+    try {
+        await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'DELETE' });
+    } catch (e) {
+        // Reverte se falhar
+        cache.stock.data[id] = item;
+        renderList(document.getElementById('inp-search')?.value || '');
+        showToast('Erro ao apagar produto', 'error');
+    }
+};
+
+// =============================================
+// EDIT MODAL
+// =============================================
+function openEditModal(id, item) {
+    document.getElementById('edit-id').value    = id;
+    document.getElementById('edit-codigo').value = item.codigo || '';
+    document.getElementById('edit-nome').value   = item.nome || '';
+    document.getElementById('edit-tipo').value   = item.tipo || '';
+    document.getElementById('edit-loc').value    = item.localizacao || '';
+    document.getElementById('edit-qtd').value    = item.quantidade ?? 0;
+    document.getElementById('edit-modal').classList.add('active');
+}
+
+function closeEditModal() {
+    document.getElementById('edit-modal').classList.remove('active');
+}
+
+const formEdit = document.getElementById('form-edit');
+if (formEdit) {
+    formEdit.onsubmit = async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('edit-id').value;
+        const updated = {
+            codigo:      document.getElementById('edit-codigo').value.toUpperCase(),
+            nome:        document.getElementById('edit-nome').value,
+            tipo:        document.getElementById('edit-tipo').value || 'Geral',
+            localizacao: document.getElementById('edit-loc').value.toUpperCase(),
+            quantidade:  parseInt(document.getElementById('edit-qtd').value) || 0,
+        };
+
+        // Atualiza cache e UI imediatamente
+        cache.stock.data[id] = { ...cache.stock.data[id], ...updated };
+        closeEditModal();
+        renderList(document.getElementById('inp-search')?.value || '');
+        showToast('Produto atualizado!');
+
+        try {
+            await fetch(`${BASE_URL}/stock/${id}.json`, {
+                method: 'PATCH',
+                body: JSON.stringify(updated)
+            });
+        } catch (err) {
+            invalidateCache('stock');
+            showToast('Erro ao guardar alterações', 'error');
+        }
+    };
+}
 
 // =============================================
 // REGISTO PWA
