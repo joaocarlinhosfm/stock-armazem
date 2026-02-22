@@ -745,3 +745,51 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
 
 .pin-key-cancel { color: var(--danger); }
 .pin-key-del    { font-size: 1.1rem; }
+
+/* =============================================
+   OFFLINE BANNER
+   ============================================= */
+#offline-banner {
+    position: fixed;
+    top: var(--header-h);
+    left: 0; right: 0;
+    z-index: 999;
+    background: #92400e;
+    color: #fef3c7;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-100%); }
+    to   { transform: translateY(0); }
+}
+
+#offline-pending-count {
+    background: rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* When offline banner is visible, push content down */
+body.is-offline #offline-banner { display: flex !important; }
+body.is-offline main,
+body.is-offline #app-layout {
+    padding-top: 42px;
+}
+
+@media (min-width: 768px) {
+    #offline-banner { left: var(--sidebar-w); }
+    body.is-offline main { padding-top: 0; }
+    body.is-offline #app-layout { padding-top: 42px; }
+}
