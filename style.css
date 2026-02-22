@@ -641,3 +641,107 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
 }
 
 .btn-danger-full:active { opacity: 0.8; }
+
+/* =============================================
+   SETTINGS GROUPS
+   ============================================= */
+.settings-group-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    margin: 20px 4px 8px;
+}
+
+.settings-group-label:first-child { margin-top: 0; }
+
+.btn-settings-action {
+    background: var(--primary-soft);
+    color: var(--primary);
+    border: 1.5px solid var(--primary);
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+
+.btn-settings-action:active { background: #dbeafe; }
+
+/* =============================================
+   PIN KEYPAD
+   ============================================= */
+.pin-dots {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin: 20px 0 8px;
+}
+
+.pin-dots span {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: transparent;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.pin-dots span.filled {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.pin-dots span.error {
+    background: var(--danger);
+    border-color: var(--danger);
+    animation: pinShake 0.4s ease;
+}
+
+@keyframes pinShake {
+    0%, 100% { transform: translateX(0); }
+    20%       { transform: translateX(-6px); }
+    60%       { transform: translateX(6px); }
+}
+
+.pin-error {
+    text-align: center;
+    color: var(--danger);
+    font-size: 0.82rem;
+    font-weight: 700;
+    min-height: 20px;
+    margin-bottom: 8px;
+}
+
+.pin-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.pin-key {
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 10px;
+    font-size: 1.3rem;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: background 0.1s, transform 0.1s;
+}
+
+.pin-key:active {
+    background: var(--primary-soft);
+    color: var(--primary);
+    transform: scale(0.93);
+}
+
+.pin-key-cancel { color: var(--danger); }
+.pin-key-del    { font-size: 1.1rem; }
