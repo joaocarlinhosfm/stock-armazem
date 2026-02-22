@@ -52,13 +52,10 @@ function enterAsWorker() {
 async function enterAsManager() {
     const hasPin = await hasPinConfigured();
     if (!hasPin) {
-        // Sem PIN configurado — entra diretamente e sugere definir
-        localStorage.setItem(ROLE_KEY, 'manager');
-        applyRole('manager');
-        bootApp();
-        setTimeout(() => showToast('Define um PIN de Gestor nas Definições'), 1500);
+        // Primeira vez — pede para definir o PIN antes de entrar
+        openPinSetupModal('first-time');
     } else {
-        // Tem PIN — pede verificação antes de entrar
+        // PIN já configurado — verifica antes de entrar
         openPinModal('role');
     }
 }
@@ -880,19 +877,32 @@ async function validatePin() {
 
 let pinSetupBuffer = '', pinSetupFirstEntry = '', pinSetupStep = 'first';
 
-function openPinSetupModal() {
-    const hasPin = !!_cachedPinHash;
+let pinSetupMode = 'change'; // 'change' | 'first-time'
+
+function openPinSetupModal(mode = 'change') {
+    pinSetupMode   = mode;
+    const hasPin   = !!_cachedPinHash;
+    const isFirst  = mode === 'first-time';
     pinSetupBuffer = ''; pinSetupFirstEntry = ''; pinSetupStep = 'first';
     updatePinDots('pin-setup-dots', 0);
     document.getElementById('pin-setup-error').textContent = '';
-    document.getElementById('pin-setup-title').textContent = hasPin ? 'Alterar PIN' : 'Definir PIN';
-    document.getElementById('pin-setup-desc').textContent  = 'Escolhe um PIN de 4 dígitos';
-    document.getElementById('pin-setup-icon').textContent  = '🔐';
-    document.getElementById('pin-remove-btn').style.display = hasPin ? 'block' : 'none';
+    document.getElementById('pin-setup-title').textContent = isFirst ? 'Criar PIN de Gestor' : (hasPin ? 'Alterar PIN' : 'Definir PIN');
+    document.getElementById('pin-setup-desc').textContent  = isFirst
+        ? 'Define um PIN de 4 dígitos para proteger o acesso de Gestor'
+        : 'Escolhe um PIN de 4 dígitos';
+    document.getElementById('pin-setup-icon').textContent  = isFirst ? '🔑' : '🔐';
+    document.getElementById('pin-remove-btn').style.display = (hasPin && !isFirst) ? 'block' : 'none';
     document.getElementById('pin-setup-modal').classList.add('active');
     focusModal('pin-setup-modal');
 }
-function closePinSetupModal() { document.getElementById('pin-setup-modal').classList.remove('active'); }
+function closePinSetupModal() {
+    document.getElementById('pin-setup-modal').classList.remove('active');
+    // Se cancelou na primeira configuração, volta ao ecrã de seleção de perfil
+    if (pinSetupMode === 'first-time') {
+        pinSetupMode = 'change';
+        document.getElementById('role-screen')?.classList.remove('hidden');
+    }
+}
 
 function pinSetupKey(digit) {
     if (pinSetupBuffer.length >= 4) return;
@@ -912,6 +922,12 @@ async function handlePinSetupStep() {
             await setPinHash(hash);
             localStorage.removeItem('hiperfrio-pin'); // remove legado
             closePinSetupModal(); updatePinStatusUI(); showToast('PIN definido!');
+            // Se foi a primeira configuração, entra logo como Gestor
+            if (pinSetupMode === 'first-time') {
+                localStorage.setItem(ROLE_KEY, 'manager');
+                applyRole('manager');
+                bootApp();
+            }
         } else {
             showPinError('pin-setup-dots','pin-setup-error','PINs não coincidem. Tenta novamente.');
             pinSetupBuffer = ''; pinSetupFirstEntry = ''; pinSetupStep = 'first';
