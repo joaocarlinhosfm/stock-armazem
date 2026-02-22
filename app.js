@@ -1,168 +1,365 @@
-const DB_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app/stock.json";
+const DB_URL  = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app/stock.json";
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
-let cachedWorkers = [];
+// =============================================
+// CACHE EM MEMÓRIA
+// Cada entrada guarda { data, lastFetch }
+// Só vai à Firebase se os dados tiverem > TTL ms
+// =============================================
+const CACHE_TTL = 60_000; // 60 segundos
+
+const cache = {
+    stock:        { data: null, lastFetch: 0 },
+    ferramentas:  { data: null, lastFetch: 0 },
+    funcionarios: { data: null, lastFetch: 0 },
+};
+
+// Busca uma coleção — usa cache se ainda estiver válido
+async function fetchCollection(name, force = false) {
+    const entry = cache[name];
+    const isStale = (Date.now() - entry.lastFetch) > CACHE_TTL;
+
+    if (!force && !isStale && entry.data !== null) {
+        return entry.data; // cache hit — sem fetch
+    }
+
+    try {
+        const res = await fetch(`${BASE_URL}/${name}.json`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        entry.data = data || {};
+        entry.lastFetch = Date.now();
+        return entry.data;
+    } catch (e) {
+        console.error(`Erro ao buscar ${name}:`, e);
+        showToast(`Erro ao carregar dados`, 'error');
+        return entry.data || {}; // devolve cache antigo se existir
+    }
+}
+
+// Invalida cache de uma coleção (força fetch na próxima chamada)
+function invalidateCache(name) {
+    cache[name].lastFetch = 0;
+}
+
 let toolToAllocate = null;
 
+// =============================================
+// UI HELPERS
+// =============================================
 function showToast(msg, type = 'success') {
     const container = document.getElementById('toast-container');
     const t = document.createElement('div');
     t.className = 'toast';
-    if(type === 'error') t.style.borderLeftColor = 'var(--danger)';
+    if (type === 'error') t.style.borderLeftColor = 'var(--danger)';
     t.innerHTML = `<span>${type === 'success' ? '✅' : '❌'}</span><span>${msg}</span>`;
     container.appendChild(t);
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
 }
 
+function setRefreshSpinning(spinning) {
+    const btn = document.getElementById('btn-refresh');
+    if (btn) btn.classList.toggle('spinning', spinning);
+}
+
 function toggleMenu() {
     document.getElementById('side-menu').classList.toggle('open');
     const overlay = document.getElementById('menu-overlay');
-    if(overlay) overlay.classList.toggle('active');
+    if (overlay) overlay.classList.toggle('active');
 }
 
 function nav(viewId) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
-    
-    if(viewId === 'view-search') renderList();
-    if(viewId === 'view-tools') renderTools();
-    if(viewId === 'view-admin') { renderWorkers(); renderAdminTools(); }
 
-    // Update sidebar active state
+    if (viewId === 'view-search') renderList();
+    if (viewId === 'view-tools') renderTools();
+    if (viewId === 'view-admin') { renderWorkers(); renderAdminTools(); }
+
+    // Sidebar active state
     document.querySelectorAll('.menu-items li').forEach(li => li.classList.remove('active'));
     const viewToNavId = {
-        'view-search': 'nav-search',
-        'view-tools': 'nav-tools',
+        'view-search':   'nav-search',
+        'view-tools':    'nav-tools',
         'view-register': 'nav-register',
-        'view-bulk': 'nav-bulk',
-        'view-admin': 'nav-admin'
+        'view-bulk':     'nav-bulk',
+        'view-admin':    'nav-admin'
     };
     const navLi = document.getElementById(viewToNavId[viewId]);
-    if(navLi) navLi.classList.add('active');
+    if (navLi) navLi.classList.add('active');
 
-    // Update bottom nav active state
+    // Bottom nav active state
     document.querySelectorAll('.bottom-nav-item').forEach(btn => btn.classList.remove('active'));
     const viewToBnav = {
-        'view-search': 'bnav-search',
-        'view-tools': 'bnav-tools',
+        'view-search':   'bnav-search',
+        'view-tools':    'bnav-tools',
         'view-register': 'bnav-register',
-        'view-bulk': 'bnav-bulk',
-        'view-admin': 'bnav-admin'
+        'view-bulk':     'bnav-bulk',
+        'view-admin':    'bnav-admin'
     };
     const bnavBtn = document.getElementById(viewToBnav[viewId]);
-    if(bnavBtn) bnavBtn.classList.add('active');
+    if (bnavBtn) bnavBtn.classList.add('active');
 
-    // Close mobile menu only if it's currently open
     const menu = document.getElementById('side-menu');
-    if(menu && menu.classList.contains('open')) toggleMenu();
-    window.scrollTo(0,0);
+    if (menu && menu.classList.contains('open')) toggleMenu();
+    window.scrollTo(0, 0);
 }
 
-// RENDERIZAR LISTA COMPACTA
-async function renderList(filter = "") {
+// =============================================
+// STOCK — RENDER & MUTAÇÕES
+// =============================================
+async function renderList(filter = "", force = false) {
     const listEl = document.getElementById('stock-list');
-    if(!listEl) return;
-    try {
-        const res = await fetch(DB_URL);
-        const data = await res.json();
-        listEl.innerHTML = '';
-        if(!data) return;
+    if (!listEl) return;
 
-        Object.entries(data).reverse().forEach(([id, item]) => {
-            if(filter && !item.nome.toLowerCase().includes(filter.toLowerCase()) && !String(item.codigo).toUpperCase().includes(filter.toUpperCase())) return;
-            
-            const el = document.createElement('div');
-            el.className = 'item-card';
-            el.innerHTML = `
-                <div class="ref-label">REFERÊNCIA</div>
-                <div class="ref-value">${String(item.codigo).toUpperCase()}</div>
-                
-                <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted); margin-bottom: 12px; line-height: 1.2;">
-                    ${item.nome}
+    // Mostra loading apenas se o cache estiver vazio
+    if (!cache.stock.data) {
+        listEl.innerHTML = '<div class="empty-msg">A carregar...</div>';
+    }
+
+    const data = await fetchCollection('stock', force);
+    listEl.innerHTML = '';
+
+    const entries = Object.entries(data);
+    if (entries.length === 0) {
+        listEl.innerHTML = '<div class="empty-msg">Nenhum produto registado.</div>';
+        return;
+    }
+
+    const filterLower = filter.toLowerCase();
+    let found = 0;
+
+    entries.reverse().forEach(([id, item]) => {
+        if (filter &&
+            !item.nome.toLowerCase().includes(filterLower) &&
+            !String(item.codigo).toUpperCase().includes(filter.toUpperCase())) return;
+
+        found++;
+        const el = document.createElement('div');
+        el.className = 'item-card';
+        el.innerHTML = `
+            <div class="ref-label">REFERÊNCIA</div>
+            <div class="ref-value">${String(item.codigo).toUpperCase()}</div>
+            <div style="font-size:0.9rem;font-weight:600;color:var(--text-muted);margin-bottom:12px;line-height:1.2;">${item.nome}</div>
+            <hr style="border:0;border-top:1px solid var(--border);margin-bottom:10px;opacity:0.5;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="loc-pill">
+                    <span style="font-size:0.85rem;">📍</span>
+                    ${item.localizacao ? item.localizacao.toUpperCase() : 'SEM LOCAL'}
                 </div>
-
-                <hr style="border:0; border-top:1px solid var(--border); margin-bottom:10px; opacity: 0.5;">
-
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div class="loc-pill">
-                        <span style="font-size: 0.85rem;">📍</span> 
-                        ${item.localizacao ? item.localizacao.toUpperCase() : 'SEM LOCAL'}
-                    </div>
-                    
-                    <div class="qty-pill-box">
-                        <button class="btn-qty" onclick="changeQtd('${id}', -1)">−</button>
-                        <span class="qty-display">${item.quantidade || 0}</span>
-                        <button class="btn-qty" onclick="changeQtd('${id}', 1)">+</button>
-                    </div>
+                <div class="qty-pill-box">
+                    <button class="btn-qty" onclick="changeQtd('${id}', -1)">−</button>
+                    <span class="qty-display" id="qty-${id}">${item.quantidade || 0}</span>
+                    <button class="btn-qty" onclick="changeQtd('${id}', 1)">+</button>
                 </div>
-            `;
-            listEl.appendChild(el);
-        });
-    } catch (e) { console.error("Erro ao carregar o stock:", e); }
+            </div>`;
+        listEl.appendChild(el);
+    });
+
+    if (filter && found === 0) {
+        listEl.innerHTML = '<div class="empty-msg">Nenhum resultado encontrado.</div>';
+    }
+}
+
+// Botão de refresh manual — força fetch da Firebase
+async function forceRefresh() {
+    setRefreshSpinning(true);
+    await renderList(document.getElementById('inp-search')?.value || '', true);
+    setRefreshSpinning(false);
+    showToast('Stock atualizado!');
 }
 
 async function changeQtd(id, delta) {
     if (navigator.vibrate) navigator.vibrate(50);
-    const res = await fetch(`${BASE_URL}/stock/${id}.json`);
-    const item = await res.json();
-    let n = Math.max(0, (item.quantidade || 0) + delta);
-    await fetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: n }) });
-    renderList(document.getElementById('inp-search').value);
+
+    const stockData = cache.stock.data;
+    if (!stockData || !stockData[id]) return;
+
+    const oldQty = stockData[id].quantidade || 0;
+    const newQty = Math.max(0, oldQty + delta);
+    if (newQty === oldQty) return; // já está em 0, não faz nada
+
+    // Atualização otimista: cache + DOM imediatos
+    stockData[id].quantidade = newQty;
+    const qtyEl = document.getElementById(`qty-${id}`);
+    if (qtyEl) qtyEl.textContent = newQty;
+
+    // Envia para Firebase em background
+    try {
+        await fetch(`${BASE_URL}/stock/${id}.json`, {
+            method: 'PATCH',
+            body: JSON.stringify({ quantidade: newQty })
+        });
+    } catch (e) {
+        // Reverte se falhar
+        stockData[id].quantidade = oldQty;
+        if (qtyEl) qtyEl.textContent = oldQty;
+        showToast('Erro ao guardar quantidade', 'error');
+    }
 }
 
-// FERRAMENTAS & FUNCIONÁRIOS
+// =============================================
+// FERRAMENTAS — RENDER & MUTAÇÕES
+// =============================================
 async function renderTools() {
     const list = document.getElementById('tools-list');
-    if(!list) return;
-    const res = await fetch(`${BASE_URL}/ferramentas.json`);
-    const data = await res.json();
+    if (!list) return;
+
+    const data = await fetchCollection('ferramentas');
     list.innerHTML = '';
-    if(!data) return;
-    
+
+    if (!data || Object.keys(data).length === 0) {
+        list.innerHTML = '<div class="empty-msg">Nenhuma ferramenta registada.</div>';
+        return;
+    }
+
     Object.entries(data).reverse().forEach(([id, t]) => {
         const isAv = t.status === 'disponivel';
-        list.innerHTML += `
-            <div onclick="${isAv ? `openModal('${id}')` : `returnTool('${id}')`}" 
-                 style="padding:14px; border-radius:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; background:${isAv ? '#dcfce7' : '#fee2e2'}; color:${isAv ? '#166534' : '#991b1b'}; border:1px solid ${isAv ? '#22c55e' : '#ef4444'}">
-                <div>
-                    <div style="font-weight:800; font-size:0.95rem;">${t.nome}</div>
-                    <div style="font-size:0.75rem; margin-top:4px; font-weight:600;">
-                        ${isAv ? '📦 EM ARMAZÉM' : '👤 ' + t.colaborador.toUpperCase()}
-                    </div>
+        const div = document.createElement('div');
+        div.onclick = () => isAv ? openModal(id) : returnTool(id);
+        div.style.cssText = `padding:14px;border-radius:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;background:${isAv ? '#dcfce7' : '#fee2e2'};color:${isAv ? '#166534' : '#991b1b'};border:1px solid ${isAv ? '#22c55e' : '#ef4444'}`;
+        div.innerHTML = `
+            <div>
+                <div style="font-weight:800;font-size:0.95rem;">${t.nome}</div>
+                <div style="font-size:0.75rem;margin-top:4px;font-weight:600;">
+                    ${isAv ? '📦 EM ARMAZÉM' : '👤 ' + t.colaborador.toUpperCase()}
                 </div>
-                <span style="font-size:1.1rem;">${isAv ? '➔' : '↩'}</span>
-            </div>`;
+            </div>
+            <span style="font-size:1.1rem;">${isAv ? '➔' : '↩'}</span>`;
+        list.appendChild(div);
     });
 }
 
-async function renderWorkers() {
-    const res = await fetch(`${BASE_URL}/funcionarios.json`);
-    const data = await res.json();
-    cachedWorkers = data ? Object.entries(data).map(([id, v]) => ({id, nome: v.nome})) : [];
-    const list = document.getElementById('workers-list');
-    if(!list) return;
-    list.innerHTML = cachedWorkers.map(w => `
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg); border-radius:10px; margin-bottom:8px; border:1px solid var(--border);">
-            <span style="font-weight:600; font-size:0.9rem;">👤 ${w.nome}</span>
-            <button onclick="deleteWorker('${w.id}')" style="color:var(--danger); background:none; border:none; font-size:1.1rem; cursor:pointer;">🗑️</button>
-        </div>`).join('');
-}
-
 async function renderAdminTools() {
-    const res = await fetch(`${BASE_URL}/ferramentas.json`);
-    const data = await res.json();
+    const data = await fetchCollection('ferramentas');
     const list = document.getElementById('admin-tools-list');
-    if(!list) return;
-    list.innerHTML = data ? Object.entries(data).map(([id, t]) => `
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg); border-radius:10px; margin-bottom:8px; border:1px solid var(--border);">
-            <span style="font-weight:600; font-size:0.9rem;">🪛 ${t.nome}</span>
-            <button onclick="deleteTool('${id}')" style="color:var(--danger); background:none; border:none; font-size:1.1rem; cursor:pointer;">🗑️</button>
-        </div>`).join('') : '';
+    if (!list) return;
+
+    list.innerHTML = data && Object.keys(data).length > 0
+        ? Object.entries(data).map(([id, t]) => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg);border-radius:10px;margin-bottom:8px;border:1px solid var(--border);">
+                <span style="font-weight:600;font-size:0.9rem;">🪛 ${t.nome}</span>
+                <button onclick="deleteTool('${id}')" style="color:var(--danger);background:none;border:none;font-size:1.1rem;cursor:pointer;">🗑️</button>
+            </div>`).join('')
+        : '<div class="empty-msg">Nenhuma ferramenta registada.</div>';
 }
 
+async function assignTool(worker) {
+    // Atualização otimista no cache
+    cache.ferramentas.data[toolToAllocate] = {
+        ...cache.ferramentas.data[toolToAllocate],
+        status: 'alocada',
+        colaborador: worker
+    };
+    closeModal();
+    renderTools();
+    showToast(`Entregue a ${worker}!`);
+
+    try {
+        await fetch(`${BASE_URL}/ferramentas/${toolToAllocate}.json`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: 'alocada', colaborador: worker })
+        });
+    } catch (e) {
+        invalidateCache('ferramentas');
+        showToast('Erro ao guardar. Tente novamente.', 'error');
+    }
+}
+
+async function returnTool(id) {
+    if (!confirm("Confirmar devolução?")) return;
+
+    // Atualização otimista no cache
+    cache.ferramentas.data[id] = {
+        ...cache.ferramentas.data[id],
+        status: 'disponivel',
+        colaborador: ''
+    };
+    renderTools();
+    showToast("Devolvida!");
+
+    try {
+        await fetch(`${BASE_URL}/ferramentas/${id}.json`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: 'disponivel', colaborador: '' })
+        });
+    } catch (e) {
+        invalidateCache('ferramentas');
+        showToast('Erro ao guardar. Tente novamente.', 'error');
+    }
+}
+
+async function deleteTool(id) {
+    if (!confirm("Apagar ferramenta?")) return;
+
+    delete cache.ferramentas.data[id];
+    renderAdminTools();
+
+    try {
+        await fetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'DELETE' });
+    } catch (e) {
+        invalidateCache('ferramentas');
+        showToast('Erro ao apagar. Tente novamente.', 'error');
+    }
+}
+
+// =============================================
+// FUNCIONÁRIOS — RENDER & MUTAÇÕES
+// =============================================
+async function renderWorkers() {
+    const data = await fetchCollection('funcionarios');
+    const workers = data ? Object.entries(data).map(([id, v]) => ({ id, nome: v.nome })) : [];
+
+    const list = document.getElementById('workers-list');
+    if (!list) return;
+    list.innerHTML = workers.length > 0
+        ? workers.map(w => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg);border-radius:10px;margin-bottom:8px;border:1px solid var(--border);">
+                <span style="font-weight:600;font-size:0.9rem;">👤 ${w.nome}</span>
+                <button onclick="deleteWorker('${w.id}')" style="color:var(--danger);background:none;border:none;font-size:1.1rem;cursor:pointer;">🗑️</button>
+            </div>`).join('')
+        : '<div class="empty-msg">Nenhum funcionário adicionado.</div>';
+}
+
+async function deleteWorker(id) {
+    if (!confirm("Apagar funcionário?")) return;
+
+    if (cache.funcionarios.data) delete cache.funcionarios.data[id];
+    renderWorkers();
+
+    try {
+        await fetch(`${BASE_URL}/funcionarios/${id}.json`, { method: 'DELETE' });
+    } catch (e) {
+        invalidateCache('funcionarios');
+        showToast('Erro ao apagar. Tente novamente.', 'error');
+    }
+}
+
+// =============================================
+// MODAL FERRAMENTAS
+// =============================================
+async function openModal(id) {
+    const data = await fetchCollection('funcionarios');
+    const workers = data ? Object.entries(data).map(([wid, v]) => ({ id: wid, nome: v.nome })) : [];
+
+    if (workers.length === 0) return showToast("Adicione funcionários na Administração", "error");
+
+    toolToAllocate = id;
+    document.getElementById('worker-select-list').innerHTML = workers.map(w =>
+        `<div class="worker-option" onclick="assignTool('${w.nome}')">👤 ${w.nome}</div>`
+    ).join('');
+    document.getElementById('worker-modal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('worker-modal').classList.remove('active');
+}
+
+// =============================================
 // FORMULÁRIOS
+// =============================================
 const formAdd = document.getElementById('form-add');
-if(formAdd) {
+if (formAdd) {
     formAdd.onsubmit = async (e) => {
         e.preventDefault();
         const payload = {
@@ -172,55 +369,104 @@ if(formAdd) {
             quantidade: parseInt(document.getElementById('inp-qtd').value) || 0,
             codigo: document.getElementById('inp-codigo').value.toUpperCase()
         };
-        await fetch(DB_URL, { method: 'POST', body: JSON.stringify(payload) });
-        showToast("Produto Registado!"); nav('view-search'); e.target.reset();
+        try {
+            const res = await fetch(DB_URL, { method: 'POST', body: JSON.stringify(payload) });
+            const result = await res.json();
+            if (result?.name) {
+                if (!cache.stock.data) cache.stock.data = {};
+                cache.stock.data[result.name] = payload;
+            }
+            showToast("Produto Registado!");
+            nav('view-search');
+            e.target.reset();
+        } catch (err) {
+            invalidateCache('stock');
+            showToast('Erro ao registar produto', 'error');
+        }
+    };
+}
+
+const formBulk = document.getElementById('form-bulk');
+if (formBulk) {
+    formBulk.onsubmit = async (e) => {
+        e.preventDefault();
+        const payload = {
+            localizacao: document.getElementById('bulk-loc').value.toUpperCase(),
+            codigo: document.getElementById('bulk-codigo').value.toUpperCase(),
+            nome: document.getElementById('bulk-nome').value,
+            quantidade: parseInt(document.getElementById('bulk-qtd').value) || 0,
+            tipo: 'Geral'
+        };
+        try {
+            const res = await fetch(DB_URL, { method: 'POST', body: JSON.stringify(payload) });
+            const result = await res.json();
+            if (result?.name) {
+                if (!cache.stock.data) cache.stock.data = {};
+                cache.stock.data[result.name] = payload;
+            }
+            showToast(`${payload.codigo} adicionado ao lote!`);
+            // Mantém zona, limpa os restantes campos
+            document.getElementById('bulk-codigo').value = '';
+            document.getElementById('bulk-nome').value = '';
+            document.getElementById('bulk-qtd').value = '';
+            document.getElementById('bulk-codigo').focus();
+        } catch (err) {
+            invalidateCache('stock');
+            showToast('Erro ao adicionar ao lote', 'error');
+        }
     };
 }
 
 const formWorker = document.getElementById('form-worker');
-if(formWorker) {
+if (formWorker) {
     formWorker.onsubmit = async (e) => {
         e.preventDefault();
-        await fetch(`${BASE_URL}/funcionarios.json`, { method: 'POST', body: JSON.stringify({ nome: document.getElementById('worker-name').value }) });
-        document.getElementById('worker-name').value = ''; renderWorkers(); showToast("Adicionado");
+        const nome = document.getElementById('worker-name').value.trim();
+        try {
+            const res = await fetch(`${BASE_URL}/funcionarios.json`, {
+                method: 'POST',
+                body: JSON.stringify({ nome })
+            });
+            const result = await res.json();
+            if (!cache.funcionarios.data) cache.funcionarios.data = {};
+            if (result?.name) cache.funcionarios.data[result.name] = { nome };
+            document.getElementById('worker-name').value = '';
+            renderWorkers();
+            showToast("Funcionário adicionado");
+        } catch (err) {
+            invalidateCache('funcionarios');
+            showToast('Erro ao adicionar funcionário', 'error');
+        }
     };
 }
 
 const formToolReg = document.getElementById('form-tool-reg');
-if(formToolReg) {
+if (formToolReg) {
     formToolReg.onsubmit = async (e) => {
         e.preventDefault();
-        await fetch(`${BASE_URL}/ferramentas.json`, { method: 'POST', body: JSON.stringify({ nome: document.getElementById('reg-tool-name').value, status: 'disponivel' }) });
-        document.getElementById('reg-tool-name').value = ''; renderAdminTools(); showToast("Ferramenta registada");
+        const nome = document.getElementById('reg-tool-name').value.trim();
+        const payload = { nome, status: 'disponivel' };
+        try {
+            const res = await fetch(`${BASE_URL}/ferramentas.json`, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+            if (!cache.ferramentas.data) cache.ferramentas.data = {};
+            if (result?.name) cache.ferramentas.data[result.name] = payload;
+            document.getElementById('reg-tool-name').value = '';
+            renderAdminTools();
+            showToast("Ferramenta registada");
+        } catch (err) {
+            invalidateCache('ferramentas');
+            showToast('Erro ao registar ferramenta', 'error');
+        }
     };
 }
 
-// MODAL FERRAMENTAS
-function openModal(id) {
-    if(cachedWorkers.length === 0) return showToast("Adicione funcionários na Gestão", "error");
-    toolToAllocate = id;
-    document.getElementById('worker-select-list').innerHTML = cachedWorkers.map(w => 
-        `<div class="worker-option" onclick="assignTool('${w.nome}')">👤 ${w.nome}</div>`
-    ).join('');
-    document.getElementById('worker-modal').classList.add('active');
-}
-function closeModal() { document.getElementById('worker-modal').classList.remove('active'); }
-
-async function assignTool(worker) {
-    await fetch(`${BASE_URL}/ferramentas/${toolToAllocate}.json`, { method: 'PATCH', body: JSON.stringify({ status: 'alocada', colaborador: worker }) });
-    closeModal(); renderTools(); showToast(`Entregue a ${worker}!`);
-}
-async function returnTool(id) {
-    if(confirm("Confirmar devolução?")) {
-        await fetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'PATCH', body: JSON.stringify({ status: 'disponivel', colaborador: '' }) });
-        renderTools(); showToast("Devolvida!");
-    }
-}
-
-async function deleteTool(id) { if(confirm("Apagar ferramenta?")) { await fetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'DELETE' }); renderAdminTools(); } }
-async function deleteWorker(id) { if(confirm("Apagar funcionário?")) { await fetch(`${BASE_URL}/funcionarios/${id}.json`, { method: 'DELETE' }); renderWorkers(); } }
-
+// =============================================
 // ADMIN TABS
+// =============================================
 function switchAdminTab(tab) {
     document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
@@ -228,31 +474,45 @@ function switchAdminTab(tab) {
     document.getElementById('panel-' + tab).classList.add('active');
 }
 
-function toggleTheme() { 
-    document.body.classList.toggle('dark-mode'); 
+// =============================================
+// TEMA
+// =============================================
+function toggleTheme() {
+    document.body.classList.toggle('dark-mode');
     const isDark = document.body.classList.contains('dark-mode');
     localStorage.setItem('hiperfrio-tema', isDark ? 'dark' : 'light');
     const adminToggle = document.getElementById('theme-toggle-admin');
-    if(adminToggle) adminToggle.checked = isDark;
+    if (adminToggle) adminToggle.checked = isDark;
 }
 
+// =============================================
 // INICIALIZAÇÃO
+// =============================================
 document.addEventListener('DOMContentLoaded', () => {
-    if(localStorage.getItem('hiperfrio-tema') === 'dark') { 
-        document.body.classList.add('dark-mode'); 
+    if (localStorage.getItem('hiperfrio-tema') === 'dark') {
+        document.body.classList.add('dark-mode');
         const adminToggle = document.getElementById('theme-toggle-admin');
-        if(adminToggle) adminToggle.checked = true;
+        if (adminToggle) adminToggle.checked = true;
     }
+
+    // Carrega stock (vista inicial)
     renderList();
+
+    // Pré-aquece o cache das outras coleções em background
+    fetchCollection('ferramentas');
+    fetchCollection('funcionarios');
+
     const searchInput = document.getElementById('inp-search');
-    if(searchInput) searchInput.oninput = (e) => renderList(e.target.value);
+    if (searchInput) searchInput.oninput = (e) => renderList(e.target.value);
 });
 
+// =============================================
 // REGISTO PWA
+// =============================================
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
-            .then(reg => console.log('PWA Service Worker registado'))
+            .then(() => console.log('PWA Service Worker registado'))
             .catch(err => console.warn('PWA: Erro no Service Worker', err));
     });
 }
