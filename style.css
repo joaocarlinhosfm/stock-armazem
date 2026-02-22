@@ -547,6 +547,8 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
     align-items: center;
     border-radius: 16px;
     pointer-events: none;
+    opacity: 0;           /* hidden by default */
+    transition: opacity 0.1s;
 }
 
 .swipe-bg-left {
@@ -563,12 +565,11 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
 
 .swipe-bg-icon {
     font-size: 1.4rem;
-    opacity: 0;
-    transition: opacity 0.1s;
 }
 
-.swipe-wrapper.swiping-left  .swipe-bg-left  .swipe-bg-icon,
-.swipe-wrapper.swiping-right .swipe-bg-right .swipe-bg-icon {
+/* Only show the relevant background while swiping */
+.swipe-wrapper.swiping-left  .swipe-bg-left,
+.swipe-wrapper.swiping-right .swipe-bg-right {
     opacity: 1;
 }
 
