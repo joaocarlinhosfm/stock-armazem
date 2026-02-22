@@ -30,22 +30,30 @@ const cache = {
     funcionarios: { data: null, lastFetch: 0 },
 };
 
+const _fetchPending = {};
+
 async function fetchCollection(name, force = false) {
     const entry   = cache[name];
     const isStale = (Date.now() - entry.lastFetch) > CACHE_TTL;
     if (!force && !isStale && entry.data !== null) return entry.data;
-    try {
-        const res = await fetch(`${BASE_URL}/${name}.json`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data    = await res.json();
-        entry.data      = data || {};
-        entry.lastFetch = Date.now();
-        return entry.data;
-    } catch (e) {
-        console.error(`Erro ao buscar ${name}:`, e);
-        showToast('Erro ao carregar dados', 'error');
-        return entry.data || {};
-    }
+    if (_fetchPending[name]) return _fetchPending[name];
+    _fetchPending[name] = (async () => {
+        try {
+            const res = await fetch(`${BASE_URL}/${name}.json`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data    = await res.json();
+            entry.data      = data || {};
+            entry.lastFetch = Date.now();
+            return entry.data;
+        } catch (e) {
+            console.error(`Erro ao buscar ${name}:`, e);
+            showToast('Erro ao carregar dados', 'error');
+            return entry.data || {};
+        } finally {
+            delete _fetchPending[name];
+        }
+    })();
+    return _fetchPending[name];
 }
 
 function invalidateCache(name) { cache[name].lastFetch = 0; }
@@ -399,7 +407,7 @@ async function renderTools() {
     ;[...Object.entries(data)].reverse().forEach(([id, t]) => {
         const isAv = t.status === 'disponivel';
         const div  = document.createElement('div');
-        div.style.cssText = `padding:14px;border-radius:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;background:${isAv?'#dcfce7':'#fee2e2'};color:${isAv?'#166534':'#991b1b'};border:1px solid ${isAv?'#22c55e':'#ef4444'}`;
+        div.className = `tool-card ${isAv ? 'tool-available' : 'tool-allocated'}`;
         div.onclick = () => isAv ? openModal(id) : openConfirmModal({
             icon:'↩', title:'Confirmar devolução?',
             desc:`"${escapeHtml(t.nome)}" será marcada como disponível.`,
@@ -548,8 +556,17 @@ async function openModal(id) {
         sel.appendChild(opt);
     });
     document.getElementById('worker-modal').classList.add('active');
+    focusModal('worker-modal');
 }
 function closeModal() { document.getElementById('worker-modal').classList.remove('active'); }
+
+// Focus first focusable element inside a modal when it opens
+function focusModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    const focusable = modal.querySelector('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])');
+    if (focusable) setTimeout(() => focusable.focus(), 50);
+}
 
 // =============================================
 // MODAL — confirmação genérica
@@ -562,6 +579,7 @@ function openConfirmModal({ icon='⚠️', title, desc, onConfirm }) {
     document.getElementById('confirm-modal-title').textContent = title;
     document.getElementById('confirm-modal-desc').textContent  = desc;
     document.getElementById('confirm-modal').classList.add('active');
+    focusModal('confirm-modal');
 }
 function closeConfirmModal() {
     confirmCallback = null;
@@ -578,6 +596,7 @@ function openDeleteModal(id, item) {
     document.getElementById('delete-modal-desc').textContent =
         `"${String(item.codigo||'').toUpperCase()} — ${item.nome}" será removido permanentemente.`;
     document.getElementById('delete-modal').classList.add('active');
+    focusModal('delete-modal');
 }
 function closeDeleteModal() {
     pendingDeleteId = null;
@@ -595,6 +614,7 @@ function openEditModal(id, item) {
     document.getElementById('edit-loc').value    = item.localizacao || '';
     document.getElementById('edit-qtd').value    = item.quantidade ?? 0;
     document.getElementById('edit-modal').classList.add('active');
+    focusModal('edit-modal');
 }
 function closeEditModal() { document.getElementById('edit-modal').classList.remove('active'); }
 
@@ -612,7 +632,7 @@ let _swipeMeta    = null; // { id, item }
 
 document.addEventListener('mousemove', e => {
     if (!_swipeDragging) return;
-    _onSwipeMove(e.clientX);
+    _onSwipeMove(e.clientX, e.clientY);
 });
 document.addEventListener('mouseup', () => {
     if (!_swipeDragging) return;
@@ -620,26 +640,43 @@ document.addEventListener('mouseup', () => {
 });
 
 function attachSwipe(card, wrapper, id, item) {
-    card.addEventListener('touchstart', e => _onSwipeStart(card, wrapper, id, item, e.touches[0].clientX), { passive:true });
-    card.addEventListener('touchmove',  e => _onSwipeMove(e.touches[0].clientX), { passive:true });
+    card.addEventListener('touchstart', e => _onSwipeStart(card, wrapper, id, item, e.touches[0].clientX, e.touches[0].clientY), { passive:true });
+    card.addEventListener('touchmove',  e => _onSwipeMove(e.touches[0].clientX, e.touches[0].clientY), { passive:true });
     card.addEventListener('touchend',   _onSwipeEnd);
     card.addEventListener('mousedown',  e => { _onSwipeStart(card, wrapper, id, item, e.clientX); e.preventDefault(); });
 }
 
-function _onSwipeStart(card, wrapper, id, item, x) {
+let _swipeStartY  = 0;
+let _swipeIntent  = null; // 'horizontal' | 'vertical' | null
+
+function _onSwipeStart(card, wrapper, id, item, x, y = 0) {
     _swipeCard     = card;
     _swipeWrapper  = wrapper;
     _swipeMeta     = { id, item };
     _swipeStartX   = x;
+    _swipeStartY   = y;
     _swipeCurrentX = 0;
     _swipeDragging  = true;
-    card.classList.add('is-swiping');
+    _swipeIntent   = null;
+    // Don't add is-swiping yet — wait to know direction
 }
 
-function _onSwipeMove(x) {
+function _onSwipeMove(x, y = 0) {
     if (!_swipeDragging || !_swipeCard) return;
-    _swipeCurrentX = x - _swipeStartX;
-    const clamped  = Math.max(-140, Math.min(140, _swipeCurrentX));
+    const dx = x - _swipeStartX;
+    const dy = y - _swipeStartY;
+
+    // Determine intent on first meaningful movement
+    if (_swipeIntent === null && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+        _swipeIntent = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
+        if (_swipeIntent === 'horizontal') _swipeCard.classList.add('is-swiping');
+    }
+
+    // Only track horizontal swipes
+    if (_swipeIntent !== 'horizontal') return;
+
+    _swipeCurrentX = dx;
+    const clamped  = Math.max(-140, Math.min(140, dx));
     _swipeCard.style.transform = `translateX(${clamped}px)`;
     _swipeWrapper.classList.remove('swiping-left','swiping-right');
     if (clamped < -20)     _swipeWrapper.classList.add('swiping-left');
@@ -651,10 +688,13 @@ function _onSwipeEnd() {
     _swipeDragging = false;
     _swipeCard.classList.remove('is-swiping');
     _swipeWrapper.classList.remove('swiping-left','swiping-right');
-    snapBack(_swipeCard);
-    if      (_swipeCurrentX < -SWIPE_THRESHOLD) openDeleteModal(_swipeMeta.id, _swipeMeta.item);
-    else if (_swipeCurrentX >  SWIPE_THRESHOLD) openEditModal(_swipeMeta.id, _swipeMeta.item);
+    if (_swipeIntent === 'horizontal') {
+        snapBack(_swipeCard);
+        if      (_swipeCurrentX < -SWIPE_THRESHOLD) openDeleteModal(_swipeMeta.id, _swipeMeta.item);
+        else if (_swipeCurrentX >  SWIPE_THRESHOLD) openEditModal(_swipeMeta.id, _swipeMeta.item);
+    }
     _swipeCard = _swipeWrapper = _swipeMeta = null;
+    _swipeIntent = null;
 }
 
 function snapBack(card) {
@@ -683,6 +723,7 @@ function openPinModal() {
     updatePinDots('pin-dots', 0);
     document.getElementById('pin-error').textContent = '';
     document.getElementById('pin-modal').classList.add('active');
+    focusModal('pin-modal');
 }
 function closePinModal() {
     pendingAdminNav = false; pinBuffer = '';
@@ -721,6 +762,7 @@ function openPinSetupModal() {
     document.getElementById('pin-setup-icon').textContent  = '🔐';
     document.getElementById('pin-remove-btn').style.display = hasPin ? 'block' : 'none';
     document.getElementById('pin-setup-modal').classList.add('active');
+    focusModal('pin-setup-modal');
 }
 function closePinSetupModal() { document.getElementById('pin-setup-modal').classList.remove('active'); }
 
@@ -781,10 +823,17 @@ function updatePinStatusUI() {
 // EXPORTAR CSV
 // =============================================
 async function exportCSV() {
+    const btn = document.querySelector('[onclick="exportCSV()"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'A exportar...'; }
     const data = await fetchCollection('stock', false);
-    if (!data || Object.keys(data).length === 0) { showToast('Sem produtos para exportar','error'); return; }
+    if (!data || Object.keys(data).length === 0) {
+        showToast('Sem produtos para exportar','error');
+        if (btn) { btn.disabled = false; btn.textContent = 'Exportar'; }
+        return;
+    }
     const headers = ['Referência','Nome','Tipo','Localização','Quantidade'];
-    const rows = Object.values(data).map(item => [
+    const cleanData = Object.fromEntries(Object.entries(data).filter(([k]) => !k.startsWith('_tmp_')));
+    const rows = Object.values(cleanData).map(item => [
         `"${(item.codigo||'').toUpperCase()}"`,
         `"${(item.nome||'').replace(/"/g,'""')}"`,
         `"${(item.tipo||'Geral').replace(/"/g,'""')}"`,
@@ -799,7 +848,8 @@ async function exportCSV() {
         download: `hiperfrio-stock-${new Date().toISOString().slice(0,10)}.csv`
     }).click();
     URL.revokeObjectURL(url);
-    showToast(`${Object.keys(data).length} produtos exportados!`);
+    if (btn) { btn.disabled = false; btn.textContent = 'Exportar'; }
+    showToast(`${Object.keys(cleanData).length} produtos exportados!`);
 }
 
 // =============================================
@@ -859,6 +909,22 @@ document.addEventListener('DOMContentLoaded', () => {
             debounceTimer = setTimeout(() => renderList(e.target.value), 300);
         };
     }
+
+    // Escape fecha o modal ativo
+    document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape') return;
+        const modals = [
+            { id: 'worker-modal',    close: closeModal },
+            { id: 'pin-modal',       close: closePinModal },
+            { id: 'pin-setup-modal', close: closePinSetupModal },
+            { id: 'delete-modal',    close: closeDeleteModal },
+            { id: 'edit-modal',      close: closeEditModal },
+            { id: 'confirm-modal',   close: closeConfirmModal },
+        ];
+        for (const { id, close } of modals) {
+            if (document.getElementById(id)?.classList.contains('active')) { close(); break; }
+        }
+    });
 
     // Online/Offline
     updateOfflineBanner();
