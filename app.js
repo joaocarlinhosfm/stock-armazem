@@ -74,7 +74,11 @@ function nav(viewId) {
 
     if (viewId === 'view-search') renderList();
     if (viewId === 'view-tools') renderTools();
-    if (viewId === 'view-admin') { renderWorkers(); renderAdminTools(); }
+    if (viewId === 'view-admin') {
+        if (!checkAdminAccess(viewId)) return; // PIN check
+        renderWorkers();
+        renderAdminTools();
+    }
 
     // Sidebar active state
     document.querySelectorAll('.menu-items li').forEach(li => li.classList.remove('active'));
@@ -517,6 +521,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Carrega stock (vista inicial)
     renderList();
 
+    // Atualiza UI do PIN nas definições
+    updatePinStatusUI();
+
     // Pré-aquece o cache das outras coleções em background
     fetchCollection('ferramentas');
     fetchCollection('funcionarios');
@@ -531,6 +538,192 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+
+
+// =============================================
+// PIN DE ADMINISTRAÇÃO
+// =============================================
+let pinSessionVerified = false; // verdade uma vez por sessão
+let pinBuffer = '';
+let pendingAdminNav = false;
+
+function checkAdminAccess(viewId) {
+    const savedPin = localStorage.getItem('hiperfrio-pin');
+    if (!savedPin || pinSessionVerified) return true; // sem PIN ou já verificado
+    // Guarda que queremos ir para admin após PIN
+    pendingAdminNav = true;
+    openPinModal();
+    return false;
+}
+
+function openPinModal() {
+    pinBuffer = '';
+    updatePinDots('pin-dots', 0);
+    document.getElementById('pin-error').textContent = '';
+    document.getElementById('pin-modal').classList.add('active');
+}
+
+function closePinModal() {
+    pendingAdminNav = false;
+    pinBuffer = '';
+    document.getElementById('pin-modal').classList.remove('active');
+}
+
+function pinKey(digit) {
+    if (pinBuffer.length >= 4) return;
+    pinBuffer += digit;
+    updatePinDots('pin-dots', pinBuffer.length);
+    if (pinBuffer.length === 4) {
+        setTimeout(() => validatePin(), 150);
+    }
+}
+
+function pinDel() {
+    pinBuffer = pinBuffer.slice(0, -1);
+    updatePinDots('pin-dots', pinBuffer.length);
+}
+
+function validatePin() {
+    const savedPin = localStorage.getItem('hiperfrio-pin');
+    if (pinBuffer === savedPin) {
+        pinSessionVerified = true;
+        document.getElementById('pin-modal').classList.remove('active');
+        if (pendingAdminNav) {
+            pendingAdminNav = false;
+            nav('view-admin');
+        }
+    } else {
+        // PIN errado — shake e limpa
+        showPinError('pin-dots', 'pin-error', 'PIN incorreto');
+        pinBuffer = '';
+    }
+}
+
+// ---- CONFIGURAR PIN ----
+let pinSetupBuffer = '';
+let pinSetupFirstEntry = '';
+let pinSetupStep = 'first'; // 'first' | 'confirm'
+
+function openPinSetupModal() {
+    const hasPin = !!localStorage.getItem('hiperfrio-pin');
+    pinSetupBuffer = '';
+    pinSetupFirstEntry = '';
+    pinSetupStep = 'first';
+    updatePinDots('pin-setup-dots', 0);
+    document.getElementById('pin-setup-error').textContent = '';
+    document.getElementById('pin-setup-title').textContent = hasPin ? 'Alterar PIN' : 'Definir PIN';
+    document.getElementById('pin-setup-desc').textContent = 'Escolhe um PIN de 4 dígitos';
+    document.getElementById('pin-setup-icon').textContent = '🔐';
+    document.getElementById('pin-remove-btn').style.display = hasPin ? 'block' : 'none';
+    document.getElementById('pin-setup-modal').classList.add('active');
+}
+
+function closePinSetupModal() {
+    document.getElementById('pin-setup-modal').classList.remove('active');
+}
+
+function pinSetupKey(digit) {
+    if (pinSetupBuffer.length >= 4) return;
+    pinSetupBuffer += digit;
+    updatePinDots('pin-setup-dots', pinSetupBuffer.length);
+    if (pinSetupBuffer.length === 4) {
+        setTimeout(() => {
+            if (pinSetupStep === 'first') {
+                pinSetupFirstEntry = pinSetupBuffer;
+                pinSetupBuffer = '';
+                pinSetupStep = 'confirm';
+                updatePinDots('pin-setup-dots', 0);
+                document.getElementById('pin-setup-desc').textContent = 'Repete o PIN para confirmar';
+            } else {
+                if (pinSetupBuffer === pinSetupFirstEntry) {
+                    localStorage.setItem('hiperfrio-pin', pinSetupBuffer);
+                    pinSessionVerified = true; // já verificado nesta sessão
+                    closePinSetupModal();
+                    updatePinStatusUI();
+                    showToast('PIN definido com sucesso!');
+                } else {
+                    showPinError('pin-setup-dots', 'pin-setup-error', 'PINs não coincidem. Tenta novamente.');
+                    pinSetupBuffer = '';
+                    pinSetupFirstEntry = '';
+                    pinSetupStep = 'first';
+                    setTimeout(() => {
+                        document.getElementById('pin-setup-desc').textContent = 'Escolhe um PIN de 4 dígitos';
+                    }, 1000);
+                }
+            }
+        }, 150);
+    }
+}
+
+function pinSetupDel() {
+    pinSetupBuffer = pinSetupBuffer.slice(0, -1);
+    updatePinDots('pin-setup-dots', pinSetupBuffer.length);
+}
+
+function removePin() {
+    localStorage.removeItem('hiperfrio-pin');
+    pinSessionVerified = false;
+    closePinSetupModal();
+    updatePinStatusUI();
+    showToast('PIN removido');
+}
+
+function updatePinDots(containerId, count) {
+    const dots = document.querySelectorAll(`#${containerId} span`);
+    dots.forEach((dot, i) => {
+        dot.classList.remove('filled', 'error');
+        if (i < count) dot.classList.add('filled');
+    });
+}
+
+function showPinError(dotsId, errorId, msg) {
+    const dots = document.querySelectorAll(`#${dotsId} span`);
+    dots.forEach(dot => { dot.classList.remove('filled'); dot.classList.add('error'); });
+    document.getElementById(errorId).textContent = msg;
+    setTimeout(() => {
+        dots.forEach(dot => dot.classList.remove('error'));
+        document.getElementById(errorId).textContent = '';
+    }, 1000);
+}
+
+function updatePinStatusUI() {
+    const hasPin = !!localStorage.getItem('hiperfrio-pin');
+    const desc = document.getElementById('pin-status-desc');
+    const btn  = document.getElementById('pin-action-btn');
+    if (desc) desc.textContent = hasPin ? 'PIN ativo — acesso protegido' : 'Protege o acesso à área de administração';
+    if (btn)  btn.textContent  = hasPin ? 'Alterar' : 'Definir';
+}
+
+// =============================================
+// EXPORTAR CSV
+// =============================================
+async function exportCSV() {
+    const data = await fetchCollection('stock', false);
+    if (!data || Object.keys(data).length === 0) {
+        showToast('Não há produtos para exportar', 'error');
+        return;
+    }
+
+    const headers = ['Referência', 'Nome', 'Tipo', 'Localização', 'Quantidade'];
+    const rows = Object.values(data).map(item => [
+        `"${(item.codigo || '').toUpperCase()}"`,
+        `"${(item.nome || '').replace(/"/g, '""')}"`,
+        `"${(item.tipo || 'Geral').replace(/"/g, '""')}"`,
+        `"${(item.localizacao || '').toUpperCase()}"`,
+        item.quantidade ?? 0
+    ]);
+
+    const csv = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    a.href     = url;
+    a.download = `hiperfrio-stock-${date}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`${Object.keys(data).length} produtos exportados!`);
+}
 
 // =============================================
 // SWIPE GESTURES
