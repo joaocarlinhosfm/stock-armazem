@@ -114,6 +114,8 @@
 
             <!-- Tab: Definições -->
             <section class="admin-panel" id="panel-settings">
+
+                <div class="settings-group-label">APARÊNCIA</div>
                 <div class="settings-item">
                     <div class="settings-item-info">
                         <span class="settings-item-title">Tema Escuro</span>
@@ -124,6 +126,25 @@
                         <span class="compact-slider"><span>☀️</span><span>🌙</span></span>
                     </label>
                 </div>
+
+                <div class="settings-group-label">SEGURANÇA</div>
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">PIN de Administração</span>
+                        <span class="settings-item-desc" id="pin-status-desc">Protege o acesso à área de administração</span>
+                    </div>
+                    <button class="btn-settings-action" id="pin-action-btn" onclick="openPinSetupModal()">Definir</button>
+                </div>
+
+                <div class="settings-group-label">DADOS</div>
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Exportar Stock para CSV</span>
+                        <span class="settings-item-desc">Descarrega todo o inventário em formato CSV</span>
+                    </div>
+                    <button class="btn-settings-action" onclick="exportCSV()">Exportar</button>
+                </div>
+
             </section>
         </div>
         </main>
@@ -160,6 +181,61 @@
             <h3>Entregar a:</h3>
             <div id="worker-select-list"></div>
             <button onclick="closeModal()" class="btn-cancel">CANCELAR</button>
+        </div>
+    </div>
+
+    <!-- Modal: PIN de entrada na Administração -->
+    <div id="pin-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-icon">🔐</div>
+            <h3>Área Restrita</h3>
+            <p class="modal-desc">Introduz o PIN para aceder à Administração</p>
+            <div class="pin-dots" id="pin-dots">
+                <span></span><span></span><span></span><span></span>
+            </div>
+            <div class="pin-error" id="pin-error"></div>
+            <div class="pin-keypad">
+                <button class="pin-key" onclick="pinKey('1')">1</button>
+                <button class="pin-key" onclick="pinKey('2')">2</button>
+                <button class="pin-key" onclick="pinKey('3')">3</button>
+                <button class="pin-key" onclick="pinKey('4')">4</button>
+                <button class="pin-key" onclick="pinKey('5')">5</button>
+                <button class="pin-key" onclick="pinKey('6')">6</button>
+                <button class="pin-key" onclick="pinKey('7')">7</button>
+                <button class="pin-key" onclick="pinKey('8')">8</button>
+                <button class="pin-key" onclick="pinKey('9')">9</button>
+                <button class="pin-key pin-key-cancel" onclick="closePinModal()">✕</button>
+                <button class="pin-key" onclick="pinKey('0')">0</button>
+                <button class="pin-key pin-key-del" onclick="pinDel()">⌫</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Configurar PIN -->
+    <div id="pin-setup-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-icon" id="pin-setup-icon">🔐</div>
+            <h3 id="pin-setup-title">Definir PIN</h3>
+            <p class="modal-desc" id="pin-setup-desc">Escolhe um PIN de 4 dígitos para proteger a Administração</p>
+            <div class="pin-dots" id="pin-setup-dots">
+                <span></span><span></span><span></span><span></span>
+            </div>
+            <div class="pin-error" id="pin-setup-error"></div>
+            <div class="pin-keypad">
+                <button class="pin-key" onclick="pinSetupKey('1')">1</button>
+                <button class="pin-key" onclick="pinSetupKey('2')">2</button>
+                <button class="pin-key" onclick="pinSetupKey('3')">3</button>
+                <button class="pin-key" onclick="pinSetupKey('4')">4</button>
+                <button class="pin-key" onclick="pinSetupKey('5')">5</button>
+                <button class="pin-key" onclick="pinSetupKey('6')">6</button>
+                <button class="pin-key" onclick="pinSetupKey('7')">7</button>
+                <button class="pin-key" onclick="pinSetupKey('8')">8</button>
+                <button class="pin-key" onclick="pinSetupKey('9')">9</button>
+                <button class="pin-key pin-key-cancel" onclick="closePinSetupModal()">✕</button>
+                <button class="pin-key" onclick="pinSetupKey('0')">0</button>
+                <button class="pin-key pin-key-del" onclick="pinSetupDel()">⌫</button>
+            </div>
+            <button class="btn-cancel" id="pin-remove-btn" onclick="removePin()" style="display:none;">Remover PIN</button>
         </div>
     </div>
 
