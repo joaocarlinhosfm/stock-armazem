@@ -12,6 +12,12 @@
 </head>
 <body>
 
+    <!-- Banner offline -->
+    <div id="offline-banner" style="display:none;">
+        <span>📡 Sem ligação — as alterações serão guardadas e sincronizadas quando voltar online</span>
+        <span id="offline-pending-count"></span>
+    </div>
+
     <header>
         <button id="menu-btn" onclick="toggleMenu()">☰</button>
         <h1>HIPERFRIO STOCK</h1>
@@ -38,10 +44,7 @@
             </ul>
             
             <div class="menu-footer">
-                <div id="status-conexao" style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; color: var(--success);">
-                    <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></span>
-                    ONLINE
-                </div>
+                <div id="sync-status" style="display:none;"></div>
             </div>
         </nav>
 
@@ -281,6 +284,17 @@
                 <button type="submit" class="btn-primary">Guardar Alterações</button>
                 <button type="button" onclick="closeEditModal()" class="btn-cancel">Cancelar</button>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmação genérica (substitui confirm() nativo) -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-icon" id="confirm-modal-icon">⚠️</div>
+            <h3 id="confirm-modal-title">Tens a certeza?</h3>
+            <p id="confirm-modal-desc" class="modal-desc"></p>
+            <button id="confirm-modal-ok" class="btn-danger-full">Confirmar</button>
+            <button onclick="closeConfirmModal()" class="btn-cancel">Cancelar</button>
         </div>
     </div>
 
