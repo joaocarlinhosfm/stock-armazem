@@ -793,3 +793,8 @@ body.is-offline #app-layout {
     body.is-offline main { padding-top: 0; }
     body.is-offline #app-layout { padding-top: 42px; }
 }
+
+/* Stock zero — quantidade a vermelho */
+.qty-display.is-zero {
+    color: var(--danger);
+}
