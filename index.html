@@ -65,13 +65,13 @@
         <div id="view-register" class="view">
             <h2>Novo Produto</h2>
             <form id="form-add" class="pro-form">
-                <div class="form-group"><label>REFERÊNCIA</label><input type="text" id="inp-codigo" class="blue-input" required></div>
-                <div class="form-group"><label>NOME</label><input type="text" id="inp-nome" class="blue-input" required></div>
+                <div class="form-group"><label for="inp-codigo">REFERÊNCIA</label><input type="text" id="inp-codigo" class="blue-input" required></div>
+                <div class="form-group"><label for="inp-nome">NOME</label><input type="text" id="inp-nome" class="blue-input" required></div>
                 <div class="form-row">
-                    <div class="form-group"><label>TIPO</label><input type="text" id="inp-tipo" class="blue-input"></div>
-                    <div class="form-group"><label>LOCAL</label><input type="text" id="inp-loc" class="blue-input"></div>
+                    <div class="form-group"><label for="inp-tipo">TIPO</label><input type="text" id="inp-tipo" class="blue-input"></div>
+                    <div class="form-group"><label for="inp-loc">LOCAL</label><input type="text" id="inp-loc" class="blue-input"></div>
                 </div>
-                <div class="form-group"><label>QUANTIDADE</label><input type="number" id="inp-qtd" class="blue-input" value="0"></div>
+                <div class="form-group"><label for="inp-qtd">QUANTIDADE</label><input type="number" id="inp-qtd" class="blue-input" value="0" min="0"></div>
                 <button type="submit" class="btn-primary">Gravar Produto</button>
             </form>
         </div>
@@ -79,10 +79,10 @@
         <div id="view-bulk" class="view">
             <h2>Catalogar Lote</h2>
             <form id="form-bulk" class="pro-form">
-                <div class="form-group"><label>ZONA</label><input type="text" id="bulk-loc" class="blue-input" required></div>
-                <div class="form-group"><label>REFERÊNCIA</label><input type="text" id="bulk-codigo" class="blue-input" required></div>
-                <div class="form-group"><label>NOME</label><input type="text" id="bulk-nome" class="blue-input" required></div>
-                <div class="form-group"><label>QUANTIDADE</label><input type="number" id="bulk-qtd" class="blue-input"></div>
+                <div class="form-group"><label for="bulk-loc">ZONA</label><input type="text" id="bulk-loc" class="blue-input" required></div>
+                <div class="form-group"><label for="bulk-codigo">REFERÊNCIA</label><input type="text" id="bulk-codigo" class="blue-input" required></div>
+                <div class="form-group"><label for="bulk-nome">NOME</label><input type="text" id="bulk-nome" class="blue-input" required></div>
+                <div class="form-group"><label for="bulk-qtd">QUANTIDADE</label><input type="number" id="bulk-qtd" class="blue-input" value="1" min="0"></div>
                 <button type="submit" class="btn-primary">Adicionar ao Lote</button>
             </form>
         </div>
@@ -179,19 +179,19 @@
     </nav>
 
     <!-- Modal: Entregar ferramenta -->
-    <div id="worker-modal" class="modal-overlay">
+    <div id="worker-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="worker-modal-title">
         <div class="modal-content">
-            <h3>Entregar a:</h3>
+            <h3 id="worker-modal-title">Entregar a:</h3>
             <div id="worker-select-list"></div>
             <button onclick="closeModal()" class="btn-cancel">CANCELAR</button>
         </div>
     </div>
 
     <!-- Modal: PIN de entrada na Administração -->
-    <div id="pin-modal" class="modal-overlay">
+    <div id="pin-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pin-modal-title">
         <div class="modal-content">
             <div class="modal-icon">🔐</div>
-            <h3>Área Restrita</h3>
+            <h3 id="pin-modal-title">Área Restrita</h3>
             <p class="modal-desc">Introduz o PIN para aceder à Administração</p>
             <div class="pin-dots" id="pin-dots">
                 <span></span><span></span><span></span><span></span>
@@ -215,7 +215,7 @@
     </div>
 
     <!-- Modal: Configurar PIN -->
-    <div id="pin-setup-modal" class="modal-overlay">
+    <div id="pin-setup-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pin-setup-title">
         <div class="modal-content">
             <div class="modal-icon" id="pin-setup-icon">🔐</div>
             <h3 id="pin-setup-title">Definir PIN</h3>
@@ -243,10 +243,10 @@
     </div>
 
     <!-- Modal: Confirmar apagar produto -->
-    <div id="delete-modal" class="modal-overlay">
+    <div id="delete-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
         <div class="modal-content">
             <div class="modal-icon">🗑️</div>
-            <h3>Apagar Produto?</h3>
+            <h3 id="delete-modal-title">Apagar Produto?</h3>
             <p id="delete-modal-desc" class="modal-desc"></p>
             <button id="delete-confirm-btn" class="btn-danger-full">Apagar</button>
             <button onclick="closeDeleteModal()" class="btn-cancel">Cancelar</button>
@@ -254,31 +254,31 @@
     </div>
 
     <!-- Modal: Editar produto -->
-    <div id="edit-modal" class="modal-overlay">
+    <div id="edit-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
         <div class="modal-content">
-            <h3>✏️ Editar Produto</h3>
+            <h3 id="edit-modal-title">✏️ Editar Produto</h3>
             <form id="form-edit" class="pro-form" style="margin-top:16px;">
                 <input type="hidden" id="edit-id">
                 <div class="form-group">
-                    <label>REFERÊNCIA</label>
+                    <label for="edit-codigo">REFERÊNCIA</label>
                     <input type="text" id="edit-codigo" class="blue-input" required>
                 </div>
                 <div class="form-group">
-                    <label>NOME</label>
+                    <label for="edit-nome">NOME</label>
                     <input type="text" id="edit-nome" class="blue-input" required>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>TIPO</label>
+                        <label for="edit-tipo">TIPO</label>
                         <input type="text" id="edit-tipo" class="blue-input">
                     </div>
                     <div class="form-group">
-                        <label>LOCAL</label>
+                        <label for="edit-loc">LOCAL</label>
                         <input type="text" id="edit-loc" class="blue-input">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>QUANTIDADE</label>
+                    <label for="edit-qtd">QUANTIDADE</label>
                     <input type="number" id="edit-qtd" class="blue-input" min="0">
                 </div>
                 <button type="submit" class="btn-primary">Guardar Alterações</button>
@@ -288,7 +288,7 @@
     </div>
 
     <!-- Modal: Confirmação genérica (substitui confirm() nativo) -->
-    <div id="confirm-modal" class="modal-overlay">
+    <div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
         <div class="modal-content">
             <div class="modal-icon" id="confirm-modal-icon">⚠️</div>
             <h3 id="confirm-modal-title">Tens a certeza?</h3>
