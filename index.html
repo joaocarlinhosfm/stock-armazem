@@ -81,14 +81,11 @@
                 <button id="btn-refresh" onclick="forceRefresh()" title="Atualizar stock">↻</button>
             </div>
             <div class="sort-bar" data-manager-only>
-                <span class="sort-label">Ordenar:</span>
-                <select id="sort-select" onchange="setStockSort(this.value)" class="sort-select">
-                    <option value="recente">Mais recente</option>
-                    <option value="nome">Nome A→Z</option>
-                    <option value="qtd-asc">Qtd. ↑</option>
-                    <option value="qtd-desc">Qtd. ↓</option>
-                    <option value="local">Localização</option>
-                </select>
+                <button class="sort-pill active" id="sort-recente" onclick="setStockSort('recente')">Recente</button>
+                <button class="sort-pill" id="sort-nome"    onclick="setStockSort('nome')">Nome</button>
+                <button class="sort-pill" id="sort-qtd-asc" onclick="setStockSort('qtd-asc')">Qtd ↑</button>
+                <button class="sort-pill" id="sort-qtd-desc" onclick="setStockSort('qtd-desc')">Qtd ↓</button>
+                <button class="sort-pill" id="sort-local"   onclick="setStockSort('local')">Local</button>
             </div>
             <div id="dashboard"></div>
             <div id="stock-list"></div>
