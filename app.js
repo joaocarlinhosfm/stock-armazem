@@ -18,26 +18,32 @@ let _authToken     = null;
 let _authTokenExp  = 0;     // timestamp de expiração (tokens duram 1h)
 let _authReady     = false; // true depois do primeiro login
 
-// Obtém token válido — aguarda a Promise do módulo Firebase (resolve uma única vez)
+// Obtém token válido — aguarda Promise do SDK Firebase ou renova se expirado
 async function getAuthToken() {
     const now = Date.now();
-    // Token em cache ainda válido (margem de 5 min antes de expirar)
+    // Token em cache ainda válido (margem de 5 min)
     if (_authToken && now < _authTokenExp - 300_000) return _authToken;
 
-    if (!window._firebaseTokenPromise) {
-        // Módulo ainda não carregou — espera até 8s
-        await new Promise((res, rej) => {
-            let attempts = 0;
-            const iv = setInterval(() => {
-                if (window._firebaseTokenPromise) { clearInterval(iv); res(); }
-                if (++attempts > 80) { clearInterval(iv); rej(new Error('Firebase SDK não carregou')); }
-            }, 100);
-        });
+    // Aguarda a Promise criada pelo SDK (com timeout de 10s)
+    const tokenPromise = window._firebaseTokenPromise
+        ? window._firebaseTokenPromise
+        : Promise.reject(new Error('Firebase SDK não carregou'));
+
+    _authToken = await Promise.race([
+        tokenPromise,
+        new Promise((_, rej) => setTimeout(() => rej(new Error('Auth timeout — verifica Anonymous Auth na consola Firebase')), 10_000))
+    ]);
+
+    // Se o user está disponível, renova o token diretamente para sessões longas
+    if (window._firebaseUser) {
+        try {
+            _authToken = await window._firebaseUser.getIdToken(false); // false = usa cache se válido
+        } catch { /* usa o token da Promise */ }
     }
 
-    _authToken    = await window._firebaseTokenPromise;
-    _authTokenExp = now + 3_500_000; // ~58 min (tokens duram 1h)
+    _authTokenExp = now + 3_500_000; // ~58 min
     _authReady    = true;
+    console.log('✅ Firebase Auth: token obtido com sucesso');
     return _authToken;
 }
 
