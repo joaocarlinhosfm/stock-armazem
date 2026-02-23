@@ -76,8 +76,19 @@
         <main id="main-content">
         <div id="view-search" class="view active">
             <div class="search-container">
-                <input type="text" id="inp-search" placeholder="Pesquisar por nome ou referência..." autocomplete="off">
+                <input type="text" id="inp-search" placeholder="Pesquisar por nome, ref. ou local..." autocomplete="off">
+                <button id="inp-search-clear" class="search-clear-btn" onclick="clearSearch()" title="Limpar pesquisa" style="display:none">✕</button>
                 <button id="btn-refresh" onclick="forceRefresh()" title="Atualizar stock">↻</button>
+            </div>
+            <div class="sort-bar" data-manager-only>
+                <span class="sort-label">Ordenar:</span>
+                <select id="sort-select" onchange="setStockSort(this.value)" class="sort-select">
+                    <option value="recente">Mais recente</option>
+                    <option value="nome">Nome A→Z</option>
+                    <option value="qtd-asc">Qtd. ↑</option>
+                    <option value="qtd-desc">Qtd. ↓</option>
+                    <option value="local">Localização</option>
+                </select>
             </div>
             <div id="dashboard"></div>
             <div id="stock-list"></div>
@@ -388,4 +399,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-
