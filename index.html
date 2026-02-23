@@ -344,38 +344,30 @@
     </div>
 
     <div id="toast-container"></div>
-    <!-- Firebase SDK (Auth apenas — REST API para dados) -->
-    <script type="module">
-        import { initializeApp }           from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-        import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    <!-- Firebase SDK (Auth anónima — token para REST API) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script>
+        // Cria Promise global ANTES de qualquer async — app.js vai aguardá-la
+        window._firebaseTokenPromise = new Promise((resolve, reject) => {
+            firebase.initializeApp({
+                apiKey:      "AIzaSyCJS8Ev4EZcUbIO0AA4ckw10w8lvkZ3U_8",
+                authDomain:  "stock-f477e.firebaseapp.com",
+                databaseURL: "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app",
+                projectId:   "stock-f477e",
+            });
 
-        const firebaseConfig = {
-            apiKey:      "AIzaSyCJS8Ev4EZcUbIO0AA4ckw10w8lvkZ3U_8",
-            authDomain:  "stock-f477e.firebaseapp.com",
-            databaseURL: "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId:   "stock-f477e",
-        };
-
-        // Promise global resolvida quando o token estiver pronto
-        // app.js aguarda esta promise antes de qualquer pedido à Firebase
-        let _resolveToken, _rejectToken;
-        window._firebaseTokenPromise = new Promise((res, rej) => {
-            _resolveToken = res;
-            _rejectToken  = rej;
+            firebase.auth().signInAnonymously()
+                .then(cred => cred.user.getIdToken())
+                .then(token => {
+                    window._firebaseUser = firebase.auth().currentUser;
+                    resolve(token);
+                })
+                .catch(err => {
+                    console.error('Firebase Auth erro:', err.code, err.message);
+                    reject(err);
+                });
         });
-
-        try {
-            const app    = initializeApp(firebaseConfig);
-            const auth   = getAuth(app);
-            const cred   = await signInAnonymously(auth);
-            const token  = await cred.user.getIdToken();
-            // Guarda referência ao user para renovação de token
-            window._firebaseUser = cred.user;
-            _resolveToken(token);
-        } catch (err) {
-            console.error('Firebase Auth erro:', err);
-            _rejectToken(err);
-        }
     </script>
     <script src="app.js"></script>
 </body>
