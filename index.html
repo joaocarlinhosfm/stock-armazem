@@ -346,8 +346,8 @@
     <div id="toast-container"></div>
     <!-- Firebase SDK (Auth apenas — REST API para dados) -->
     <script type="module">
-        import { initializeApp }                        from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+        import { initializeApp }           from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+        import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
         const firebaseConfig = {
             apiKey:      "AIzaSyCJS8Ev4EZcUbIO0AA4ckw10w8lvkZ3U_8",
@@ -356,26 +356,26 @@
             projectId:   "stock-f477e",
         };
 
-        const app  = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
+        // Promise global resolvida quando o token estiver pronto
+        // app.js aguarda esta promise antes de qualquer pedido à Firebase
+        let _resolveToken, _rejectToken;
+        window._firebaseTokenPromise = new Promise((res, rej) => {
+            _resolveToken = res;
+            _rejectToken  = rej;
+        });
 
-        // Login anónimo silencioso — obtém token para autenticar pedidos REST
-        signInAnonymously(auth).catch(err => {
+        try {
+            const app    = initializeApp(firebaseConfig);
+            const auth   = getAuth(app);
+            const cred   = await signInAnonymously(auth);
+            const token  = await cred.user.getIdToken();
+            // Guarda referência ao user para renovação de token
+            window._firebaseUser = cred.user;
+            _resolveToken(token);
+        } catch (err) {
             console.error('Firebase Auth erro:', err);
-            window._firebaseAuthError = true;
-        });
-
-        // Disponibiliza token para o app.js via window
-        window._getAuthToken = () => new Promise((resolve, reject) => {
-            onAuthStateChanged(auth, async user => {
-                if (user) {
-                    const token = await user.getIdToken();
-                    resolve(token);
-                } else if (window._firebaseAuthError) {
-                    reject(new Error('Auth falhou'));
-                }
-            });
-        });
+            _rejectToken(err);
+        }
     </script>
     <script src="app.js"></script>
 </body>
