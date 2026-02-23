@@ -34,10 +34,11 @@ async function getAuthToken() {
         new Promise((_, rej) => setTimeout(() => rej(new Error('Auth timeout — verifica Anonymous Auth na consola Firebase')), 10_000))
     ]);
 
-    // Se o user está disponível, renova o token diretamente para sessões longas
+    // Se o user está disponível, renova o token (force=true garante token fresco)
     if (window._firebaseUser) {
         try {
-            _authToken = await window._firebaseUser.getIdToken(false); // false = usa cache se válido
+            const forceRefreshToken = (_authToken !== null); // força renovação se já tivemos token antes
+            _authToken = await window._firebaseUser.getIdToken(forceRefreshToken);
         } catch { /* usa o token da Promise */ }
     }
 
@@ -99,13 +100,17 @@ function enterAsWorker() {
 
 // Botão "Gestor" no ecrã de seleção
 async function enterAsManager() {
-    const hasPin = await hasPinConfigured();
-    if (!hasPin) {
-        // Primeira vez — pede para definir o PIN antes de entrar
-        openPinSetupModal('first-time');
-    } else {
-        // PIN já configurado — verifica antes de entrar
-        openPinModal('role');
+    const btn = document.querySelector('.role-btn-manager');
+    if (btn) { btn.disabled = true; btn.querySelector('.role-btn-label').textContent = 'A verificar...'; }
+    try {
+        const hasPin = await hasPinConfigured();
+        if (!hasPin) {
+            openPinSetupModal('first-time');
+        } else {
+            openPinModal('role');
+        }
+    } finally {
+        if (btn) { btn.disabled = false; btn.querySelector('.role-btn-label').textContent = 'Gestor'; }
     }
 }
 
@@ -146,16 +151,15 @@ async function hashPin(pin) {
 
 // PIN guardado na Firebase — partilhado entre dispositivos
 const PIN_URL = `${BASE_URL}/config/pinHash.json`;
-let   _cachedPinHash = null; // cache em memória para não ir à Firebase em cada tecla
+let   _cachedPinHash = undefined; // undefined = ainda não carregado; null = carregado, sem PIN
 
 async function getPinHash() {
-    if (_cachedPinHash !== null) return _cachedPinHash;
+    if (_cachedPinHash !== undefined) return _cachedPinHash; // cache hit (mesmo que null = sem PIN)
     // Tenta Firebase primeiro; fallback para localStorage (offline)
     try {
         const res  = await fetch(await authUrl(PIN_URL));
         const data = await res.json();
         _cachedPinHash = data || null;
-        // Guarda localmente como fallback offline
         if (_cachedPinHash) localStorage.setItem('hiperfrio-pin-hash-cache', _cachedPinHash);
         else                 localStorage.removeItem('hiperfrio-pin-hash-cache');
     } catch {
@@ -419,15 +423,22 @@ async function renderList(filter = '', force = false) {
         return;
     }
 
-    // Swipe hint — só na primeira vez
-    if (!filter && !localStorage.getItem('swipe-hint-seen')) {
+    // Hint contextual — swipe para gestores, leitura para funcionários
+    const hintKey = currentRole === 'worker' ? 'worker-hint-seen' : 'swipe-hint-seen';
+    if (!filter && !localStorage.getItem(hintKey)) {
         const hint = document.createElement('div');
         hint.className = 'swipe-hint';
-        const l = document.createElement('span'); l.textContent = '✏️ Swipe direita para editar';
-        const r = document.createElement('span'); r.textContent = '🗑️ Swipe esquerda para apagar';
-        hint.appendChild(l); hint.appendChild(r);
+        if (currentRole === 'worker') {
+            const msg = document.createElement('span');
+            msg.textContent = '👁️ Modo consulta — apenas visualização';
+            hint.appendChild(msg);
+        } else {
+            const l = document.createElement('span'); l.textContent = '✏️ Swipe direita para editar';
+            const r = document.createElement('span'); r.textContent = '🗑️ Swipe esquerda para apagar';
+            hint.appendChild(l); hint.appendChild(r);
+        }
         listEl.appendChild(hint);
-        localStorage.setItem('swipe-hint-seen', '1');
+        localStorage.setItem(hintKey, '1');
     }
 
     const filterLower = filter.toLowerCase();
@@ -619,13 +630,13 @@ async function renderAdminTools() {
     }
     Object.entries(data).forEach(([id, t]) => {
         const row = document.createElement('div');
-        row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg);border-radius:10px;margin-bottom:8px;border:1px solid var(--border);';
+        row.className = 'admin-list-row';
         const lbl = document.createElement('span');
-        lbl.style.cssText = 'font-weight:600;font-size:0.9rem;';
-        lbl.textContent   = `🪛 ${t.nome}`;
+        lbl.className   = 'admin-list-label';
+        lbl.textContent = `🪛 ${t.nome}`;
         const btn = document.createElement('button');
-        btn.style.cssText = 'color:var(--danger);background:none;border:none;font-size:1.1rem;cursor:pointer;';
-        btn.textContent   = '🗑️';
+        btn.className = 'admin-list-delete';
+        btn.textContent = '🗑️';
         btn.onclick = () => openConfirmModal({
             icon:'🗑️', title:'Apagar ferramenta?',
             desc:`"${escapeHtml(t.nome)}" será removida permanentemente.`,
@@ -682,13 +693,13 @@ async function renderWorkers() {
     }
     workers.forEach(w => {
         const row = document.createElement('div');
-        row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg);border-radius:10px;margin-bottom:8px;border:1px solid var(--border);';
+        row.className = 'admin-list-row';
         const lbl = document.createElement('span');
-        lbl.style.cssText = 'font-weight:600;font-size:0.9rem;';
-        lbl.textContent   = `👤 ${w.nome}`;
+        lbl.className   = 'admin-list-label';
+        lbl.textContent = `👤 ${w.nome}`;
         const btn = document.createElement('button');
-        btn.style.cssText = 'color:var(--danger);background:none;border:none;font-size:1.1rem;cursor:pointer;';
-        btn.textContent   = '🗑️';
+        btn.className = 'admin-list-delete';
+        btn.textContent = '🗑️';
         btn.onclick = () => openConfirmModal({
             icon:'👤', title:'Apagar funcionário?',
             desc:`"${escapeHtml(w.nome)}" será removido permanentemente.`,
@@ -813,10 +824,18 @@ document.addEventListener('mouseup', () => {
 function attachSwipe(card, wrapper, id, item) {
     // Funcionários não têm swipe — apenas leitura
     if (currentRole === 'worker') return;
-    card.addEventListener('touchstart', e => _onSwipeStart(card, wrapper, id, item, e.touches[0].clientX, e.touches[0].clientY), { passive:true });
-    card.addEventListener('touchmove',  e => _onSwipeMove(e.touches[0].clientX, e.touches[0].clientY), { passive:true });
-    card.addEventListener('touchend',   _onSwipeEnd);
-    card.addEventListener('mousedown',  e => { _onSwipeStart(card, wrapper, id, item, e.clientX); e.preventDefault(); });
+    card.addEventListener('touchstart', e => {
+        e.stopPropagation();
+        _onSwipeStart(card, wrapper, id, item, e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+    card.addEventListener('touchmove',  e => _onSwipeMove(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+    card.addEventListener('touchend',   e => { e.stopPropagation(); _onSwipeEnd(); }, { passive: true });
+    card.addEventListener('mousedown',  e => {
+        // Não interferir com cliques nos botões +/−
+        if (e.target.closest('.btn-qty')) return;
+        _onSwipeStart(card, wrapper, id, item, e.clientX, e.clientY);
+        e.preventDefault();
+    });
 }
 
 let _swipeStartY  = 0;
@@ -879,14 +898,43 @@ function snapBack(card) {
 // =============================================
 // PIN — SHA-256
 // =============================================
-let pinSessionVerified = false;
-let pinBuffer          = '';
-let pendingAdminNav    = false;
+let pinBuffer = '';
+// Variáveis de tentativas removidas (sistema antigo)
+
+// Bloqueio de PIN por tentativas excessivas
+const PIN_MAX_ATTEMPTS  = 5;
+const PIN_LOCKOUT_MS    = 5 * 60 * 1000; // 5 minutos
+const PIN_ATTEMPTS_KEY  = 'hiperfrio-pin-attempts';
+const PIN_LOCKOUT_KEY   = 'hiperfrio-pin-lockout';
+
+function isPinLocked() {
+    const lockUntil = parseInt(localStorage.getItem(PIN_LOCKOUT_KEY) || '0');
+    if (Date.now() < lockUntil) return lockUntil;
+    return false;
+}
+
+function recordPinFailure() {
+    const attempts = parseInt(localStorage.getItem(PIN_ATTEMPTS_KEY) || '0') + 1;
+    if (attempts >= PIN_MAX_ATTEMPTS) {
+        const until = Date.now() + PIN_LOCKOUT_MS;
+        localStorage.setItem(PIN_LOCKOUT_KEY,   String(until));
+        localStorage.setItem(PIN_ATTEMPTS_KEY,  '0');
+        return until;
+    }
+    localStorage.setItem(PIN_ATTEMPTS_KEY, String(attempts));
+    return false;
+}
+
+function resetPinAttempts() {
+    localStorage.removeItem(PIN_ATTEMPTS_KEY);
+    localStorage.removeItem(PIN_LOCKOUT_KEY);
+}
 
 function checkAdminAccess() {
-    // Gestores já verificados no arranque — acesso total
+    // Só gestores têm acesso — qualquer outro perfil é bloqueado
     if (currentRole === 'manager') return true;
-    return true; // sem role-system, acesso livre
+    showToast('Acesso reservado a gestores', 'error');
+    return false;
 }
 
 let pinMode = 'admin'; // 'admin' | 'role'
@@ -904,7 +952,7 @@ function openPinModal(mode = 'admin') {
     focusModal('pin-modal');
 }
 function closePinModal() {
-    pendingAdminNav = false; pinBuffer = '';
+    pinBuffer = '';
     document.getElementById('pin-modal').classList.remove('active');
 }
 function pinKey(digit) {
@@ -916,22 +964,34 @@ function pinKey(digit) {
 function pinDel() { pinBuffer = pinBuffer.slice(0,-1); updatePinDots('pin-dots', pinBuffer.length); }
 
 async function validatePin() {
+    // Verifica bloqueio antes de qualquer comparação
+    const locked = isPinLocked();
+    if (locked) {
+        const mins = Math.ceil((locked - Date.now()) / 60000);
+        showPinError('pin-dots','pin-error',`Bloqueado. Tenta em ${mins} min.`);
+        pinBuffer = '';
+        return;
+    }
+
     const savedHash = await getPinHash();
     const entered   = await hashPin(pinBuffer);
     if (entered === savedHash) {
+        resetPinAttempts();
         document.getElementById('pin-modal').classList.remove('active');
         if (pinMode === 'role') {
-            // Entrar como Gestor a partir do ecrã de seleção
             localStorage.setItem(ROLE_KEY, 'manager');
             applyRole('manager');
             bootApp();
-        } else {
-            // PIN de acesso ao painel Admin (fluxo anterior)
-            pinSessionVerified = true;
-            if (pendingAdminNav) { pendingAdminNav = false; nav('view-admin'); }
         }
     } else {
-        showPinError('pin-dots','pin-error','PIN incorreto');
+        const lockedUntil = recordPinFailure();
+        const remaining   = parseInt(localStorage.getItem(PIN_ATTEMPTS_KEY) || '0');
+        const attemptsLeft = PIN_MAX_ATTEMPTS - remaining;
+        if (lockedUntil) {
+            showPinError('pin-dots','pin-error','Demasiadas tentativas. Bloqueado 5 min.');
+        } else {
+            showPinError('pin-dots','pin-error',`PIN incorreto (${attemptsLeft} tentativa${attemptsLeft !== 1 ? 's' : ''} restante${attemptsLeft !== 1 ? 's' : ''})`);
+        }
         pinBuffer = '';
     }
 }
@@ -1225,7 +1285,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast(`${payload.codigo} adicionado ao lote!`);
             document.getElementById('bulk-codigo').value = '';
             document.getElementById('bulk-nome').value   = '';
-            document.getElementById('bulk-qtd').value    = '';
+            document.getElementById('bulk-qtd').value    = '1';
             document.getElementById('bulk-codigo').focus();
         } catch { invalidateCache('stock'); showToast('Erro ao adicionar ao lote','error'); }
         finally { btn.disabled = false; }
