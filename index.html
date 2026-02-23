@@ -344,6 +344,39 @@
     </div>
 
     <div id="toast-container"></div>
+    <!-- Firebase SDK (Auth apenas — REST API para dados) -->
+    <script type="module">
+        import { initializeApp }                        from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey:      "AIzaSyCJS8Ev4EZcUbIO0AA4ckw10w8lvkZ3U_8",
+            authDomain:  "stock-f477e.firebaseapp.com",
+            databaseURL: "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId:   "stock-f477e",
+        };
+
+        const app  = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        // Login anónimo silencioso — obtém token para autenticar pedidos REST
+        signInAnonymously(auth).catch(err => {
+            console.error('Firebase Auth erro:', err);
+            window._firebaseAuthError = true;
+        });
+
+        // Disponibiliza token para o app.js via window
+        window._getAuthToken = () => new Promise((resolve, reject) => {
+            onAuthStateChanged(auth, async user => {
+                if (user) {
+                    const token = await user.getIdToken();
+                    resolve(token);
+                } else if (window._firebaseAuthError) {
+                    reject(new Error('Auth falhou'));
+                }
+            });
+        });
+    </script>
     <script src="app.js"></script>
 </body>
 </html>
