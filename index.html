@@ -1,1378 +1,398 @@
-:root {
-    --primary: #2563eb; 
-    --primary-soft: #eff6ff;
-    --bg: #f8fafc; 
-    --card-bg: #ffffff;
-    --input-fill: #f0f7ff; 
-    --text-main: #0f172a; 
-    --text-muted: #64748b;
-    --border: #e2e8f0; 
-    --danger: #ef4444; 
-    --success: #22c55e;
-    --header-h: 60px;
-    --sidebar-w: 260px;
-    --bottom-nav-h: 68px;
-}
-
-.dark-mode {
-    --bg: #0f172a; 
-    --card-bg: #1e293b; 
-    --input-fill: #26334a;
-    --text-main: #f8fafc; 
-    --text-muted: #94a3b8; 
-    --border: #334155;
-}
-
-* { 
-    box-sizing: border-box; 
-    margin: 0; 
-    padding: 0; 
-    -webkit-tap-highlight-color: transparent; 
-    outline: none; 
-}
-
-body { 
-    font-family: 'Inter', sans-serif; 
-    background: var(--bg); 
-    color: var(--text-main); 
-    padding-top: var(--header-h); 
-    min-height: 100vh; 
-}
-
-/* APP LAYOUT */
-#app-layout {
-    display: flex;
-    min-height: calc(100vh - var(--header-h));
-}
-
-/* HEADER */
-header { 
-    background: var(--primary); 
-    color: white; 
-    padding: 0 10px; 
-    display: flex; 
-    align-items: center; 
-    justify-content: space-between;
-    position: fixed; 
-    top: 0; left: 0; right: 0; 
-    z-index: 1000; 
-    height: var(--header-h);
-}
-
-#menu-btn { 
-    background: transparent !important; 
-    border: none !important; 
-    color: white; 
-    font-size: 1.8rem; 
-    width: 48px; height: 48px; 
-    display: none;
-    align-items: center; justify-content: center; 
-    cursor: pointer;
-}
-
-header h1 { 
-    flex: 1; 
-    text-align: center; 
-    font-size: 1rem; 
-    font-weight: 800; 
-    letter-spacing: 1px; 
-}
-
-.header-spacer { 
-    width: 48px; 
-    display: none;
-    align-items: center;
-    justify-content: flex-end;
-}
-
-/* SEARCH BAR */
-.search-container {
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    padding: 15px 0;
-    margin-bottom: 5px;
-    z-index: 900;
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-
-.search-container input {
-    flex: 1;
-    padding: 14px 20px;
-    border-radius: 12px;
-    border: 2px solid var(--primary);
-    background: var(--card-bg);
-    color: var(--text-main);
-    font-size: 1rem;
-    font-weight: 600;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
-    font-family: 'Inter', sans-serif;
-}
-
-#btn-refresh {
-    width: 48px;
-    height: 48px;
-    flex-shrink: 0;
-    border-radius: 12px;
-    border: 2px solid var(--primary);
-    background: var(--card-bg);
-    color: var(--primary);
-    font-size: 1.3rem;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s;
-}
-
-#btn-refresh:active { opacity: 0.7; }
-
-#btn-refresh.spinning {
-    animation: spin 0.7s linear infinite;
-}
-
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-}
-
-.empty-msg {
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    font-weight: 600;
-    padding: 40px 20px;
-}
-
-/* STOCK CARDS */
-.item-card {
-    background: var(--card-bg);
-    border-radius: 16px;
-    padding: 14px;
-    margin-bottom: 12px;
-    border: 1px solid var(--border);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.02);
-}
-
-.ref-label { font-size: 0.55rem; font-weight: 800; color: var(--primary); letter-spacing: 0.5px; }
-.ref-value { font-size: 1.15rem; font-weight: 900; color: var(--text-main); display: block; margin-bottom: 2px; }
-
-.loc-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: #e0f2fe; 
-    color: #0369a1;      
-    padding: 4px 12px;
-    border-radius: 50px;
-    font-size: 0.75rem;
-    font-weight: 800;
-    border: 2px solid #7dd3fc;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-.dark-mode .loc-pill {
-    background: #0c4a6e;
-    color: #bae6fd;
-    border-color: #0ea5e9;
-}
-
-.qty-pill-box {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--primary-soft);
-    padding: 3px;
-    border-radius: 50px;
-    border: 1px solid var(--border);
-}
-
-.btn-qty {
-    width: 28px; height: 28px;
-    border-radius: 50%; border: none;
-    background: white; color: var(--primary); 
-    font-size: 1rem; font-weight: 800; 
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.dark-mode .btn-qty { background: var(--input-fill); }
-
-.qty-display { 
-    font-weight: 900; font-size: 0.95rem;
-    min-width: 24px; text-align: center; color: var(--primary); 
-}
-
-/* SIDE MENU (mobile: drawer / desktop: static sidebar) */
-#side-menu { 
-    position: fixed;
-    top: var(--header-h);
-    left: -280px;
-    width: var(--sidebar-w);
-    height: calc(100vh - var(--header-h));
-    background: var(--card-bg);
-    z-index: 2000;
-    transition: left 0.3s ease;
-    display: flex;
-    flex-direction: column;
-    border-right: 1px solid var(--border);
-}
-
-#side-menu.open { 
-    left: 0; 
-    box-shadow: 8px 0 24px rgba(0,0,0,0.2); 
-}
-
-#close-menu { 
-    background: transparent !important; 
-    border: none; 
-    font-size: 1.8rem; 
-    color: var(--text-muted); 
-    cursor: pointer;
-}
-
-.menu-header { 
-    height: 64px;
-    display: flex; 
-    align-items: center; 
-    justify-content: space-between; 
-    padding: 0 15px 0 20px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    font-size: 0.9rem;
-    letter-spacing: 1px;
-    color: var(--primary);
-}
-
-.menu-items { 
-    list-style: none;
-    padding: 16px 10px;
-    flex-grow: 1;
-    overflow-y: auto; 
-}
-
-.menu-items li { 
-    padding: 13px 16px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center; 
-    gap: 12px;
-    font-weight: 600;
-    font-size: 0.92rem;
-    cursor: pointer;
-    margin-bottom: 4px;
-    transition: background 0.15s, color 0.15s;
-    color: var(--text-muted);
-}
-
-.menu-items li:hover { 
-    background: var(--primary-soft); 
-    color: var(--primary); 
-}
-
-.menu-items li.active {
-    background: var(--primary-soft);
-    color: var(--primary);
-    font-weight: 700;
-}
-
-.menu-divider { border: 0; border-top: 1px solid var(--border); margin: 10px 5px; }
-
-.menu-footer { 
-    padding: 16px 20px;
-    border-top: 1px solid var(--border);
-    display: flex; 
-    justify-content: space-between;
-    align-items: center;
-    background: var(--card-bg);
-    flex-shrink: 0; 
-}
-
-/* Desktop theme switch (inside sidebar) — hidden on mobile */
-.desktop-theme-switch { display: none; }
-
-/* MENU OVERLAY (mobile only) */
-#menu-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 1999;
-}
-#menu-overlay.active { display: block; }
-
-/* MAIN CONTENT */
-#main-content { 
-    flex: 1;
-    padding: 10px 16px;
-    padding-bottom: calc(var(--bottom-nav-h) + 10px);
-    width: 100%;
-    min-width: 0;
-}
-
-/* BOTTOM NAV (mobile only) */
-#bottom-nav {
-    display: flex;
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    height: var(--bottom-nav-h);
-    background: var(--card-bg);
-    border-top: 1px solid var(--border);
-    z-index: 1500;
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
-    /* safe area for phones with home bar */
-    padding-bottom: env(safe-area-inset-bottom);
-}
-
-.bottom-nav-item {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--text-muted);
-    font-family: 'Inter', sans-serif;
-    transition: color 0.15s;
-    padding: 6px 4px;
-    position: relative;
-}
-
-.bottom-nav-item.active {
-    color: var(--primary);
-}
-
-.bottom-nav-item.active::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 15%; right: 15%;
-    height: 3px;
-    background: var(--primary);
-    border-radius: 0 0 4px 4px;
-}
-
-.bnav-icon { font-size: 1.3rem; line-height: 1; }
-.bnav-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.3px; }
-
-/* VIEWS & MODAL */
-.view { display: none !important; }
-.view.active { display: block !important; animation: fadeIn 0.2s ease-out; }
-
-.modal-overlay { 
-    position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 5000; 
-    display: none !important; align-items: center; justify-content: center; 
-    backdrop-filter: blur(8px); 
-}
-.modal-overlay.active { display: flex !important; }
-
-.modal-content { background: var(--card-bg); width: 90%; max-width: 400px; padding: 25px; border-radius: 24px; }
-.worker-select-list {
-    max-height: 45vh;
-    overflow-y: auto;
-    margin-bottom: 4px;
-    -webkit-overflow-scrolling: touch;
-    /* Fade out ao fundo para indicar que há mais itens */
-    mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
-}
-.worker-select-list::-webkit-scrollbar { width: 4px; }
-.worker-select-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-.worker-option {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    margin-bottom: 8px;
-    border-radius: 12px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-}
-.worker-option:hover,
-.worker-option:active {
-    background: var(--primary);
-    color: white;
-    border-color: var(--primary);
-}
-.worker-option::before { content: "👤"; font-size: 1.1rem; }
-
-/* Linha divisória antes do Cancelar */
-#worker-modal .btn-cancel {
-    margin-top: 12px;
-    border-top: 1px solid var(--border);
-    padding-top: 16px;
-    width: 100%;
-}
-.btn-cancel { width: 100%; padding: 12px; background: none; border: none; color: var(--danger); font-weight: 700; margin-top: 10px; cursor: pointer; }
-
-/* TOASTS */
-#toast-container { 
-    position: fixed; 
-    bottom: calc(var(--bottom-nav-h) + 12px); 
-    left: 50%; 
-    transform: translateX(-50%); 
-    z-index: 9999; 
-    width: 90%; 
-    max-width: 400px;
-    pointer-events: none; 
-}
-.toast { background: var(--card-bg); padding: 15px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 10px; border-left: 6px solid var(--success); display: flex; align-items: center; gap: 12px; font-weight: 700; }
-
-/* THEME SWITCH */
-.compact-switch { position: relative; width: 54px; height: 28px; flex-shrink: 0; }
-.compact-switch input { opacity: 0; width: 0; height: 0; }
-.compact-slider { position: absolute; inset: 0; background: rgba(255,255,255,0.25); border-radius: 30px; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: space-between; padding: 0 6px; }
-.compact-slider:before { content: ""; position: absolute; height: 22px; width: 22px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
-input:checked + .compact-slider { background: #334155; }
-input:checked + .compact-slider:before { transform: translateX(26px); }
-
-/* FORMS */
-h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 20px; color: var(--text-main); }
-h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
-
-.admin-section { margin-bottom: 30px; }
-.scroll-list { max-height: 300px; overflow-y: auto; }
-
-/* Admin tabs */
-.admin-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 20px;
-    border-bottom: 2px solid var(--border);
-    padding-bottom: 0;
-}
-
-.admin-tab {
-    background: none;
-    border: none;
-    padding: 10px 14px;
-    font-family: 'Inter', sans-serif;
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    cursor: pointer;
-    border-bottom: 3px solid transparent;
-    margin-bottom: -2px;
-    border-radius: 6px 6px 0 0;
-    transition: color 0.15s, border-color 0.15s;
-    white-space: nowrap;
-}
-
-.admin-tab:hover { color: var(--primary); }
-
-.admin-tab.active {
-    color: var(--primary);
-    border-bottom-color: var(--primary);
-}
-
-.admin-panel { display: none; }
-.admin-panel.active { display: block; animation: fadeIn 0.2s ease-out; }
-
-/* Settings items */
-.settings-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px;
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    margin-bottom: 10px;
-}
-
-.settings-item-info {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.settings-item-title {
-    font-weight: 700;
-    font-size: 0.95rem;
-}
-
-.settings-item-desc {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-}
-
-/* Theme switch inside settings - needs different slider color */
-.settings-item .compact-slider {
-    background: var(--border);
-}
-
-.pro-form { display: flex; flex-direction: column; gap: 15px; }
-.pro-form-inline { display: flex; gap: 10px; margin-bottom: 15px; }
-.form-group { display: flex; flex-direction: column; gap: 5px; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.form-group label { font-size: 0.8rem; font-weight: 800; color: var(--text-muted); }
-.blue-input { width: 100%; padding: 14px; border-radius: 12px; border: 2px solid var(--border); background: var(--input-fill); color: var(--text-main); font-size: 1rem; font-family: 'Inter', sans-serif; transition: border-color 0.15s; }
-.blue-input:focus { border-color: var(--primary); }
-.btn-primary { background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 700; width: 100%; padding: 15px; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 1rem; }
-.btn-primary:active { opacity: 0.8; transform: scale(0.98); }
-
-@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-/* =============================================
-   DESKTOP LAYOUT (>= 768px)
-   Sidebar becomes permanent, bottom nav hides
-   ============================================= */
-@media (min-width: 768px) {
-
-    /* Sidebar: fixed to left of app-layout, always visible */
-    #side-menu {
-        position: sticky;
-        top: 0;
-        left: 0;
-        height: calc(100vh - var(--header-h));
-        flex-shrink: 0;
-        z-index: 100;
-        box-shadow: none;
-        transition: none;
-    }
-
-    /* Hide mobile-only controls */
-    /* #menu-btn already hidden globally */
-    .header-spacer { display: flex; }
-    #close-menu { display: none; }
-    #menu-overlay { display: none !important; }
-    #bottom-nav { display: none; }
-    .header-spacer .compact-switch { display: none; }
-
-    /* Show theme switch inside sidebar footer on desktop */
-    .desktop-theme-switch { display: flex; }
-
-    /* Main: no bottom nav padding needed */
-    #main-content {
-        padding: 20px 32px;
-        padding-bottom: 40px;
-    }
-
-    /* Toasts sit at bottom of screen, not above nav */
-    #toast-container {
-        bottom: 20px;
-    }
-
-    /* App layout is a proper row */
-    #app-layout {
-        align-items: flex-start;
-    }
-}
-
-/* =============================================
-   SWIPE GESTURES — STOCK CARDS
-   ============================================= */
-.swipe-wrapper {
-    position: relative;
-    overflow: hidden;
-    border-radius: 16px;
-    margin-bottom: 12px;
-}
-
-/* Background revealed on swipe */
-.swipe-bg {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    border-radius: 16px;
-    pointer-events: none;
-    opacity: 0;           /* hidden by default */
-    transition: opacity 0.1s;
-}
-
-.swipe-bg-left {
-    background: var(--danger);
-    justify-content: flex-end;
-    padding-right: 24px;
-}
-
-.swipe-bg-right {
-    background: #2563eb;
-    justify-content: flex-start;
-    padding-left: 24px;
-}
-
-.swipe-bg-icon {
-    font-size: 1.4rem;
-}
-
-/* Only show the relevant background while swiping */
-.swipe-wrapper.swiping-left  .swipe-bg-left,
-.swipe-wrapper.swiping-right .swipe-bg-right {
-    opacity: 1;
-}
-
-/* The card itself slides */
-.item-card {
-    position: relative;
-    transition: transform 0.25s ease;
-    margin-bottom: 0; /* margin now on wrapper */
-    z-index: 1;
-    will-change: transform;
-    cursor: grab;
-    user-select: none;
-}
-
-.item-card.is-swiping {
-    transition: none; /* instant follow during drag */
-    cursor: grabbing;
-}
-
-.item-card.snap-back {
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-/* Swipe hint shown on first load */
-.swipe-hint {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    padding: 0 4px 14px;
-    letter-spacing: 0.3px;
-}
-
-.swipe-hint span { display: flex; align-items: center; gap: 5px; }
-
-/* =============================================
-   MODAL EXTRAS
-   ============================================= */
-.modal-icon {
-    font-size: 2.5rem;
-    text-align: center;
-    margin-bottom: 8px;
-}
-
-.modal-desc {
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.88rem;
-    font-weight: 600;
-    margin: 8px 0 20px;
-    line-height: 1.4;
-}
-
-.btn-danger-full {
-    width: 100%;
-    padding: 14px;
-    background: var(--danger);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    font-weight: 700;
-    font-size: 1rem;
-    font-family: 'Inter', sans-serif;
-    cursor: pointer;
-    margin-bottom: 8px;
-}
-
-.btn-danger-full:active { opacity: 0.8; }
-
-/* =============================================
-   SETTINGS GROUPS
-   ============================================= */
-.settings-group-label {
-    font-size: 0.7rem;
-    font-weight: 800;
-    color: var(--text-muted);
-    letter-spacing: 1px;
-    margin: 20px 4px 8px;
-}
-
-.settings-group-label:first-child { margin-top: 0; }
-
-.btn-settings-action {
-    background: var(--primary-soft);
-    color: var(--primary);
-    border: 1.5px solid var(--primary);
-    border-radius: 10px;
-    padding: 8px 16px;
-    font-family: 'Inter', sans-serif;
-    font-size: 0.82rem;
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
-    transition: background 0.15s;
-}
-
-.btn-settings-action:active { background: #dbeafe; }
-
-/* =============================================
-   PIN KEYPAD
-   ============================================= */
-.pin-dots {
-    display: flex;
-    justify-content: center;
-    gap: 16px;
-    margin: 20px 0 8px;
-}
-
-.pin-dots span {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 2px solid var(--border);
-    background: transparent;
-    transition: background 0.15s, border-color 0.15s;
-}
-
-.pin-dots span.filled {
-    background: var(--primary);
-    border-color: var(--primary);
-}
-
-.pin-dots span.error {
-    background: var(--danger);
-    border-color: var(--danger);
-    animation: pinShake 0.4s ease;
-}
-
-@keyframes pinShake {
-    0%, 100% { transform: translateX(0); }
-    20%       { transform: translateX(-6px); }
-    60%       { transform: translateX(6px); }
-}
-
-.pin-error {
-    text-align: center;
-    color: var(--danger);
-    font-size: 0.82rem;
-    font-weight: 700;
-    min-height: 20px;
-    margin-bottom: 8px;
-}
-
-.pin-keypad {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-top: 12px;
-}
-
-.pin-key {
-    background: var(--bg);
-    border: 1.5px solid var(--border);
-    border-radius: 14px;
-    padding: 18px 10px;
-    font-size: 1.3rem;
-    font-weight: 700;
-    font-family: 'Inter', sans-serif;
-    color: var(--text-main);
-    cursor: pointer;
-    transition: background 0.1s, transform 0.1s;
-}
-
-.pin-key:active {
-    background: var(--primary-soft);
-    color: var(--primary);
-    transform: scale(0.93);
-}
-
-.pin-key-cancel { color: var(--danger); }
-.pin-key-del    { font-size: 1.1rem; }
-
-/* =============================================
-   OFFLINE BANNER
-   ============================================= */
-#offline-banner {
-    position: fixed;
-    top: var(--header-h);
-    left: 0; right: 0;
-    z-index: 999;
-    background: #92400e;
-    color: #fef3c7;
-    font-size: 0.78rem;
-    font-weight: 700;
-    padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    animation: slideDown 0.3s ease;
-}
-
-@keyframes slideDown {
-    from { transform: translateY(-100%); }
-    to   { transform: translateY(0); }
-}
-
-#offline-pending-count {
-    background: rgba(255,255,255,0.2);
-    border-radius: 20px;
-    padding: 2px 10px;
-    font-size: 0.72rem;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-/* When offline banner is visible, push content down */
-body.is-offline #offline-banner { display: flex !important; }
-body.is-offline main,
-body.is-offline #app-layout {
-    padding-top: 42px;
-}
-
-@media (min-width: 768px) {
-    #offline-banner { left: var(--sidebar-w); }
-    body.is-offline main { padding-top: 0; }
-    body.is-offline #app-layout { padding-top: 42px; }
-}
-
-/* Stock zero — quantidade a vermelho */
-.qty-display.is-zero {
-    color: var(--danger);
-}
-
-/* =============================================
-   TOOL CARDS — cores via CSS (dark mode safe)
-   ============================================= */
-.tool-card {
-    padding: 14px;
-    border-radius: 14px;
-    margin-bottom: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-    transition: opacity 0.15s;
-}
-.tool-card:active { opacity: 0.8; }
-
-.tool-available {
-    background: #dcfce7;
-    color: #166534;
-    border: 1px solid #22c55e;
-}
-.tool-allocated {
-    background: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #ef4444;
-}
-
-/* Dark mode overrides */
-.dark-mode .tool-available {
-    background: #14532d;
-    color: #86efac;
-    border-color: #16a34a;
-}
-.dark-mode .tool-allocated {
-    background: #450a0a;
-    color: #fca5a5;
-    border-color: #dc2626;
-}
-
-/* =============================================
-   SWIPE — prevent scroll conflict on mobile
-   Uses touch-action: pan-y so vertical scroll
-   is handled by browser; we detect horizontal
-   in JS and block vertical only when swiping
-   ============================================= */
-.item-card {
-    touch-action: pan-y;
-}
-.item-card.is-swiping {
-    touch-action: none;
-}
-
-/* =============================================
-   MODAL — focus trap outline
-   ============================================= */
-.modal-overlay:focus { outline: none; }
-.modal-overlay.active { isolation: isolate; }
-
-/* =============================================
-   ECRÃ DE SELEÇÃO DE PERFIL
-   ============================================= */
-#role-screen {
-    position: fixed;
-    inset: 0;
-    z-index: 4999; /* abaixo dos modais (5000) para que o PIN setup apareça por cima */
-    background: var(--primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-}
-
-#role-screen.hidden {
-    display: none;
-}
-
-#role-screen-inner {
-    width: 100%;
-    max-width: 380px;
-    text-align: center;
-}
-
-#role-logo {
-    font-size: 4rem;
-    margin-bottom: 12px;
-    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2));
-}
-
-#role-title {
-    color: white;
-    font-size: 1.4rem;
-    font-weight: 900;
-    letter-spacing: 1px;
-    margin: 0 0 6px;
-}
-
-#role-subtitle {
-    color: rgba(255,255,255,0.75);
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin: 0 0 36px;
-}
-
-#role-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-
-.role-btn {
-    width: 100%;
-    background: white;
-    border: none;
-    border-radius: 18px;
-    padding: 20px 24px;
-    display: flex;
-    align-items: center;
-    gap: 18px;
-    cursor: pointer;
-    text-align: left;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-    transition: transform 0.15s, box-shadow 0.15s;
-}
-
-.role-btn:active {
-    transform: scale(0.97);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.role-btn-icon {
-    font-size: 2rem;
-    flex-shrink: 0;
-}
-
-.role-btn-label {
-    display: block;
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: var(--text-main);
-    margin-bottom: 2px;
-}
-
-.role-btn-desc {
-    display: block;
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--text-muted);
-}
-
-.role-btn-worker .role-btn-icon { color: #2563eb; }
-.role-btn-manager .role-btn-icon { color: #d97706; }
-
-/* =============================================
-   WORKER MODE — esconde elementos de gestor
-   ============================================= */
-body.worker-mode [data-manager-only] {
-    display: none !important;
-}
-
-/* Stock em modo funcionário: sem swipe, sem qty buttons */
-body.worker-mode .swipe-wrapper {
-    overflow: visible;
-}
-body.worker-mode .swipe-bg {
-    display: none;
-}
-body.worker-mode .item-card {
-    cursor: default;
-    touch-action: auto;
-}
-body.worker-mode .qty-pill-box {
-    pointer-events: none;
-    opacity: 0.6;
-}
-
-/* Ferramentas em modo funcionário: sem clique para entregar/devolver */
-body.worker-mode .tool-card {
-    cursor: default;
-    pointer-events: none;
-}
-
-/* Badge de perfil no header — mostra modo atual */
-#role-badge {
-    font-size: 0.65rem;
-    font-weight: 800;
-    padding: 3px 8px;
-    border-radius: 20px;
-    letter-spacing: 0.5px;
-    white-space: nowrap;
-}
-.role-badge-worker {
-    background: rgba(255,255,255,0.2);
-    color: white;
-}
-.role-badge-manager {
-    background: rgba(255,255,255,0.15);
-    color: rgba(255,255,255,0.9);
-}
-
-/* Role badge — botão clicável no header */
-#role-badge {
-    background: none;
-    border: 1px solid rgba(255,255,255,0.35);
-    border-radius: 20px;
-    padding: 4px 10px;
-    font-size: 0.65rem;
-    font-weight: 800;
-    letter-spacing: 0.3px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s;
-}
-#role-badge:hover,
-#role-badge:focus {
-    background: rgba(255,255,255,0.15);
-    outline: none;
-}
-.role-badge-worker { color: white; }
-.role-badge-manager { color: rgba(255,255,255,0.9); }
-
-/* =============================================
-   ADMIN LIST ROWS — substitui estilos inline
-   ============================================= */
-.admin-list-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 14px;
-    background: var(--bg);
-    border-radius: 10px;
-    margin-bottom: 8px;
-    border: 1px solid var(--border);
-    transition: background 0.15s;
-}
-.admin-list-label {
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: var(--text-main);
-}
-.admin-list-delete {
-    color: var(--danger);
-    background: none;
-    border: none;
-    font-size: 1.1rem;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 6px;
-    transition: background 0.15s;
-}
-.admin-list-delete:hover {
-    background: rgba(239,68,68,0.1);
-}
-
-/* =============================================
-   ROLE BUTTON — loading state
-   ============================================= */
-.role-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-/* =============================================
-   DASHBOARD
-   ============================================= */
-.dashboard {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin: 0 0 16px 0;
-}
-.dash-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    padding: 14px 8px;
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    text-align: center;
-    transition: transform 0.15s;
-}
-.dash-card-warn {
-    background: rgba(239,68,68,0.08);
-    border-color: rgba(239,68,68,0.3);
-}
-.dash-icon {
-    font-size: 1.4rem;
-    line-height: 1;
-}
-.dash-value {
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: var(--text-main);
-    line-height: 1.1;
-}
-.dash-card-warn .dash-value {
-    color: var(--danger);
-}
-.dash-label {
-    font-size: 0.68rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-/* =============================================
-   HISTÓRICO MODAL
-   ============================================= */
-.modal-content-wide {
-    max-width: 480px;
-    width: 95%;
-}
-.history-list {
-    max-height: 50vh;
-    overflow-y: auto;
-    margin: 8px 0;
-    -webkit-overflow-scrolling: touch;
-}
-.history-list::-webkit-scrollbar { width: 4px; }
-.history-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-.history-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    margin-bottom: 6px;
-    border-left: 3px solid transparent;
-}
-.history-out {
-    background: rgba(37,99,235,0.07);
-    border-left-color: var(--primary);
-}
-.history-in {
-    background: rgba(34,197,94,0.07);
-    border-left-color: var(--success);
-}
-.history-icon {
-    font-size: 1.1rem;
-    flex-shrink: 0;
-}
-.history-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    text-align: left;
-}
-.history-label {
-    font-weight: 700;
-    font-size: 0.88rem;
-    color: var(--text-main);
-}
-.history-date {
-    font-size: 0.73rem;
-    color: var(--text-muted);
-}
-
-/* =============================================
-   ADMIN HISTORY BUTTON
-   ============================================= */
-.admin-list-hist {
-    background: none;
-    border: none;
-    font-size: 1rem;
-    cursor: pointer;
-    padding: 4px 6px;
-    border-radius: 6px;
-    color: var(--text-muted);
-    transition: background 0.15s;
-    margin-right: 2px;
-}
-.admin-list-hist:hover {
-    background: rgba(37,99,235,0.1);
-}
-
-/* Tool card — long press hint */
-.tool-card {
-    position: relative;
-}
-
-/* =============================================
-   STOCK CARD — classes (substituem inline styles)
-   ============================================= */
-.card-nome {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    margin-bottom: 12px;
-    line-height: 1.2;
-}
-.card-divider {
-    border: 0;
-    border-top: 1px solid var(--border);
-    margin-bottom: 10px;
-    opacity: 0.5;
-}
-.card-bottom-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-/* =============================================
-   TOOL CARD — classes (substituem inline styles)
-   ============================================= */
-.tool-nome {
-    font-weight: 800;
-    font-size: 0.95rem;
-    color: var(--text-main);
-}
-.tool-sub {
-    font-size: 0.75rem;
-    margin-top: 4px;
-    font-weight: 600;
-}
-.tool-date {
-    font-size: 0.7rem;
-    opacity: 0.85;
-    margin-top: 2px;
-}
-.tool-arrow {
-    font-size: 1.1rem;
-    flex-shrink: 0;
-}
-
-/* =============================================
-   SEARCH — botão limpar (×)
-   ============================================= */
-.search-clear-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--text-muted);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    font-size: 0.65rem;
-    cursor: pointer;
-    flex-shrink: 0;
-    opacity: 0.7;
-    transition: opacity 0.15s;
-    margin-right: 4px;
-}
-.search-clear-btn:hover { opacity: 1; }
-
-/* =============================================
-   SORT BAR — pills
-   ============================================= */
-.sort-bar {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 12px;
-    padding: 0 2px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-}
-.sort-bar::-webkit-scrollbar { display: none; }
-
-.sort-pill {
-    flex-shrink: 0;
-    background: var(--card-bg);
-    border: 1.5px solid var(--border);
-    border-radius: 20px;
-    color: var(--text-muted);
-    font-size: 0.78rem;
-    font-weight: 700;
-    font-family: inherit;
-    padding: 5px 13px;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
-    letter-spacing: 0.01em;
-    white-space: nowrap;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-}
-.sort-pill:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-}
-.sort-pill:active {
-    transform: scale(0.95);
-}
-.sort-pill.active {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: #fff;
-    box-shadow: 0 2px 8px rgba(37,99,235,0.3);
-}
-
-/* Worker mode: sort bar hidden */
-body.worker-mode .sort-bar { display: none; }
-
-/* =============================================
-   ZERO-STOCK FILTER BADGE
-   ============================================= */
-.zero-filter-badge {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: rgba(239,68,68,0.1);
-    border: 1px solid rgba(239,68,68,0.35);
-    border-radius: 10px;
-    padding: 8px 12px;
-    margin-bottom: 10px;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--danger);
-    gap: 8px;
-}
-.zero-filter-badge button {
-    background: rgba(239,68,68,0.15);
-    border: none;
-    border-radius: 6px;
-    color: var(--danger);
-    font-size: 0.78rem;
-    font-weight: 700;
-    padding: 3px 8px;
-    cursor: pointer;
-    white-space: nowrap;
-    font-family: inherit;
-}
-.zero-filter-badge button:hover { background: rgba(239,68,68,0.25); }
-
-/* =============================================
-   BTN-QTY DISABLED STATE
-   ============================================= */
-.btn-qty:disabled {
-    opacity: 0.25;
-    cursor: not-allowed;
-}
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hiperfrio Stock</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Ecrã de seleção de perfil -->
+    <div id="role-screen">
+        <div id="role-screen-inner">
+            <div id="role-logo">❄️</div>
+            <h1 id="role-title">HIPERFRIO STOCK</h1>
+            <p id="role-subtitle">Como queres entrar?</p>
+            <div id="role-buttons">
+                <button class="role-btn role-btn-worker" onclick="enterAsWorker()">
+                    <span class="role-btn-icon">👤</span>
+                    <div>
+                        <span class="role-btn-label">Funcionário</span>
+                        <span class="role-btn-desc">Consulta de stock e ferramentas</span>
+                    </div>
+                </button>
+                <button class="role-btn role-btn-manager" onclick="enterAsManager()">
+                    <span class="role-btn-icon">🔑</span>
+                    <div>
+                        <span class="role-btn-label">Gestor</span>
+                        <span class="role-btn-desc">Acesso completo com PIN</span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Banner offline -->
+    <div id="offline-banner" style="display:none;">
+        <span>📡 Sem ligação — as alterações serão guardadas e sincronizadas quando voltar online</span>
+        <span id="offline-pending-count"></span>
+    </div>
+
+    <header>
+        <button id="menu-btn" onclick="toggleMenu()">☰</button>
+        <h1>HIPERFRIO STOCK</h1>
+        <div class="header-spacer"></div>
+    </header>
+
+    <div id="menu-overlay" onclick="toggleMenu()"></div>
+
+    <div id="app-layout">
+
+        <nav id="side-menu">
+            <div class="menu-header">
+                <strong>HIPERFRIO</strong>
+                <button id="close-menu" onclick="toggleMenu()">✕</button>
+            </div>
+            
+            <ul class="menu-items">
+                <li id="nav-search" class="active" onclick="nav('view-search')"><span>🔍</span> Consultar Stock</li>
+                <li id="nav-tools" onclick="nav('view-tools')"><span>🛠️</span> Ferramentas</li>
+                <li id="nav-register" onclick="nav('view-register')" data-manager-only><span>➕</span> Novo Produto</li>
+                <li id="nav-bulk" onclick="nav('view-bulk')" data-manager-only><span>📦</span> Catalogar Lote</li>
+                <hr class="menu-divider">
+                <li id="nav-admin" onclick="nav('view-admin')" data-manager-only><span>⚙️</span> Administração</li>
+            </ul>
+            
+            <div class="menu-footer">
+                <div id="sync-status" style="display:none;"></div>
+            </div>
+        </nav>
+
+        <main id="main-content">
+        <div id="view-search" class="view active">
+            <div class="search-container">
+                <input type="text" id="inp-search" placeholder="Pesquisar por nome, ref. ou local..." autocomplete="off">
+                <button id="inp-search-clear" class="search-clear-btn" onclick="clearSearch()" title="Limpar pesquisa" style="display:none">✕</button>
+                <button id="btn-refresh" onclick="forceRefresh()" title="Atualizar stock">↻</button>
+            </div>
+            <div class="sort-bar" data-manager-only>
+                <button class="sort-pill active" id="sort-recente" onclick="setStockSort('recente')">Recente</button>
+                <button class="sort-pill" id="sort-nome"    onclick="setStockSort('nome')">Nome</button>
+                <button class="sort-pill" id="sort-qtd-asc" onclick="setStockSort('qtd-asc')">Qtd ↑</button>
+                <button class="sort-pill" id="sort-qtd-desc" onclick="setStockSort('qtd-desc')">Qtd ↓</button>
+                <button class="sort-pill" id="sort-local"   onclick="setStockSort('local')">Local</button>
+            </div>
+            <div id="dashboard"></div>
+            <div id="stock-list"></div>
+        </div>
+
+        <div id="view-tools" class="view">
+            <h2>Painel de Ferramentas</h2>
+            <div id="tools-list"></div>
+        </div>
+
+        <div id="view-register" class="view">
+            <h2>Novo Produto</h2>
+            <form id="form-add" class="pro-form">
+                <div class="form-group"><label for="inp-codigo">REFERÊNCIA</label><input type="text" id="inp-codigo" class="blue-input" required></div>
+                <div class="form-group"><label for="inp-nome">NOME</label><input type="text" id="inp-nome" class="blue-input" required></div>
+                <div class="form-group"><label for="inp-loc">LOCAL</label><input type="text" id="inp-loc" class="blue-input"></div>
+                <div class="form-group"><label for="inp-qtd">QUANTIDADE</label><input type="number" id="inp-qtd" class="blue-input" value="0" min="0"></div>
+                <button type="submit" class="btn-primary">Gravar Produto</button>
+            </form>
+        </div>
+
+        <div id="view-bulk" class="view">
+            <h2>Catalogar Lote</h2>
+            <form id="form-bulk" class="pro-form">
+                <div class="form-group"><label for="bulk-loc">ZONA</label><input type="text" id="bulk-loc" class="blue-input" required></div>
+                <div class="form-group"><label for="bulk-codigo">REFERÊNCIA</label><input type="text" id="bulk-codigo" class="blue-input" required></div>
+                <div class="form-group"><label for="bulk-nome">NOME</label><input type="text" id="bulk-nome" class="blue-input" required></div>
+                <div class="form-group"><label for="bulk-qtd">QUANTIDADE</label><input type="number" id="bulk-qtd" class="blue-input" value="1" min="0"></div>
+                <button type="submit" class="btn-primary">Adicionar ao Lote</button>
+            </form>
+        </div>
+
+        <div id="view-admin" class="view">
+            <h2>Administração</h2>
+
+            <!-- Tab buttons -->
+            <div class="admin-tabs">
+                <button class="admin-tab active" id="tab-workers" onclick="switchAdminTab('workers')">👥 Funcionários</button>
+                <button class="admin-tab" id="tab-tools" onclick="switchAdminTab('tools')">🪛 Ferramentas</button>
+                <button class="admin-tab" id="tab-settings" onclick="switchAdminTab('settings')">⚙️ Definições</button>
+            </div>
+
+            <!-- Tab: Funcionários -->
+            <section class="admin-panel active" id="panel-workers">
+                <form id="form-worker" class="pro-form-inline">
+                    <input type="text" id="worker-name" class="blue-input" placeholder="Nome do funcionário" required>
+                    <button type="submit" class="btn-primary">+</button>
+                </form>
+                <div id="workers-list" class="scroll-list"></div>
+            </section>
+
+            <!-- Tab: Ferramentas -->
+            <section class="admin-panel" id="panel-tools">
+                <form id="form-tool-reg" class="pro-form">
+                    <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required>
+                    <button type="submit" class="btn-primary">Registar Ferramenta</button>
+                </form>
+                <div id="admin-tools-list" class="scroll-list" style="margin-top: 16px;"></div>
+            </section>
+
+            <!-- Tab: Definições -->
+            <section class="admin-panel" id="panel-settings">
+
+                <div class="settings-group-label">APARÊNCIA</div>
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Tema Escuro</span>
+                        <span class="settings-item-desc">Alterna entre modo claro e escuro</span>
+                    </div>
+                    <label class="compact-switch">
+                        <input type="checkbox" id="theme-toggle-admin" onchange="toggleTheme()">
+                        <span class="compact-slider"><span>☀️</span><span>🌙</span></span>
+                    </label>
+                </div>
+
+                <div class="settings-group-label">SEGURANÇA</div>
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">PIN de Administração</span>
+                        <span class="settings-item-desc" id="pin-status-desc">Protege o acesso à área de administração</span>
+                    </div>
+                    <button class="btn-settings-action" id="pin-action-btn" onclick="openPinSetupModal()">Definir</button>
+                </div>
+
+                <div class="settings-group-label">PERFIL</div>
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Trocar de Perfil</span>
+                        <span class="settings-item-desc">Volta ao ecrã de seleção de acesso</span>
+                    </div>
+                    <button class="btn-settings-action" onclick="switchRole()">Trocar</button>
+                </div>
+
+                <div class="settings-group-label">DADOS</div>
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Exportar Stock para CSV</span>
+                        <span class="settings-item-desc">Descarrega todo o inventário em formato CSV</span>
+                    </div>
+                    <button class="btn-settings-action" onclick="exportCSV()">Exportar</button>
+                </div>
+
+            </section>
+        </div>
+        </main>
+
+    </div><!-- end app-layout -->
+
+    <!-- BOTTOM NAV (mobile only) -->
+    <nav id="bottom-nav">
+        <button class="bottom-nav-item active" id="bnav-search" onclick="nav('view-search')">
+            <span class="bnav-icon">🔍</span>
+            <span class="bnav-label">Stock</span>
+        </button>
+        <button class="bottom-nav-item" id="bnav-tools" onclick="nav('view-tools')">
+            <span class="bnav-icon">🛠️</span>
+            <span class="bnav-label">Ferramentas</span>
+        </button>
+        <button class="bottom-nav-item" id="bnav-register" onclick="nav('view-register')" data-manager-only>
+            <span class="bnav-icon">➕</span>
+            <span class="bnav-label">Produto</span>
+        </button>
+        <button class="bottom-nav-item" id="bnav-bulk" onclick="nav('view-bulk')" data-manager-only>
+            <span class="bnav-icon">📦</span>
+            <span class="bnav-label">Lote</span>
+        </button>
+        <button class="bottom-nav-item" id="bnav-admin" onclick="nav('view-admin')" data-manager-only>
+            <span class="bnav-icon">⚙️</span>
+            <span class="bnav-label">Admin</span>
+        </button>
+    </nav>
+
+    <!-- Modal: Entregar ferramenta -->
+    <div id="worker-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="worker-modal-title">
+        <div class="modal-content">
+            <div class="modal-icon" id="worker-modal-icon">🪛</div>
+            <h3 id="worker-modal-title">Entregar a quem?</h3>
+            <p class="modal-desc" id="worker-modal-tool-name"></p>
+            <div id="worker-select-list" class="worker-select-list"></div>
+            <button onclick="closeModal()" class="btn-cancel">CANCELAR</button>
+        </div>
+    </div>
+
+    <!-- Modal: PIN de entrada na Administração -->
+    <div id="pin-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pin-modal-title">
+        <div class="modal-content">
+            <div class="modal-icon">🔐</div>
+            <h3 id="pin-modal-title">Área Restrita</h3>
+            <p class="modal-desc" id="pin-modal-desc">Introduz o PIN de Gestor</p>
+            <div class="pin-dots" id="pin-dots">
+                <span></span><span></span><span></span><span></span>
+            </div>
+            <div class="pin-error" id="pin-error"></div>
+            <div class="pin-keypad">
+                <button class="pin-key" onclick="pinKey('1')">1</button>
+                <button class="pin-key" onclick="pinKey('2')">2</button>
+                <button class="pin-key" onclick="pinKey('3')">3</button>
+                <button class="pin-key" onclick="pinKey('4')">4</button>
+                <button class="pin-key" onclick="pinKey('5')">5</button>
+                <button class="pin-key" onclick="pinKey('6')">6</button>
+                <button class="pin-key" onclick="pinKey('7')">7</button>
+                <button class="pin-key" onclick="pinKey('8')">8</button>
+                <button class="pin-key" onclick="pinKey('9')">9</button>
+                <button class="pin-key pin-key-cancel" onclick="closePinModal()">✕</button>
+                <button class="pin-key" onclick="pinKey('0')">0</button>
+                <button class="pin-key pin-key-del" onclick="pinDel()">⌫</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Configurar PIN -->
+    <div id="pin-setup-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pin-setup-title">
+        <div class="modal-content">
+            <div class="modal-icon" id="pin-setup-icon">🔐</div>
+            <h3 id="pin-setup-title">Definir PIN</h3>
+            <p class="modal-desc" id="pin-setup-desc">Escolhe um PIN de 4 dígitos para proteger a Administração</p>
+            <div class="pin-dots" id="pin-setup-dots">
+                <span></span><span></span><span></span><span></span>
+            </div>
+            <div class="pin-error" id="pin-setup-error"></div>
+            <div class="pin-keypad">
+                <button class="pin-key" onclick="pinSetupKey('1')">1</button>
+                <button class="pin-key" onclick="pinSetupKey('2')">2</button>
+                <button class="pin-key" onclick="pinSetupKey('3')">3</button>
+                <button class="pin-key" onclick="pinSetupKey('4')">4</button>
+                <button class="pin-key" onclick="pinSetupKey('5')">5</button>
+                <button class="pin-key" onclick="pinSetupKey('6')">6</button>
+                <button class="pin-key" onclick="pinSetupKey('7')">7</button>
+                <button class="pin-key" onclick="pinSetupKey('8')">8</button>
+                <button class="pin-key" onclick="pinSetupKey('9')">9</button>
+                <button class="pin-key pin-key-cancel" onclick="closePinSetupModal()">✕</button>
+                <button class="pin-key" onclick="pinSetupKey('0')">0</button>
+                <button class="pin-key pin-key-del" onclick="pinSetupDel()">⌫</button>
+            </div>
+            <button class="btn-cancel" id="pin-remove-btn" onclick="removePin()" style="display:none;">Remover PIN</button>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmar apagar produto -->
+    <div id="delete-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+        <div class="modal-content">
+            <div class="modal-icon">🗑️</div>
+            <h3 id="delete-modal-title">Apagar Produto?</h3>
+            <p id="delete-modal-desc" class="modal-desc"></p>
+            <button id="delete-confirm-btn" class="btn-danger-full">Apagar</button>
+            <button onclick="closeDeleteModal()" class="btn-cancel">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Modal: Editar produto -->
+    <div id="edit-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+        <div class="modal-content">
+            <h3 id="edit-modal-title">✏️ Editar Produto</h3>
+            <form id="form-edit" class="pro-form" style="margin-top:16px;">
+                <input type="hidden" id="edit-id">
+                <div class="form-group">
+                    <label for="edit-codigo">REFERÊNCIA</label>
+                    <input type="text" id="edit-codigo" class="blue-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-nome">NOME</label>
+                    <input type="text" id="edit-nome" class="blue-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-loc">LOCAL</label>
+                    <input type="text" id="edit-loc" class="blue-input">
+                </div>
+                <div class="form-group">
+                    <label for="edit-qtd">QUANTIDADE</label>
+                    <input type="number" id="edit-qtd" class="blue-input" min="0">
+                </div>
+                <button type="submit" class="btn-primary">Guardar Alterações</button>
+                <button type="button" onclick="closeEditModal()" class="btn-cancel">Cancelar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmação genérica (substitui confirm() nativo) -->
+    <div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+        <div class="modal-content">
+            <div class="modal-icon" id="confirm-modal-icon">⚠️</div>
+            <h3 id="confirm-modal-title">Tens a certeza?</h3>
+            <p id="confirm-modal-desc" class="modal-desc"></p>
+            <button id="confirm-modal-ok" class="btn-danger-full">Confirmar</button>
+            <button onclick="closeConfirmModal()" class="btn-cancel">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Modal: Código duplicado -->
+    <div id="dup-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="dup-modal-title">
+        <div class="modal-content">
+            <div class="modal-icon">⚠️</div>
+            <h3 id="dup-modal-title">Código já existe</h3>
+            <p class="modal-desc" id="dup-modal-desc"></p>
+            <button id="dup-confirm-btn" class="btn-primary">Registar mesmo assim</button>
+            <button onclick="closeDupModal()" class="btn-cancel">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Modal: Histórico da ferramenta -->
+    <div id="history-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="history-modal-title">
+        <div class="modal-content modal-content-wide">
+            <div class="modal-icon">📋</div>
+            <h3 id="history-modal-title">Histórico</h3>
+            <p class="modal-desc" id="history-modal-tool-name"></p>
+            <div id="history-list" class="history-list"></div>
+            <button onclick="closeHistoryModal()" class="btn-cancel">Fechar</button>
+        </div>
+    </div>
+
+    <!-- Modal: Trocar de perfil -->
+    <div id="switch-role-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="switch-role-title">
+        <div class="modal-content">
+            <div class="modal-icon">👤</div>
+            <h3 id="switch-role-title">Terminar Sessão</h3>
+            <p class="modal-desc">Voltar ao ecrã de seleção de perfil?</p>
+            <button onclick="switchRole()" class="btn-primary">Mudar de Utilizador</button>
+            <button onclick="closeSwitchRoleModal()" class="btn-cancel">Cancelar</button>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+    <!-- Firebase SDK (Auth anónima — token para REST API) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script>
+        // Cria Promise global ANTES de qualquer async — app.js vai aguardá-la
+        window._firebaseTokenPromise = new Promise((resolve, reject) => {
+            firebase.initializeApp({
+                apiKey:      "AIzaSyCJS8Ev4EZcUbIO0AA4ckw10w8lvkZ3U_8",
+                authDomain:  "stock-f477e.firebaseapp.com",
+                databaseURL: "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app",
+                projectId:   "stock-f477e",
+            });
+
+            firebase.auth().signInAnonymously()
+                .then(cred => cred.user.getIdToken())
+                .then(token => {
+                    window._firebaseUser = firebase.auth().currentUser;
+                    resolve(token);
+                })
+                .catch(err => {
+                    console.error('Firebase Auth erro:', err.code, err.message);
+                    reject(err);
+                });
+        });
+    </script>
+    <script src="app.js"></script>
+</body>
+</html>
