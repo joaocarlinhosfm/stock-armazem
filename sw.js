@@ -19,8 +19,11 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-    // Never cache Firebase requests — always network
+    // Never cache Firebase or Google Auth requests — always network
     if (e.request.url.includes('firebasedatabase.app')) return;
+    if (e.request.url.includes('googleapis.com')) return;
+    if (e.request.url.includes('gstatic.com')) return;
+    if (e.request.url.includes('firebaseapp.com')) return;
 
     // Network-first for HTML to always get latest app
     if (e.request.mode === 'navigate') {
