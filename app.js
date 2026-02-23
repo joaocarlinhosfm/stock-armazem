@@ -18,25 +18,25 @@ let _authToken     = null;
 let _authTokenExp  = 0;     // timestamp de expiração (tokens duram 1h)
 let _authReady     = false; // true depois do primeiro login
 
-// Obtém token válido — renova automaticamente perto da expiração
+// Obtém token válido — aguarda a Promise do módulo Firebase (resolve uma única vez)
 async function getAuthToken() {
     const now = Date.now();
-    // Token ainda válido (com 5 min de margem)
+    // Token em cache ainda válido (margem de 5 min antes de expirar)
     if (_authToken && now < _authTokenExp - 300_000) return _authToken;
 
-    if (!window._getAuthToken) {
-        // Firebase SDK ainda não carregou — espera até 5s
+    if (!window._firebaseTokenPromise) {
+        // Módulo ainda não carregou — espera até 8s
         await new Promise((res, rej) => {
             let attempts = 0;
             const iv = setInterval(() => {
-                if (window._getAuthToken) { clearInterval(iv); res(); }
-                if (++attempts > 50) { clearInterval(iv); rej(new Error('Firebase SDK timeout')); }
+                if (window._firebaseTokenPromise) { clearInterval(iv); res(); }
+                if (++attempts > 80) { clearInterval(iv); rej(new Error('Firebase SDK não carregou')); }
             }, 100);
         });
     }
 
-    _authToken    = await window._getAuthToken();
-    _authTokenExp = now + 3_600_000; // 1 hora
+    _authToken    = await window._firebaseTokenPromise;
+    _authTokenExp = now + 3_500_000; // ~58 min (tokens duram 1h)
     _authReady    = true;
     return _authToken;
 }
@@ -47,9 +47,9 @@ async function authUrl(url) {
         const token = await getAuthToken();
         const sep   = url.includes('?') ? '&' : '?';
         return `${url}${sep}auth=${token}`;
-    } catch {
-        // Offline ou sem auth — devolve URL sem token (vai falhar nas regras, mas a fila offline trata disso)
-        return url;
+    } catch (e) {
+        console.warn('Auth token indisponível:', e.message);
+        return url; // offline — a fila offline trata do reenvio quando voltar online
     }
 }
 
