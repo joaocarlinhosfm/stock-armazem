@@ -448,6 +448,10 @@ let _stockSort = 'recente'; // 'recente' | 'nome' | 'qtd-asc' | 'qtd-desc' | 'lo
 
 function setStockSort(val) {
     _stockSort = val;
+    // Actualiza estado visual das pills
+    document.querySelectorAll('.sort-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.id === `sort-${val}`);
+    });
     renderList(document.getElementById('inp-search')?.value || '', true);
 }
 
