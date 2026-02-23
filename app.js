@@ -131,8 +131,8 @@ function closeSwitchRoleModal() {
 
 // Inicializa a app após o perfil estar definido
 async function bootApp() {
-    // Garante que o token está pronto antes de qualquer pedido
     try { await getAuthToken(); } catch { /* offline — continua com cache */ }
+    renderDashboard();
     renderList();
     fetchCollection('ferramentas');
     fetchCollection('funcionarios');
@@ -371,6 +371,55 @@ function nav(viewId) {
     window.scrollTo(0, 0);
 }
 
+
+// =============================================
+// DASHBOARD — resumo no topo do stock
+// =============================================
+async function renderDashboard() {
+    const el = document.getElementById('dashboard');
+    if (!el) return;
+
+    // Mostra skeleton enquanto carrega
+    el.innerHTML = '';
+    el.className = 'dashboard';
+
+    const [stockData, ferrData] = await Promise.all([
+        fetchCollection('stock'),
+        fetchCollection('ferramentas')
+    ]);
+
+    const stockEntries  = Object.values(stockData || {});
+    const ferraEntries  = Object.values(ferrData  || {});
+    const total         = stockEntries.length;
+    const semStock      = stockEntries.filter(i => (i.quantidade || 0) === 0).length;
+    const alocadas      = ferraEntries.filter(t => t.status === 'alocada').length;
+    const totalFerr     = ferraEntries.length;
+
+    const cards = [
+        { label: 'Produtos', value: total,     icon: '📦', cls: '' },
+        { label: 'Sem stock', value: semStock,  icon: '⚠️', cls: semStock > 0 ? 'dash-card-warn' : '' },
+        { label: 'Ferramentas', value: `${alocadas}/${totalFerr}`, icon: '🪛', cls: alocadas === totalFerr && totalFerr > 0 ? 'dash-card-warn' : '' },
+    ];
+
+    cards.forEach(c => {
+        const card  = document.createElement('div');
+        card.className = `dash-card ${c.cls}`;
+        const icon  = document.createElement('span');
+        icon.className   = 'dash-icon';
+        icon.textContent = c.icon;
+        const val   = document.createElement('span');
+        val.className   = 'dash-value';
+        val.textContent = c.value;
+        const lbl   = document.createElement('span');
+        lbl.className   = 'dash-label';
+        lbl.textContent = c.label;
+        card.appendChild(icon);
+        card.appendChild(val);
+        card.appendChild(lbl);
+        el.appendChild(card);
+    });
+}
+
 // =============================================
 // STOCK — RENDER
 // FIX: usa [...entries].reverse() para não mutar o cache
@@ -595,6 +644,11 @@ async function renderTools() {
             desc:`"${escapeHtml(t.nome)}" será marcada como disponível.`,
             onConfirm: () => returnTool(id)
         });
+        // Botão histórico — abre modal sem fazer devolução
+        div.addEventListener('contextmenu', e => {
+            e.preventDefault();
+            openHistoryModal(id, t.nome);
+        });
         const info = document.createElement('div');
         const nome = document.createElement('div');
         nome.style.cssText  = 'font-weight:800;font-size:0.95rem;';
@@ -642,33 +696,110 @@ async function renderAdminTools() {
             desc:`"${escapeHtml(t.nome)}" será removida permanentemente.`,
             onConfirm: () => deleteTool(id)
         });
-        row.appendChild(lbl); row.appendChild(btn);
+        const histBtn = document.createElement('button');
+        histBtn.className   = 'admin-list-hist';
+        histBtn.textContent = '📋';
+        histBtn.title       = 'Ver histórico';
+        histBtn.onclick     = () => openHistoryModal(id, t.nome);
+        row.appendChild(lbl); row.appendChild(histBtn); row.appendChild(btn);
         list.appendChild(row);
     });
 }
 
+
+// =============================================
+// HISTÓRICO DAS FERRAMENTAS
+// =============================================
+async function addToolHistoryEvent(toolId, acao, colaborador) {
+    const event = { acao, colaborador: colaborador || '', data: new Date().toISOString() };
+    try {
+        await apiFetch(`${BASE_URL}/ferramentas/${toolId}/historico.json`, {
+            method: 'POST', body: JSON.stringify(event)
+        });
+    } catch { /* histórico é best-effort, não bloqueia a operação principal */ }
+}
+
+async function openHistoryModal(toolId, toolName) {
+    document.getElementById('history-modal-tool-name').textContent = `🪛 ${toolName}`;
+    const listEl = document.getElementById('history-list');
+    listEl.innerHTML = '<div class="empty-msg">A carregar...</div>';
+    document.getElementById('history-modal').classList.add('active');
+    focusModal('history-modal');
+
+    try {
+        const url  = await authUrl(`${BASE_URL}/ferramentas/${toolId}/historico.json`);
+        const res  = await fetch(url);
+        const data = await res.json();
+        listEl.innerHTML = '';
+
+        if (!data) {
+            listEl.innerHTML = '<div class="empty-msg">Sem registos de histórico.</div>';
+            return;
+        }
+
+        // Converte objeto Firebase em array e ordena do mais recente para o mais antigo
+        const events = Object.values(data).sort((a, b) => new Date(b.data) - new Date(a.data));
+
+        events.forEach(ev => {
+            const row  = document.createElement('div');
+            row.className = `history-row ${ev.acao === 'atribuida' ? 'history-out' : 'history-in'}`;
+            const icon = ev.acao === 'atribuida' ? '➔' : '↩';
+            const label = ev.acao === 'atribuida'
+                ? `Entregue a ${ev.colaborador || '?'}`
+                : `Devolvida${ev.colaborador ? ` por ${ev.colaborador}` : ''}`;
+            const date  = formatDate(ev.data);
+            const iconEl = document.createElement('span');
+            iconEl.className   = 'history-icon';
+            iconEl.textContent = icon;
+            const info  = document.createElement('div');
+            info.className = 'history-info';
+            const lbl   = document.createElement('span');
+            lbl.className   = 'history-label';
+            lbl.textContent = label;
+            const dt    = document.createElement('span');
+            dt.className   = 'history-date';
+            dt.textContent = date;
+            info.appendChild(lbl);
+            info.appendChild(dt);
+            row.appendChild(iconEl);
+            row.appendChild(info);
+            listEl.appendChild(row);
+        });
+    } catch (e) {
+        listEl.innerHTML = '<div class="empty-msg">Erro ao carregar histórico.</div>';
+    }
+}
+
+function closeHistoryModal() {
+    document.getElementById('history-modal').classList.remove('active');
+}
+
 async function assignTool(worker) {
     const dataEntrega = new Date().toISOString();
-    cache.ferramentas.data[toolToAllocate] = {
-        ...cache.ferramentas.data[toolToAllocate], status:'alocada', colaborador:worker, dataEntrega
+    const id = toolToAllocate;
+    cache.ferramentas.data[id] = {
+        ...cache.ferramentas.data[id], status:'alocada', colaborador:worker, dataEntrega
     };
-    closeModal(); renderTools(); showToast(`Entregue a ${worker}!`);
+    closeModal(); renderTools(); renderDashboard(); showToast(`Entregue a ${worker}!`);
     try {
-        await apiFetch(`${BASE_URL}/ferramentas/${toolToAllocate}.json`, {
+        await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, {
             method:'PATCH', body:JSON.stringify({status:'alocada',colaborador:worker,dataEntrega})
         });
+        await addToolHistoryEvent(id, 'atribuida', worker);
     } catch { invalidateCache('ferramentas'); showToast('Erro ao guardar.','error'); }
 }
 
 async function returnTool(id) {
+    const colaborador = cache.ferramentas.data[id]?.colaborador || '';
     cache.ferramentas.data[id] = {
         ...cache.ferramentas.data[id], status:'disponivel', colaborador:'', dataEntrega:''
     };
-    renderTools(); showToast('Devolvida!');
+    renderTools(); renderDashboard(); showToast('Devolvida!');
     try {
         await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, {
             method:'PATCH', body:JSON.stringify({status:'disponivel',colaborador:'',dataEntrega:''})
         });
+        await addToolHistoryEvent(id, 'devolvida', colaborador);
     } catch { invalidateCache('ferramentas'); showToast('Erro ao guardar.','error'); }
 }
 
@@ -728,12 +859,20 @@ async function openModal(id) {
     const workers = data ? Object.entries(data).map(([wid,v]) => ({id:wid,nome:v.nome})) : [];
     if (workers.length === 0) return showToast('Adicione funcionários na Administração','error');
     toolToAllocate = id;
+
+    // Mostra o nome da ferramenta no modal
+    const toolName = cache.ferramentas.data?.[id]?.nome || '';
+    const toolDesc = document.getElementById('worker-modal-tool-name');
+    if (toolDesc) toolDesc.textContent = toolName ? `🪛 ${toolName}` : '';
+
     const sel = document.getElementById('worker-select-list');
     sel.innerHTML = '';
+    // Ordenar por nome
+    workers.sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
     workers.forEach(w => {
         const opt = document.createElement('div');
         opt.className   = 'worker-option';
-        opt.textContent = `👤 ${w.nome}`;
+        opt.textContent = w.nome;
         opt.onclick     = () => assignTool(w.nome);
         sel.appendChild(opt);
     });
@@ -792,7 +931,6 @@ function openEditModal(id, item) {
     document.getElementById('edit-id').value     = id;
     document.getElementById('edit-codigo').value = item.codigo || '';
     document.getElementById('edit-nome').value   = item.nome || '';
-    document.getElementById('edit-tipo').value   = item.tipo || '';
     document.getElementById('edit-loc').value    = item.localizacao || '';
     document.getElementById('edit-qtd').value    = item.quantidade ?? 0;
     document.getElementById('edit-modal').classList.add('active');
@@ -1096,12 +1234,11 @@ async function exportCSV() {
         if (btn) { btn.disabled = false; btn.textContent = 'Exportar'; }
         return;
     }
-    const headers = ['Referência','Nome','Tipo','Localização','Quantidade'];
+    const headers = ['Referência','Nome','Localização','Quantidade'];
     const cleanData = Object.fromEntries(Object.entries(data).filter(([k]) => !k.startsWith('_tmp_')));
     const rows = Object.values(cleanData).map(item => [
         `"${(item.codigo||'').toUpperCase()}"`,
         `"${(item.nome||'').replace(/"/g,'""')}"`,
-        `"${(item.tipo||'Geral').replace(/"/g,'""')}"`,
         `"${(item.localizacao||'').toUpperCase()}"`,
         item.quantidade ?? 0
     ]);
@@ -1141,6 +1278,35 @@ function toggleTheme() {
 // =============================================
 // INICIALIZAÇÃO
 // =============================================
+
+// =============================================
+// DETECÇÃO DE CÓDIGO DUPLICADO
+// =============================================
+let _dupPendingSubmit = null; // guarda o payload enquanto aguarda confirmação
+
+function checkDuplicateCodigo(codigo, onConfirm) {
+    if (!codigo || codigo.toUpperCase() === 'SEMREF') {
+        onConfirm(); return; // SEMREF é sempre permitido em duplicado
+    }
+    const stock = cache.stock.data || {};
+    const dupes = Object.values(stock).filter(
+        item => (item.codigo || '').toUpperCase() === codigo.toUpperCase()
+    );
+    if (dupes.length === 0) {
+        onConfirm(); return;
+    }
+    // Existe duplicado — mostra modal de confirmação
+    const names = dupes.map(d => d.nome || '(sem nome)').join(', ');
+    document.getElementById('dup-modal-desc').textContent =
+        `O código "${codigo.toUpperCase()}" já existe em: ${names}. Queres registar mesmo assim?`;
+    document.getElementById('dup-confirm-btn').onclick = () => { closeDupModal(); onConfirm(); };
+    document.getElementById('dup-modal').classList.add('active');
+    focusModal('dup-modal');
+}
+function closeDupModal() {
+    document.getElementById('dup-modal').classList.remove('active');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // Tema
@@ -1195,6 +1361,8 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'edit-modal',      close: closeEditModal },
             { id: 'confirm-modal',   close: closeConfirmModal },
             { id: 'switch-role-modal', close: closeSwitchRoleModal },
+            { id: 'history-modal',      close: closeHistoryModal },
+            { id: 'dup-modal',          close: closeDupModal },
         ];
         for (const { id, close } of modals) {
             if (document.getElementById(id)?.classList.contains('active')) { close(); break; }
@@ -1225,12 +1393,14 @@ document.addEventListener('DOMContentLoaded', () => {
         closeDeleteModal();
         delete cache.stock.data[id];
         renderList(document.getElementById('inp-search')?.value || '', true);
+        renderDashboard();
         showToast('Produto apagado');
         try {
             await apiFetch(`${BASE_URL}/stock/${id}.json`, { method:'DELETE' });
         } catch {
             cache.stock.data[id] = item;
             renderList(document.getElementById('inp-search')?.value || '', true);
+            renderDashboard();
             showToast('Erro ao apagar produto','error');
         }
     };
@@ -1238,27 +1408,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // Form: Novo Produto
     document.getElementById('form-add')?.addEventListener('submit', async e => {
         e.preventDefault();
-        const btn = e.target.querySelector('button[type=submit]');
-        btn.disabled = true;
+        const btn     = e.target.querySelector('button[type=submit]');
+        const codigo  = document.getElementById('inp-codigo').value.trim().toUpperCase();
         const payload = {
             nome:        document.getElementById('inp-nome').value.trim(),
-            tipo:        document.getElementById('inp-tipo').value.trim() || 'Geral',
             localizacao: document.getElementById('inp-loc').value.trim().toUpperCase(),
             quantidade:  parseInt(document.getElementById('inp-qtd').value) || 0,
-            codigo:      document.getElementById('inp-codigo').value.trim().toUpperCase()
+            codigo
         };
-        try {
-            const res = await apiFetch(DB_URL, { method:'POST', body:JSON.stringify(payload) });
-            if (!cache.stock.data) cache.stock.data = {};
-            if (res) {
-                const r = await res.json();
-                if (r?.name) cache.stock.data[r.name] = payload;
-            } else {
-                cache.stock.data[`_tmp_${Date.now()}`] = payload;
-            }
-            showToast('Produto Registado!'); nav('view-search'); e.target.reset();
-        } catch { invalidateCache('stock'); showToast('Erro ao registar produto','error'); }
-        finally { btn.disabled = false; }
+
+        const doSave = async () => {
+            btn.disabled = true;
+            try {
+                const res = await apiFetch(DB_URL, { method:'POST', body:JSON.stringify(payload) });
+                if (!cache.stock.data) cache.stock.data = {};
+                if (res) {
+                    const r = await res.json();
+                    if (r?.name) cache.stock.data[r.name] = payload;
+                } else {
+                    cache.stock.data[`_tmp_${Date.now()}`] = payload;
+                }
+                renderDashboard();
+                showToast('Produto Registado!'); nav('view-search'); e.target.reset();
+            } catch { invalidateCache('stock'); showToast('Erro ao registar produto','error'); }
+            finally { btn.disabled = false; }
+        };
+
+        checkDuplicateCodigo(codigo, doSave);
     });
 
     // Form: Lote
@@ -1271,7 +1447,6 @@ document.addEventListener('DOMContentLoaded', () => {
             codigo:      document.getElementById('bulk-codigo').value.trim().toUpperCase(),
             nome:        document.getElementById('bulk-nome').value.trim(),
             quantidade:  parseInt(document.getElementById('bulk-qtd').value) || 0,
-            tipo:        'Geral'
         };
         try {
             const res = await apiFetch(DB_URL, { method:'POST', body:JSON.stringify(payload) });
@@ -1300,7 +1475,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const updated = {
             codigo:      document.getElementById('edit-codigo').value.trim().toUpperCase(),
             nome:        document.getElementById('edit-nome').value.trim(),
-            tipo:        document.getElementById('edit-tipo').value.trim() || 'Geral',
             localizacao: document.getElementById('edit-loc').value.trim().toUpperCase(),
             quantidade:  parseInt(document.getElementById('edit-qtd').value) || 0,
         };
