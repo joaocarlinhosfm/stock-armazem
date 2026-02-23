@@ -208,7 +208,8 @@ async function fetchCollection(name, force = false) {
     if (_fetchPending[name]) return _fetchPending[name];
     _fetchPending[name] = (async () => {
         try {
-            const res = await fetch(`${BASE_URL}/${name}.json`);
+            const url = await authUrl(`${BASE_URL}/${name}.json`);
+            const res = await fetch(url);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data    = await res.json();
             entry.data      = data || {};
