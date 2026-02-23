@@ -12,6 +12,48 @@ function escapeHtml(str) {
 }
 
 // =============================================
+// FIREBASE AUTH — token anónimo para REST API
+// =============================================
+let _authToken     = null;
+let _authTokenExp  = 0;     // timestamp de expiração (tokens duram 1h)
+let _authReady     = false; // true depois do primeiro login
+
+// Obtém token válido — renova automaticamente perto da expiração
+async function getAuthToken() {
+    const now = Date.now();
+    // Token ainda válido (com 5 min de margem)
+    if (_authToken && now < _authTokenExp - 300_000) return _authToken;
+
+    if (!window._getAuthToken) {
+        // Firebase SDK ainda não carregou — espera até 5s
+        await new Promise((res, rej) => {
+            let attempts = 0;
+            const iv = setInterval(() => {
+                if (window._getAuthToken) { clearInterval(iv); res(); }
+                if (++attempts > 50) { clearInterval(iv); rej(new Error('Firebase SDK timeout')); }
+            }, 100);
+        });
+    }
+
+    _authToken    = await window._getAuthToken();
+    _authTokenExp = now + 3_600_000; // 1 hora
+    _authReady    = true;
+    return _authToken;
+}
+
+// Adiciona ?auth=TOKEN a um URL da Firebase REST API
+async function authUrl(url) {
+    try {
+        const token = await getAuthToken();
+        const sep   = url.includes('?') ? '&' : '?';
+        return `${url}${sep}auth=${token}`;
+    } catch {
+        // Offline ou sem auth — devolve URL sem token (vai falhar nas regras, mas a fila offline trata disso)
+        return url;
+    }
+}
+
+// =============================================
 // PERFIL — Funcionário vs Gestor
 // =============================================
 const ROLE_KEY    = 'hiperfrio-role';   // 'worker' | 'manager'
@@ -77,7 +119,9 @@ function closeSwitchRoleModal() {
 }
 
 // Inicializa a app após o perfil estar definido
-function bootApp() {
+async function bootApp() {
+    // Garante que o token está pronto antes de qualquer pedido
+    try { await getAuthToken(); } catch { /* offline — continua com cache */ }
     renderList();
     fetchCollection('ferramentas');
     fetchCollection('funcionarios');
@@ -102,7 +146,7 @@ async function getPinHash() {
     if (_cachedPinHash !== null) return _cachedPinHash;
     // Tenta Firebase primeiro; fallback para localStorage (offline)
     try {
-        const res  = await fetch(PIN_URL);
+        const res  = await fetch(await authUrl(PIN_URL));
         const data = await res.json();
         _cachedPinHash = data || null;
         // Guarda localmente como fallback offline
@@ -121,7 +165,7 @@ async function setPinHash(hash) {
     if (hash) localStorage.setItem('hiperfrio-pin-hash-cache', hash);
     else       localStorage.removeItem('hiperfrio-pin-hash-cache');
     // Envia para Firebase
-    await fetch(PIN_URL, {
+    await fetch(await authUrl(PIN_URL), {
         method:  'PUT',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(hash)
@@ -131,7 +175,7 @@ async function setPinHash(hash) {
 async function deletePinHash() {
     _cachedPinHash = null;
     localStorage.removeItem('hiperfrio-pin-hash-cache');
-    await fetch(PIN_URL, { method: 'DELETE' });
+    await fetch(await authUrl(PIN_URL), { method: 'DELETE' });
 }
 
 async function hasPinConfigured() {
@@ -216,7 +260,8 @@ async function syncQueue() {
         try {
             const opts = { method: op.method, headers: { 'Content-Type': 'application/json' } };
             if (op.body) opts.body = op.body;
-            const res = await fetch(op.url, opts);
+            const signedUrl = await authUrl(op.url);
+            const res = await fetch(signedUrl, opts);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
         } catch { failed.push(op); }
     }
@@ -236,13 +281,13 @@ async function syncQueue() {
 
 // Wrapper fetch — se offline, coloca na fila
 async function apiFetch(url, opts = {}) {
-    // FIX: Content-Type em todos os pedidos com body
     const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
     if (!navigator.onLine) {
         queueAdd({ method: opts.method || 'GET', url, body: opts.body || null });
         return null;
     }
-    const res = await fetch(url, { ...opts, headers });
+    const signedUrl = await authUrl(url);
+    const res = await fetch(signedUrl, { ...opts, headers });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res;
 }
