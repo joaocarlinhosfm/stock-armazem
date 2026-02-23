@@ -79,6 +79,7 @@
                 <input type="text" id="inp-search" placeholder="Pesquisar por nome ou referência..." autocomplete="off">
                 <button id="btn-refresh" onclick="forceRefresh()" title="Atualizar stock">↻</button>
             </div>
+            <div id="dashboard"></div>
             <div id="stock-list"></div>
         </div>
 
@@ -92,10 +93,7 @@
             <form id="form-add" class="pro-form">
                 <div class="form-group"><label for="inp-codigo">REFERÊNCIA</label><input type="text" id="inp-codigo" class="blue-input" required></div>
                 <div class="form-group"><label for="inp-nome">NOME</label><input type="text" id="inp-nome" class="blue-input" required></div>
-                <div class="form-row">
-                    <div class="form-group"><label for="inp-tipo">TIPO</label><input type="text" id="inp-tipo" class="blue-input"></div>
-                    <div class="form-group"><label for="inp-loc">LOCAL</label><input type="text" id="inp-loc" class="blue-input"></div>
-                </div>
+                <div class="form-group"><label for="inp-loc">LOCAL</label><input type="text" id="inp-loc" class="blue-input"></div>
                 <div class="form-group"><label for="inp-qtd">QUANTIDADE</label><input type="number" id="inp-qtd" class="blue-input" value="0" min="0"></div>
                 <button type="submit" class="btn-primary">Gravar Produto</button>
             </form>
@@ -215,8 +213,10 @@
     <!-- Modal: Entregar ferramenta -->
     <div id="worker-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="worker-modal-title">
         <div class="modal-content">
-            <h3 id="worker-modal-title">Entregar a:</h3>
-            <div id="worker-select-list"></div>
+            <div class="modal-icon" id="worker-modal-icon">🪛</div>
+            <h3 id="worker-modal-title">Entregar a quem?</h3>
+            <p class="modal-desc" id="worker-modal-tool-name"></p>
+            <div id="worker-select-list" class="worker-select-list"></div>
             <button onclick="closeModal()" class="btn-cancel">CANCELAR</button>
         </div>
     </div>
@@ -301,15 +301,9 @@
                     <label for="edit-nome">NOME</label>
                     <input type="text" id="edit-nome" class="blue-input" required>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="edit-tipo">TIPO</label>
-                        <input type="text" id="edit-tipo" class="blue-input">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-loc">LOCAL</label>
-                        <input type="text" id="edit-loc" class="blue-input">
-                    </div>
+                <div class="form-group">
+                    <label for="edit-loc">LOCAL</label>
+                    <input type="text" id="edit-loc" class="blue-input">
                 </div>
                 <div class="form-group">
                     <label for="edit-qtd">QUANTIDADE</label>
@@ -329,6 +323,28 @@
             <p id="confirm-modal-desc" class="modal-desc"></p>
             <button id="confirm-modal-ok" class="btn-danger-full">Confirmar</button>
             <button onclick="closeConfirmModal()" class="btn-cancel">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Modal: Código duplicado -->
+    <div id="dup-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="dup-modal-title">
+        <div class="modal-content">
+            <div class="modal-icon">⚠️</div>
+            <h3 id="dup-modal-title">Código já existe</h3>
+            <p class="modal-desc" id="dup-modal-desc"></p>
+            <button id="dup-confirm-btn" class="btn-primary">Registar mesmo assim</button>
+            <button onclick="closeDupModal()" class="btn-cancel">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Modal: Histórico da ferramenta -->
+    <div id="history-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="history-modal-title">
+        <div class="modal-content modal-content-wide">
+            <div class="modal-icon">📋</div>
+            <h3 id="history-modal-title">Histórico</h3>
+            <p class="modal-desc" id="history-modal-tool-name"></p>
+            <div id="history-list" class="history-list"></div>
+            <button onclick="closeHistoryModal()" class="btn-cancel">Fechar</button>
         </div>
     </div>
 
