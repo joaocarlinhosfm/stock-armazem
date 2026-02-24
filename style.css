@@ -1429,86 +1429,64 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
 }
 
 /* =============================================
-   UNIDADE DE MEDIDA — dropdown inline no input
+   UNIDADE DE MEDIDA — campos separados
    ============================================= */
 
-/* Wrapper do input + dropdown */
-.qty-input-wrap {
+/* Row com quantidade + unidade lado a lado */
+.qty-row {
     display: flex;
-    align-items: center;
-    border-radius: 12px;
-    border: 2px solid var(--primary);
-    background: var(--card-bg);
-    overflow: visible;
-    box-shadow: 0 4px 12px rgba(37,99,235,0.08);
+    gap: 10px;
+    align-items: flex-end;
 }
+.qty-row .qty-field { flex: 1; min-width: 0; }
+.qty-row .unit-field { flex-shrink: 0; width: 130px; }
 
-.qty-input-field {
-    flex: 1;
-    min-width: 0;
-    padding: 13px 8px 13px 16px;
-    border: none;
-    background: transparent;
-    color: var(--text-main);
-    font-size: 1rem;
-    font-weight: 600;
-    font-family: 'Inter', sans-serif;
-    outline: none;
-    width: 80px;
-}
-
-/* Separador vertical */
+/* Botão dropdown de unidade — mesmo aspeto que blue-input */
 .unit-dropdown-wrap {
     position: relative;
-    display: flex;
-    align-items: center;
-    border-left: 1.5px solid var(--border);
-    height: 100%;
 }
 
 .unit-dropdown-btn {
+    width: 100%;
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 0 10px;
-    height: 46px;
-    background: transparent;
-    border: none;
+    justify-content: space-between;
+    padding: 13px 14px;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    background: var(--input-fill);
+    color: var(--text-main);
+    font-size: 1rem;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
     cursor: pointer;
-    font-family: inherit;
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    white-space: nowrap;
-    transition: color 0.15s, background 0.15s;
-    border-radius: 0 10px 10px 0;
+    transition: border-color 0.15s;
     -webkit-tap-highlight-color: transparent;
+    white-space: nowrap;
+    gap: 6px;
 }
-.unit-dropdown-btn:hover,
-.unit-dropdown-btn.active {
-    color: var(--primary);
-    background: rgba(37,99,235,0.07);
-}
-.unit-arrow {
-    font-size: 0.65rem;
-    opacity: 0.6;
-    transition: transform 0.2s;
-}
-.unit-dropdown-btn.active .unit-arrow {
-    transform: rotate(180deg);
-}
+.unit-dropdown-btn:hover { border-color: var(--primary); }
+.unit-dropdown-btn.active { border-color: var(--primary); }
 
-/* Dropdown menu */
+.unit-caret {
+    font-size: 0.7rem;
+    opacity: 0.5;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+.unit-dropdown-btn.active .unit-caret { transform: rotate(180deg); }
+
+/* Menu dropdown */
 .unit-menu {
     display: none;
     position: absolute;
-    top: calc(100% + 6px);
+    top: calc(100% + 5px);
+    left: 0;
     right: 0;
     background: var(--card-bg);
-    border: 1.5px solid var(--border);
+    border: 2px solid var(--primary);
     border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.13);
-    min-width: 150px;
+    box-shadow: 0 8px 24px rgba(37,99,235,0.15);
     z-index: 99999;
     overflow: hidden;
     animation: unitMenuIn 0.13s ease;
@@ -1522,13 +1500,14 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
 
 .unit-option {
     display: flex;
+    align-items: center;
     width: 100%;
     padding: 11px 14px;
     background: none;
     border: none;
     border-bottom: 1px solid var(--border);
     font-family: inherit;
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     font-weight: 600;
     color: var(--text-main);
     cursor: pointer;
@@ -1537,8 +1516,5 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
 }
 .unit-option:last-child { border-bottom: none; }
 .unit-option:hover { background: rgba(37,99,235,0.06); color: var(--primary); }
-.unit-option.active {
-    color: var(--primary);
-    background: rgba(37,99,235,0.07);
-}
-.unit-option.active::before { content: "✓ "; font-weight: 800; }
+.unit-option.active { color: var(--primary); background: rgba(37,99,235,0.06); }
+.unit-option.active::before { content: "✓ "; font-weight: 900; }
