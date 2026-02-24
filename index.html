@@ -101,18 +101,21 @@
                 <div class="form-group"><label for="inp-codigo">REFERÊNCIA</label><input type="text" id="inp-codigo" class="blue-input" required></div>
                 <div class="form-group"><label for="inp-nome">NOME</label><input type="text" id="inp-nome" class="blue-input" required></div>
                 <div class="form-group"><label for="inp-loc">LOCAL</label><input type="text" id="inp-loc" class="blue-input"></div>
-<div class="form-group">
-                    <label for="inp-qtd">QUANTIDADE</label>
-                    <div class="qty-input-wrap">
-                        <input type="number" id="inp-qtd" class="qty-input-field" value="0" min="0">
+<div class="qty-row">
+                    <div class="form-group qty-field">
+                        <label for="inp-qtd">QUANTIDADE</label>
+                        <input type="number" id="inp-qtd" class="blue-input" value="0" min="0">
+                    </div>
+                    <div class="form-group unit-field">
+                        <label>UNIDADE</label>
                         <div class="unit-dropdown-wrap" id="inp-unit-wrap">
                             <button type="button" class="unit-dropdown-btn" id="inp-unit-btn" onclick="toggleUnitMenu('inp')">
                                 <span id="inp-unit-label">Unidade</span>
-                                <span class="unit-arrow">▾</span>
+                                <span class="unit-caret">▾</span>
                             </button>
                             <div class="unit-menu" id="inp-unit-menu">
                                 <button type="button" class="unit-option active" data-unit="un"  onclick="selectUnit('inp','un')">Unidade</button>
-                                <button type="button" class="unit-option"        data-unit="L"   onclick="selectUnit('inp','L')">Litros</button>
+                                <button type="button" class="unit-option"        data-unit="L"   onclick="selectUnit('inp','L')">Litros (L)</button>
                                 <button type="button" class="unit-option"        data-unit="m"   onclick="selectUnit('inp','m')">Metros (m)</button>
                                 <button type="button" class="unit-option"        data-unit="m2"  onclick="selectUnit('inp','m2')">Metros² (m²)</button>
                             </div>
@@ -130,18 +133,21 @@
                 <div class="form-group"><label for="bulk-loc">ZONA</label><input type="text" id="bulk-loc" class="blue-input" required></div>
                 <div class="form-group"><label for="bulk-codigo">REFERÊNCIA</label><input type="text" id="bulk-codigo" class="blue-input" required></div>
                 <div class="form-group"><label for="bulk-nome">NOME</label><input type="text" id="bulk-nome" class="blue-input" required></div>
-<div class="form-group">
-                    <label for="bulk-qtd">QUANTIDADE</label>
-                    <div class="qty-input-wrap">
-                        <input type="number" id="bulk-qtd" class="qty-input-field" value="1" min="0">
+<div class="qty-row">
+                    <div class="form-group qty-field">
+                        <label for="bulk-qtd">QUANTIDADE</label>
+                        <input type="number" id="bulk-qtd" class="blue-input" value="1" min="0">
+                    </div>
+                    <div class="form-group unit-field">
+                        <label>UNIDADE</label>
                         <div class="unit-dropdown-wrap" id="bulk-unit-wrap">
                             <button type="button" class="unit-dropdown-btn" id="bulk-unit-btn" onclick="toggleUnitMenu('bulk')">
                                 <span id="bulk-unit-label">Unidade</span>
-                                <span class="unit-arrow">▾</span>
+                                <span class="unit-caret">▾</span>
                             </button>
                             <div class="unit-menu" id="bulk-unit-menu">
                                 <button type="button" class="unit-option active" data-unit="un"  onclick="selectUnit('bulk','un')">Unidade</button>
-                                <button type="button" class="unit-option"        data-unit="L"   onclick="selectUnit('bulk','L')">Litros</button>
+                                <button type="button" class="unit-option"        data-unit="L"   onclick="selectUnit('bulk','L')">Litros (L)</button>
                                 <button type="button" class="unit-option"        data-unit="m"   onclick="selectUnit('bulk','m')">Metros (m)</button>
                                 <button type="button" class="unit-option"        data-unit="m2"  onclick="selectUnit('bulk','m2')">Metros² (m²)</button>
                             </div>
@@ -348,18 +354,21 @@
                     <label for="edit-loc">LOCAL</label>
                     <input type="text" id="edit-loc" class="blue-input">
                 </div>
-<div class="form-group">
-                    <label for="edit-qtd">QUANTIDADE</label>
-                    <div class="qty-input-wrap">
-                        <input type="number" id="edit-qtd" class="qty-input-field"  min="0">
+<div class="qty-row">
+                    <div class="form-group qty-field">
+                        <label for="edit-qtd">QUANTIDADE</label>
+                        <input type="number" id="edit-qtd" class="blue-input"  min="0">
+                    </div>
+                    <div class="form-group unit-field">
+                        <label>UNIDADE</label>
                         <div class="unit-dropdown-wrap" id="edit-unit-wrap">
                             <button type="button" class="unit-dropdown-btn" id="edit-unit-btn" onclick="toggleUnitMenu('edit')">
                                 <span id="edit-unit-label">Unidade</span>
-                                <span class="unit-arrow">▾</span>
+                                <span class="unit-caret">▾</span>
                             </button>
                             <div class="unit-menu" id="edit-unit-menu">
                                 <button type="button" class="unit-option active" data-unit="un"  onclick="selectUnit('edit','un')">Unidade</button>
-                                <button type="button" class="unit-option"        data-unit="L"   onclick="selectUnit('edit','L')">Litros</button>
+                                <button type="button" class="unit-option"        data-unit="L"   onclick="selectUnit('edit','L')">Litros (L)</button>
                                 <button type="button" class="unit-option"        data-unit="m"   onclick="selectUnit('edit','m')">Metros (m)</button>
                                 <button type="button" class="unit-option"        data-unit="m2"  onclick="selectUnit('edit','m2')">Metros² (m²)</button>
                             </div>
