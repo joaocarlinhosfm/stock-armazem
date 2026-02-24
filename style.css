@@ -107,9 +107,9 @@ header h1 {
     border: 2px solid var(--primary);
     background: var(--card-bg);
     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
-    padding: 0 6px 0 0;
-    overflow: hidden;
+    padding: 0 4px 0 0;
     min-width: 0;
+    /* overflow visible para o dropdown não ficar cortado */
 }
 .search-input-wrap:focus-within {
     border-color: var(--primary);
@@ -1314,6 +1314,8 @@ body.worker-mode .tool-card {
 .sort-dropdown-wrap {
     position: relative;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
 }
 
 .sort-dropdown-btn {
@@ -1341,14 +1343,14 @@ body.worker-mode .tool-card {
 .sort-menu {
     display: none;
     position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
+    top: calc(100% + 8px);
+    right: -4px;
     background: var(--card-bg);
     border: 1.5px solid var(--border);
     border-radius: 14px;
-    box-shadow: 0 8px 28px rgba(0,0,0,0.13);
-    min-width: 170px;
-    z-index: 1000;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.15);
+    min-width: 175px;
+    z-index: 2000;
     overflow: hidden;
     animation: sortMenuIn 0.15s ease;
 }
