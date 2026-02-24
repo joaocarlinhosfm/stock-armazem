@@ -1290,46 +1290,85 @@ body.worker-mode .tool-card {
 .search-clear-btn:hover { opacity: 1; }
 
 /* =============================================
-   SORT BAR
+   SORT DROPDOWN — dentro da barra de pesquisa
    ============================================= */
-.sort-bar {
+.sort-dropdown-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.sort-dropdown-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1.15rem;
+    cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-    padding: 0 2px;
+    justify-content: center;
+    transition: color 0.15s, background 0.15s;
+    -webkit-tap-highlight-color: transparent;
 }
-.sort-label {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
+.sort-dropdown-btn:hover,
+.sort-dropdown-btn.active {
+    color: var(--primary);
+    background: rgba(37,99,235,0.08);
+    border-radius: 10px;
 }
-.sort-select {
-    flex: 1;
-    max-width: 200px;
+
+.sort-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
     background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text-main);
-    font-size: 0.82rem;
-    font-weight: 600;
-    padding: 6px 10px;
-    cursor: pointer;
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.13);
+    min-width: 170px;
+    z-index: 1000;
+    overflow: hidden;
+    animation: sortMenuIn 0.15s ease;
+}
+.sort-menu.open { display: block; }
+
+@keyframes sortMenuIn {
+    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+.sort-option {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 11px 16px;
+    background: none;
+    border: none;
     font-family: inherit;
-}
-.sort-select:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
-
-/* Dark mode sort select */
-.dark-mode .sort-select {
-    background: var(--card-bg);
+    font-size: 0.88rem;
+    font-weight: 600;
     color: var(--text-main);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s;
+    border-bottom: 1px solid var(--border);
+}
+.sort-option:last-child { border-bottom: none; }
+.sort-option:hover { background: rgba(37,99,235,0.06); color: var(--primary); }
+.sort-option.active {
+    color: var(--primary);
+    background: rgba(37,99,235,0.08);
+}
+.sort-option.active::before {
+    content: "✓ ";
+    font-weight: 800;
 }
 
-/* Worker mode: sort bar hidden */
-body.worker-mode .sort-bar { display: none; }
+/* Worker mode oculta o dropdown */
+body.worker-mode .sort-dropdown-wrap { display: none; }
 
 /* =============================================
    ZERO-STOCK FILTER BADGE
