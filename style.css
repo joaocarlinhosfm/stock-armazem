@@ -1427,3 +1427,49 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     opacity: 0.25;
     cursor: not-allowed;
 }
+
+/* =============================================
+   UNIDADE DE MEDIDA — selector
+   ============================================= */
+.qty-unit-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+.qty-unit-row .flex-1 { flex: 1; min-width: 0; }
+.qty-unit-row .form-group:last-child { flex-shrink: 0; }
+
+.unit-selector {
+    display: flex;
+    gap: 5px;
+    padding: 6px 0 0;
+}
+
+.unit-btn {
+    flex: 1;
+    padding: 9px 6px;
+    border-radius: 9px;
+    border: 1.5px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+    white-space: nowrap;
+    user-select: none;
+    min-width: 36px;
+}
+.unit-btn:active { transform: scale(0.93); }
+.unit-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.28);
+}
+.unit-btn:not(.active):hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
