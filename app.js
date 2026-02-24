@@ -1495,30 +1495,58 @@ function closeDupModal() {
 
 
 // =============================================
-// UNIDADE DE MEDIDA — selector nos formulários
+// UNIDADE DE MEDIDA — dropdown inline no input
 // =============================================
-const UNIT_LABELS = { un: 'un', L: 'L', m: 'm', m2: 'm²' };
+const UNIT_LABELS = { un: 'Unidade', L: 'Litros', m: 'Metros (m)', m2: 'Metros² (m²)' };
+const UNIT_SHORT  = { un: 'Unidade', L: 'Litros', m: 'm', m2: 'm²' };
+
+function toggleUnitMenu(prefix) {
+    const menu = document.getElementById(`${prefix}-unit-menu`);
+    const btn  = document.getElementById(`${prefix}-unit-btn`);
+    const isOpen = menu.classList.toggle('open');
+    btn.classList.toggle('active', isOpen);
+    if (isOpen) {
+        setTimeout(() => {
+            document.addEventListener('click', function closeMenu(e) {
+                if (!document.getElementById(`${prefix}-unit-wrap`)?.contains(e.target)) {
+                    menu.classList.remove('open');
+                    btn.classList.remove('active');
+                    document.removeEventListener('click', closeMenu);
+                }
+            });
+        }, 0);
+    }
+}
 
 function selectUnit(prefix, unit) {
     document.getElementById(`${prefix}-unidade`).value = unit;
-    document.querySelectorAll(`#${prefix}-unit-wrap .unit-btn`).forEach(btn => {
+    // Update button label
+    const label = document.getElementById(`${prefix}-unit-label`);
+    if (label) label.textContent = UNIT_SHORT[unit] || unit;
+    // Update active state in menu
+    document.querySelectorAll(`#${prefix}-unit-menu .unit-option`).forEach(btn => {
         btn.classList.toggle('active', btn.dataset.unit === unit);
     });
+    // Close menu
+    document.getElementById(`${prefix}-unit-menu`)?.classList.remove('open');
+    document.getElementById(`${prefix}-unit-btn`)?.classList.remove('active');
 }
 
 function setUnitSelector(prefix, unit) {
     const val = unit || 'un';
     document.getElementById(`${prefix}-unidade`).value = val;
-    document.querySelectorAll(`#${prefix}-unit-wrap .unit-btn`).forEach(btn => {
+    const label = document.getElementById(`${prefix}-unit-label`);
+    if (label) label.textContent = UNIT_SHORT[val] || val;
+    document.querySelectorAll(`#${prefix}-unit-menu .unit-option`).forEach(btn => {
         btn.classList.toggle('active', btn.dataset.unit === val);
     });
 }
 
-// Formata quantidade com unidade para exibição
+// Formata quantidade — só mostra unidade se não for "un"
 function fmtQty(quantidade, unidade) {
     const qty = quantidade ?? 0;
-    const u   = UNIT_LABELS[unidade] || unidade || 'un';
-    return `${qty} ${u}`;
+    if (!unidade || unidade === 'un') return String(qty);
+    return `${qty} ${UNIT_SHORT[unidade] || unidade}`;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
