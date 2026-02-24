@@ -446,12 +446,34 @@ async function renderDashboard() {
 // =============================================
 let _stockSort = 'recente'; // 'recente' | 'nome' | 'qtd-asc' | 'qtd-desc' | 'local'
 
+function toggleSortMenu() {
+    const menu = document.getElementById('sort-menu');
+    const btn  = document.getElementById('sort-dropdown-btn');
+    const isOpen = menu?.classList.toggle('open');
+    btn?.classList.toggle('active', isOpen);
+    if (isOpen) {
+        // Fecha ao clicar fora
+        setTimeout(() => {
+            document.addEventListener('click', function closeSortMenu(e) {
+                if (!document.getElementById('sort-dropdown-wrap')?.contains(e.target)) {
+                    menu?.classList.remove('open');
+                    btn?.classList.remove('active');
+                    document.removeEventListener('click', closeSortMenu);
+                }
+            });
+        }, 0);
+    }
+}
+
 function setStockSort(val) {
     _stockSort = val;
-    // Actualiza estado visual das pills
-    document.querySelectorAll('.sort-pill').forEach(btn => {
+    // Actualiza estado visual das opções
+    document.querySelectorAll('.sort-option').forEach(btn => {
         btn.classList.toggle('active', btn.id === `sort-${val}`);
     });
+    // Fecha o menu
+    document.getElementById('sort-menu')?.classList.remove('open');
+    document.getElementById('sort-dropdown-btn')?.classList.remove('active');
     renderList(document.getElementById('inp-search')?.value || '', true);
 }
 
