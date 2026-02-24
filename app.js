@@ -708,7 +708,7 @@ async function renderList(filter = '', force = false) {
         const qtySpan = document.createElement('span');
         qtySpan.className   = 'qty-display' + (qty === 0 ? ' is-zero' : '');
         qtySpan.id          = `qty-${id}`;
-        qtySpan.textContent = qty;
+        qtySpan.textContent = fmtQty(qty, item.unidade);
 
         const btnP = document.createElement('button');
         btnP.className   = 'btn-qty';
@@ -759,8 +759,9 @@ async function changeQtd(id, delta) {
     stockData[id].quantidade = newQty;
     const qtyEl   = document.getElementById(`qty-${id}`);
     const minusEl = document.getElementById(`btn-minus-${id}`);
+    const itemUnidade = stockData[id]?.unidade;
     if (qtyEl) {
-        qtyEl.textContent = newQty;
+        qtyEl.textContent = fmtQty(newQty, itemUnidade);
         qtyEl.classList.toggle('is-zero', newQty === 0);
     }
     if (minusEl) minusEl.disabled = newQty === 0;
@@ -777,7 +778,7 @@ async function changeQtd(id, delta) {
         } catch {
             // Reverte para o valor antes desta sequência de toques
             stockData[id].quantidade = oldQty;
-            if (qtyEl)   { qtyEl.textContent = oldQty; qtyEl.classList.toggle('is-zero', oldQty === 0); }
+            if (qtyEl)   { qtyEl.textContent = fmtQty(oldQty, stockData[id]?.unidade); qtyEl.classList.toggle('is-zero', oldQty === 0); }
             if (minusEl)   minusEl.disabled = oldQty === 0;
             showToast('Erro ao guardar quantidade', 'error');
         }
@@ -1118,6 +1119,7 @@ function openEditModal(id, item) {
     document.getElementById('edit-nome').value   = item.nome || '';
     document.getElementById('edit-loc').value    = item.localizacao || '';
     document.getElementById('edit-qtd').value    = item.quantidade ?? 0;
+    setUnitSelector('edit', item.unidade || 'un');
     document.getElementById('edit-modal').classList.add('active');
     focusModal('edit-modal');
 }
@@ -1419,13 +1421,14 @@ async function exportCSV() {
         if (btn) { btn.disabled = false; btn.textContent = 'Exportar'; }
         return;
     }
-    const headers = ['Referência','Nome','Localização','Quantidade'];
+    const headers = ['Referência','Nome','Localização','Quantidade','Unidade'];
     const cleanData = Object.fromEntries(Object.entries(data).filter(([k]) => !k.startsWith('_tmp_')));
     const rows = Object.values(cleanData).map(item => [
         `"${(item.codigo||'').toUpperCase()}"`,
         `"${(item.nome||'').replace(/"/g,'""')}"`,
         `"${(item.localizacao||'').toUpperCase()}"`,
-        item.quantidade ?? 0
+        item.quantidade ?? 0,
+        item.unidade || 'un'
     ]);
     const csv  = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
     const blob = new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8;' });
@@ -1488,6 +1491,34 @@ function checkDuplicateCodigo(codigo, onConfirm) {
 }
 function closeDupModal() {
     document.getElementById('dup-modal').classList.remove('active');
+}
+
+
+// =============================================
+// UNIDADE DE MEDIDA — selector nos formulários
+// =============================================
+const UNIT_LABELS = { un: 'un', L: 'L', m: 'm', m2: 'm²' };
+
+function selectUnit(prefix, unit) {
+    document.getElementById(`${prefix}-unidade`).value = unit;
+    document.querySelectorAll(`#${prefix}-unit-wrap .unit-btn`).forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.unit === unit);
+    });
+}
+
+function setUnitSelector(prefix, unit) {
+    const val = unit || 'un';
+    document.getElementById(`${prefix}-unidade`).value = val;
+    document.querySelectorAll(`#${prefix}-unit-wrap .unit-btn`).forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.unit === val);
+    });
+}
+
+// Formata quantidade com unidade para exibição
+function fmtQty(quantidade, unidade) {
+    const qty = quantidade ?? 0;
+    const u   = UNIT_LABELS[unidade] || unidade || 'un';
+    return `${qty} ${u}`;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1604,7 +1635,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = {
             nome:        document.getElementById('inp-nome').value.trim(),
             localizacao: document.getElementById('inp-loc').value.trim().toUpperCase(),
-            quantidade:  parseInt(document.getElementById('inp-qtd').value) || 0,
+            quantidade:  parseFloat(document.getElementById('inp-qtd').value) || 0,
+            unidade:     document.getElementById('inp-unidade').value || 'un',
             codigo
         };
 
@@ -1620,6 +1652,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     cache.stock.data[`_tmp_${Date.now()}`] = payload;
                 }
                 renderDashboard();
+                setUnitSelector('inp', 'un');
                 showToast('Produto Registado!'); nav('view-search'); e.target.reset();
             } catch { invalidateCache('stock'); showToast('Erro ao registar produto','error'); }
             finally { btn.disabled = false; }
@@ -1637,7 +1670,8 @@ document.addEventListener('DOMContentLoaded', () => {
             localizacao: document.getElementById('bulk-loc').value.trim().toUpperCase(),
             codigo,
             nome:        document.getElementById('bulk-nome').value.trim(),
-            quantidade:  parseInt(document.getElementById('bulk-qtd').value) || 0,
+            quantidade:  parseFloat(document.getElementById('bulk-qtd').value) || 0,
+            unidade:     document.getElementById('bulk-unidade').value || 'un',
         };
 
         const doSave = async () => {
@@ -1655,6 +1689,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('bulk-codigo').value = '';
                 document.getElementById('bulk-nome').value   = '';
                 document.getElementById('bulk-qtd').value    = '1';
+                setUnitSelector('bulk', 'un');
                 document.getElementById('bulk-codigo').focus();
             } catch { invalidateCache('stock'); showToast('Erro ao adicionar ao lote','error'); }
             finally { btn.disabled = false; }
@@ -1673,7 +1708,8 @@ document.addEventListener('DOMContentLoaded', () => {
             codigo:      document.getElementById('edit-codigo').value.trim().toUpperCase(),
             nome:        document.getElementById('edit-nome').value.trim(),
             localizacao: document.getElementById('edit-loc').value.trim().toUpperCase(),
-            quantidade:  parseInt(document.getElementById('edit-qtd').value) || 0,
+            quantidade:  parseFloat(document.getElementById('edit-qtd').value) || 0,
+            unidade:     document.getElementById('edit-unidade').value || 'un',
         };
         cache.stock.data[id] = { ...cache.stock.data[id], ...updated };
         closeEditModal();
