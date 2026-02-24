@@ -446,23 +446,69 @@ async function renderDashboard() {
 // =============================================
 let _stockSort = 'recente'; // 'recente' | 'nome' | 'qtd-asc' | 'qtd-desc' | 'local'
 
-function toggleSortMenu() {
-    const menu = document.getElementById('sort-menu');
-    const btn  = document.getElementById('sort-dropdown-btn');
-    const isOpen = menu?.classList.toggle('open');
-    btn?.classList.toggle('active', isOpen);
-    if (isOpen) {
-        // Fecha ao clicar fora
-        setTimeout(() => {
-            document.addEventListener('click', function closeSortMenu(e) {
-                if (!document.getElementById('sort-dropdown-wrap')?.contains(e.target)) {
-                    menu?.classList.remove('open');
-                    btn?.classList.remove('active');
-                    document.removeEventListener('click', closeSortMenu);
-                }
-            });
-        }, 0);
+// Menu de ordenação — criado no body para evitar clipping por stacking contexts
+function _getSortMenu() {
+    let menu = document.getElementById('sort-menu');
+    if (!menu) {
+        menu = document.createElement('div');
+        menu.id        = 'sort-menu';
+        menu.className = 'sort-menu';
+        const options  = [
+            { val: 'recente',  label: 'Mais recente' },
+            { val: 'nome',     label: 'Nome A→Z'     },
+            { val: 'qtd-asc',  label: 'Quantidade ↑' },
+            { val: 'qtd-desc', label: 'Quantidade ↓' },
+            { val: 'local',    label: 'Localização'  },
+        ];
+        options.forEach(o => {
+            const btn = document.createElement('button');
+            btn.className   = 'sort-option' + (o.val === _stockSort ? ' active' : '');
+            btn.id          = `sort-${o.val}`;
+            btn.textContent = o.label;
+            btn.onclick     = () => setStockSort(o.val);
+            menu.appendChild(btn);
+        });
+        document.body.appendChild(menu);
     }
+    return menu;
+}
+
+function toggleSortMenu() {
+    const btn  = document.getElementById('sort-dropdown-btn');
+    const menu = _getSortMenu();
+    const isOpen = menu.classList.contains('open');
+
+    if (isOpen) {
+        _closeSortMenu();
+        return;
+    }
+
+    // Posiciona o menu sob o botão usando coordenadas absolutas
+    const rect = btn.getBoundingClientRect();
+    menu.style.top   = `${rect.bottom + window.scrollY + 6}px`;
+    menu.style.right = `${window.innerWidth - rect.right - window.scrollX}px`;
+    menu.style.left  = 'auto';
+    menu.classList.add('open');
+    btn.classList.add('active');
+
+    // Fecha ao clicar fora (próximo tick para não capturar o click actual)
+    setTimeout(() => {
+        document.addEventListener('click', _onOutsideSortClick);
+    }, 0);
+}
+
+function _onOutsideSortClick(e) {
+    const wrap = document.getElementById('sort-dropdown-wrap');
+    const menu = document.getElementById('sort-menu');
+    if (!wrap?.contains(e.target) && !menu?.contains(e.target)) {
+        _closeSortMenu();
+    }
+}
+
+function _closeSortMenu() {
+    document.getElementById('sort-menu')?.classList.remove('open');
+    document.getElementById('sort-dropdown-btn')?.classList.remove('active');
+    document.removeEventListener('click', _onOutsideSortClick);
 }
 
 function setStockSort(val) {
@@ -472,8 +518,7 @@ function setStockSort(val) {
         btn.classList.toggle('active', btn.id === `sort-${val}`);
     });
     // Fecha o menu
-    document.getElementById('sort-menu')?.classList.remove('open');
-    document.getElementById('sort-dropdown-btn')?.classList.remove('active');
+    _closeSortMenu();
     renderList(document.getElementById('inp-search')?.value || '', true);
 }
 
