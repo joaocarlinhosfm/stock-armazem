@@ -1342,15 +1342,13 @@ body.worker-mode .tool-card {
 
 .sort-menu {
     display: none;
-    position: absolute;
-    top: calc(100% + 8px);
-    right: -4px;
+    position: absolute; /* posição calculada via JS (top/right relativos ao body) */
     background: var(--card-bg);
     border: 1.5px solid var(--border);
     border-radius: 14px;
-    box-shadow: 0 8px 28px rgba(0,0,0,0.15);
+    box-shadow: 0 8px 28px rgba(0,0,0,0.18);
     min-width: 175px;
-    z-index: 2000;
+    z-index: 99999;
     overflow: hidden;
     animation: sortMenuIn 0.15s ease;
 }
