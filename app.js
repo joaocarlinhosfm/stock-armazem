@@ -46,6 +46,22 @@ async function getAuthToken() {
     return _authToken;
 }
 
+// Renovação proactiva do token a cada 45 min — protege sessões longas (ponto 1)
+let _tokenRenewalTimer = null;
+function _scheduleTokenRenewal() {
+    clearTimeout(_tokenRenewalTimer);
+    _tokenRenewalTimer = setTimeout(async () => {
+        if (window._firebaseUser) {
+            try {
+                _authToken = await window._firebaseUser.getIdToken(true);
+                _authTokenExp = Date.now() + 3_500_000;
+                console.log('🔄 Token renovado proactivamente');
+            } catch(e) { console.warn('Falha na renovação do token:', e.message); }
+        }
+        _scheduleTokenRenewal(); // agenda próxima renovação
+    }, 45 * 60 * 1000); // 45 minutos
+}
+
 // Adiciona ?auth=TOKEN a um URL da Firebase REST API
 async function authUrl(url) {
     try {
@@ -130,6 +146,7 @@ function closeSwitchRoleModal() {
 // Inicializa a app após o perfil estar definido
 async function bootApp() {
     try { await getAuthToken(); } catch { /* offline — continua com cache */ }
+    _scheduleTokenRenewal(); // inicia ciclo de renovação proactiva (ponto 1)
     renderDashboard();
     renderList();
     fetchCollection('ferramentas');
@@ -237,10 +254,20 @@ const QUEUE_KEY = 'hiperfrio-offline-queue';
 let isSyncing   = false; // FIX: evita execuções paralelas de syncQueue
 
 function queueLoad() {
-    try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); }
+    try {
+        const raw = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+        return _pruneQueue(raw); // PONTO 10: remove entradas expiradas
+    }
     catch { return []; }
 }
 function queueSave(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }
+
+// PONTO 10: remove operações com mais de 7 dias da fila
+const QUEUE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+function _pruneQueue(q) {
+    const cutoff = Date.now() - QUEUE_TTL_MS;
+    return q.filter(op => !op.ts || op.ts > cutoff);
+}
 
 function queueAdd(op) {
     // Regista Background Sync ao adicionar à fila
@@ -249,7 +276,8 @@ function queueAdd(op) {
     }
     // FIX: só aceita mutações na fila, nunca GETs
     if (!op.method || op.method === 'GET') return;
-    const q = queueLoad();
+    op.ts = Date.now(); // timestamp para TTL
+    const q = _pruneQueue(queueLoad());
     // Colapsar PATCHes repetidos ao mesmo URL
     if (op.method === 'PATCH') {
         const idx = q.findIndex(o => o.method === 'PATCH' && o.url === op.url);
@@ -352,7 +380,17 @@ function nav(viewId) {
     document.getElementById(viewId)?.classList.add('active');
 
     if (viewId === 'view-search') renderList().then(() => { if (_zeroFilterActive) filterZeroStock(); });
-    if (viewId === 'view-bulk') { _bulkCount = 0; _updateBulkCounter(); }
+    if (viewId === 'view-register') { // PONTO 19: limpa form ao navegar
+        const fa = document.getElementById('form-add');
+        if (fa) { fa.reset(); setUnitSelector('inp','un'); document.getElementById('inp-notas').value = ''; }
+    }
+    if (viewId === 'view-bulk') {
+        _bulkCount = 0; _updateBulkCounter();
+        _refreshZoneDatalist(); // PONTO 16
+        // PONTO 4: limpa zona se vazia para evitar confusão com lote anterior persistido pelo browser
+        const bulkLoc = document.getElementById('bulk-loc');
+        if (bulkLoc && !bulkLoc.value.trim()) bulkLoc.value = '';
+    }
     if (viewId === 'view-tools')  renderTools();
     if (viewId === 'view-admin')  { renderWorkers(); renderAdminTools(); }
 
@@ -378,6 +416,28 @@ function nav(viewId) {
 // =============================================
 // DASHBOARD — resumo no topo do stock
 // =============================================
+// PONTO 17: snapshot diário para tendência no dashboard
+const DASH_SNAPSHOT_KEY = 'hiperfrio-dash-snap';
+function _saveDashSnapshot(total, semStock, alocadas) {
+    const today = new Date().toISOString().slice(0,10);
+    const snap  = JSON.parse(localStorage.getItem(DASH_SNAPSHOT_KEY) || '{}');
+    if (snap.date !== today) {
+        snap.prev = snap.curr || null;
+        snap.curr = { date: today, total, semStock, alocadas };
+        snap.date = today;
+        localStorage.setItem(DASH_SNAPSHOT_KEY, JSON.stringify(snap));
+    }
+}
+function _getDashTrend(field, currentVal) {
+    try {
+        const snap = JSON.parse(localStorage.getItem(DASH_SNAPSHOT_KEY) || '{}');
+        if (!snap.prev) return null;
+        const diff = currentVal - snap.prev[field];
+        if (diff === 0) return null;
+        return diff;
+    } catch { return null; }
+}
+
 async function renderDashboard() {
     const el = document.getElementById('dashboard');
     if (!el) return;
@@ -399,17 +459,25 @@ async function renderDashboard() {
     const semStock      = stockEntries.filter(i => (i.quantidade || 0) === 0).length;
     const alocadas      = ferraEntries.filter(t => t.status === 'alocada').length;
     const totalFerr     = ferraEntries.length;
+    // PONTO 17 + 27: alertas de ferramentas alocadas há mais de 7 dias
+    const ALERTA_DIAS = 7;
+    const alocadasHaMuito = ferraEntries.filter(t => {
+        if (t.status !== 'alocada' || !t.dataEntrega) return false;
+        return (Date.now() - new Date(t.dataEntrega).getTime()) > ALERTA_DIAS * 86400000;
+    });
+    _saveDashSnapshot(total, semStock, alocadas);
 
     const cards = [
         {
             label: 'Produtos', value: total, icon: '📦', cls: '',
+            trend: _getDashTrend('total', total),
             action: () => { nav('view-search'); }
         },
         {
             label: 'Sem stock', value: semStock, icon: '⚠️',
             cls: semStock > 0 ? 'dash-card-warn' : '',
+            trend: _getDashTrend('semStock', semStock),
             action: semStock > 0 ? () => {
-                // Navega para stock e aplica filtro após render completo
                 _pendingZeroFilter = true;
                 nav('view-search');
             } : null
@@ -417,8 +485,14 @@ async function renderDashboard() {
         {
             label: 'Ferramentas', value: `${alocadas}/${totalFerr}`, icon: '🪛',
             cls: alocadas === totalFerr && totalFerr > 0 ? 'dash-card-warn' : '',
+            trend: _getDashTrend('alocadas', alocadas),
             action: () => nav('view-tools')
         },
+        ...(alocadasHaMuito.length > 0 ? [{
+            label: `Há +${ALERTA_DIAS}d`, value: alocadasHaMuito.length, icon: '🔴', cls: 'dash-card-alert',
+            trend: null,
+            action: () => { nav('view-tools'); showToast(`${alocadasHaMuito.length} ferramenta(s) alocada(s) há mais de ${ALERTA_DIAS} dias!`, 'error'); }
+        }] : []),
     ];
 
     cards.forEach(c => {
@@ -434,6 +508,13 @@ async function renderDashboard() {
         const val   = document.createElement('span');
         val.className   = 'dash-value';
         val.textContent = c.value;
+        // PONTO 17: indicador de tendência
+        if (c.trend !== null && c.trend !== undefined) {
+            const tr = document.createElement('span');
+            tr.className   = 'dash-trend ' + (c.trend > 0 ? 'dash-trend-up' : 'dash-trend-down');
+            tr.textContent = (c.trend > 0 ? '↑' : '↓') + Math.abs(c.trend);
+            val.appendChild(tr);
+        }
         const lbl   = document.createElement('span');
         lbl.className   = 'dash-label';
         lbl.textContent = c.label;
@@ -578,6 +659,41 @@ function filterZeroStock() {
     }
 }
 
+// PONTO 16: histórico de zonas
+const ZONE_HISTORY_KEY = 'hiperfrio-zone-history';
+function _saveZoneToHistory(zona) {
+    if (!zona) return;
+    const hist = JSON.parse(localStorage.getItem(ZONE_HISTORY_KEY) || '[]');
+    const updated = [zona, ...hist.filter(z => z !== zona)].slice(0, 8);
+    localStorage.setItem(ZONE_HISTORY_KEY, JSON.stringify(updated));
+    _refreshZoneDatalist();
+}
+function _refreshZoneDatalist() {
+    const dl = document.getElementById('zone-datalist');
+    if (!dl) return;
+    const hist = JSON.parse(localStorage.getItem(ZONE_HISTORY_KEY) || '[]');
+    dl.innerHTML = hist.map(z => `<option value="${z}">`).join('');
+}
+
+// PONTO 20: fechar lote com resumo
+function closeBatch() {
+    if (_bulkCount === 0) { nav('view-search'); return; }
+    const zona = document.getElementById('bulk-loc')?.value?.trim() || '?';
+    openConfirmModal({
+        icon: '📦',
+        title: 'Fechar lote?',
+        desc: `${_bulkCount} produto${_bulkCount > 1 ? 's' : ''} adicionado${_bulkCount > 1 ? 's' : ''} na zona "${zona}". Fechar e ir para o stock?`,
+        onConfirm: () => {
+            // Limpa o formulário completo
+            document.getElementById('form-bulk')?.reset();
+            setUnitSelector('bulk', 'un');
+            document.getElementById('bulk-notas').value = '';
+            _bulkCount = 0; _updateBulkCounter();
+            nav('view-search');
+        }
+    });
+}
+
 function _updateBulkCounter() {
     const el = document.getElementById('bulk-counter');
     if (!el) return;
@@ -595,6 +711,15 @@ function clearZeroFilter() {
     const badge = document.getElementById('zero-filter-badge');
     if (badge) badge.remove();
     renderList('', false);
+}
+
+// PONTO 8: lógica de filtragem centralizada — usada por renderList em ambos os caminhos
+function _itemMatchesFilter(item, filterLower, filterUpper) {
+    if (!filterLower) return true;
+    return (item.nome || '').toLowerCase().includes(filterLower)
+        || String(item.codigo || '').toUpperCase().includes(filterUpper)
+        || (item.localizacao || '').toLowerCase().includes(filterLower)
+        || (item.notas || '').toLowerCase().includes(filterLower);
 }
 
 async function renderList(filter = '', force = false) {
@@ -615,10 +740,7 @@ async function renderList(filter = '', force = false) {
             const id   = wrapper.dataset.id;
             const item = data[id];
             if (!item) { wrapper.style.display = 'none'; return; }
-            const matches = !filter
-                || item.nome.toLowerCase().includes(filterLower)
-                || String(item.codigo).toUpperCase().includes(filter.toUpperCase())
-                || (item.localizacao || '').toLowerCase().includes(filterLower);
+            const matches = _itemMatchesFilter(item, filterLower, filter.toUpperCase());
             wrapper.style.display = matches ? '' : 'none';
             if (matches) visible++;
         });
@@ -664,13 +786,12 @@ async function renderList(filter = '', force = false) {
 
     const filterLower = filter.toLowerCase();
     let found = 0;
+    const PAGE_SIZE = 80; // PONTO 9: paginação
+    let _shownCount = 0;
 
     // Ordenação configurável
     getSortedEntries(entries).forEach(([id, item]) => {
-        const matches = !filter
-            || item.nome.toLowerCase().includes(filterLower)
-            || String(item.codigo).toUpperCase().includes(filter.toUpperCase())
-            || (item.localizacao || '').toLowerCase().includes(filterLower);
+        const matches = _itemMatchesFilter(item, filterLower, filter.toUpperCase());
 
         const wrapper = document.createElement('div');
         wrapper.className    = 'swipe-wrapper';
@@ -752,13 +873,51 @@ async function renderList(filter = '', force = false) {
 
         qtyBox.appendChild(btnM); qtyBox.appendChild(qtySpan); qtyBox.appendChild(btnP);
         row.appendChild(pill); row.appendChild(qtyBox);
-        el.appendChild(refLabel); el.appendChild(refVal); el.appendChild(nomEl);
+        // PONTO 13: indicador de notas
+        if (item.notas) {
+            const notasRow = document.createElement('div');
+            notasRow.className   = 'card-notas';
+            notasRow.title       = item.notas;
+            notasRow.textContent = `📝 ${item.notas}`;
+            el.appendChild(refLabel); el.appendChild(refVal); el.appendChild(nomEl);
+            el.appendChild(notasRow);
+        } else {
+            el.appendChild(refLabel); el.appendChild(refVal); el.appendChild(nomEl);
+        }
         el.appendChild(hr); el.appendChild(row);
 
         attachSwipe(el, wrapper, id, item);
         wrapper.appendChild(el);
-        listEl.appendChild(wrapper);
+        if (!matches) { listEl.appendChild(wrapper); return; }
+        // PONTO 9: só renderiza os primeiros PAGE_SIZE visíveis
+        if (_shownCount < PAGE_SIZE) {
+            listEl.appendChild(wrapper);
+        } else {
+            wrapper.style.display = 'none';
+            wrapper.dataset.deferred = '1';
+            listEl.appendChild(wrapper);
+        }
+        _shownCount++;
     });
+
+    // Botão "Mostrar mais" se há cards diferidos
+    const deferred = listEl.querySelectorAll('.swipe-wrapper[data-deferred="1"]').length;
+    const existingBtn = document.getElementById('load-more-btn');
+    if (existingBtn) existingBtn.remove();
+    if (deferred > 0) {
+        const btn = document.createElement('button');
+        btn.id = 'load-more-btn';
+        btn.className = 'btn-load-more';
+        btn.textContent = `Mostrar mais ${deferred} produto${deferred > 1 ? 's' : ''}`;
+        btn.onclick = () => {
+            listEl.querySelectorAll('.swipe-wrapper[data-deferred="1"]').forEach(w => {
+                w.style.display = '';
+                delete w.dataset.deferred;
+            });
+            btn.remove();
+        };
+        listEl.appendChild(btn);
+    }
 
     if (filter && found === 0) {
         const em = document.createElement('div');
@@ -778,7 +937,7 @@ async function renderList(filter = '', force = false) {
 function openInlineQtyEdit(id, item) {
     const qtyEl = document.getElementById(`qty-${id}`);
     if (!qtyEl || qtyEl.querySelector('input')) return; // já em edição
-    const currentQty = cache.stock.data?.[id]?.quantidade ?? 0;
+    const currentQty = cache.stock.data?.[id]?.quantidade ?? item.quantidade ?? 0; // PONTO 5: lê do cache actualizado
     const wrap = document.createElement('div');
     wrap.className = 'qty-inline-edit';
     const inp = document.createElement('input');
@@ -897,7 +1056,11 @@ async function renderTools() {
         toolsFound++;
         const isAv = t.status === 'disponivel';
         const div  = document.createElement('div');
-        div.className = `tool-card ${isAv ? 'tool-available' : 'tool-allocated'}`;
+        // PONTO 27: badge de alerta se alocada há mais de ALERTA_DIAS dias
+        const TOOL_ALERT_DAYS = 7;
+        const isOverdue = !isAv && t.dataEntrega &&
+            (Date.now() - new Date(t.dataEntrega).getTime()) > TOOL_ALERT_DAYS * 86400000;
+        div.className = `tool-card ${isAv ? 'tool-available' : 'tool-allocated'}${isOverdue ? ' tool-overdue' : ''}`;
         div.onclick = () => isAv ? openModal(id) : openConfirmModal({
             icon:'↩', title:'Confirmar devolução?',
             desc:`"${escapeHtml(t.nome)}" será marcada como disponível.`,
@@ -931,6 +1094,13 @@ async function renderTools() {
             dl.className   = 'tool-date';
             dl.textContent = `📅 ${formatDate(t.dataEntrega)}`;
             sub.appendChild(w); sub.appendChild(dl);
+            if (isOverdue) {
+                const ovd = document.createElement('div');
+                ovd.className   = 'tool-overdue-badge';
+                const days = Math.floor((Date.now() - new Date(t.dataEntrega).getTime()) / 86400000);
+                ovd.textContent = `⏰ Alocada há ${days} dias`;
+                sub.appendChild(ovd);
+            }
         }
         info.appendChild(nome); info.appendChild(sub);
         const arrow = document.createElement('span');
@@ -966,12 +1136,17 @@ async function renderAdminTools() {
             desc:`"${escapeHtml(t.nome)}" será removida permanentemente.`,
             onConfirm: () => deleteTool(id)
         });
+        const editBtn = document.createElement('button');
+        editBtn.className   = 'admin-list-edit';
+        editBtn.textContent = '✏️';
+        editBtn.title       = 'Editar';
+        editBtn.onclick     = () => openEditToolModal(id, t);
         const histBtn = document.createElement('button');
         histBtn.className   = 'admin-list-hist';
         histBtn.textContent = '📋';
         histBtn.title       = 'Ver histórico';
         histBtn.onclick     = () => openHistoryModal(id, t.nome);
-        row.appendChild(lbl); row.appendChild(histBtn); row.appendChild(btn);
+        row.appendChild(lbl); row.appendChild(editBtn); row.appendChild(histBtn); row.appendChild(btn);
         list.appendChild(row);
     });
 }
@@ -1078,7 +1253,9 @@ async function assignTool(worker) {
 }
 
 async function returnTool(id) {
+    // PONTO 2: guarda colaborador ANTES de modificar cache — evita perda offline
     const colaborador = cache.ferramentas.data[id]?.colaborador || '';
+    const dataEntregaOrig = cache.ferramentas.data[id]?.dataEntrega || '';
     cache.ferramentas.data[id] = {
         ...cache.ferramentas.data[id], status:'disponivel', colaborador:'', dataEntrega:''
     };
@@ -1087,15 +1264,77 @@ async function returnTool(id) {
         await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, {
             method:'PATCH', body:JSON.stringify({status:'disponivel',colaborador:'',dataEntrega:''})
         });
+        // Regista histórico com colaborador preservado mesmo offline
         await addToolHistoryEvent(id, 'devolvida', colaborador);
-    } catch { invalidateCache('ferramentas'); showToast('Erro ao guardar.','error'); }
+    } catch {
+        // Reverte estado local
+        cache.ferramentas.data[id] = {
+            ...cache.ferramentas.data[id], status:'alocada', colaborador, dataEntrega: dataEntregaOrig
+        };
+        invalidateCache('ferramentas'); showToast('Erro ao guardar.','error');
+    }
+}
+
+// PONTO 11: editar ferramenta (nome + ícone)
+let _editToolId = null;
+
+function openEditToolModal(id, tool) {
+    _editToolId = id;
+    document.getElementById('edit-tool-id').value   = id;
+    document.getElementById('edit-tool-name').value = tool.nome || '';
+    setUnitSelector && null; // não aplica
+    // Set icon
+    document.getElementById('edit-tool-icon-hidden').value = tool.icone || '🪛';
+    document.getElementById('edit-tool-icon-btn').textContent = tool.icone || '🪛';
+    document.getElementById('edit-tool-modal').classList.add('active');
+    focusModal('edit-tool-modal');
+}
+
+function closeEditToolModal() {
+    document.getElementById('edit-tool-modal').classList.remove('active');
+    _editToolId = null;
+}
+
+async function saveEditTool() {
+    const id    = document.getElementById('edit-tool-id').value;
+    const nome  = document.getElementById('edit-tool-name').value.trim();
+    const icone = document.getElementById('edit-tool-icon-hidden').value || '🪛';
+    if (!nome) { showToast('Nome obrigatório', 'error'); return; }
+    if (cache.ferramentas.data?.[id]) {
+        cache.ferramentas.data[id] = { ...cache.ferramentas.data[id], nome, icone };
+    }
+    closeEditToolModal();
+    renderAdminTools();
+    renderTools();
+    renderDashboard();
+    showToast('Ferramenta actualizada!');
+    try {
+        await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, {
+            method:'PATCH', body: JSON.stringify({ nome, icone })
+        });
+    } catch { invalidateCache('ferramentas'); showToast('Erro ao guardar','error'); }
 }
 
 async function deleteTool(id) {
-    delete cache.ferramentas.data[id]; renderAdminTools();
-    try {
-        await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, { method:'DELETE' });
-    } catch { invalidateCache('ferramentas'); showToast('Erro ao apagar.','error'); }
+    // PONTO 3: se ferramenta está alocada, força devolução antes de apagar
+    const tool = cache.ferramentas.data?.[id];
+    const _doDelete = async () => {
+        delete cache.ferramentas.data[id]; renderAdminTools(); renderTools(); renderDashboard();
+        try {
+            await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, { method:'DELETE' });
+            showToast('Ferramenta apagada');
+        } catch { invalidateCache('ferramentas'); showToast('Erro ao apagar.','error'); }
+    };
+    if (tool?.status === 'alocada') {
+        openConfirmModal({
+            icon: '⚠️',
+            title: 'Ferramenta alocada!',
+            desc: `"${escapeHtml(tool.nome)}" está com ${escapeHtml(tool.colaborador || '?')}. Apagar irá forçar a devolução sem registo. Confirmas?`,
+            onConfirm: _doDelete
+        });
+    } else {
+        await _doDelete();
+    }
 }
 
 // =============================================
@@ -1227,6 +1466,7 @@ function openEditModal(id, item) {
     document.getElementById('edit-loc').value    = item.localizacao || '';
     document.getElementById('edit-qtd').value    = item.quantidade ?? 0;
     setUnitSelector('edit', item.unidade || 'un');
+    document.getElementById('edit-notas').value  = item.notas || '';
     document.getElementById('edit-modal').classList.add('active');
     focusModal('edit-modal');
 }
@@ -1339,27 +1579,57 @@ const PIN_LOCKOUT_MS    = 5 * 60 * 1000; // 5 minutos
 const PIN_ATTEMPTS_KEY  = 'hiperfrio-pin-attempts';
 const PIN_LOCKOUT_KEY   = 'hiperfrio-pin-lockout';
 
+// PONTO 12: lockout armazenado na Firebase — bypass-proof mesmo se localStorage for limpo
+const PIN_LOCKOUT_FB_URL = `${BASE_URL}/config/pinLockout.json`;
+
 function isPinLocked() {
+    // Verificação local rápida (fallback)
     const lockUntil = parseInt(localStorage.getItem(PIN_LOCKOUT_KEY) || '0');
     if (Date.now() < lockUntil) return lockUntil;
     return false;
+}
+
+async function isPinLockedRemote() {
+    try {
+        const url = await authUrl(PIN_LOCKOUT_FB_URL);
+        const res = await fetch(url);
+        if (!res.ok) return false;
+        const data = await res.json();
+        if (!data) return false;
+        if (Date.now() < (data.until || 0)) return data.until;
+        return false;
+    } catch { return false; } // offline — usa local
 }
 
 function recordPinFailure() {
     const attempts = parseInt(localStorage.getItem(PIN_ATTEMPTS_KEY) || '0') + 1;
     if (attempts >= PIN_MAX_ATTEMPTS) {
         const until = Date.now() + PIN_LOCKOUT_MS;
-        localStorage.setItem(PIN_LOCKOUT_KEY,   String(until));
-        localStorage.setItem(PIN_ATTEMPTS_KEY,  '0');
+        localStorage.setItem(PIN_LOCKOUT_KEY,  String(until));
+        localStorage.setItem(PIN_ATTEMPTS_KEY, '0');
+        // Persiste também na Firebase (async — best-effort)
+        authUrl(PIN_LOCKOUT_FB_URL).then(url =>
+            fetch(url, { method:'PUT', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ until, attempts: 0 }) })
+        ).catch(() => {});
         return until;
     }
     localStorage.setItem(PIN_ATTEMPTS_KEY, String(attempts));
+    // Actualiza contagem na Firebase
+    authUrl(PIN_LOCKOUT_FB_URL).then(url =>
+        fetch(url, { method:'PATCH', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ attempts }) })
+    ).catch(() => {});
     return false;
 }
 
 function resetPinAttempts() {
     localStorage.removeItem(PIN_ATTEMPTS_KEY);
     localStorage.removeItem(PIN_LOCKOUT_KEY);
+    // Limpa também na Firebase
+    authUrl(PIN_LOCKOUT_FB_URL).then(url =>
+        fetch(url, { method:'DELETE' })
+    ).catch(() => {});
 }
 
 function checkAdminAccess() {
@@ -1396,6 +1666,13 @@ function pinKey(digit) {
 function pinDel() { pinBuffer = pinBuffer.slice(0,-1); updatePinDots('pin-dots', pinBuffer.length); }
 
 async function validatePin() {
+    // PONTO 12: verifica lockout remoto antes de validar
+    const remoteLock = await isPinLockedRemote();
+    if (remoteLock) {
+        const remaining = Math.ceil((remoteLock - Date.now()) / 60000);
+        showPinError('pin-dots', 'pin-error', `Bloqueado por ${remaining} min`);
+        return;
+    }
     // Verifica bloqueio antes de qualquer comparação
     const locked = isPinLocked();
     if (locked) {
@@ -1552,6 +1829,52 @@ async function exportCSV() {
 // =============================================
 // ADMIN TABS
 // =============================================
+// PONTO 25: exportar histórico de ferramentas para CSV
+async function exportToolHistoryCSV() {
+    const btn = document.querySelector('[onclick="exportToolHistoryCSV()"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'A exportar...'; }
+    try {
+        const ferrData = await fetchCollection('ferramentas', true);
+        if (!ferrData || Object.keys(ferrData).length === 0) {
+            showToast('Sem ferramentas para exportar', 'error');
+            return;
+        }
+        const headers = ['Ferramenta','Ícone','Ação','Colaborador','Data'];
+        const rows = [];
+        for (const [id, t] of Object.entries(ferrData)) {
+            if (!t.historico) continue;
+            for (const ev of Object.values(t.historico)) {
+                rows.push([
+                    `"${(t.nome||'').replace(/"/g,'""')}"`,
+                    `"${t.icone || '🪛'}"`,
+                    `"${ev.acao || ''}"`,
+                    `"${(ev.colaborador||'').replace(/"/g,'""')}"`,
+                    `"${ev.data ? new Date(ev.data).toLocaleString('pt-PT') : ''}"`
+                ]);
+            }
+        }
+        if (rows.length === 0) {
+            showToast('Sem histórico para exportar', 'error');
+            return;
+        }
+        rows.sort((a, b) => a[4] < b[4] ? 1 : -1); // mais recente primeiro
+        const csv  = [headers.join(';'), ...rows.map(r => r.join(';'))].join('
+');
+        const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' });
+        const url  = URL.createObjectURL(blob);
+        Object.assign(document.createElement('a'), {
+            href: url,
+            download: `hiperfrio-historico-ferramentas-${new Date().toISOString().slice(0,10)}.csv`
+        }).click();
+        URL.revokeObjectURL(url);
+        showToast(`${rows.length} registos exportados!`);
+    } catch(e) {
+        showToast('Erro ao exportar histórico', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Exportar Histórico'; }
+    }
+}
+
 function switchAdminTab(tab) {
     document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
@@ -1728,7 +2051,7 @@ function _renderIconPicker() {
     // Ícones da categoria activa
     const gridEl = document.getElementById('icon-picker-grid');
     gridEl.innerHTML = '';
-    const currentIcon = document.getElementById(`${_iconPickerTarget}-tool-icon`)?.value || '🪛';
+    const currentIcon = (document.getElementById(`${_iconPickerTarget}-tool-icon`) || document.getElementById(`${_iconPickerTarget}-icon-hidden`))?.value || '🪛';
     TOOL_ICONS[_iconPickerCat].forEach(icon => {
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -1740,13 +2063,213 @@ function _renderIconPicker() {
 }
 
 function _selectIcon(icon) {
-    // Actualiza o hidden input
-    const hiddenEl = document.getElementById(`${_iconPickerTarget}-tool-icon`);
+    // Suporta dois padrões de ID: '{target}-tool-icon' e '{target}-icon-hidden'
+    const hiddenEl = document.getElementById(`${_iconPickerTarget}-tool-icon`)
+                  || document.getElementById(`${_iconPickerTarget}-icon-hidden`);
     if (hiddenEl) hiddenEl.value = icon;
-    // Actualiza o botão visual
     const btnEl = document.getElementById(`${_iconPickerTarget}-tool-icon-btn`);
     if (btnEl) btnEl.textContent = icon;
     closeIconPicker();
+}
+
+
+// =============================================
+// PONTO 26: MODO INVENTÁRIO GUIADO
+// =============================================
+let _invItems     = [];   // lista ordenada por local
+let _invIdx       = 0;    // índice actual
+let _invChanges   = {};   // { id: novaQtd }
+
+async function startInventory() {
+    const data = await fetchCollection('stock', true);
+    if (!data || Object.keys(data).length === 0) {
+        showToast('Sem produtos para inventariar', 'error'); return;
+    }
+    // Ordena por localização depois nome
+    _invItems = Object.entries(data)
+        .filter(([k]) => !k.startsWith('_tmp_'))
+        .sort(([,a],[,b]) => {
+            const la = (a.localizacao||'ZZZ').toUpperCase();
+            const lb = (b.localizacao||'ZZZ').toUpperCase();
+            return la !== lb ? la.localeCompare(lb,'pt') : (a.nome||'').localeCompare(b.nome||'','pt');
+        });
+    _invIdx     = 0;
+    _invChanges = {};
+    document.getElementById('inv-modal').classList.add('active');
+    focusModal('inv-modal');
+    _renderInvStep();
+}
+
+function _renderInvStep() {
+    const total  = _invItems.length;
+    const [id, item] = _invItems[_invIdx] || [];
+    if (!id) { _finishInventory(); return; }
+
+    document.getElementById('inv-progress-text').textContent =
+        `${_invIdx + 1} / ${total}`;
+    document.getElementById('inv-progress-bar').style.width =
+        `${Math.round((_invIdx / total) * 100)}%`;
+    document.getElementById('inv-local').textContent =
+        item.localizacao ? `📍 ${item.localizacao.toUpperCase()}` : '📍 SEM LOCAL';
+    document.getElementById('inv-ref').textContent = item.codigo || '';
+    document.getElementById('inv-nome').textContent = item.nome || '';
+    document.getElementById('inv-unidade').textContent = item.unidade && item.unidade !== 'un' ? item.unidade : '';
+    const qtyInput = document.getElementById('inv-qtd');
+    qtyInput.value = _invChanges[id] !== undefined ? _invChanges[id] : (item.quantidade || 0);
+    qtyInput.focus();
+    qtyInput.select();
+
+    // Botão prev
+    document.getElementById('inv-prev-btn').disabled = _invIdx === 0;
+}
+
+function invConfirm() {
+    const [id, item] = _invItems[_invIdx] || [];
+    if (!id) return;
+    const val = parseFloat(document.getElementById('inv-qtd').value);
+    if (!isNaN(val) && val >= 0) _invChanges[id] = val;
+    if (_invIdx < _invItems.length - 1) { _invIdx++; _renderInvStep(); }
+    else _finishInventory();
+}
+
+function invSkip() {
+    if (_invIdx < _invItems.length - 1) { _invIdx++; _renderInvStep(); }
+    else _finishInventory();
+}
+
+function invPrev() {
+    if (_invIdx > 0) { _invIdx--; _renderInvStep(); }
+}
+
+function closeInventory() {
+    document.getElementById('inv-modal').classList.remove('active');
+}
+
+async function _finishInventory() {
+    document.getElementById('inv-modal').classList.remove('active');
+    const changed = Object.entries(_invChanges).filter(([id, newQty]) => {
+        const oldQty = cache.stock.data?.[id]?.quantidade;
+        return oldQty !== undefined && newQty !== oldQty;
+    });
+    if (changed.length === 0) {
+        showToast('Inventário concluído — sem diferenças!'); return;
+    }
+    // Aplica alterações
+    for (const [id, newQty] of changed) {
+        if (cache.stock.data?.[id]) cache.stock.data[id].quantidade = newQty;
+        try {
+            await apiFetch(`${BASE_URL}/stock/${id}.json`, {
+                method:'PATCH', body: JSON.stringify({ quantidade: newQty })
+            });
+        } catch { invalidateCache('stock'); }
+    }
+    renderList(document.getElementById('inp-search')?.value || '', true);
+    renderDashboard();
+    showToast(`Inventário: ${changed.length} diferença${changed.length > 1 ? 's' : ''} corrigida${changed.length > 1 ? 's' : ''}!`);
+}
+
+// =============================================
+// PONTO 23: TIMELINE DE FERRAMENTAS
+// =============================================
+async function openToolTimeline() {
+    const el = document.getElementById('timeline-list');
+    el.innerHTML = '<div class="empty-msg">A carregar...</div>';
+    document.getElementById('timeline-modal').classList.add('active');
+    focusModal('timeline-modal');
+
+    try {
+        if (!navigator.onLine) {
+            el.innerHTML = '<div class="empty-msg">Sem ligação — timeline indisponível offline.</div>';
+            return;
+        }
+        const ferrData = await fetchCollection('ferramentas', true);
+        if (!ferrData) { el.innerHTML = '<div class="empty-msg">Sem dados.</div>'; return; }
+
+        // Recolhe todos os eventos de histórico
+        const events = [];
+        for (const [id, t] of Object.entries(ferrData)) {
+            if (t.historico) {
+                for (const ev of Object.values(t.historico)) {
+                    events.push({ ...ev, toolNome: t.nome, toolIcone: t.icone || '🪛', toolId: id });
+                }
+            }
+            // Adiciona estado actual se alocada
+            if (t.status === 'alocada' && t.dataEntrega) {
+                const days = Math.floor((Date.now() - new Date(t.dataEntrega).getTime()) / 86400000);
+                events.push({
+                    data: t.dataEntrega,
+                    acao: 'alocada_agora',
+                    colaborador: t.colaborador,
+                    toolNome: t.nome,
+                    toolIcone: t.icone || '🪛',
+                    toolId: id,
+                    _dias: days
+                });
+            }
+        }
+        // Ordena do mais recente
+        events.sort((a,b) => new Date(b.data) - new Date(a.data));
+
+        el.innerHTML = '';
+        if (events.length === 0) {
+            el.innerHTML = '<div class="empty-msg">Sem eventos registados.</div>'; return;
+        }
+
+        let lastDate = '';
+        events.slice(0, 100).forEach(ev => { // max 100 eventos
+            const d     = new Date(ev.data);
+            const dateStr = d.toLocaleDateString('pt-PT', { day:'numeric', month:'short', year:'numeric' });
+            if (dateStr !== lastDate) {
+                const sep = document.createElement('div');
+                sep.className   = 'tl-date-sep';
+                sep.textContent = dateStr;
+                el.appendChild(sep);
+                lastDate = dateStr;
+            }
+            const row  = document.createElement('div');
+            const isOut = ev.acao === 'atribuida' || ev.acao === 'alocada_agora';
+            row.className = `tl-event ${isOut ? 'tl-out' : 'tl-in'}`;
+
+            const icoEl = document.createElement('span');
+            icoEl.className   = 'tl-tool-icon';
+            icoEl.textContent = ev.toolIcone;
+
+            const info = document.createElement('div');
+            info.className = 'tl-info';
+
+            const name = document.createElement('span');
+            name.className   = 'tl-tool-name';
+            name.textContent = ev.toolNome || '?';
+
+            const action = document.createElement('span');
+            action.className = 'tl-action';
+            if (ev.acao === 'alocada_agora') {
+                action.textContent = `🔴 Com ${ev.colaborador || '?'} há ${ev._dias}d`;
+                action.className += ' tl-action-overdue';
+            } else if (ev.acao === 'atribuida') {
+                action.textContent = `➔ Entregue a ${ev.colaborador || '?'}`;
+            } else {
+                action.textContent = `↩ Devolvida${ev.colaborador ? ' por ' + ev.colaborador : ''}`;
+            }
+
+            const time = document.createElement('span');
+            time.className   = 'tl-time';
+            time.textContent = d.toLocaleTimeString('pt-PT', { hour:'2-digit', minute:'2-digit' });
+
+            info.appendChild(name);
+            info.appendChild(action);
+            row.appendChild(icoEl);
+            row.appendChild(info);
+            row.appendChild(time);
+            el.appendChild(row);
+        });
+    } catch(e) {
+        el.innerHTML = '<div class="empty-msg">Erro ao carregar timeline.</div>';
+    }
+}
+
+function closeToolTimeline() {
+    document.getElementById('timeline-modal').classList.remove('active');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1820,6 +2343,9 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'history-modal',      close: closeHistoryModal },
             { id: 'icon-picker-modal',  close: closeIconPicker },
             { id: 'dup-modal',          close: closeDupModal },
+            { id: 'inv-modal',          close: closeInventory },
+            { id: 'timeline-modal',     close: closeToolTimeline },
+            { id: 'edit-tool-modal',    close: closeEditToolModal },
         ];
         for (const { id, close } of modals) {
             if (document.getElementById(id)?.classList.contains('active')) { close(); break; }
@@ -1898,9 +2424,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const codigo  = document.getElementById('inp-codigo').value.trim().toUpperCase();
         const payload = {
             nome:        document.getElementById('inp-nome').value.trim(),
-            localizacao: document.getElementById('inp-loc').value.trim().toUpperCase(),
+            localizacao: document.getElementById('inp-loc').value.trim().toUpperCase().replace(/\s+/g, ''),
             quantidade:  parseFloat(document.getElementById('inp-qtd').value) || 0,
             unidade:     document.getElementById('inp-unidade').value || 'un',
+            notas:       document.getElementById('inp-notas').value.trim(),
             codigo
         };
 
@@ -1930,12 +2457,15 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const btn    = e.target.querySelector('button[type=submit]');
         const codigo = document.getElementById('bulk-codigo').value.trim().toUpperCase();
+        // PONTO 6: normaliza zona — remove espaços internos e padroniza formato
+        const rawZona = document.getElementById('bulk-loc').value.trim().toUpperCase().replace(/\s+/g, '');
         const payload = {
-            localizacao: document.getElementById('bulk-loc').value.trim().toUpperCase(),
+            localizacao: rawZona,
             codigo,
             nome:        document.getElementById('bulk-nome').value.trim(),
             quantidade:  parseFloat(document.getElementById('bulk-qtd').value) || 0,
             unidade:     document.getElementById('bulk-unidade').value || 'un',
+            notas:       document.getElementById('bulk-notas').value.trim(),
         };
 
         const doSave = async () => {
@@ -1949,12 +2479,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     cache.stock.data[`_tmp_${Date.now()}`] = payload;
                 }
+                // PONTO 16: guarda zona no histórico de zonas usadas
+                _saveZoneToHistory(rawZona);
                 _bulkCount++;
                 _updateBulkCounter();
                 showToast(`${payload.codigo} adicionado ao lote!`);
                 document.getElementById('bulk-codigo').value = '';
                 document.getElementById('bulk-nome').value   = '';
                 document.getElementById('bulk-qtd').value    = '1';
+                document.getElementById('bulk-notas').value  = '';
                 // Unidade mantém-se propositadamente — catalogação em série do mesmo tipo
                 document.getElementById('bulk-codigo').focus();
             } catch { invalidateCache('stock'); showToast('Erro ao adicionar ao lote','error'); }
@@ -1973,9 +2506,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const updated = {
             codigo:      document.getElementById('edit-codigo').value.trim().toUpperCase(),
             nome:        document.getElementById('edit-nome').value.trim(),
-            localizacao: document.getElementById('edit-loc').value.trim().toUpperCase(),
+            localizacao: document.getElementById('edit-loc').value.trim().toUpperCase().replace(/\s+/g, ''),
             quantidade:  parseFloat(document.getElementById('edit-qtd').value) || 0,
             unidade:     document.getElementById('edit-unidade').value || 'un',
+            notas:       document.getElementById('edit-notas').value.trim(),
         };
         cache.stock.data[id] = { ...cache.stock.data[id], ...updated };
         closeEditModal();
@@ -2004,6 +2538,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Form: Ferramenta
+    // Form: Editar ferramenta
+    document.getElementById('form-edit-tool')?.addEventListener('submit', async e => {
+        e.preventDefault();
+        await saveEditTool();
+    });
+
     document.getElementById('form-tool-reg')?.addEventListener('submit', async e => {
         e.preventDefault();
         const nome    = document.getElementById('reg-tool-name').value.trim();
