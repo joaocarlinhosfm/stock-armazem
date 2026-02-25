@@ -1630,3 +1630,123 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     cursor: pointer;
     user-select: none;
 }
+
+/* =============================================
+   ÍCONE DE FERRAMENTA — picker e card
+   ============================================= */
+
+/* Row do form: botão ícone + input nome */
+.tool-reg-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0;
+}
+.tool-reg-row .blue-input { flex: 1; margin-bottom: 0; }
+
+/* Botão do ícone no form */
+.tool-icon-pick-btn {
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    background: var(--input-fill);
+    font-size: 1.55rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+    line-height: 1;
+}
+.tool-icon-pick-btn:hover { border-color: var(--primary); transform: scale(1.06); }
+.tool-icon-pick-btn:active { transform: scale(0.95); }
+
+/* Ícone no card de ferramenta */
+.tool-card-icon {
+    font-size: 1.2rem;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+/* Modal do picker */
+.icon-picker-modal-content {
+    max-height: 88vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 16px;
+}
+.icon-picker-title {
+    margin: 0 0 14px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    text-align: center;
+}
+
+/* Categorias */
+.icon-picker-cats {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    scrollbar-width: none;
+    flex-shrink: 0;
+}
+.icon-picker-cats::-webkit-scrollbar { display: none; }
+
+.icon-cat-btn {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+}
+.icon-cat-btn:hover { border-color: var(--primary); color: var(--primary); }
+.icon-cat-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+/* Grid de ícones */
+.icon-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+    gap: 8px;
+    overflow-y: auto;
+    padding: 4px 2px;
+    max-height: 52vh;
+    flex: 1;
+}
+.icon-grid-btn {
+    aspect-ratio: 1;
+    border-radius: 12px;
+    border: 2px solid transparent;
+    background: var(--input-fill);
+    font-size: 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, border-color 0.12s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+    line-height: 1;
+}
+.icon-grid-btn:hover { background: rgba(37,99,235,0.08); border-color: var(--primary); }
+.icon-grid-btn:active { transform: scale(0.9); }
+.icon-grid-btn.active {
+    border-color: var(--primary);
+    background: rgba(37,99,235,0.12);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.2);
+}
