@@ -1,5 +1,5 @@
 // Cache version — bump this string on every deploy to force SW update
-const CACHE_VERSION = 'hiperfrio-v5.1';
+const CACHE_VERSION = 'hiperfrio-v5.2';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', e => {
@@ -43,4 +43,21 @@ self.addEventListener('fetch', e => {
     e.respondWith(
         caches.match(e.request).then(cached => cached || fetch(e.request))
     );
+});
+
+// ── PONTO 25: Background Sync ──────────────────────────────
+// Quando a ligação volta (mesmo com a app fechada), o SW acorda
+// e envia mensagem a todos os clientes para sincronizarem a fila offline.
+self.addEventListener('sync', e => {
+    if (e.tag === 'hiperfrio-sync') {
+        e.waitUntil(
+            self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then(clients => {
+                if (clients.length > 0) {
+                    // App está aberta — diz-lhe para sincronizar
+                    clients.forEach(c => c.postMessage({ type: 'SYNC_QUEUE' }));
+                }
+                // Se não há clientes, a sincronização acontecerá quando o utilizador abrir a app
+            })
+        );
+    }
 });
