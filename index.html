@@ -186,9 +186,12 @@
             <!-- Tab: Ferramentas -->
             <section class="admin-panel" id="panel-tools">
                 <form id="form-tool-reg" class="pro-form">
-                    <div class="tool-reg-row">
-                        <button type="button" id="reg-tool-icon-btn" class="tool-icon-pick-btn" onclick="openIconPicker()" title="Escolher ícone">🪛</button>
-                        <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required>
+                    <div class="form-group tool-reg-row">
+                        <label class="tool-reg-label">FERRAMENTA</label>
+                        <div class="tool-reg-inputs">
+                            <button type="button" id="reg-tool-icon-btn" class="tool-icon-pick-btn" onclick="openIconPicker();" title="Escolher ícone">🪛</button>
+                            <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required>
+                        </div>
                     </div>
                     <input type="hidden" id="reg-tool-icon" value="🪛">
                     <button type="submit" class="btn-primary">Registar Ferramenta</button>
