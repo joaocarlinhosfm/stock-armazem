@@ -38,7 +38,7 @@
     </div>
 
     <!-- Banner offline -->
-    <div id="offline-banner" style="display:none;">
+    <div id="offline-banner" class="hidden">
         <span>📡 Sem ligação — as alterações serão guardadas e sincronizadas quando voltar online</span>
         <span id="offline-pending-count"></span>
     </div>
@@ -69,7 +69,7 @@
             </ul>
             
             <div class="menu-footer">
-                <div id="sync-status" style="display:none;"></div>
+                <div id="sync-status" class="hidden"></div>
             </div>
         </nav>
 
@@ -79,7 +79,7 @@
                 <!-- Input box com botões embutidos -->
                 <div class="search-input-wrap">
                     <input type="text" id="inp-search" placeholder="Pesquisar por nome, ref. ou local..." autocomplete="off">
-                    <button id="inp-search-clear" class="search-clear-btn" onclick="clearSearch()" title="Limpar" style="display:none">✕</button>
+                    <button id="inp-search-clear" class="search-clear-btn hidden" onclick="clearSearch()" title="Limpar">✕</button>
                     <div class="sort-dropdown-wrap" data-manager-only id="sort-dropdown-wrap">
                         <button class="sort-dropdown-btn" id="sort-dropdown-btn" onclick="toggleSortMenu()" title="Ordenar">⇅</button>
                     </div>
@@ -92,6 +92,10 @@
 
         <div id="view-tools" class="view">
             <h2>Painel de Ferramentas</h2>
+            <div class="tools-search-wrap">
+                <input type="text" id="inp-tools-search" class="blue-input tools-search-input"
+                    placeholder="Pesquisar ferramenta..." autocomplete="off">
+            </div>
             <div id="tools-list"></div>
         </div>
 
@@ -104,7 +108,7 @@
 <div class="qty-row">
                     <div class="form-group qty-field">
                         <label for="inp-qtd">QUANTIDADE</label>
-                        <input type="number" id="inp-qtd" class="blue-input" value="0" min="0">
+                        <input type="number" id="inp-qtd" class="blue-input" value="0" min="0" step="any" inputmode="decimal">
                     </div>
                     <div class="form-group unit-field">
                         <label>UNIDADE</label>
@@ -129,6 +133,7 @@
 
         <div id="view-bulk" class="view">
             <h2>Catalogar Lote</h2>
+            <div id="bulk-counter" class="bulk-counter hidden"></div>
             <form id="form-bulk" class="pro-form">
                 <div class="form-group"><label for="bulk-loc">ZONA</label><input type="text" id="bulk-loc" class="blue-input" required></div>
                 <div class="form-group"><label for="bulk-codigo">REFERÊNCIA</label><input type="text" id="bulk-codigo" class="blue-input" required></div>
@@ -136,7 +141,7 @@
 <div class="qty-row">
                     <div class="form-group qty-field">
                         <label for="bulk-qtd">QUANTIDADE</label>
-                        <input type="number" id="bulk-qtd" class="blue-input" value="1" min="0">
+                        <input type="number" id="bulk-qtd" class="blue-input" value="1" min="0" step="any" inputmode="decimal">
                     </div>
                     <div class="form-group unit-field">
                         <label>UNIDADE</label>
@@ -184,7 +189,7 @@
                     <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required>
                     <button type="submit" class="btn-primary">Registar Ferramenta</button>
                 </form>
-                <div id="admin-tools-list" class="scroll-list" style="margin-top: 16px;"></div>
+                <div id="admin-tools-list" class="scroll-list admin-tools-list"></div>
             </section>
 
             <!-- Tab: Definições -->
@@ -321,7 +326,7 @@
                 <button class="pin-key" onclick="pinSetupKey('0')">0</button>
                 <button class="pin-key pin-key-del" onclick="pinSetupDel()">⌫</button>
             </div>
-            <button class="btn-cancel" id="pin-remove-btn" onclick="removePin()" style="display:none;">Remover PIN</button>
+            <button class="btn-cancel" id="pin-remove-btn" onclick="removePin()" class="hidden">Remover PIN</button>
         </div>
     </div>
 
@@ -340,7 +345,7 @@
     <div id="edit-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
         <div class="modal-content">
             <h3 id="edit-modal-title">✏️ Editar Produto</h3>
-            <form id="form-edit" class="pro-form" style="margin-top:16px;">
+            <form id="form-edit" class="pro-form form-edit-modal">
                 <input type="hidden" id="edit-id">
                 <div class="form-group">
                     <label for="edit-codigo">REFERÊNCIA</label>
@@ -357,7 +362,7 @@
 <div class="qty-row">
                     <div class="form-group qty-field">
                         <label for="edit-qtd">QUANTIDADE</label>
-                        <input type="number" id="edit-qtd" class="blue-input"  min="0">
+                        <input type="number" id="edit-qtd" class="blue-input" min="0" step="any" inputmode="decimal">
                     </div>
                     <div class="form-group unit-field">
                         <label>UNIDADE</label>
@@ -455,3 +460,4 @@
     <script src="app.js"></script>
 </body>
 </html>
+
