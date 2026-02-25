@@ -1858,8 +1858,7 @@ async function exportToolHistoryCSV() {
             return;
         }
         rows.sort((a, b) => a[4] < b[4] ? 1 : -1); // mais recente primeiro
-        const csv  = [headers.join(';'), ...rows.map(r => r.join(';'))].join('
-');
+        const csv  = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
         const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' });
         const url  = URL.createObjectURL(blob);
         Object.assign(document.createElement('a'), {
