@@ -91,7 +91,10 @@
         </div>
 
         <div id="view-tools" class="view">
-            <h2>Painel de Ferramentas</h2>
+            <div class="tools-header">
+                <h2>Painel de Ferramentas</h2>
+                <button class="btn-timeline" onclick="openToolTimeline()" title="Ver timeline">📅 Timeline</button>
+            </div>
             <div class="tools-search-wrap">
                 <input type="text" id="inp-tools-search" class="blue-input tools-search-input"
                     placeholder="Pesquisar ferramenta..." autocomplete="off">
@@ -127,6 +130,7 @@
                         <input type="hidden" id="inp-unidade" value="un">
                     </div>
                 </div>
+                <div class="form-group"><label for="inp-notas">NOTAS (opcional)</label><textarea id="inp-notas" class="blue-input textarea-input" placeholder="Observações, estado, localização alternativa..." rows="2"></textarea></div>
                 <button type="submit" class="btn-primary">Gravar Produto</button>
             </form>
         </div>
@@ -135,7 +139,10 @@
             <h2>Catalogar Lote</h2>
             <div id="bulk-counter" class="bulk-counter hidden"></div>
             <form id="form-bulk" class="pro-form">
-                <div class="form-group"><label for="bulk-loc">ZONA</label><input type="text" id="bulk-loc" class="blue-input" required></div>
+                <div class="form-group"><label for="bulk-loc">ZONA</label>
+                    <input type="text" id="bulk-loc" class="blue-input" required list="zone-datalist" autocomplete="off">
+                    <datalist id="zone-datalist"></datalist>
+                </div>
                 <div class="form-group"><label for="bulk-codigo">REFERÊNCIA</label><input type="text" id="bulk-codigo" class="blue-input" required></div>
                 <div class="form-group"><label for="bulk-nome">NOME</label><input type="text" id="bulk-nome" class="blue-input" required></div>
 <div class="qty-row">
@@ -160,8 +167,10 @@
                         <input type="hidden" id="bulk-unidade" value="un">
                     </div>
                 </div>
+                <div class="form-group"><label for="bulk-notas">NOTAS (opcional)</label><textarea id="bulk-notas" class="blue-input textarea-input" placeholder="Observações..." rows="2"></textarea></div>
                 <button type="submit" class="btn-primary">Adicionar ao Lote</button>
             </form>
+            <button class="btn-close-batch" onclick="closeBatch()" id="btn-close-batch">📦 Fechar Lote</button>
         </div>
 
         <div id="view-admin" class="view">
@@ -239,6 +248,20 @@
                         <span class="settings-item-desc">Descarrega todo o inventário em formato CSV</span>
                     </div>
                     <button class="btn-settings-action" onclick="exportCSV()">Exportar</button>
+                </div>
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Exportar Histórico de Ferramentas</span>
+                        <span class="settings-item-desc">Descarrega todas as atribuições e devoluções em CSV</span>
+                    </div>
+                    <button class="btn-settings-action" onclick="exportToolHistoryCSV()">Exportar Histórico</button>
+                </div>
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Inventário Guiado</span>
+                        <span class="settings-item-desc">Percorre todos os produtos e confirma quantidades</span>
+                    </div>
+                    <button class="btn-settings-action" onclick="startInventory()">Iniciar</button>
                 </div>
 
             </section>
@@ -388,6 +411,10 @@
                         <input type="hidden" id="edit-unidade" value="un">
                     </div>
                 </div>
+                <div class="form-group">
+                    <label for="edit-notas">NOTAS</label>
+                    <textarea id="edit-notas" class="blue-input textarea-input" rows="2" placeholder="Observações..."></textarea>
+                </div>
                 <button type="submit" class="btn-primary">Guardar Alterações</button>
                 <button type="button" onclick="closeEditModal()" class="btn-cancel">Cancelar</button>
             </form>
@@ -433,6 +460,65 @@
             <h3 id="icon-picker-title" class="icon-picker-title">Escolher Ícone</h3>
             <div class="icon-picker-cats" id="icon-picker-cats"></div>
             <div class="icon-picker-grid" id="icon-picker-grid"></div>
+        </div>
+    </div>
+
+    <!-- Modal: Editar ferramenta (ponto 11) -->
+    <div id="edit-tool-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-tool-title">
+        <div class="modal-content">
+            <h3 id="edit-tool-title">✏️ Editar Ferramenta</h3>
+            <form id="form-edit-tool" class="pro-form form-edit-modal">
+                <input type="hidden" id="edit-tool-id">
+                <div class="form-group tool-reg-row">
+                    <label class="tool-reg-label">FERRAMENTA</label>
+                    <div class="tool-reg-inputs">
+                        <button type="button" id="edit-tool-icon-btn" class="tool-icon-pick-btn" onclick="openIconPicker('edit-tool')" title="Escolher ícone">🪛</button>
+                        <input type="text" id="edit-tool-name" class="blue-input" placeholder="Nome da ferramenta" required>
+                    </div>
+                </div>
+                <input type="hidden" id="edit-tool-icon-hidden" value="🪛">
+                <button type="submit" class="btn-primary">Guardar</button>
+                <button type="button" onclick="closeEditToolModal()" class="btn-cancel">Cancelar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Inventário guiado (ponto 26) -->
+    <div id="inv-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="inv-modal-title">
+        <div class="modal-content modal-content-wide">
+            <h3 id="inv-modal-title">📋 Inventário Guiado</h3>
+            <div class="inv-progress-wrap">
+                <div class="inv-progress-bar-bg"><div id="inv-progress-bar" class="inv-progress-bar-fill"></div></div>
+                <span id="inv-progress-text" class="inv-progress-text">1 / ?</span>
+            </div>
+            <div class="inv-local" id="inv-local">📍</div>
+            <div class="inv-ref" id="inv-ref"></div>
+            <div class="inv-nome" id="inv-nome"></div>
+            <div class="inv-qty-row">
+                <label class="inv-qty-label">QUANTIDADE</label>
+                <div class="inv-qty-controls">
+                    <button type="button" class="btn-qty" onclick="document.getElementById('inv-qtd').value=Math.max(0,parseFloat(document.getElementById('inv-qtd').value||0)-1)">−</button>
+                    <input type="number" id="inv-qtd" class="inv-qty-input" min="0" step="any" inputmode="decimal">
+                    <button type="button" class="btn-qty" onclick="document.getElementById('inv-qtd').value=parseFloat(document.getElementById('inv-qtd').value||0)+1">+</button>
+                </div>
+                <span id="inv-unidade" class="inv-unidade-label"></span>
+            </div>
+            <div class="inv-actions">
+                <button id="inv-prev-btn" onclick="invPrev()" class="btn-cancel inv-prev">← Anterior</button>
+                <button onclick="invSkip()" class="btn-cancel inv-skip">Saltar →</button>
+                <button onclick="invConfirm()" class="btn-primary inv-confirm">Confirmar ✓</button>
+            </div>
+            <button onclick="closeInventory()" class="btn-cancel" style="margin-top:10px;width:100%">Cancelar inventário</button>
+        </div>
+    </div>
+
+    <!-- Modal: Timeline de ferramentas (ponto 23) -->
+    <div id="timeline-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="timeline-modal-title">
+        <div class="modal-content modal-content-wide">
+            <div class="modal-icon">📅</div>
+            <h3 id="timeline-modal-title">Timeline de Ferramentas</h3>
+            <div id="timeline-list" class="timeline-list"></div>
+            <button onclick="closeToolTimeline()" class="btn-cancel">Fechar</button>
         </div>
     </div>
 
