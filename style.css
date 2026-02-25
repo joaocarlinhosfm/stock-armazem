@@ -2037,3 +2037,671 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     color: #ef4444;
     margin-top: 3px;
 }
+
+/* =============================================
+   MAPA DO ARMAZÉM
+   ============================================= */
+
+/* ── Vista mapa ── */
+#view-map {
+    display: none;
+    flex-direction: column;
+    padding: 0;
+    height: calc(100vh - 120px);
+    overflow: hidden;
+}
+#view-map.active { display: flex; }
+
+.map-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px 8px;
+    gap: 10px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--card-bg);
+}
+
+.map-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex: 1;
+    min-width: 0;
+}
+.map-breadcrumb::-webkit-scrollbar { display: none; }
+
+.map-bc-root {
+    color: var(--primary);
+    font-weight: 800;
+    font-size: 0.88rem;
+    white-space: nowrap;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+.map-bc-root:hover { background: var(--primary-soft); }
+
+.map-bc-sep {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+.map-bc-item {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-main);
+    white-space: nowrap;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 8px;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+.map-bc-item:hover { background: var(--primary-soft); }
+
+.map-edit-toggle {
+    padding: 7px 12px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: border-color 0.15s, color 0.15s;
+}
+.map-edit-toggle:hover { border-color: var(--primary); color: var(--primary); }
+
+/* ── Toolbar editor ── */
+.map-editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--primary-soft);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-shrink: 0;
+}
+.map-editor-toolbar::-webkit-scrollbar { display: none; }
+
+.map-upload-btn {
+    padding: 7px 12px;
+    border-radius: 10px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.map-tool-btn {
+    padding: 7px 12px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.15s;
+}
+.map-tool-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+.map-tool-btn:hover:not(.active) { border-color: var(--primary); color: var(--primary); }
+.map-btn-danger { border-color: var(--danger); color: var(--danger); }
+.map-btn-danger:hover { background: var(--danger); color: #fff; }
+
+/* ── Contentor do mapa ── */
+.map-container {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg);
+}
+
+.map-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 24px;
+    text-align: center;
+}
+.map-placeholder-icon { font-size: 3.5rem; }
+.map-placeholder-text { font-size: 1rem; font-weight: 800; color: var(--text-main); }
+.map-placeholder-sub  { font-size: 0.82rem; color: var(--text-muted); max-width: 280px; line-height: 1.5; }
+
+.map-svg-wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: scroll;
+}
+
+.map-image {
+    display: block;
+    max-width: none;
+    width: 100%;
+    height: auto;
+    user-select: none;
+    -webkit-user-drag: none;
+    touch-action: none;
+}
+
+.map-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+}
+.map-zone-group { pointer-events: all; }
+
+.zone-fo { overflow: visible; }
+.zone-label-pill {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #fff;
+    padding: 2px 7px;
+    border-radius: 6px;
+    white-space: nowrap;
+    max-width: 95%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 3px 0 0 3px;
+}
+
+/* Preview rect ao desenhar */
+.map-draw-preview {
+    position: absolute;
+    border: 2px dashed var(--primary);
+    border-radius: 4px;
+    pointer-events: none;
+    transition: none;
+    z-index: 10;
+}
+
+/* ── Painel de produtos ── */
+.map-product-panel {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border-top: 2px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
+    max-height: 55%;
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+}
+.map-product-panel.hidden { display: none; }
+
+.map-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+.map-panel-title {
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+.map-panel-close {
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 4px;
+    border-radius: 6px;
+    line-height: 1;
+}
+.map-panel-list {
+    overflow-y: auto;
+    padding: 8px 12px 16px;
+    flex: 1;
+}
+
+.map-product-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 8px;
+    border-radius: 10px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
+}
+.map-product-row:hover { background: var(--primary-soft); }
+.map-product-row:last-child { border-bottom: none; }
+
+.map-prod-left { flex: 1; min-width: 0; }
+.map-prod-ref  { font-size: 0.68rem; font-weight: 800; color: var(--primary); letter-spacing: 0.08em; text-transform: uppercase; }
+.map-prod-name { font-size: 0.88rem; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.map-prod-loc  { font-size: 0.7rem; color: var(--text-muted); }
+.map-prod-qty  { font-size: 1rem; font-weight: 800; color: var(--text-main); flex-shrink: 0; }
+.map-prod-qty.is-zero { color: var(--danger); }
+
+/* ── Modal de zona ── */
+.zone-color-picker {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+.zone-color-swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 3px solid transparent;
+    cursor: pointer;
+    transition: transform 0.12s, border-color 0.12s;
+    padding: 0;
+}
+.zone-color-swatch:hover { transform: scale(1.12); }
+.zone-color-swatch.active { border-color: var(--text-main); transform: scale(1.12); }
+
+.form-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 3px;
+    display: block;
+    line-height: 1.4;
+}
+
+.btn-danger-full {
+    width: 100%;
+    padding: 13px;
+    border-radius: 14px;
+    border: none;
+    background: rgba(239,68,68,0.1);
+    color: var(--danger);
+    font-size: 0.95rem;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-bottom: 6px;
+}
+.btn-danger-full:hover { background: var(--danger); color: #fff; }
+
+/* Dark mode overrides */
+.dark-mode .map-product-panel { box-shadow: 0 -4px 24px rgba(0,0,0,0.35); }
+
+/* =============================================
+   ARMAZÉM — Tabs Estrutura / Planta
+   ============================================= */
+.wh-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    background: var(--input-fill);
+    border-radius: 14px;
+    padding: 4px;
+}
+.wh-tab {
+    flex: 1;
+    padding: 9px 10px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.84rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+.wh-tab.active {
+    background: var(--card-bg);
+    color: var(--primary);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.wh-tab-panel { display: block; }
+.wh-tab-panel.hidden { display: none; }
+
+/* =============================================
+   ARMAZÉM — Topbar e breadcrumb
+   ============================================= */
+.wh-topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    min-height: 36px;
+}
+.wh-breadcrumb {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 0;
+}
+.wh-bc-root {
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 8px;
+    transition: background 0.12s;
+    flex-shrink: 0;
+}
+.wh-bc-root:hover { background: var(--primary-soft); }
+.wh-bc-sep { color: var(--border); margin: 0 1px; flex-shrink: 0; }
+.wh-bc-item {
+    cursor: pointer;
+    color: var(--primary);
+    padding: 3px 6px;
+    border-radius: 6px;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: background 0.12s;
+    flex-shrink: 1;
+}
+.wh-bc-item:hover { background: var(--primary-soft); }
+.wh-bc-current {
+    color: var(--text-main);
+    cursor: default;
+    font-weight: 800;
+}
+.wh-bc-current:hover { background: transparent; }
+
+.wh-add-btn {
+    flex-shrink: 0;
+    padding: 8px 13px;
+    border-radius: 11px;
+    border: none;
+    background: var(--primary);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+}
+.wh-add-btn:hover  { opacity: 0.88; }
+.wh-add-btn:active { transform: scale(0.96); }
+
+/* =============================================
+   ARMAZÉM — Grid de cards
+   ============================================= */
+.wh-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 12px;
+}
+@media (max-width: 380px) {
+    .wh-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+}
+
+.wh-card {
+    --wh-card-color: #3b82f6;
+    position: relative;
+    background: var(--card-bg);
+    border-radius: 16px;
+    border: 2px solid var(--border);
+    border-top: 4px solid var(--wh-card-color);
+    padding: 16px 14px 14px;
+    cursor: pointer;
+    transition: box-shadow 0.15s, transform 0.12s, border-color 0.15s;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+}
+.wh-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--wh-card-color);
+    opacity: 0.15;
+}
+.wh-card:hover  { box-shadow: 0 4px 18px rgba(0,0,0,0.1); transform: translateY(-2px); border-color: var(--wh-card-color); }
+.wh-card:active { transform: scale(0.97); }
+
+.wh-card-icon { font-size: 1.5rem; line-height: 1; margin-bottom: 2px; }
+.wh-card-name { font-size: 0.95rem; font-weight: 800; color: var(--text-main); line-height: 1.2; }
+.wh-card-sub  { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+
+.wh-card-edit {
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 26px; height: 26px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(0,0,0,0.05);
+    color: var(--text-muted);
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    line-height: 1;
+}
+.wh-card:hover .wh-card-edit,
+.wh-card-edit:focus { opacity: 1; }
+/* On touch devices always visible */
+@media (hover: none) { .wh-card-edit { opacity: 1; } }
+.wh-card-edit:hover { background: var(--primary-soft); color: var(--primary); }
+
+.wh-empty {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-align: center;
+}
+.wh-empty-icon { font-size: 2.5rem; }
+
+/* =============================================
+   ARMAZÉM — Painel de gaveta
+   ============================================= */
+.wh-drawer-panel {
+    animation: fadeIn 0.18s ease;
+}
+.wh-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    gap: 10px;
+}
+.wh-drawer-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.wh-drawer-icon { font-size: 1.2rem; }
+.wh-drawer-edit {
+    position: static;
+    opacity: 1;
+    width: auto;
+    height: auto;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border-radius: 9px;
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+.wh-drawer-path {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 14px;
+    letter-spacing: 0.02em;
+}
+.wh-drawer-empty {
+    padding: 30px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+.wh-drawer-list { display: flex; flex-direction: column; gap: 8px; }
+.wh-drawer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 11px 14px;
+    gap: 10px;
+}
+.wh-drawer-left { flex: 1; min-width: 0; }
+.wh-drawer-ref  { font-size: 0.72rem; font-weight: 800; color: var(--primary); letter-spacing: 0.1em; text-transform: uppercase; }
+.wh-drawer-name { font-size: 0.88rem; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wh-drawer-qty  { font-size: 1rem; font-weight: 800; color: var(--text-main); flex-shrink: 0; }
+.wh-drawer-qty.is-zero { color: var(--danger); }
+
+/* =============================================
+   ARMAZÉM — Modal Editar nó
+   ============================================= */
+.wh-modal-title { margin: 0 0 16px; font-size: 1rem; font-weight: 800; }
+.btn-danger-outline {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    border: 2px solid var(--danger);
+    background: transparent;
+    color: var(--danger);
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 6px;
+    transition: background 0.15s;
+}
+.btn-danger-outline:hover { background: rgba(239,68,68,0.06); }
+
+/* Color swatches */
+.wh-color-picker {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.wh-color-swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    cursor: pointer;
+    transition: transform 0.12s, border-color 0.12s;
+    -webkit-tap-highlight-color: transparent;
+}
+.wh-color-swatch:hover  { transform: scale(1.15); }
+.wh-color-swatch.active { border-color: var(--text-main); transform: scale(1.1); }
+
+/* Atribuição de produtos à gaveta */
+.wh-product-assign {
+    background: var(--input-fill);
+    border-radius: 10px;
+    padding: 8px;
+    min-height: 44px;
+    margin-bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.wh-assign-empty {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 8px;
+}
+.wh-assign-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 6px 8px;
+    gap: 8px;
+}
+.wh-assign-name { font-size: 0.8rem; font-weight: 600; color: var(--text-main); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wh-assign-remove {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(239,68,68,0.1);
+    color: var(--danger);
+    font-size: 0.75rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}
+.wh-prod-search-wrap { margin-bottom: 6px; }
+.wh-prod-results { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }
+.wh-prod-result-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    cursor: pointer;
+    background: var(--input-fill);
+    transition: background 0.12s;
+}
+.wh-prod-result-row:hover { background: var(--primary-soft); }
+.wh-prod-ref   { font-size: 0.72rem; font-weight: 800; color: var(--primary); letter-spacing: 0.08em; flex-shrink: 0; }
+.wh-prod-rname { font-size: 0.82rem; color: var(--text-main); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wh-prod-no-results { font-size: 0.78rem; color: var(--text-muted); padding: 8px; text-align: center; }
+a
