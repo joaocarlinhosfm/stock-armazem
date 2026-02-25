@@ -915,7 +915,11 @@ async function renderTools() {
         const info = document.createElement('div');
         const nome = document.createElement('div');
         nome.className   = 'tool-nome';
-        nome.textContent = t.nome;
+        const toolIconSpan = document.createElement('span');
+        toolIconSpan.className   = 'tool-card-icon';
+        toolIconSpan.textContent = t.icone || '🪛';
+        nome.appendChild(toolIconSpan);
+        nome.appendChild(document.createTextNode(t.nome));
         const sub = document.createElement('div');
         sub.className    = 'tool-sub';
         if (isAv) {
@@ -953,7 +957,7 @@ async function renderAdminTools() {
         row.className = 'admin-list-row';
         const lbl = document.createElement('span');
         lbl.className   = 'admin-list-label';
-        lbl.textContent = `🪛 ${t.nome}`;
+        lbl.textContent = `${t.icone || '🪛'} ${t.nome}`;
         const btn = document.createElement('button');
         btn.className = 'admin-list-delete';
         btn.textContent = '🗑️';
@@ -1144,10 +1148,15 @@ async function openModal(id) {
     if (workers.length === 0) return showToast('Adicione funcionários na Administração','error');
     toolToAllocate = id;
 
-    // Mostra o nome da ferramenta no modal
-    const toolName = cache.ferramentas.data?.[id]?.nome || '';
+    // Mostra o nome e ícone da ferramenta no modal
+    const toolData = cache.ferramentas.data?.[id];
+    const toolName = toolData?.nome || '';
+    const toolIcon = toolData?.icone || '🪛';
     const toolDesc = document.getElementById('worker-modal-tool-name');
-    if (toolDesc) toolDesc.textContent = toolName ? `🪛 ${toolName}` : '';
+    if (toolDesc) toolDesc.textContent = toolName ? `${toolIcon} ${toolName}` : '';
+    // Actualiza também o ícone grande no topo do modal
+    const modalIcon = document.getElementById('worker-modal-icon');
+    if (modalIcon) modalIcon.textContent = toolIcon;
 
     const sel = document.getElementById('worker-select-list');
     sel.innerHTML = '';
@@ -1665,6 +1674,73 @@ function fmtQty(quantidade, unidade) {
     return `${qty} ${UNIT_SHORT[unidade] || unidade}`;
 }
 
+
+// =============================================
+// ÍCONES DE FERRAMENTAS — picker por categoria
+// =============================================
+const TOOL_ICONS = {
+    'Manuais':      ['🔧','🪛','🔩','🪚','🔨','🪝','⚙️','🗜️','📐','📏','🔑','🗝️','🪤','🪜'],
+    'Elétrico':     ['🔌','🔋','💡','🔦','📡','🖥️','🖨️','⚡','🔆','🎛️','📟','🔘'],
+    'Construção':   ['🧱','🪣','🪟','🚪','🪞','🏗️','⛏️','🧲','🪙','🔐','🧰','🗳️'],
+    'Medição':      ['⏱️','⏲️','🌡️','🧪','🧫','🔬','🔭','💊','📊','📈','📉','🧮'],
+    'Transporte':   ['🚗','🚛','🚜','🏎️','🚐','🛻','🚲','🛵','🛺','⛽','🪝','🔗'],
+    'Segurança':    ['🦺','🧤','🥽','⛑️','🪖','🧯','🚨','⚠️','🚧','🔒','🛡️','🧲'],
+    'Limpeza':      ['🧹','🧺','🧻','🪣','🧼','🧽','🫧','🪠','🚿','💧','🧴','🗑️'],
+    'Jardim':       ['🌱','🌿','🌾','🪴','🌲','🌳','🍃','💐','🌻','🌺','🌸','🪻'],
+    'Outros':       ['📦','🗃️','🗄️','📁','📂','📋','📌','📍','🏷️','🔖','✏️','📎'],
+};
+
+let _iconPickerTarget = 'reg'; // 'reg' ou 'edit-tool'
+let _iconPickerCat    = Object.keys(TOOL_ICONS)[0];
+
+function openIconPicker(target = 'reg') {
+    _iconPickerTarget = target;
+    _renderIconPicker();
+    document.getElementById('icon-picker-modal').classList.add('active');
+    focusModal('icon-picker-modal');
+}
+
+function closeIconPicker() {
+    document.getElementById('icon-picker-modal').classList.remove('active');
+}
+
+function _renderIconPicker() {
+    // Categorias
+    const catEl = document.getElementById('icon-picker-cats');
+    catEl.innerHTML = '';
+    Object.keys(TOOL_ICONS).forEach(cat => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'icon-cat-btn' + (cat === _iconPickerCat ? ' active' : '');
+        btn.textContent = cat;
+        btn.onclick = () => { _iconPickerCat = cat; _renderIconPicker(); };
+        catEl.appendChild(btn);
+    });
+
+    // Ícones da categoria activa
+    const gridEl = document.getElementById('icon-picker-grid');
+    gridEl.innerHTML = '';
+    const currentIcon = document.getElementById(`${_iconPickerTarget}-tool-icon`)?.value || '🪛';
+    TOOL_ICONS[_iconPickerCat].forEach(icon => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'icon-grid-btn' + (icon === currentIcon ? ' active' : '');
+        btn.textContent = icon;
+        btn.onclick = () => _selectIcon(icon);
+        gridEl.appendChild(btn);
+    });
+}
+
+function _selectIcon(icon) {
+    // Actualiza o hidden input
+    const hiddenEl = document.getElementById(`${_iconPickerTarget}-tool-icon`);
+    if (hiddenEl) hiddenEl.value = icon;
+    // Actualiza o botão visual
+    const btnEl = document.getElementById(`${_iconPickerTarget}-tool-icon-btn`);
+    if (btnEl) btnEl.textContent = icon;
+    closeIconPicker();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // Tema
@@ -1734,6 +1810,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'confirm-modal',   close: closeConfirmModal },
             { id: 'switch-role-modal', close: closeSwitchRoleModal },
             { id: 'history-modal',      close: closeHistoryModal },
+            { id: 'icon-picker-modal',  close: closeIconPicker },
             { id: 'dup-modal',          close: closeDupModal },
         ];
         for (const { id, close } of modals) {
@@ -1922,13 +1999,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('form-tool-reg')?.addEventListener('submit', async e => {
         e.preventDefault();
         const nome    = document.getElementById('reg-tool-name').value.trim();
-        const payload = { nome, status:'disponivel' };
+        const icone   = document.getElementById('reg-tool-icon').value || '🪛';
+        const payload = { nome, icone, status:'disponivel' };
         try {
             const res = await apiFetch(`${BASE_URL}/ferramentas.json`, { method:'POST', body:JSON.stringify(payload) });
             if (!cache.ferramentas.data) cache.ferramentas.data = {};
             if (res) { const r = await res.json(); if (r?.name) cache.ferramentas.data[r.name] = payload; }
             else { cache.ferramentas.data[`_tmp_${Date.now()}`] = payload; }
             document.getElementById('reg-tool-name').value = '';
+            // Reset icon to default after save
+            document.getElementById('reg-tool-icon').value = '🪛';
+            document.getElementById('reg-tool-icon-btn').textContent = '🪛';
             renderAdminTools(); showToast('Ferramenta registada');
         } catch { invalidateCache('ferramentas'); showToast('Erro ao registar ferramenta','error'); }
     });
