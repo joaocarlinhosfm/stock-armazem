@@ -186,7 +186,11 @@
             <!-- Tab: Ferramentas -->
             <section class="admin-panel" id="panel-tools">
                 <form id="form-tool-reg" class="pro-form">
-                    <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required>
+                    <div class="tool-reg-row">
+                        <button type="button" id="reg-tool-icon-btn" class="tool-icon-pick-btn" onclick="openIconPicker()" title="Escolher ícone">🪛</button>
+                        <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required>
+                    </div>
+                    <input type="hidden" id="reg-tool-icon" value="🪛">
                     <button type="submit" class="btn-primary">Registar Ferramenta</button>
                 </form>
                 <div id="admin-tools-list" class="scroll-list admin-tools-list"></div>
@@ -420,6 +424,15 @@
         </div>
     </div>
 
+    <!-- Modal: Picker de ícone de ferramenta -->
+    <div id="icon-picker-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="icon-picker-title">
+        <div class="modal-content modal-content-wide icon-picker-modal-content">
+            <h3 id="icon-picker-title" class="icon-picker-title">Escolher Ícone</h3>
+            <div class="icon-picker-cats" id="icon-picker-cats"></div>
+            <div class="icon-picker-grid" id="icon-picker-grid"></div>
+        </div>
+    </div>
+
     <!-- Modal: Trocar de perfil -->
     <div id="switch-role-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="switch-role-title">
         <div class="modal-content">
@@ -460,4 +473,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-
