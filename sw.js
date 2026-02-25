@@ -1,5 +1,5 @@
 // Cache version — bump this string on every deploy to force SW update
-const CACHE_VERSION = 'hiperfrio-v5.4';
+const CACHE_VERSION = 'hiperfrio-v5.5';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', e => {
