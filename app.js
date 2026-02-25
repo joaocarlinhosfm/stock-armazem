@@ -392,19 +392,21 @@ function nav(viewId) {
         if (bulkLoc && !bulkLoc.value.trim()) bulkLoc.value = '';
     }
     if (viewId === 'view-tools')  renderTools();
+    if (viewId === 'view-map')    whRender();
+    if (viewId === 'view-map')    renderMapView();
     if (viewId === 'view-admin')  { renderWorkers(); renderAdminTools(); }
 
     document.querySelectorAll('.menu-items li').forEach(li => li.classList.remove('active'));
     const sideMap = {
         'view-search':'nav-search','view-tools':'nav-tools','view-register':'nav-register',
-        'view-bulk':'nav-bulk','view-admin':'nav-admin'
+        'view-bulk':'nav-bulk','view-admin':'nav-admin','view-map':'nav-map'
     };
     document.getElementById(sideMap[viewId])?.classList.add('active');
 
     document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
     const bnavMap = {
         'view-search':'bnav-search','view-tools':'bnav-tools','view-register':'bnav-register',
-        'view-bulk':'bnav-bulk','view-admin':'bnav-admin'
+        'view-bulk':'bnav-bulk','view-admin':'bnav-admin','view-map':'bnav-map'
     };
     document.getElementById(bnavMap[viewId])?.classList.add('active');
 
@@ -2271,6 +2273,654 @@ function closeToolTimeline() {
     document.getElementById('timeline-modal').classList.remove('active');
 }
 
+
+// =============================================
+// ARMAZÉM — Navegação hierárquica
+// Corredor → Secção → Prateleira → Gaveta
+// Passo 1: estrutura + navegação
+// =============================================
+
+const WH_URL = `${BASE_URL}/armazem`;
+const WH_COLORS = [
+    '#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6',
+    '#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6',
+    '#6366f1','#d97706',
+];
+const WH_LEVELS = ['corredor','seccao','prateleira','gaveta'];
+const WH_LEVEL_LABELS = {
+    corredor:   { sing:'Corredor',   plu:'Corredores',   icon:'🏢' },
+    seccao:     { sing:'Secção',     plu:'Secções',       icon:'📦' },
+    prateleira: { sing:'Prateleira', plu:'Prateleiras',   icon:'🗂️'  },
+    gaveta:     { sing:'Gaveta',     plu:'Gavetas',       icon:'📥' },
+};
+
+// Cache local — evita fetches desnecessários
+let _whData = {
+    corredores:  null,  // { id: { nome, cor, ordem } }
+    seccoes:     null,  // { id: { nome, corredor_id, ordem } }
+    prateleiras: null,  // { id: { nome, seccao_id, ordem } }
+    gavetas:     null,  // { id: { nome, prateleira_id, ordem, produtos:{stock_id:true} } }
+};
+let _whLoaded     = false;
+// Stack de navegação: [{ level, id, nome, cor }]
+// level 0 = raiz (mostra corredores)
+let _whNavStack   = [];
+let _whEditColor  = WH_COLORS[0];
+let _whCurrentTab = 'struct';
+let _whProdSearchTimer = null;
+
+// ── Carregar / Guardar ──────────────────────────────────────────────────────
+
+async function _whLoad(force = false) {
+    if (_whLoaded && !force) return;
+    try {
+        const url  = await authUrl(`${WH_URL}.json`);
+        const res  = await fetch(url);
+        const data = res.ok ? (await res.json()) || {} : {};
+        _whData.corredores  = data.corredores  || {};
+        _whData.seccoes     = data.seccoes     || {};
+        _whData.prateleiras = data.prateleiras || {};
+        _whData.gavetas     = data.gavetas     || {};
+        _whLoaded = true;
+    } catch {
+        _whData = { corredores:{}, seccoes:{}, prateleiras:{}, gavetas:{} };
+        _whLoaded = true;
+    }
+}
+
+async function _whSavePatch(path, value) {
+    try {
+        const url = await authUrl(`${WH_URL}/${path}.json`);
+        await fetch(url, {
+            method:'PUT',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify(value)
+        });
+    } catch { showToast('Erro ao guardar no armazém','error'); }
+}
+
+async function _whDeletePath(path) {
+    try {
+        const url = await authUrl(`${WH_URL}/${path}.json`);
+        await fetch(url, { method:'DELETE' });
+    } catch { showToast('Erro ao apagar','error'); }
+}
+
+// ── Tabs ────────────────────────────────────────────────────────────────────
+
+function whSwitchTab(tab) {
+    _whCurrentTab = tab;
+    document.getElementById('wh-tab-struct')?.classList.toggle('active', tab === 'struct');
+    document.getElementById('wh-tab-planta')?.classList.toggle('active', tab === 'planta');
+    document.getElementById('wh-panel-struct')?.classList.toggle('hidden', tab !== 'struct');
+    document.getElementById('wh-panel-planta')?.classList.toggle('hidden', tab !== 'planta');
+    if (tab === 'struct') whRender();
+    if (tab === 'planta') renderMapView();
+}
+
+// ── Navegação ───────────────────────────────────────────────────────────────
+
+function whCurrentLevel() {
+    // 0=raiz(corredores), 1=seccoes, 2=prateleiras, 3=gavetas(conteúdo)
+    return _whNavStack.length;
+}
+
+function whNavTo(depth) {
+    _whNavStack = _whNavStack.slice(0, depth);
+    whRender();
+}
+
+function whNavInto(level, id, nome, cor) {
+    _whNavStack.push({ level, id, nome, cor: cor || '#3b82f6' });
+    whRender();
+}
+
+// ── Render principal ────────────────────────────────────────────────────────
+
+async function whRender() {
+    const grid   = document.getElementById('wh-grid');
+    const drawer = document.getElementById('wh-drawer-panel');
+    const addBtn = document.getElementById('wh-add-btn');
+    if (!grid) return;
+
+    await _whLoad();
+
+    const depth = whCurrentLevel();
+
+    // Breadcrumb
+    _whRenderBreadcrumb();
+
+    // Título do botão +
+    const nextLevelKey = WH_LEVELS[depth];  // o que vamos criar
+    if (addBtn && nextLevelKey) {
+        addBtn.textContent = `＋ ${WH_LEVEL_LABELS[nextLevelKey].sing}`;
+        addBtn.classList.toggle('hidden', depth > 3 || currentRole !== 'manager');
+    }
+
+    drawer?.classList.add('hidden');
+    grid.classList.remove('hidden');
+
+    if (depth === 3) {
+        // Nível gaveta — mostra conteúdo da gaveta (produtos)
+        const gavId = _whNavStack[2].id;
+        grid.classList.add('hidden');
+        drawer?.classList.remove('hidden');
+        _whRenderDrawer(gavId);
+        return;
+    }
+
+    // Nível 0–2: mostra cards do nível filho
+    const items = _whGetChildItems(depth);
+    grid.innerHTML = '';
+
+    if (items.length === 0) {
+        const empty = document.createElement('div');
+        empty.className   = 'wh-empty';
+        const lbl = nextLevelKey ? WH_LEVEL_LABELS[nextLevelKey] : null;
+        empty.innerHTML = lbl
+            ? `<span class="wh-empty-icon">${lbl.icon}</span><span>Sem ${lbl.plu.toLowerCase()} — clica ＋ para adicionar</span>`
+            : '<span>Vazio</span>';
+        grid.appendChild(empty);
+        return;
+    }
+
+    items.forEach(([id, item]) => {
+        const card = _whBuildCard(depth, id, item);
+        grid.appendChild(card);
+    });
+}
+
+function _whGetChildItems(depth) {
+    // Returns sorted array of [id, item] for the current depth level
+    let col, parentKey;
+    if      (depth === 0) { col = _whData.corredores;  parentKey = null; }
+    else if (depth === 1) { col = _whData.seccoes;     parentKey = 'corredor_id'; }
+    else if (depth === 2) { col = _whData.prateleiras; parentKey = 'seccao_id'; }
+    else                  { col = _whData.gavetas;     parentKey = 'prateleira_id'; }
+
+    const parentId = depth > 0 ? _whNavStack[depth - 1].id : null;
+
+    return Object.entries(col || {})
+        .filter(([, item]) => parentKey ? item[parentKey] === parentId : true)
+        .sort(([, a], [, b]) => (a.ordem || 0) - (b.ordem || 0) || (a.nome || '').localeCompare(b.nome || '', 'pt'));
+}
+
+function _whBuildCard(depth, id, item) {
+    const levelKey = WH_LEVELS[depth];  // o nível actual
+    const info     = WH_LEVEL_LABELS[levelKey];
+    const cor      = item.cor || _whNavStack[0]?.cor || '#3b82f6';
+
+    // Conta filhos
+    const childCount = _whCountChildren(depth, id);
+
+    const card = document.createElement('div');
+    card.className = 'wh-card';
+    card.style.setProperty('--wh-card-color', cor);
+
+    // Ícone
+    const iconEl = document.createElement('div');
+    iconEl.className   = 'wh-card-icon';
+    iconEl.textContent = info.icon;
+
+    // Nome
+    const nameEl = document.createElement('div');
+    nameEl.className   = 'wh-card-name';
+    nameEl.textContent = item.nome || id;
+
+    // Contagem de filhos
+    const subEl = document.createElement('div');
+    subEl.className   = 'wh-card-sub';
+    if (depth < 3) {
+        const nextInfo = WH_LEVEL_LABELS[WH_LEVELS[depth + 1]];
+        subEl.textContent = childCount > 0
+            ? `${childCount} ${childCount === 1 ? nextInfo.sing.toLowerCase() : nextInfo.plu.toLowerCase()}`
+            : `sem ${nextInfo.plu.toLowerCase()}`;
+    }
+
+    // Clique → navegar para dentro
+    card.onclick = () => whNavInto(levelKey, id, item.nome, cor);
+
+    // Botão editar (gestor)
+    if (currentRole === 'manager') {
+        const editBtn = document.createElement('button');
+        editBtn.className = 'wh-card-edit';
+        editBtn.textContent = '⋯';
+        editBtn.title = 'Editar';
+        editBtn.onclick = (e) => { e.stopPropagation(); whOpenEditModal(depth, id, item); };
+        card.appendChild(editBtn);
+    }
+
+    card.appendChild(iconEl);
+    card.appendChild(nameEl);
+    card.appendChild(subEl);
+    return card;
+}
+
+function _whCountChildren(depth, id) {
+    let col, parentKey;
+    if      (depth === 0) { col = _whData.seccoes;     parentKey = 'corredor_id'; }
+    else if (depth === 1) { col = _whData.prateleiras; parentKey = 'seccao_id'; }
+    else if (depth === 2) { col = _whData.gavetas;     parentKey = 'prateleira_id'; }
+    else return 0;
+    return Object.values(col || {}).filter(i => i[parentKey] === id).length;
+}
+
+// ── Gaveta — lista de produtos ──────────────────────────────────────────────
+
+function _whRenderDrawer(gavId) {
+    const drawer  = document.getElementById('wh-drawer-panel');
+    const gaveta  = _whData.gavetas?.[gavId];
+    if (!drawer || !gaveta) return;
+
+    const stock    = cache.stock.data || {};
+    const prodIds  = Object.keys(gaveta.produtos || {});
+
+    drawer.innerHTML = '';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'wh-drawer-header';
+
+    const titleEl = document.createElement('div');
+    titleEl.className   = 'wh-drawer-title';
+    titleEl.innerHTML   = `<span class="wh-drawer-icon">📥</span> ${gaveta.nome || gavId}`;
+
+    header.appendChild(titleEl);
+
+    if (currentRole === 'manager') {
+        const editBtn = document.createElement('button');
+        editBtn.className   = 'wh-card-edit wh-drawer-edit';
+        editBtn.textContent = '✏️ Editar gaveta';
+        editBtn.onclick     = () => whOpenEditModal(3, gavId, gaveta);
+        header.appendChild(editBtn);
+    }
+
+    drawer.appendChild(header);
+
+    // Caminho completo
+    const path = document.createElement('div');
+    path.className   = 'wh-drawer-path';
+    path.textContent = _whNavStack.map(n => n.nome).join(' › ');
+    drawer.appendChild(path);
+
+    // Produtos
+    if (prodIds.length === 0) {
+        const em = document.createElement('div');
+        em.className   = 'wh-drawer-empty';
+        em.innerHTML   = currentRole === 'manager'
+            ? '📭 Gaveta vazia — clica ✏️ Editar para adicionar produtos'
+            : '📭 Gaveta vazia';
+        drawer.appendChild(em);
+        return;
+    }
+
+    const list = document.createElement('div');
+    list.className = 'wh-drawer-list';
+
+    prodIds.forEach(pid => {
+        const item = stock[pid];
+        if (!item) return; // produto apagado
+        const qty  = item.quantidade || 0;
+
+        const row = document.createElement('div');
+        row.className = 'wh-drawer-row';
+
+        const left = document.createElement('div');
+        left.className = 'wh-drawer-left';
+
+        const ref = document.createElement('div');
+        ref.className   = 'wh-drawer-ref';
+        ref.textContent = (item.codigo || '').toUpperCase() || '—';
+
+        const name = document.createElement('div');
+        name.className   = 'wh-drawer-name';
+        name.textContent = item.nome || '(sem nome)';
+
+        left.appendChild(ref);
+        left.appendChild(name);
+
+        const qtyEl = document.createElement('div');
+        qtyEl.className   = `wh-drawer-qty${qty === 0 ? ' is-zero' : ''}`;
+        qtyEl.textContent = fmtQty(qty, item.unidade);
+
+        row.appendChild(left);
+        row.appendChild(qtyEl);
+        list.appendChild(row);
+    });
+
+    drawer.appendChild(list);
+}
+
+// ── Breadcrumb ──────────────────────────────────────────────────────────────
+
+function _whRenderBreadcrumb() {
+    const bc = document.getElementById('wh-breadcrumb');
+    if (!bc) return;
+    bc.innerHTML = '';
+
+    const root = document.createElement('span');
+    root.className   = 'wh-bc-root';
+    root.textContent = '🏭';
+    root.onclick     = () => whNavTo(0);
+    bc.appendChild(root);
+
+    _whNavStack.forEach((node, i) => {
+        const sep = document.createElement('span');
+        sep.className   = 'wh-bc-sep';
+        sep.textContent = '›';
+        bc.appendChild(sep);
+
+        const crumb = document.createElement('span');
+        crumb.className   = 'wh-bc-item' + (i === _whNavStack.length - 1 ? ' wh-bc-current' : '');
+        crumb.textContent = node.nome;
+        if (i < _whNavStack.length - 1) crumb.onclick = () => whNavTo(i + 1);
+        bc.appendChild(crumb);
+    });
+}
+
+// ── Modal Adicionar / Editar ─────────────────────────────────────────────────
+
+function whOpenAddModal() {
+    const depth    = whCurrentLevel();
+    const levelKey = WH_LEVELS[depth];
+    if (!levelKey) return;
+    const info = WH_LEVEL_LABELS[levelKey];
+
+    document.getElementById('wh-edit-title').textContent  = `Novo ${info.sing}`;
+    document.getElementById('wh-edit-level').value        = depth;
+    document.getElementById('wh-edit-id').value           = '';
+    document.getElementById('wh-edit-name').value         = '';
+    document.getElementById('wh-edit-parent-id').value    = depth > 0 ? _whNavStack[depth-1].id : '';
+
+    // Cor só para corredores
+    const colorGroup = document.getElementById('wh-color-group');
+    colorGroup?.classList.toggle('hidden', depth !== 0);
+    _whEditColor = WH_COLORS[Object.keys(_whData.corredores || {}).length % WH_COLORS.length];
+    document.getElementById('wh-edit-color').value = _whEditColor;
+    _whBuildColorPicker();
+
+    // Produtos só para gavetas
+    const prodGroup = document.getElementById('wh-products-group');
+    prodGroup?.classList.toggle('hidden', depth !== 3);
+    if (depth === 3) _whInitProductAssign(null);
+
+    // Botão apagar — só em edição
+    document.getElementById('wh-edit-delete-btn')?.classList.add('hidden');
+
+    document.getElementById('wh-edit-modal').classList.add('active');
+    focusModal('wh-edit-modal');
+    setTimeout(() => document.getElementById('wh-edit-name')?.focus(), 80);
+}
+
+function whOpenEditModal(depth, id, item) {
+    const levelKey = WH_LEVELS[depth];
+    const info     = WH_LEVEL_LABELS[levelKey];
+
+    document.getElementById('wh-edit-title').textContent = `Editar ${info.sing}`;
+    document.getElementById('wh-edit-level').value       = depth;
+    document.getElementById('wh-edit-id').value          = id;
+    document.getElementById('wh-edit-name').value        = item.nome || '';
+    document.getElementById('wh-edit-parent-id').value   = item.corredor_id || item.seccao_id || item.prateleira_id || '';
+
+    const colorGroup = document.getElementById('wh-color-group');
+    colorGroup?.classList.toggle('hidden', depth !== 0);
+    if (depth === 0) {
+        _whEditColor = item.cor || WH_COLORS[0];
+        document.getElementById('wh-edit-color').value = _whEditColor;
+        _whBuildColorPicker();
+    }
+
+    const prodGroup = document.getElementById('wh-products-group');
+    prodGroup?.classList.toggle('hidden', depth !== 3);
+    if (depth === 3) _whInitProductAssign(item.produtos || {});
+
+    document.getElementById('wh-edit-delete-btn')?.classList.remove('hidden');
+
+    document.getElementById('wh-edit-modal').classList.add('active');
+    focusModal('wh-edit-modal');
+    setTimeout(() => document.getElementById('wh-edit-name')?.focus(), 80);
+}
+
+function whCloseEditModal() {
+    document.getElementById('wh-edit-modal')?.classList.remove('active');
+}
+
+// ── Color picker ─────────────────────────────────────────────────────────────
+
+function _whBuildColorPicker() {
+    const el = document.getElementById('wh-color-picker');
+    if (!el) return;
+    el.innerHTML = '';
+    WH_COLORS.forEach(c => {
+        const btn = document.createElement('button');
+        btn.type      = 'button';
+        btn.className = 'wh-color-swatch' + (c === _whEditColor ? ' active' : '');
+        btn.style.background = c;
+        btn.onclick = () => {
+            _whEditColor = c;
+            document.getElementById('wh-edit-color').value = c;
+            el.querySelectorAll('.wh-color-swatch').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        };
+        el.appendChild(btn);
+    });
+}
+
+// ── Atribuição de produtos à gaveta ──────────────────────────────────────────
+
+let _whAssignedProd = {}; // { stock_id: true } — produtos atribuídos ao modal actual
+
+function _whInitProductAssign(existing) {
+    _whAssignedProd = existing ? { ...existing } : {};
+    _whRenderAssigned();
+    document.getElementById('wh-prod-search').value = '';
+    document.getElementById('wh-prod-results').innerHTML = '';
+
+    const searchEl = document.getElementById('wh-prod-search');
+    if (searchEl) {
+        searchEl.oninput = (e) => {
+            clearTimeout(_whProdSearchTimer);
+            _whProdSearchTimer = setTimeout(() => _whSearchProducts(e.target.value.trim()), 200);
+        };
+    }
+}
+
+function _whRenderAssigned() {
+    const el    = document.getElementById('wh-product-assign');
+    const stock = cache.stock.data || {};
+    if (!el) return;
+    el.innerHTML = '';
+
+    const ids = Object.keys(_whAssignedProd);
+    if (ids.length === 0) {
+        el.innerHTML = '<div class="wh-assign-empty">Nenhum produto adicionado</div>';
+        return;
+    }
+    ids.forEach(pid => {
+        const item = stock[pid];
+        const row  = document.createElement('div');
+        row.className = 'wh-assign-row';
+
+        const nameEl = document.createElement('span');
+        nameEl.className   = 'wh-assign-name';
+        nameEl.textContent = item
+            ? `${(item.codigo || '').toUpperCase()} — ${item.nome || ''}`
+            : `(produto removido: ${pid})`;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type      = 'button';
+        removeBtn.className = 'wh-assign-remove';
+        removeBtn.textContent = '✕';
+        removeBtn.onclick   = () => { delete _whAssignedProd[pid]; _whRenderAssigned(); };
+
+        row.appendChild(nameEl);
+        row.appendChild(removeBtn);
+        el.appendChild(row);
+    });
+}
+
+function _whSearchProducts(q) {
+    const el    = document.getElementById('wh-prod-results');
+    const stock = cache.stock.data || {};
+    if (!el) return;
+    if (!q) { el.innerHTML = ''; return; }
+
+    const ql = q.toLowerCase();
+    const results = Object.entries(stock)
+        .filter(([id, item]) =>
+            !_whAssignedProd[id] &&
+            ((item.nome || '').toLowerCase().includes(ql) ||
+             (item.codigo || '').toLowerCase().includes(ql))
+        )
+        .slice(0, 8);
+
+    el.innerHTML = '';
+    if (results.length === 0) {
+        el.innerHTML = '<div class="wh-prod-no-results">Sem resultados</div>';
+        return;
+    }
+    results.forEach(([id, item]) => {
+        const row = document.createElement('div');
+        row.className = 'wh-prod-result-row';
+        row.innerHTML = `<span class="wh-prod-ref">${(item.codigo||'').toUpperCase()}</span>
+                         <span class="wh-prod-rname">${item.nome||''}</span>`;
+        row.onclick = () => {
+            _whAssignedProd[id] = true;
+            _whRenderAssigned();
+            document.getElementById('wh-prod-search').value = '';
+            el.innerHTML = '';
+        };
+        el.appendChild(row);
+    });
+}
+
+// ── Guardar / Apagar ─────────────────────────────────────────────────────────
+
+async function whSaveNode(e) {
+    e.preventDefault();
+    const depth    = parseInt(document.getElementById('wh-edit-level').value);
+    const editId   = document.getElementById('wh-edit-id').value;
+    const parentId = document.getElementById('wh-edit-parent-id').value;
+    const nome     = document.getElementById('wh-edit-name').value.trim();
+    const cor      = document.getElementById('wh-edit-color').value || WH_COLORS[0];
+    if (!nome) { showToast('Nome obrigatório', 'error'); return; }
+
+    const levelKey = WH_LEVELS[depth];
+    const colKey   = ['corredores','seccoes','prateleiras','gavetas'][depth];
+    const parentField = ['','corredor_id','seccao_id','prateleira_id'][depth];
+
+    const id = editId || `${levelKey.slice(0,3)}_${Date.now()}`;
+    const existing = editId ? (_whData[colKey][editId] || {}) : {};
+    const ordem    = existing.ordem ?? Object.keys(_whData[colKey] || {}).length;
+
+    const node = {
+        nome,
+        ordem,
+        ...(parentField ? { [parentField]: parentId } : {}),
+        ...(depth === 0 ? { cor } : {}),
+        ...(depth === 3 ? { produtos: _whAssignedProd } : {}),
+    };
+
+    // Update local cache
+    if (!_whData[colKey]) _whData[colKey] = {};
+    _whData[colKey][id] = node;
+
+    whCloseEditModal();
+    whRender();
+    showToast(`${WH_LEVEL_LABELS[levelKey].sing} guardada!`);
+
+    // Persist to Firebase
+    await _whSavePatch(`${colKey}/${id}`, node);
+}
+
+function whDeleteNode() {
+    const depth  = parseInt(document.getElementById('wh-edit-level').value);
+    const editId = document.getElementById('wh-edit-id').value;
+    const nome   = document.getElementById('wh-edit-name').value;
+    if (!editId) return;
+
+    // Count descendentes
+    const count = _whCountDescendants(depth, editId);
+    const desc  = count > 0
+        ? `Esta acção vai apagar também ${count} item${count>1?'s':''} dentro de "${nome}".`
+        : `"${nome}" será apagado permanentemente.`;
+
+    document.getElementById('wh-delete-desc').textContent = desc;
+    document.getElementById('wh-delete-confirm-btn').onclick = () => _whConfirmDelete(depth, editId);
+    whCloseEditModal();
+    document.getElementById('wh-delete-modal').classList.add('active');
+    focusModal('wh-delete-modal');
+}
+
+function _whCountDescendants(depth, id) {
+    let count = 0;
+    if (depth === 0) {
+        const seccoes = Object.entries(_whData.seccoes||{}).filter(([,s])=>s.corredor_id===id);
+        count += seccoes.length;
+        seccoes.forEach(([sid])=>{
+            const prats = Object.entries(_whData.prateleiras||{}).filter(([,p])=>p.seccao_id===sid);
+            count += prats.length;
+            prats.forEach(([pid])=> {
+                count += Object.values(_whData.gavetas||{}).filter(g=>g.prateleira_id===pid).length;
+            });
+        });
+    } else if (depth === 1) {
+        const prats = Object.entries(_whData.prateleiras||{}).filter(([,p])=>p.seccao_id===id);
+        count += prats.length;
+        prats.forEach(([pid])=> {
+            count += Object.values(_whData.gavetas||{}).filter(g=>g.prateleira_id===pid).length;
+        });
+    } else if (depth === 2) {
+        count += Object.values(_whData.gavetas||{}).filter(g=>g.prateleira_id===id).length;
+    }
+    return count;
+}
+
+async function _whConfirmDelete(depth, id) {
+    whCloseDeleteModal();
+    const colKey      = ['corredores','seccoes','prateleiras','gavetas'][depth];
+    const levelKey    = WH_LEVELS[depth];
+
+    // Apagar em cascata localmente
+    if (depth <= 0) { // corredor — apaga secções, prateleiras, gavetas dentro
+        const sIds = Object.keys(_whData.seccoes||{}).filter(s => _whData.seccoes[s].corredor_id === id);
+        sIds.forEach(sid => {
+            const pIds = Object.keys(_whData.prateleiras||{}).filter(p => _whData.prateleiras[p].seccao_id === sid);
+            pIds.forEach(pid => {
+                Object.keys(_whData.gavetas||{}).filter(g => _whData.gavetas[g].prateleira_id === pid)
+                    .forEach(gid => { delete _whData.gavetas[gid]; _whDeletePath(`gavetas/${gid}`); });
+                delete _whData.prateleiras[pid]; _whDeletePath(`prateleiras/${pid}`);
+            });
+            delete _whData.seccoes[sid]; _whDeletePath(`seccoes/${sid}`);
+        });
+    } else if (depth === 1) {
+        const pIds = Object.keys(_whData.prateleiras||{}).filter(p => _whData.prateleiras[p].seccao_id === id);
+        pIds.forEach(pid => {
+            Object.keys(_whData.gavetas||{}).filter(g => _whData.gavetas[g].prateleira_id === pid)
+                .forEach(gid => { delete _whData.gavetas[gid]; _whDeletePath(`gavetas/${gid}`); });
+            delete _whData.prateleiras[pid]; _whDeletePath(`prateleiras/${pid}`);
+        });
+    } else if (depth === 2) {
+        Object.keys(_whData.gavetas||{}).filter(g => _whData.gavetas[g].prateleira_id === id)
+            .forEach(gid => { delete _whData.gavetas[gid]; _whDeletePath(`gavetas/${gid}`); });
+    }
+
+    delete _whData[colKey][id];
+    await _whDeletePath(`${colKey}/${id}`);
+
+    // Se estava navegado para dentro, volta um nível
+    if (_whNavStack.some(n => n.id === id)) {
+        whNavTo(_whNavStack.findIndex(n => n.id === id));
+    } else {
+        whRender();
+    }
+    showToast(`${WH_LEVEL_LABELS[levelKey].sing} apagada`);
+}
+
+function whCloseDeleteModal() {
+    document.getElementById('wh-delete-modal')?.classList.remove('active');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // Tema
@@ -2343,6 +2993,9 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'icon-picker-modal',  close: closeIconPicker },
             { id: 'dup-modal',          close: closeDupModal },
             { id: 'inv-modal',          close: closeInventory },
+            { id: 'wh-edit-modal',      close: whCloseEditModal },
+            { id: 'wh-delete-modal',    close: whCloseDeleteModal },
+            { id: 'zone-modal',         close: closeZoneModal },
             { id: 'timeline-modal',     close: closeToolTimeline },
             { id: 'edit-tool-modal',    close: closeEditToolModal },
         ];
@@ -2537,6 +3190,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Form: Ferramenta
+    // Form: Armazém — guardar nó
+    document.getElementById('form-wh-edit')?.addEventListener('submit', whSaveNode);
+
     // Form: Editar ferramenta
     document.getElementById('form-edit-tool')?.addEventListener('submit', async e => {
         e.preventDefault();
@@ -2571,4 +3227,470 @@ if ('serviceWorker' in navigator) {
             .then(() => console.log('PWA SW registado'))
             .catch(e => console.warn('PWA SW erro:', e));
     });
+}
+
+// =============================================
+// MAPA DO ARMAZÉM
+// =============================================
+const MAP_IMAGE_KEY  = 'hiperfrio-map-image';   // localStorage (base64)
+const MAP_ZONES_URL  = `${BASE_URL}/config/mapZones.json`;
+const ZONE_COLORS    = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6',
+                         '#06b6d4','#84cc16','#f97316','#ec4899','#14b8a6'];
+
+let _mapZones       = {};      // { id: { label, prefix, x, y, w, h, color, parent } }
+let _mapZonesLoaded = false;
+let _mapEditMode    = false;
+let _mapTool        = 'zone';  // 'zone' | 'pointer'
+let _mapDrawing     = false;
+let _mapDrawStart   = null;    // { x%, y% }
+let _mapNavStack    = [];      // breadcrumb stack of zone IDs
+let _mapPendingZone = null;    // zone being drawn before modal
+let _mapSelectedColor = ZONE_COLORS[0];
+
+// ── Dados ──────────────────────────────────────────────────────────────────
+
+async function _mapLoadZones() {
+    if (_mapZonesLoaded) return;
+    try {
+        const url  = await authUrl(MAP_ZONES_URL);
+        const res  = await fetch(url);
+        _mapZones  = res.ok ? (await res.json()) || {} : {};
+    } catch { _mapZones = {}; }
+    _mapZonesLoaded = true;
+}
+
+async function _mapSaveZones() {
+    try {
+        const url = await authUrl(MAP_ZONES_URL);
+        await fetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(_mapZones)
+        });
+    } catch { showToast('Erro ao guardar zonas', 'error'); }
+}
+
+// ── Imagem ─────────────────────────────────────────────────────────────────
+
+function mapUploadImage(input) {
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+            // Redimensiona para máx 1400px preservando ratio
+            const MAX = 1400;
+            let w = img.width, h = img.height;
+            if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            const compressed = canvas.toDataURL('image/jpeg', 0.82);
+            try {
+                localStorage.setItem(MAP_IMAGE_KEY, compressed);
+                showToast('Planta carregada!');
+                renderMapView();
+            } catch {
+                showToast('Imagem demasiado grande. Tenta uma menor.', 'error');
+            }
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    input.value = ''; // reset so same file can be re-selected
+}
+
+function mapClearImage() {
+    openConfirmModal({
+        icon: '🗑️', title: 'Limpar planta?',
+        desc: 'A imagem será removida. As zonas definidas mantêm-se.',
+        onConfirm: () => {
+            localStorage.removeItem(MAP_IMAGE_KEY);
+            renderMapView();
+        }
+    });
+}
+
+// ── Render principal ────────────────────────────────────────────────────────
+
+async function renderMapView() {
+    await _mapLoadZones();
+
+    const placeholder  = document.getElementById('map-placeholder');
+    const svgWrap      = document.getElementById('map-svg-wrap');
+    const mapImg       = document.getElementById('map-img');
+    const editToolbar  = document.getElementById('map-editor-toolbar');
+    const editToggle   = document.getElementById('map-edit-toggle');
+    if (!placeholder || !svgWrap) return;
+
+    // Toolbar visível apenas para gestores
+    if (editToolbar) editToolbar.classList.toggle('hidden', !_mapEditMode);
+    if (editToggle)  editToggle.textContent = _mapEditMode ? '✅ Concluir' : '✏️ Editar';
+
+    const imgSrc = localStorage.getItem(MAP_IMAGE_KEY);
+
+    if (!imgSrc) {
+        placeholder.classList.remove('hidden');
+        svgWrap.style.display = 'none';
+        const sub = document.getElementById('map-placeholder-sub');
+        if (sub) sub.textContent = currentRole === 'manager'
+            ? 'Clica em "✏️ Editar" e depois "📁 Carregar Planta"'
+            : 'Peça ao gestor para carregar a planta em modo edição';
+        return;
+    }
+
+    placeholder.classList.add('hidden');
+    svgWrap.style.display = 'block';
+    mapImg.src = imgSrc;
+
+    // Aguarda imagem carregar para ter dimensões correctas
+    await new Promise(resolve => {
+        if (mapImg.complete) resolve();
+        else { mapImg.onload = resolve; mapImg.onerror = resolve; }
+    });
+
+    _mapRenderSVG();
+    _mapSetupInteraction();
+    _mapUpdatePanel();
+}
+
+// ── SVG render ──────────────────────────────────────────────────────────────
+
+function _mapRenderSVG() {
+    const svg = document.getElementById('map-svg');
+    if (!svg) return;
+    svg.innerHTML = `<defs><filter id="zone-shadow">
+        <feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity="0.2"/>
+    </filter></defs>`;
+
+    // Determina quais zonas mostrar: filha do nível actual ou raiz
+    const parentId    = _mapNavStack.length ? _mapNavStack[_mapNavStack.length - 1] : null;
+    const visibleZones = Object.entries(_mapZones)
+        .filter(([, z]) => (z.parent || null) === parentId);
+
+    visibleZones.forEach(([id, zone]) => {
+        const color  = zone.color || ZONE_COLORS[0];
+        const hasKids = Object.values(_mapZones).some(z => z.parent === id);
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('class', 'map-zone-group');
+        g.style.cursor = 'pointer';
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x',      `${zone.x * 100}%`);
+        rect.setAttribute('y',      `${zone.y * 100}%`);
+        rect.setAttribute('width',  `${zone.w * 100}%`);
+        rect.setAttribute('height', `${zone.h * 100}%`);
+        rect.setAttribute('rx', '4');
+        rect.setAttribute('fill',   color + '2a');
+        rect.setAttribute('stroke', color);
+        rect.setAttribute('stroke-width', '2');
+
+        // Label background pill
+        const labelH = 22, labelPad = 8;
+        const fo = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+        fo.setAttribute('x',      `${zone.x * 100}%`);
+        fo.setAttribute('y',      `${zone.y * 100}%`);
+        fo.setAttribute('width',  `${zone.w * 100}%`);
+        fo.setAttribute('height', `${labelH + 4}px`);
+        fo.setAttribute('class', 'zone-fo');
+        const div = document.createElement('div');
+        div.className   = 'zone-label-pill';
+        div.style.background = color;
+        div.textContent = (hasKids ? '📁 ' : '📍 ') + (zone.label || zone.prefix || id);
+        fo.appendChild(div);
+
+        g.appendChild(rect);
+        g.appendChild(fo);
+
+        // Clique em modo visualização
+        g.addEventListener('click', e => {
+            e.stopPropagation();
+            if (_mapEditMode && _mapTool === 'pointer') {
+                _mapOpenZoneEditor(id, zone);
+                return;
+            }
+            if (!_mapEditMode) {
+                if (hasKids) {
+                    _mapNavStack.push(id);
+                    _mapUpdateBreadcrumb();
+                    _mapRenderSVG();
+                    mapClosePanel();
+                } else {
+                    _mapShowZoneProducts(id, zone);
+                }
+            }
+        });
+
+        svg.appendChild(g);
+    });
+}
+
+// ── Navegação hierárquica ───────────────────────────────────────────────────
+
+function _mapUpdateBreadcrumb() {
+    const bc = document.getElementById('map-breadcrumb');
+    if (!bc) return;
+    bc.innerHTML = '<span class="map-bc-item map-bc-root" onclick="mapNavRoot()">🏭 Armazém</span>';
+    _mapNavStack.forEach((id, i) => {
+        const z = _mapZones[id];
+        const sep = document.createElement('span');
+        sep.className   = 'map-bc-sep';
+        sep.textContent = '›';
+        const item = document.createElement('span');
+        item.className   = 'map-bc-item';
+        item.textContent = z?.label || id;
+        const idx = i;
+        item.onclick = () => {
+            _mapNavStack = _mapNavStack.slice(0, idx + 1);
+            _mapUpdateBreadcrumb();
+            _mapRenderSVG();
+            mapClosePanel();
+        };
+        bc.appendChild(sep);
+        bc.appendChild(item);
+    });
+}
+
+function mapNavRoot() {
+    _mapNavStack = [];
+    _mapUpdateBreadcrumb();
+    _mapRenderSVG();
+    mapClosePanel();
+}
+
+// ── Painel de produtos ─────────────────────────────────────────────────────
+
+function _mapShowZoneProducts(zoneId, zone) {
+    const panel = document.getElementById('map-product-panel');
+    const list  = document.getElementById('map-panel-list');
+    const title = document.getElementById('map-panel-title');
+    if (!panel || !list) return;
+
+    title.textContent = `${zone.label || zone.prefix} — produtos`;
+
+    const stock   = cache.stock.data || {};
+    const prefix  = (zone.prefix || '').toUpperCase();
+    const matches = Object.entries(stock).filter(([, item]) => {
+        const loc = (item.localizacao || '').toUpperCase();
+        return prefix && (loc === prefix || loc.startsWith(prefix + '-') || loc.startsWith(prefix));
+    });
+
+    list.innerHTML = '';
+    if (matches.length === 0) {
+        list.innerHTML = '<div class="empty-msg" style="padding:14px">Nenhum produto nesta zona.<br>Verifica se o código de localização coincide.</div>';
+    } else {
+        matches.forEach(([id, item]) => {
+            const row  = document.createElement('div');
+            row.className = 'map-product-row';
+            const qty = item.quantidade || 0;
+
+            const left = document.createElement('div');
+            left.className = 'map-prod-left';
+
+            const ref = document.createElement('div');
+            ref.className   = 'map-prod-ref';
+            ref.textContent = (item.codigo || '').toUpperCase();
+
+            const name = document.createElement('div');
+            name.className   = 'map-prod-name';
+            name.textContent = item.nome || '';
+
+            const loc = document.createElement('div');
+            loc.className   = 'map-prod-loc';
+            loc.textContent = `📍 ${(item.localizacao || '').toUpperCase()}`;
+
+            left.appendChild(ref);
+            left.appendChild(name);
+            left.appendChild(loc);
+
+            const qtyEl = document.createElement('div');
+            qtyEl.className = `map-prod-qty${qty === 0 ? ' is-zero' : ''}`;
+            qtyEl.textContent = fmtQty(qty, item.unidade);
+
+            row.appendChild(left);
+            row.appendChild(qtyEl);
+            list.appendChild(row);
+        });
+    }
+
+    panel.classList.remove('hidden');
+}
+
+function mapClosePanel() {
+    document.getElementById('map-product-panel')?.classList.add('hidden');
+}
+
+function _mapUpdatePanel() {
+    // Se já havia um painel aberto, fecha ao re-renderizar
+    mapClosePanel();
+}
+
+// ── Modo edição — desenhar zonas ────────────────────────────────────────────
+
+function mapToggleEdit() {
+    _mapEditMode = !_mapEditMode;
+    _mapTool     = 'zone';
+    renderMapView();
+}
+
+function mapSetTool(tool) {
+    _mapTool = tool;
+    document.querySelectorAll('.map-tool-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`map-tool-${tool}`)?.classList.add('active');
+}
+
+function _mapGetRelativeCoords(e, el) {
+    const rect = el.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+        x: Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)),
+        y: Math.max(0, Math.min(1, (clientY - rect.top)  / rect.height))
+    };
+}
+
+function _mapSetupInteraction() {
+    const wrap    = document.getElementById('map-svg-wrap');
+    const preview = document.getElementById('map-draw-preview');
+    if (!wrap) return;
+
+    // Remove old listeners by cloning
+    const newWrap = wrap.cloneNode(true);
+    wrap.parentNode.replaceChild(newWrap, wrap);
+
+    // Re-attach SVG and img refs after clone
+    const svgEl  = document.getElementById('map-svg');
+    const prevEl = document.getElementById('map-draw-preview');
+
+    const onStart = e => {
+        if (!_mapEditMode || _mapTool !== 'zone') return;
+        e.preventDefault();
+        _mapDrawing = true;
+        const coords = _mapGetRelativeCoords(e, newWrap);
+        _mapDrawStart = coords;
+        if (prevEl) { prevEl.classList.remove('hidden'); _mapUpdatePreview(coords, coords, prevEl, newWrap); }
+    };
+    const onMove = e => {
+        if (!_mapDrawing || !_mapDrawStart) return;
+        e.preventDefault();
+        const coords = _mapGetRelativeCoords(e, newWrap);
+        if (prevEl) _mapUpdatePreview(_mapDrawStart, coords, prevEl, newWrap);
+    };
+    const onEnd = e => {
+        if (!_mapDrawing || !_mapDrawStart) return;
+        _mapDrawing = false;
+        const coords = e.changedTouches
+            ? { x: Math.max(0,Math.min(1,(e.changedTouches[0].clientX - newWrap.getBoundingClientRect().left)/newWrap.getBoundingClientRect().width)),
+                y: Math.max(0,Math.min(1,(e.changedTouches[0].clientY - newWrap.getBoundingClientRect().top) /newWrap.getBoundingClientRect().height)) }
+            : _mapGetRelativeCoords(e, newWrap);
+        if (prevEl) prevEl.classList.add('hidden');
+        const x = Math.min(_mapDrawStart.x, coords.x);
+        const y = Math.min(_mapDrawStart.y, coords.y);
+        const w = Math.abs(coords.x - _mapDrawStart.x);
+        const wh = Math.abs(coords.y - _mapDrawStart.y);
+        _mapDrawStart = null;
+        if (w < 0.03 || wh < 0.03) return; // demasiado pequeno
+        _mapPendingZone = { x, y, w, h: wh, color: _mapSelectedColor,
+                            parent: _mapNavStack.length ? _mapNavStack[_mapNavStack.length-1] : null };
+        _mapOpenZoneEditor(null, _mapPendingZone);
+    };
+
+    newWrap.addEventListener('mousedown',  onStart);
+    newWrap.addEventListener('mousemove',  onMove);
+    newWrap.addEventListener('mouseup',    onEnd);
+    newWrap.addEventListener('touchstart', onStart, { passive: false });
+    newWrap.addEventListener('touchmove',  onMove,  { passive: false });
+    newWrap.addEventListener('touchend',   onEnd);
+}
+
+function _mapUpdatePreview(start, end, prevEl, wrap) {
+    const rect  = wrap.getBoundingClientRect();
+    const x = Math.min(start.x, end.x) * rect.width;
+    const y = Math.min(start.y, end.y) * rect.height;
+    const w = Math.abs(end.x - start.x) * rect.width;
+    const h = Math.abs(end.y - start.y) * rect.height;
+    prevEl.style.left   = x + 'px';
+    prevEl.style.top    = y + 'px';
+    prevEl.style.width  = w + 'px';
+    prevEl.style.height = h + 'px';
+    prevEl.style.borderColor = _mapSelectedColor;
+    prevEl.style.background  = _mapSelectedColor + '22';
+}
+
+// ── Modal de zona ───────────────────────────────────────────────────────────
+
+function _mapOpenZoneEditor(id, zone) {
+    document.getElementById('zone-editing-id').value = id || '';
+    document.getElementById('zone-label-input').value  = zone?.label  || '';
+    document.getElementById('zone-prefix-input').value = zone?.prefix || '';
+    document.getElementById('zone-modal-title').textContent = id ? 'Editar Zona' : 'Nova Zona';
+    const delBtn = document.getElementById('zone-delete-btn');
+    if (delBtn) delBtn.style.display = id ? 'block' : 'none';
+
+    // Cor actual ou default
+    _mapSelectedColor = zone?.color || ZONE_COLORS[0];
+    _mapBuildColorPicker();
+
+    document.getElementById('zone-modal').classList.add('active');
+    focusModal('zone-modal');
+    setTimeout(() => document.getElementById('zone-label-input')?.focus(), 100);
+}
+
+function _mapBuildColorPicker() {
+    const el = document.getElementById('zone-color-picker');
+    if (!el) return;
+    el.innerHTML = '';
+    ZONE_COLORS.forEach(color => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'zone-color-swatch' + (color === _mapSelectedColor ? ' active' : '');
+        btn.style.background = color;
+        btn.title = color;
+        btn.onclick = () => {
+            _mapSelectedColor = color;
+            document.querySelectorAll('.zone-color-swatch').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        };
+        el.appendChild(btn);
+    });
+}
+
+function closeZoneModal() {
+    document.getElementById('zone-modal').classList.remove('active');
+    _mapPendingZone = null;
+}
+
+async function mapSaveZone() {
+    const label  = document.getElementById('zone-label-input').value.trim();
+    const prefix = document.getElementById('zone-prefix-input').value.trim().toUpperCase();
+    const editId = document.getElementById('zone-editing-id').value;
+
+    if (!label) { showToast('Nome da zona obrigatório', 'error'); return; }
+
+    if (editId && _mapZones[editId]) {
+        // Editar existente
+        _mapZones[editId] = { ..._mapZones[editId], label, prefix, color: _mapSelectedColor };
+    } else {
+        // Nova zona
+        const id = 'zone_' + Date.now();
+        _mapZones[id] = { ..._mapPendingZone, label, prefix, color: _mapSelectedColor };
+    }
+
+    closeZoneModal();
+    await _mapSaveZones();
+    _mapRenderSVG();
+    showToast('Zona guardada!');
+}
+
+async function mapDeleteZone() {
+    const editId = document.getElementById('zone-editing-id').value;
+    if (!editId) return;
+    // Apaga também filhas
+    const toDelete = [editId, ...Object.keys(_mapZones).filter(id => _mapZones[id].parent === editId)];
+    toDelete.forEach(id => delete _mapZones[id]);
+    closeZoneModal();
+    await _mapSaveZones();
+    _mapRenderSVG();
+    showToast('Zona removida');
 }
