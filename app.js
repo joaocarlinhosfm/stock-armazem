@@ -16,7 +16,6 @@ function escapeHtml(str) {
 // =============================================
 let _authToken     = null;
 let _authTokenExp  = 0;     // timestamp de expiração (tokens duram 1h)
-let _authReady     = false; // true depois do primeiro login
 
 // Obtém token válido — aguarda Promise do SDK Firebase ou renova se expirado
 async function getAuthToken() {
@@ -43,7 +42,6 @@ async function getAuthToken() {
     }
 
     _authTokenExp = now + 3_500_000; // ~58 min
-    _authReady    = true;
     console.log('✅ Firebase Auth: token obtido com sucesso');
     return _authToken;
 }
@@ -245,6 +243,10 @@ function queueLoad() {
 function queueSave(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }
 
 function queueAdd(op) {
+    // Regista Background Sync ao adicionar à fila
+    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+        navigator.serviceWorker.ready.then(sw => sw.sync.register('hiperfrio-sync')).catch(() => {});
+    }
     // FIX: só aceita mutações na fila, nunca GETs
     if (!op.method || op.method === 'GET') return;
     const q = queueLoad();
@@ -349,7 +351,8 @@ function nav(viewId) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId)?.classList.add('active');
 
-    if (viewId === 'view-search') renderList();
+    if (viewId === 'view-search') renderList().then(() => { if (_zeroFilterActive) filterZeroStock(); });
+    if (viewId === 'view-bulk') { _bulkCount = 0; _updateBulkCounter(); }
     if (viewId === 'view-tools')  renderTools();
     if (viewId === 'view-admin')  { renderWorkers(); renderAdminTools(); }
 
@@ -383,9 +386,11 @@ async function renderDashboard() {
     el.innerHTML = '';
     el.className = 'dashboard';
 
+    // Invalida cache dos dois ao mesmo tempo para garantir consistência temporal
+    const ts = Date.now();
     const [stockData, ferrData] = await Promise.all([
-        fetchCollection('stock'),
-        fetchCollection('ferramentas')
+        fetchCollection('stock', ts > cache.stock.lastFetch + 60000),
+        fetchCollection('ferramentas', ts > cache.ferramentas.lastFetch + 60000)
     ]);
 
     const stockEntries  = Object.values(stockData || {});
@@ -404,10 +409,9 @@ async function renderDashboard() {
             label: 'Sem stock', value: semStock, icon: '⚠️',
             cls: semStock > 0 ? 'dash-card-warn' : '',
             action: semStock > 0 ? () => {
+                // Navega para stock e aplica filtro após render completo
+                _pendingZeroFilter = true;
                 nav('view-search');
-                const inp = document.getElementById('inp-search');
-                // Filtra mostrando apenas os que têm stock 0 via função interna
-                setTimeout(() => filterZeroStock(), 100);
             } : null
         },
         {
@@ -445,6 +449,10 @@ async function renderDashboard() {
 // ORDENAÇÃO DO STOCK
 // =============================================
 let _stockSort = 'recente'; // 'recente' | 'nome' | 'qtd-asc' | 'qtd-desc' | 'local'
+let _pendingZeroFilter  = false;
+let _bulkCount = 0; // contador de produtos adicionados no lote actual
+let _toolsFilter = ''; // filtro de pesquisa de ferramentas // activa filtro zero-stock após próximo renderList
+let _zeroFilterActive  = false; // zero-stock filter está activo (persiste entre navegações)
 
 // Menu de ordenação — criado no body para evitar clipping por stacking contexts
 function _getSortMenu() {
@@ -511,6 +519,14 @@ function _closeSortMenu() {
     document.removeEventListener('click', _onOutsideSortClick);
 }
 
+// Fecha sort menu em scroll ou resize (posição desactualizada)
+window.addEventListener('scroll', () => {
+    if (document.getElementById('sort-menu')?.classList.contains('open')) _closeSortMenu();
+}, { passive: true });
+window.addEventListener('resize', () => {
+    if (document.getElementById('sort-menu')?.classList.contains('open')) _closeSortMenu();
+});
+
 function setStockSort(val) {
     _stockSort = val;
     // Actualiza estado visual das opções
@@ -542,6 +558,7 @@ function getSortedEntries(entries) {
 
 // Filtra stock para mostrar apenas produtos com quantidade 0
 function filterZeroStock() {
+    _zeroFilterActive = true;
     const listEl = document.getElementById('stock-list');
     if (!listEl) return;
     const wrappers = listEl.querySelectorAll('.swipe-wrapper[data-id]');
@@ -551,7 +568,6 @@ function filterZeroStock() {
         const isZero = item && (item.quantidade || 0) === 0;
         wrapper.style.display = isZero ? '' : 'none';
     });
-    // Mostra indicador de filtro ativo
     let badge = document.getElementById('zero-filter-badge');
     if (!badge) {
         badge = document.createElement('div');
@@ -562,12 +578,20 @@ function filterZeroStock() {
     }
 }
 
+function _updateBulkCounter() {
+    const el = document.getElementById('bulk-counter');
+    if (!el) return;
+    el.textContent = _bulkCount === 0 ? '' : `${_bulkCount} produto${_bulkCount > 1 ? 's' : ''} adicionado${_bulkCount > 1 ? 's' : ''}`;
+    el.style.display = _bulkCount > 0 ? 'block' : 'none';
+}
+
 function clearSearch() {
     const inp = document.getElementById('inp-search');
     if (inp) { inp.value = ''; inp.dispatchEvent(new Event('input')); inp.focus(); }
 }
 
 function clearZeroFilter() {
+    _zeroFilterActive = false;
     const badge = document.getElementById('zero-filter-badge');
     if (badge) badge.remove();
     renderList('', false);
@@ -709,6 +733,17 @@ async function renderList(filter = '', force = false) {
         qtySpan.className   = 'qty-display' + (qty === 0 ? ' is-zero' : '');
         qtySpan.id          = `qty-${id}`;
         qtySpan.textContent = fmtQty(qty, item.unidade);
+        // Duplo-toque/duplo-clique abre edição inline de quantidade
+        let _tapTimer = null;
+        qtySpan.addEventListener('click', () => {
+            if (_tapTimer) {
+                clearTimeout(_tapTimer);
+                _tapTimer = null;
+                openInlineQtyEdit(id, item);
+            } else {
+                _tapTimer = setTimeout(() => { _tapTimer = null; }, 350);
+            }
+        });
 
         const btnP = document.createElement('button');
         btnP.className   = 'btn-qty';
@@ -731,6 +766,56 @@ async function renderList(filter = '', force = false) {
         em.textContent = 'Nenhum resultado encontrado.';
         listEl.appendChild(em);
     }
+
+    // Aplica filtro zero-stock se estava pendente (vindo do dashboard)
+    if (_pendingZeroFilter) {
+        _pendingZeroFilter = false;
+        filterZeroStock();
+    }
+}
+
+// Edição inline de quantidade — abre mini-form no lugar do span
+function openInlineQtyEdit(id, item) {
+    const qtyEl = document.getElementById(`qty-${id}`);
+    if (!qtyEl || qtyEl.querySelector('input')) return; // já em edição
+    const currentQty = cache.stock.data?.[id]?.quantidade ?? 0;
+    const wrap = document.createElement('div');
+    wrap.className = 'qty-inline-edit';
+    const inp = document.createElement('input');
+    inp.type  = 'number';
+    inp.min   = '0';
+    inp.step  = 'any';
+    inp.value = currentQty;
+    inp.className = 'qty-inline-input';
+    inp.setAttribute('inputmode', 'decimal');
+    const confirmFn = async () => {
+        const newVal = parseFloat(inp.value);
+        if (isNaN(newVal) || newVal < 0) { cancelFn(); return; }
+        wrap.replaceWith(qtyEl);
+        qtyEl.textContent = fmtQty(newVal, item.unidade);
+        qtyEl.classList.toggle('is-zero', newVal === 0);
+        document.getElementById(`btn-minus-${id}`)?.toggleAttribute('disabled', newVal === 0);
+        if (cache.stock.data?.[id]) cache.stock.data[id].quantidade = newVal;
+        try {
+            await apiFetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: newVal }) });
+            renderDashboard();
+        } catch { showToast('Erro ao guardar','error'); }
+    };
+    const cancelFn = () => { wrap.replaceWith(qtyEl); };
+    inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  { e.preventDefault(); confirmFn(); }
+        if (e.key === 'Escape') { e.preventDefault(); cancelFn(); }
+    });
+    inp.addEventListener('blur', () => setTimeout(cancelFn, 150));
+    const ok = document.createElement('button');
+    ok.className = 'qty-inline-ok';
+    ok.textContent = '✓';
+    ok.addEventListener('mousedown', e => { e.preventDefault(); confirmFn(); });
+    wrap.appendChild(inp);
+    wrap.appendChild(ok);
+    qtyEl.replaceWith(wrap);
+    inp.focus();
+    inp.select();
 }
 
 async function forceRefresh() {
@@ -766,7 +851,8 @@ async function changeQtd(id, delta) {
     }
     if (minusEl) minusEl.disabled = newQty === 0;
 
-    // Debounce: agrupa múltiplos toques rápidos — só envia após 600ms de pausa
+    // Mostra indicador de "a guardar" após 300ms sem actividade
+    if (qtyEl) qtyEl.classList.add('qty-saving');
     clearTimeout(_qtyTimers[id]);
     _qtyTimers[id] = setTimeout(async () => {
         const finalQty = stockData[id]?.quantidade;
@@ -775,8 +861,9 @@ async function changeQtd(id, delta) {
             await apiFetch(`${BASE_URL}/stock/${id}.json`, {
                 method: 'PATCH', body: JSON.stringify({ quantidade: finalQty })
             });
+            if (qtyEl) qtyEl.classList.remove('qty-saving');
         } catch {
-            // Reverte para o valor antes desta sequência de toques
+            if (qtyEl) qtyEl.classList.remove('qty-saving');
             stockData[id].quantidade = oldQty;
             if (qtyEl)   { qtyEl.textContent = fmtQty(oldQty, stockData[id]?.unidade); qtyEl.classList.toggle('is-zero', oldQty === 0); }
             if (minusEl)   minusEl.disabled = oldQty === 0;
@@ -803,8 +890,11 @@ async function renderTools() {
     if (!data || Object.keys(data).length === 0) {
         list.innerHTML = '<div class="empty-msg">Nenhuma ferramenta registada.</div>'; return;
     }
-    // FIX: cópia antes de reverter
+    const filterLower = _toolsFilter.toLowerCase();
+    let toolsFound = 0;
     ;[...Object.entries(data)].reverse().forEach(([id, t]) => {
+        if (filterLower && !t.nome?.toLowerCase().includes(filterLower)) return;
+        toolsFound++;
         const isAv = t.status === 'disponivel';
         const div  = document.createElement('div');
         div.className = `tool-card ${isAv ? 'tool-available' : 'tool-allocated'}`;
@@ -845,6 +935,9 @@ async function renderTools() {
         div.appendChild(info); div.appendChild(arrow);
         list.appendChild(div);
     });
+    if (filterLower && toolsFound === 0) {
+        list.innerHTML = '<div class="empty-msg">Nenhuma ferramenta encontrada.</div>';
+    }
 }
 
 async function renderAdminTools() {
@@ -913,8 +1006,13 @@ async function openHistoryModal(toolId, toolName) {
     focusModal('history-modal');
 
     try {
+        if (!navigator.onLine) {
+            listEl.innerHTML = '<div class="empty-msg">Sem ligação — histórico indisponível offline.</div>';
+            return;
+        }
         const url  = await authUrl(`${BASE_URL}/ferramentas/${toolId}/historico.json`);
         const res  = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         listEl.innerHTML = '';
 
@@ -1337,7 +1435,7 @@ function openPinSetupModal(mode = 'change') {
         ? 'Define um PIN de 4 dígitos para proteger o acesso de Gestor'
         : 'Escolhe um PIN de 4 dígitos';
     document.getElementById('pin-setup-icon').textContent  = isFirst ? '🔑' : '🔐';
-    document.getElementById('pin-remove-btn').style.display = (hasPin && !isFirst) ? 'block' : 'none';
+    document.getElementById('pin-remove-btn')?.classList.toggle('hidden', !(hasPin && !isFirst));
     document.getElementById('pin-setup-modal').classList.add('active');
     focusModal('pin-setup-modal');
 }
@@ -1499,22 +1597,40 @@ function closeDupModal() {
 // =============================================
 const UNIT_LABELS = { un: 'Unidade', L: 'Litros', m: 'Metros (m)', m2: 'Metros² (m²)' };
 const UNIT_SHORT  = { un: 'Unidade', L: 'Litros', m: 'm', m2: 'm²' };
+const UNIT_PREFIXES = ['inp', 'bulk', 'edit'];
+
+// Fecha todos os menus de unidade abertos
+function _closeAllUnitMenus() {
+    UNIT_PREFIXES.forEach(p => {
+        document.getElementById(`${p}-unit-menu`)?.classList.remove('open');
+        document.getElementById(`${p}-unit-btn`)?.classList.remove('active');
+    });
+}
+
+// Listener nomeado para poder ser removido com segurança (ponto 7)
+function _onOutsideUnitClick(e) {
+    const isInsideAny = UNIT_PREFIXES.some(p =>
+        document.getElementById(`${p}-unit-wrap`)?.contains(e.target)
+    );
+    if (!isInsideAny) {
+        _closeAllUnitMenus();
+        document.removeEventListener('click', _onOutsideUnitClick);
+    }
+}
 
 function toggleUnitMenu(prefix) {
-    const menu = document.getElementById(`${prefix}-unit-menu`);
-    const btn  = document.getElementById(`${prefix}-unit-btn`);
-    const isOpen = menu.classList.toggle('open');
-    btn.classList.toggle('active', isOpen);
-    if (isOpen) {
-        setTimeout(() => {
-            document.addEventListener('click', function closeMenu(e) {
-                if (!document.getElementById(`${prefix}-unit-wrap`)?.contains(e.target)) {
-                    menu.classList.remove('open');
-                    btn.classList.remove('active');
-                    document.removeEventListener('click', closeMenu);
-                }
-            });
-        }, 0);
+    const menu   = document.getElementById(`${prefix}-unit-menu`);
+    const btn    = document.getElementById(`${prefix}-unit-btn`);
+    const isOpen = menu.classList.contains('open');
+
+    // Fecha todos primeiro (inclui outros menus de unidade)
+    _closeAllUnitMenus();
+    document.removeEventListener('click', _onOutsideUnitClick);
+
+    if (!isOpen) {
+        menu.classList.add('open');
+        btn.classList.add('active');
+        setTimeout(() => document.addEventListener('click', _onOutsideUnitClick), 0);
     }
 }
 
@@ -1593,12 +1709,18 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput.oninput = e => {
             clearTimeout(debounceTimer);
             const val = e.target.value;
-            if (searchClear) searchClear.style.display = val ? 'flex' : 'none';
+            if (searchClear) searchClear.classList.toggle('hidden', !val);
             // Remove zero-stock filter badge if user types
-            if (val) { const b = document.getElementById('zero-filter-badge'); if (b) b.remove(); }
+            if (val) { _zeroFilterActive = false; const b = document.getElementById('zero-filter-badge'); if (b) b.remove(); }
             debounceTimer = setTimeout(() => renderList(val), 300);
         };
     }
+
+    // Pesquisa de ferramentas
+    document.getElementById('inp-tools-search')?.addEventListener('input', e => {
+        _toolsFilter = e.target.value.trim();
+        renderTools();
+    });
 
     // Escape fecha o modal ativo
     document.addEventListener('keydown', e => {
@@ -1617,6 +1739,14 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const { id, close } of modals) {
             if (document.getElementById(id)?.classList.contains('active')) { close(); break; }
         }
+        // Fecha menus de unidade se estiverem abertos
+        const anyUnitOpen = UNIT_PREFIXES.some(p =>
+            document.getElementById(`${p}-unit-menu`)?.classList.contains('open')
+        );
+        if (anyUnitOpen) {
+            _closeAllUnitMenus();
+            document.removeEventListener('click', _onOutsideUnitClick);
+        }
     });
 
     // Online/Offline
@@ -1629,6 +1759,27 @@ document.addEventListener('DOMContentLoaded', () => {
         updateOfflineBanner();
         await syncQueue();
     });
+
+    // Regista Background Sync para sincronizar quando o SW acordar (app fechada)
+    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+        navigator.serviceWorker.ready.then(sw => {
+            // Sempre que há itens na fila, regista sync tag
+            const origQueueAdd = queueAdd;
+            // Patch queueAdd to also register sync
+            window._registerBackgroundSync = () => {
+                sw.sync.register('hiperfrio-sync').catch(() => {});
+            };
+        }).catch(() => {});
+    }
+
+    // Recebe mensagem do Service Worker para sincronizar (Background Sync — ponto 25)
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', async e => {
+            if (e.data?.type === 'SYNC_QUEUE') {
+                await syncQueue();
+            }
+        });
+    }
 
     // Confirm modal OK
     document.getElementById('confirm-modal-ok').onclick = () => {
@@ -1713,11 +1864,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     cache.stock.data[`_tmp_${Date.now()}`] = payload;
                 }
+                _bulkCount++;
+                _updateBulkCounter();
                 showToast(`${payload.codigo} adicionado ao lote!`);
                 document.getElementById('bulk-codigo').value = '';
                 document.getElementById('bulk-nome').value   = '';
                 document.getElementById('bulk-qtd').value    = '1';
-                setUnitSelector('bulk', 'un');
+                // Unidade mantém-se propositadamente — catalogação em série do mesmo tipo
                 document.getElementById('bulk-codigo').focus();
             } catch { invalidateCache('stock'); showToast('Erro ao adicionar ao lote','error'); }
             finally { btn.disabled = false; }
