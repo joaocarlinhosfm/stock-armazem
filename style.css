@@ -1518,3 +1518,115 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
 .unit-option:hover { background: rgba(37,99,235,0.06); color: var(--primary); }
 .unit-option.active { color: var(--primary); background: rgba(37,99,235,0.06); }
 .unit-option.active::before { content: "✓ "; font-weight: 900; }
+
+/* =============================================
+   PONTO 12 — .hidden substitui style="display:none"
+   ============================================= */
+.hidden { display: none !important; }
+
+/* Sobrepõe hidden para o offline-banner que usa flex */
+#offline-banner:not(.hidden) { display: flex !important; }
+
+/* =============================================
+   PONTO 12 — form-edit margin + admin-tools margin
+   ============================================= */
+.form-edit-modal { margin-top: 16px; }
+.admin-tools-list { margin-top: 16px; }
+
+/* =============================================
+   PONTO 11 — qty-row responsivo
+   Colapsa para coluna em ecrãs muito estreitos
+   ou quando a fonte do sistema é grande
+   ============================================= */
+@media (max-width: 340px) {
+    .qty-row { flex-direction: column; }
+    .qty-row .unit-field { width: 100%; }
+}
+@media (min-width: 341px) {
+    .qty-row .qty-field { min-width: 90px; }
+    .qty-row .unit-field { width: 130px; }
+}
+
+/* =============================================
+   PONTO 15 — indicador de "a guardar" na quantidade
+   ============================================= */
+@keyframes qtySavingPulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.45; }
+}
+.qty-display.qty-saving {
+    animation: qtySavingPulse 0.9s ease-in-out infinite;
+    color: var(--primary);
+}
+
+/* =============================================
+   PONTO 17 — barra de pesquisa de ferramentas
+   ============================================= */
+.tools-search-wrap {
+    margin-bottom: 14px;
+}
+.tools-search-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* =============================================
+   PONTO 14 — contador do lote
+   ============================================= */
+.bulk-counter {
+    text-align: center;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--primary);
+    background: rgba(37,99,235,0.08);
+    border: 1.5px solid rgba(37,99,235,0.2);
+    border-radius: 10px;
+    padding: 8px 14px;
+    margin-bottom: 14px;
+    letter-spacing: 0.02em;
+}
+
+/* =============================================
+   PONTO 21 — edição inline de quantidade (duplo-toque)
+   ============================================= */
+.qty-inline-edit {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.qty-inline-input {
+    width: 64px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 2px solid var(--primary);
+    background: var(--card-bg);
+    color: var(--text-main);
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-family: inherit;
+    text-align: center;
+    outline: none;
+}
+.qty-inline-ok {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    border: none;
+    background: var(--primary);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+}
+.qty-inline-ok:hover { opacity: 0.85; }
+
+/* Hint visual: qty-display tem cursor pointer para sugerir interactividade */
+.qty-display {
+    cursor: pointer;
+    user-select: none;
+}
