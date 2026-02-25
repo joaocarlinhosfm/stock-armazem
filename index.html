@@ -62,6 +62,7 @@
             <ul class="menu-items">
                 <li id="nav-search" class="active" onclick="nav('view-search')"><span>🔍</span> Consultar Stock</li>
                 <li id="nav-tools" onclick="nav('view-tools')"><span>🛠️</span> Ferramentas</li>
+                <li id="nav-map" onclick="nav('view-map')"><span>🗺️</span> Mapa</li>
                 <li id="nav-register" onclick="nav('view-register')" data-manager-only><span>➕</span> Novo Produto</li>
                 <li id="nav-bulk" onclick="nav('view-bulk')" data-manager-only><span>📦</span> Catalogar Lote</li>
                 <hr class="menu-divider">
@@ -266,6 +267,92 @@
 
             </section>
         </div>
+        <div id="view-map" class="view">
+            <!-- Tabs: Estrutura | Planta -->
+            <div class="wh-tabs">
+                <button class="wh-tab active" id="wh-tab-struct" onclick="whSwitchTab('struct')">📂 Estrutura</button>
+                <button class="wh-tab" id="wh-tab-planta" onclick="whSwitchTab('planta')">🗺️ Planta</button>
+            </div>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- TAB ESTRUTURA — Corredor→Secção→Prat→Gaveta -->
+            <!-- ═══════════════════════════════════════════ -->
+            <div id="wh-panel-struct" class="wh-tab-panel active">
+
+                <!-- Breadcrumb + acção contextual -->
+                <div class="wh-topbar">
+                    <div class="wh-breadcrumb" id="wh-breadcrumb">
+                        <span class="wh-bc-root" onclick="whNavTo(0)">🏭</span>
+                    </div>
+                    <button class="wh-add-btn" id="wh-add-btn" data-manager-only onclick="whOpenAddModal()">＋</button>
+                </div>
+
+                <!-- Grade de cards de navegação -->
+                <div class="wh-grid" id="wh-grid">
+                    <!-- preenchido por JS -->
+                </div>
+
+                <!-- Vista de gaveta — produtos -->
+                <div class="wh-drawer-panel hidden" id="wh-drawer-panel">
+                    <!-- preenchido por JS -->
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- TAB PLANTA — imagem + zonas SVG             -->
+            <!-- ═══════════════════════════════════════════ -->
+            <div id="wh-panel-planta" class="wh-tab-panel hidden">
+
+                <!-- Header com breadcrumb e botão editar -->
+                <div class="map-topbar">
+                    <div class="map-breadcrumb" id="map-breadcrumb">
+                        <span class="map-bc-item map-bc-root" onclick="mapNavRoot()">🏭 Armazém</span>
+                    </div>
+                    <button class="map-edit-toggle" id="map-edit-toggle" data-manager-only onclick="mapToggleEdit()">✏️ Editar</button>
+                </div>
+
+                <!-- Toolbar do editor -->
+                <div class="map-editor-toolbar hidden" id="map-editor-toolbar">
+                    <label class="map-upload-btn" for="map-img-input">
+                        📁 Carregar Planta
+                        <input type="file" id="map-img-input" accept="image/*" style="display:none" onchange="mapUploadImage(this)">
+                    </label>
+                    <button class="map-tool-btn active" id="map-tool-zone" onclick="mapSetTool('zone')">⬜ Zona</button>
+                    <button class="map-tool-btn" id="map-tool-pointer" onclick="mapSetTool('pointer')">↖ Selec.</button>
+                    <button class="map-tool-btn map-btn-danger" id="map-tool-clear" onclick="mapClearImage()">🗑️ Limpar</button>
+                </div>
+
+                <!-- Contentor do mapa -->
+                <div class="map-container" id="map-container">
+                    <div class="map-placeholder" id="map-placeholder">
+                        <div class="map-placeholder-icon">🗺️</div>
+                        <div class="map-placeholder-text">Planta do armazém não carregada</div>
+                        <div class="map-placeholder-sub" id="map-placeholder-sub">Peça ao gestor para carregar a planta em modo edição</div>
+                    </div>
+                    <div class="map-svg-wrap" id="map-svg-wrap" style="display:none">
+                        <img id="map-img" class="map-image" alt="Planta do armazém" draggable="false">
+                        <svg id="map-svg" class="map-svg" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <filter id="zone-shadow">
+                                    <feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity="0.25"/>
+                                </filter>
+                            </defs>
+                        </svg>
+                        <div class="map-draw-preview hidden" id="map-draw-preview"></div>
+                    </div>
+                </div>
+
+                <!-- Painel de produtos da zona -->
+                <div class="map-product-panel hidden" id="map-product-panel">
+                    <div class="map-panel-header">
+                        <span class="map-panel-title" id="map-panel-title">Produtos</span>
+                        <button class="map-panel-close" onclick="mapClosePanel()">✕</button>
+                    </div>
+                    <div class="map-panel-list" id="map-panel-list"></div>
+                </div>
+            </div>
+        </div>
+
         </main>
 
     </div><!-- end app-layout -->
@@ -287,6 +374,10 @@
         <button class="bottom-nav-item" id="bnav-bulk" onclick="nav('view-bulk')" data-manager-only>
             <span class="bnav-icon">📦</span>
             <span class="bnav-label">Lote</span>
+        </button>
+        <button class="bottom-nav-item" id="bnav-map" onclick="nav('view-map')">
+            <span class="bnav-icon">🗺️</span>
+            <span class="bnav-label">Mapa</span>
         </button>
         <button class="bottom-nav-item" id="bnav-admin" onclick="nav('view-admin')" data-manager-only>
             <span class="bnav-icon">⚙️</span>
@@ -522,6 +613,90 @@
         </div>
     </div>
 
+    <!-- Modal: Propriedades de zona no mapa -->
+    <div id="zone-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="zone-modal-title">
+        <div class="modal-content">
+            <div class="modal-icon" id="zone-modal-icon">⬜</div>
+            <h3 id="zone-modal-title">Nova Zona</h3>
+            <p class="modal-desc">Define o nome e código desta zona do armazém.</p>
+            <div class="pro-form" style="margin-top:14px;gap:12px">
+                <div class="form-group">
+                    <label for="zone-label-input">NOME DA ZONA</label>
+                    <input type="text" id="zone-label-input" class="blue-input" placeholder="Ex: Corredor A, Secção A1, Prateleira P3">
+                </div>
+                <div class="form-group">
+                    <label for="zone-prefix-input">CÓDIGO / LOCALIZAÇÃO</label>
+                    <input type="text" id="zone-prefix-input" class="blue-input" placeholder="Ex: A, A1, A1-P3">
+                    <span class="form-hint">Produtos com este prefixo aparecerão nesta zona</span>
+                </div>
+                <div class="form-group">
+                    <label>COR</label>
+                    <div class="zone-color-picker" id="zone-color-picker"></div>
+                </div>
+            </div>
+            <input type="hidden" id="zone-editing-id">
+            <button class="btn-primary" onclick="mapSaveZone()" id="zone-save-btn">Guardar Zona</button>
+            <button class="btn-danger-full" onclick="mapDeleteZone()" id="zone-delete-btn" style="display:none">Apagar Zona</button>
+            <button class="btn-cancel" onclick="closeZoneModal()">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- MODAIS DO ARMAZÉM (Passo 1)                                  -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Modal: Adicionar / Editar nó do armazém -->
+    <div id="wh-edit-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="wh-edit-title">
+        <div class="modal-content">
+            <h3 id="wh-edit-title" class="wh-modal-title">Novo Corredor</h3>
+            <form id="form-wh-edit" class="pro-form">
+                <input type="hidden" id="wh-edit-level">
+                <input type="hidden" id="wh-edit-id">
+                <input type="hidden" id="wh-edit-parent-id">
+
+                <!-- Nome -->
+                <div class="form-group">
+                    <label for="wh-edit-name">NOME</label>
+                    <input type="text" id="wh-edit-name" class="blue-input" placeholder="ex: Corredor A" required autocomplete="off">
+                </div>
+
+                <!-- Cor (apenas nível corredor) -->
+                <div class="form-group" id="wh-color-group">
+                    <label>COR</label>
+                    <div class="wh-color-picker" id="wh-color-picker"></div>
+                    <input type="hidden" id="wh-edit-color" value="#3b82f6">
+                </div>
+
+                <!-- Gaveta: atribuir produtos -->
+                <div class="form-group hidden" id="wh-products-group">
+                    <label>PRODUTOS NESTA GAVETA</label>
+                    <div class="wh-product-assign" id="wh-product-assign">
+                        <!-- preenchido por JS -->
+                    </div>
+                    <div class="wh-prod-search-wrap">
+                        <input type="text" id="wh-prod-search" class="blue-input" placeholder="🔍 Pesquisar produto..." autocomplete="off">
+                    </div>
+                    <div class="wh-prod-results" id="wh-prod-results"></div>
+                </div>
+
+                <button type="submit" class="btn-primary" id="wh-edit-save-btn">Guardar</button>
+                <button type="button" class="btn-cancel" onclick="whCloseEditModal()">Cancelar</button>
+                <button type="button" class="btn-danger-outline hidden" id="wh-edit-delete-btn" onclick="whDeleteNode()">🗑️ Apagar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmar apagar nó (com aviso de filhos) -->
+    <div id="wh-delete-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="wh-delete-title">
+        <div class="modal-content">
+            <div class="modal-icon">⚠️</div>
+            <h3 id="wh-delete-title">Apagar?</h3>
+            <p id="wh-delete-desc" class="modal-desc"></p>
+            <button class="btn-danger" id="wh-delete-confirm-btn">Apagar tudo</button>
+            <button class="btn-cancel" onclick="whCloseDeleteModal()">Cancelar</button>
+        </div>
+    </div>
+
     <!-- Modal: Trocar de perfil -->
     <div id="switch-role-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="switch-role-title">
         <div class="modal-content">
@@ -562,3 +737,4 @@
     <script src="app.js"></script>
 </body>
 </html>
+
