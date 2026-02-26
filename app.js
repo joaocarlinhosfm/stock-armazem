@@ -1945,12 +1945,39 @@ function switchAdminTab(tab) {
 // =============================================
 // TEMA
 // =============================================
-function toggleTheme() {
-    document.body.classList.toggle('dark-mode');
-    const isDark = document.body.classList.contains('dark-mode');
-    localStorage.setItem('hiperfrio-tema', isDark ? 'dark' : 'light');
+// =============================================
+// TEMAS — claro / escuro / liquid glass
+// =============================================
+function _applyTheme(theme) {
+    document.body.classList.remove('dark-mode', 'glass-mode');
+    if (theme === 'dark')  document.body.classList.add('dark-mode');
+    if (theme === 'glass') document.body.classList.add('glass-mode');
+
+    // Sync toggle dark/light
     const t = document.getElementById('theme-toggle-admin');
-    if (t) t.checked = isDark;
+    if (t) t.checked = (theme === 'dark');
+
+    // Sync glass button indicator
+    const gBtn = document.getElementById('glass-theme-btn');
+    if (gBtn) gBtn.dataset.active = (theme === 'glass') ? '1' : '0';
+}
+
+function toggleTheme() {
+    // Cicla entre claro ↔ escuro (o toggle original)
+    const current = localStorage.getItem('hiperfrio-tema') || 'light';
+    const next    = (current === 'dark' || current === 'glass') ? 'light' : 'dark';
+    localStorage.setItem('hiperfrio-tema', next);
+    _applyTheme(next);
+}
+
+function toggleGlassTheme() {
+    const current = localStorage.getItem('hiperfrio-tema') || 'light';
+    const next    = current === 'glass' ? 'light' : 'glass';
+    localStorage.setItem('hiperfrio-tema', next);
+    _applyTheme(next);
+    // Sincroniza o toggle dark/light (glass desactiva-o)
+    const t = document.getElementById('theme-toggle-admin');
+    if (t) t.checked = false;
 }
 
 // =============================================
@@ -2352,11 +2379,9 @@ function closeToolTimeline() {
 document.addEventListener('DOMContentLoaded', () => {
 
     // Tema
-    if (localStorage.getItem('hiperfrio-tema') === 'dark') {
-        document.body.classList.add('dark-mode');
-        const t = document.getElementById('theme-toggle-admin');
-        if (t) t.checked = true;
-    }
+    // Aplica tema guardado (claro / escuro / glass)
+    const savedTheme = localStorage.getItem('hiperfrio-tema') || 'light';
+    _applyTheme(savedTheme);
 
     // Migração legacy PIN — só corre uma vez
     if (!localStorage.getItem('hiperfrio-migrated')) {
@@ -2625,3 +2650,4 @@ if ('serviceWorker' in navigator) {
             .catch(e => console.warn('PWA SW erro:', e));
     });
 }
+a
