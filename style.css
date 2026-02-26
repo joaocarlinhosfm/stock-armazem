@@ -2038,3 +2038,26 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     color: #ef4444;
     margin-top: 3px;
 }
+
+/* =============================================
+   FIXES — melhorias de código (análise 2026-02)
+   ============================================= */
+
+/* #16 — badge zero-stock com animação de entrada */
+@keyframes badge-pulse-in {
+    0%   { transform: scaleX(0.95); opacity: 0.6; }
+    60%  { transform: scaleX(1.02); }
+    100% { transform: scaleX(1);    opacity: 1;   }
+}
+.badge-pulse {
+    animation: badge-pulse-in 0.35s ease forwards;
+}
+
+/* #14 — dica de texto nos formulários */
+.form-hint {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--text-secondary, #6b7280);
+    margin-top: 3px;
+    padding-left: 2px;
+}
