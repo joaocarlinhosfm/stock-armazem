@@ -438,6 +438,8 @@ function nav(viewId) {
 
     if (document.getElementById('side-menu')?.classList.contains('open')) toggleMenu();
     window.scrollTo(0, 0);
+    // Garante que o bottom nav pill está visível ao mudar de vista
+    document.getElementById('bottom-nav')?.classList.remove('bnav-hidden');
 }
 
 
@@ -1968,6 +1970,8 @@ function _applyTheme(theme) {
 
     // Liga/desliga o comportamento de scroll da barra de pesquisa
     _setupSearchScrollBehaviour(theme === 'glass');
+    // Liga/desliga o comportamento de scroll do bottom nav pill
+    _setupBottomNavScrollBehaviour(theme === 'glass');
 }
 
 // ── Barra de pesquisa flutuante — desaparece ao fazer scroll (só glass) ──────
@@ -2032,6 +2036,63 @@ function _setupSearchScrollBehaviour(enable) {
         window.removeEventListener('scroll', onScroll);
         container.classList.remove('search-scrolled-away');
         peekBtn.classList.remove('visible');
+        if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+    };
+}
+
+// ── Bottom nav pill flutuante — esconde ao descer, aparece ao subir ─────────
+let _bnavScrollCleanup = null;
+
+function _setupBottomNavScrollBehaviour(enable) {
+    // Limpa listener anterior
+    if (_bnavScrollCleanup) { _bnavScrollCleanup(); _bnavScrollCleanup = null; }
+
+    const nav = document.getElementById('bottom-nav');
+    if (!nav) return;
+
+    if (!enable) {
+        // Temas não-glass: garante que está visível e sem classes residuais
+        nav.classList.remove('bnav-hidden');
+        return;
+    }
+
+    // Detecção de direcção: esconde ao descer, mostra ao subir
+    const SCROLL_SENSITIVITY = 6;   // px mínimos de delta para reagir
+    const SHOW_AT_TOP        = 30;  // px — perto do topo mostra sempre
+    let _lastY   = window.scrollY;
+    let _hidden  = false;
+    let _rafId   = null;
+
+    const onScroll = () => {
+        if (_rafId) return;
+        _rafId = requestAnimationFrame(() => {
+            _rafId = null;
+            const sy    = window.scrollY;
+            const delta = sy - _lastY;
+            _lastY = sy;
+
+            if (sy <= SHOW_AT_TOP) {
+                // Sempre visível perto do topo
+                if (_hidden) { _hidden = false; nav.classList.remove('bnav-hidden'); }
+                return;
+            }
+            if (!_hidden && delta > SCROLL_SENSITIVITY) {
+                // Desceu — esconde
+                _hidden = true;
+                nav.classList.add('bnav-hidden');
+            } else if (_hidden && delta < -SCROLL_SENSITIVITY) {
+                // Subiu — mostra
+                _hidden = false;
+                nav.classList.remove('bnav-hidden');
+            }
+        });
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    _bnavScrollCleanup = () => {
+        window.removeEventListener('scroll', onScroll);
+        nav.classList.remove('bnav-hidden');
         if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
     };
 }
@@ -2456,8 +2517,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Aplica tema guardado (claro / escuro / glass)
     const savedTheme = localStorage.getItem('hiperfrio-tema') || 'light';
     _applyTheme(savedTheme);
-    // Setup scroll behaviour com o tema carregado (DOM já existe)
+    // Setup scroll behaviours com o tema carregado (DOM já existe)
     _setupSearchScrollBehaviour(savedTheme === 'glass');
+    _setupBottomNavScrollBehaviour(savedTheme === 'glass');
 
     // Migração legacy PIN — só corre uma vez
     if (!localStorage.getItem('hiperfrio-migrated')) {
