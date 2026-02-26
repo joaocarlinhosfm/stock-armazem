@@ -284,6 +284,7 @@
                     <div class="wh-breadcrumb" id="wh-breadcrumb">
                         <span class="wh-bc-root" onclick="whNavTo(0)">🏭</span>
                     </div>
+                    <button class="wh-planta-btn hidden" id="wh-planta-btn" onclick="whGoToPlanta()" title="Ver na planta">🗺️</button>
                     <button class="wh-add-btn" id="wh-add-btn" data-manager-only onclick="whOpenAddModal()">＋</button>
                 </div>
 
@@ -313,13 +314,24 @@
 
                 <!-- Toolbar do editor -->
                 <div class="map-editor-toolbar hidden" id="map-editor-toolbar">
-                    <label class="map-upload-btn" for="map-img-input">
-                        📁 Carregar Planta
-                        <input type="file" id="map-img-input" accept="image/*" style="display:none" onchange="mapUploadImage(this)">
-                    </label>
-                    <button class="map-tool-btn active" id="map-tool-zone" onclick="mapSetTool('zone')">⬜ Zona</button>
-                    <button class="map-tool-btn" id="map-tool-pointer" onclick="mapSetTool('pointer')">↖ Selec.</button>
-                    <button class="map-tool-btn map-btn-danger" id="map-tool-clear" onclick="mapClearImage()">🗑️ Limpar</button>
+                    <!-- Upload + ferramentas base -->
+                    <div class="map-toolbar-row" id="map-toolbar-row-tools">
+                        <label class="map-upload-btn" for="map-img-input">
+                            📁 Planta
+                            <input type="file" id="map-img-input" accept="image/*" style="display:none" onchange="mapUploadImage(this)">
+                        </label>
+                        <button class="map-tool-btn active" id="map-tool-zone"    onclick="mapSetTool('zone')">✏️ Desenhar</button>
+                        <button class="map-tool-btn"        id="map-tool-pointer" onclick="mapSetTool('pointer')">↖ Mover</button>
+                        <div class="map-toolbar-sep"></div>
+                        <button class="map-tool-btn map-btn-danger" id="map-tool-clear" onclick="mapClearImage()">🗑️</button>
+                    </div>
+                    <!-- Selector de corredor (visível em modo Desenhar) -->
+                    <div class="map-toolbar-row" id="map-toolbar-row-corredores">
+                        <span class="map-corredor-label">CORREDOR:</span>
+                        <div class="map-corredor-chips" id="map-corredor-chips">
+                            <!-- preenchido por JS -->
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Contentor do mapa -->
@@ -339,6 +351,14 @@
                             </defs>
                         </svg>
                         <div class="map-draw-preview hidden" id="map-draw-preview"></div>
+                    <!-- Handles de redimensionamento (passo 3) -->
+                    <div class="map-resize-overlay hidden" id="map-resize-overlay">
+                        <div class="map-rh map-rh-nw" data-handle="nw"></div>
+                        <div class="map-rh map-rh-ne" data-handle="ne"></div>
+                        <div class="map-rh map-rh-sw" data-handle="sw"></div>
+                        <div class="map-rh map-rh-se" data-handle="se"></div>
+                        <div class="map-rh-center" data-handle="move"></div>
+                    </div>
                     </div>
                 </div>
 
@@ -633,6 +653,14 @@
                     <label>COR</label>
                     <div class="zone-color-picker" id="zone-color-picker"></div>
                 </div>
+                <!-- PASSO 2: ligar zona a corredor da hierarquia -->
+                <div class="form-group hidden" id="zone-corredor-group">
+                    <label for="zone-corredor-select">LIGAR AO CORREDOR</label>
+                    <select id="zone-corredor-select" class="blue-input select-input">
+                        <option value="">— Nenhum —</option>
+                    </select>
+                    <span class="form-hint">Clicar nesta zona abrirá o corredor na vista Estrutura</span>
+                </div>
             </div>
             <input type="hidden" id="zone-editing-id">
             <button class="btn-primary" onclick="mapSaveZone()" id="zone-save-btn">Guardar Zona</button>
@@ -737,4 +765,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-
