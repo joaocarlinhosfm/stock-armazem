@@ -1,3 +1,6 @@
+// NOTA DE SEGURANÇA (#24): a apiKey do Firebase é pública por design.
+// A protecção real é feita pelas Firebase Security Rules (exigem Anonymous Auth).
+// Confirmar que as rules não permitem leitura/escrita sem token válido.
 const DB_URL   = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app/stock.json";
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
@@ -128,11 +131,28 @@ async function enterAsManager() {
     }
 }
 
-// Trocar de perfil (botão nas Definições)
+// Trocar de perfil — sem reload para ser mais rápido
 function switchRole() {
     closeSwitchRoleModal();
     localStorage.removeItem(ROLE_KEY);
-    window.location.reload();
+    currentRole = null;
+    // Remove badge
+    document.getElementById('role-badge')?.remove();
+    // Repõe body classes
+    document.body.classList.remove('worker-mode');
+    // Invalida cache em memória
+    Object.keys(cache).forEach(k => { cache[k].data = null; cache[k].lastFetch = 0; });
+    // Para renovação de token
+    clearTimeout(_tokenRenewalTimer);
+    // Mostra ecrã de seleção
+    document.getElementById('role-screen')?.classList.remove('hidden');
+    // Esconde todas as vistas
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    // Reset nav activo
+    document.querySelectorAll('.menu-items li, .bottom-nav-item').forEach(b => b.classList.remove('active'));
+    // Volta ao stock ao próximo login
+    document.getElementById('view-search')?.classList.add('active');
+    document.getElementById('nav-search')?.classList.add('active');
 }
 
 function openSwitchRoleModal() {
@@ -177,8 +197,8 @@ async function getPinHash() {
         _cachedPinHash = data || null;
         if (_cachedPinHash) localStorage.setItem('hiperfrio-pin-hash-cache', _cachedPinHash);
         else                 localStorage.removeItem('hiperfrio-pin-hash-cache');
-    } catch {
-        // Offline — usa cache local
+    } catch (e) {
+        console.warn('getPinHash offline, usando cache local:', e?.message || e);
         _cachedPinHash = localStorage.getItem('hiperfrio-pin-hash-cache') || null;
     }
     return _cachedPinHash;
@@ -211,7 +231,7 @@ async function hasPinConfigured() {
 // =============================================
 // CACHE EM MEMÓRIA — TTL 60s
 // =============================================
-const CACHE_TTL = 60_000;
+const CACHE_TTL = 300_000; // 5 min — stock de armazém não muda por segundo
 const cache = {
     stock:        { data: null, lastFetch: 0 },
     ferramentas:  { data: null, lastFetch: 0 },
@@ -316,7 +336,7 @@ async function syncQueue() {
         invalidateCache('stock');
         invalidateCache('ferramentas');
         invalidateCache('funcionarios');
-        renderList(document.getElementById('inp-search')?.value || '', true);
+        renderList(window._searchInputEl?.value || '', true);
     }
 }
 
@@ -373,6 +393,8 @@ function toggleMenu() {
 // NAVEGAÇÃO
 // FIX: active state só actualizado após acesso confirmado
 // =============================================
+// ARQUITECTURA (#18): esta função gere routing + side-effects.
+// Para refactor futuro: separar em _activateView(id) e callbacks por vista.
 function nav(viewId) {
     if (viewId === 'view-admin' && !checkAdminAccess()) return;
 
@@ -398,14 +420,14 @@ function nav(viewId) {
     document.querySelectorAll('.menu-items li').forEach(li => li.classList.remove('active'));
     const sideMap = {
         'view-search':'nav-search','view-tools':'nav-tools','view-register':'nav-register',
-        'view-bulk':'nav-bulk','view-admin':'nav-admin','view-map':'nav-map'
+        'view-bulk':'nav-bulk','view-admin':'nav-admin'
     };
     document.getElementById(sideMap[viewId])?.classList.add('active');
 
     document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
     const bnavMap = {
         'view-search':'bnav-search','view-tools':'bnav-tools','view-register':'bnav-register',
-        'view-bulk':'bnav-bulk','view-admin':'bnav-admin','view-map':'bnav-map'
+        'view-bulk':'bnav-bulk','view-admin':'bnav-admin'
     };
     document.getElementById(bnavMap[viewId])?.classList.add('active');
 
@@ -617,7 +639,7 @@ function setStockSort(val) {
     });
     // Fecha o menu
     _closeSortMenu();
-    renderList(document.getElementById('inp-search')?.value || '', true);
+    renderList(window._searchInputEl?.value || '', true);
 }
 
 function getSortedEntries(entries) {
@@ -655,8 +677,17 @@ function filterZeroStock() {
         badge = document.createElement('div');
         badge.id        = 'zero-filter-badge';
         badge.className = 'zero-filter-badge';
-        badge.innerHTML = '⚠️ A mostrar apenas produtos sem stock &nbsp;<button onclick="clearZeroFilter()">✕ Limpar</button>';
+        const _badgeTxt = document.createElement('span');
+        _badgeTxt.textContent = '⚠️ A mostrar apenas produtos sem stock';
+        const _badgeBtn = document.createElement('button');
+        _badgeBtn.textContent = '✕ Limpar';
+        _badgeBtn.onclick = clearZeroFilter;
+        badge.appendChild(_badgeTxt);
+        badge.appendChild(_badgeBtn);
         listEl.parentNode.insertBefore(badge, listEl);
+        // Scroll para o topo e foca o badge
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => badge.classList.add('badge-pulse'), 100);
     }
 }
 
@@ -735,6 +766,8 @@ async function renderList(filter = '', force = false) {
     // Se DOM já tem cards (re-render por filtro), apenas faz show/hide
     const existingCards = listEl.querySelectorAll('.swipe-wrapper[data-id]');
     if (existingCards.length > 0 && !force) {
+        // Remove "Mostrar mais" antes de filtrar — contagem pode mudar
+        document.getElementById('load-more-btn')?.remove();
         const filterLower = filter.toLowerCase();
         let visible = 0;
         existingCards.forEach(wrapper => {
@@ -1022,7 +1055,8 @@ async function changeQtd(id, delta) {
                 method: 'PATCH', body: JSON.stringify({ quantidade: finalQty })
             });
             if (qtyEl) qtyEl.classList.remove('qty-saving');
-        } catch {
+        } catch (e) {
+            console.warn('changeQtd erro:', e?.message || e);
             if (qtyEl) qtyEl.classList.remove('qty-saving');
             stockData[id].quantidade = oldQty;
             if (qtyEl)   { qtyEl.textContent = fmtQty(oldQty, stockData[id]?.unidade); qtyEl.classList.toggle('is-zero', oldQty === 0); }
@@ -1041,6 +1075,8 @@ function formatDate(iso) {
     const d = new Date(iso), pad = n => String(n).padStart(2, '0');
     return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+let _toolLongPressTimer = null; // módulo-level para evitar memory leak ao re-render
 
 async function renderTools() {
     const list = document.getElementById('tools-list');
@@ -1069,13 +1105,12 @@ async function renderTools() {
         });
         // Histórico: right-click no desktop, long-press no mobile
         div.addEventListener('contextmenu', e => { e.preventDefault(); openHistoryModal(id, t.nome); });
-        // Long-press para mobile
-        let _longPressTimer = null;
+        // Long-press para mobile (usa variável de módulo para evitar leak ao re-render)
         div.addEventListener('touchstart', () => {
-            _longPressTimer = setTimeout(() => openHistoryModal(id, t.nome), 600);
+            _toolLongPressTimer = setTimeout(() => openHistoryModal(id, t.nome), 600);
         }, { passive: true });
-        div.addEventListener('touchend',   () => clearTimeout(_longPressTimer), { passive: true });
-        div.addEventListener('touchmove',  () => clearTimeout(_longPressTimer), { passive: true });
+        div.addEventListener('touchend',   () => clearTimeout(_toolLongPressTimer), { passive: true });
+        div.addEventListener('touchmove',  () => clearTimeout(_toolLongPressTimer), { passive: true });
         const info = document.createElement('div');
         const nome = document.createElement('div');
         nome.className   = 'tool-nome';
@@ -1093,13 +1128,19 @@ async function renderTools() {
             w.textContent = `👤 ${(t.colaborador||'').toUpperCase()}`;
             const dl = document.createElement('div');
             dl.className   = 'tool-date';
-            dl.textContent = `📅 ${formatDate(t.dataEntrega)}`;
+            // Mostra sempre há quantos dias está alocada
+            const _days = t.dataEntrega
+                ? Math.floor((Date.now() - new Date(t.dataEntrega).getTime()) / 86400000)
+                : null;
+            const _timeStr = _days !== null
+                ? (_days === 0 ? 'hoje' : _days === 1 ? 'há 1 dia' : `há ${_days} dias`)
+                : '';
+            dl.textContent = `📅 ${formatDate(t.dataEntrega)}${_timeStr ? ' · ' + _timeStr : ''}`;
             sub.appendChild(w); sub.appendChild(dl);
             if (isOverdue) {
                 const ovd = document.createElement('div');
                 ovd.className   = 'tool-overdue-badge';
-                const days = Math.floor((Date.now() - new Date(t.dataEntrega).getTime()) / 86400000);
-                ovd.textContent = `⏰ Alocada há ${days} dias`;
+                ovd.textContent = `⏰ Alocada há ${_days} dias — verificar!`;
                 sub.appendChild(ovd);
             }
         }
@@ -1165,17 +1206,24 @@ async function addToolHistoryEvent(toolId, acao, colaborador) {
         await apiFetch(`${BASE_URL}/ferramentas/${toolId}/historico.json`, {
             method: 'POST', body: JSON.stringify(event)
         });
-        // Verifica se excede o limite — se sim, apaga o mais antigo
-        const url  = await authUrl(`${BASE_URL}/ferramentas/${toolId}/historico.json`);
-        const res  = await fetch(url);
-        const data = await res.json();
-        if (data && Object.keys(data).length > HISTORY_MAX) {
-            // Ordena por data e apaga o mais antigo
-            const sorted = Object.entries(data).sort((a, b) => new Date(a[1].data) - new Date(b[1].data));
-            const oldestKey = sorted[0][0];
-            await apiFetch(`${BASE_URL}/ferramentas/${toolId}/historico/${oldestKey}.json`, { method: 'DELETE' });
+        // Verifica se excede o limite usando o cache de ferramentas (evita fetch extra)
+        const histCache = cache.ferramentas.data?.[toolId]?.historico;
+        const histCount = histCache ? Object.keys(histCache).length : 0;
+        if (histCount >= HISTORY_MAX) {
+            // Faz fetch apenas quando necessário para obter os IDs ordenados
+            try {
+                const url  = await authUrl(`${BASE_URL}/ferramentas/${toolId}/historico.json`);
+                const res  = await fetch(url);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && Object.keys(data).length > HISTORY_MAX) {
+                        const sorted = Object.entries(data).sort((a, b) => new Date(a[1].data) - new Date(b[1].data));
+                        await apiFetch(`${BASE_URL}/ferramentas/${toolId}/historico/${sorted[0][0]}.json`, { method: 'DELETE' });
+                    }
+                }
+            } catch (e) { console.warn('Limpeza histórico:', e?.message || e); }
         }
-    } catch { /* histórico é best-effort */ }
+    } catch (e) { console.warn('addToolHistoryEvent:', e?.message || e); /* best-effort */ }
 }
 
 async function openHistoryModal(toolId, toolName) {
@@ -1267,7 +1315,8 @@ async function returnTool(id) {
         });
         // Regista histórico com colaborador preservado mesmo offline
         await addToolHistoryEvent(id, 'devolvida', colaborador);
-    } catch {
+    } catch (e) {
+        console.warn('returnTool erro:', e?.message || e);
         // Reverte estado local
         cache.ferramentas.data[id] = {
             ...cache.ferramentas.data[id], status:'alocada', colaborador, dataEntrega: dataEntregaOrig
@@ -1658,6 +1707,9 @@ function closePinModal() {
     pinBuffer = '';
     document.getElementById('pin-modal').classList.remove('active');
 }
+// SEGURANÇA (#25): PIN de 4 dígitos (10 000 combinações + lockout de 5 tentativas).
+// Para maior segurança considera alterar para 6 dígitos: mudar >= 4 para >= 6
+// e === 4 para === 6 aqui e em pinSetupKey.
 function pinKey(digit) {
     if (pinBuffer.length >= 4) return;
     pinBuffer += digit;
@@ -1768,10 +1820,17 @@ async function handlePinSetupStep() {
     }
 }
 function pinSetupDel() { pinSetupBuffer = pinSetupBuffer.slice(0,-1); updatePinDots('pin-setup-dots', pinSetupBuffer.length); }
-async function removePin() {
-    await deletePinHash();
-    localStorage.removeItem('hiperfrio-pin');
-    closePinSetupModal(); updatePinStatusUI(); showToast('PIN removido');
+function removePin() {
+    openConfirmModal({
+        icon: '⚠️',
+        title: 'Remover PIN?',
+        desc: 'Sem PIN, qualquer pessoa poderá aceder como Gestor. Tens a certeza?',
+        onConfirm: async () => {
+            await deletePinHash();
+            localStorage.removeItem('hiperfrio-pin');
+            closePinSetupModal(); updatePinStatusUI(); showToast('PIN removido');
+        }
+    });
 }
 function updatePinDots(cId, count) {
     document.querySelectorAll(`#${cId} span`).forEach((d,i) => {
@@ -1798,7 +1857,7 @@ function updatePinStatusUI() {
 // EXPORTAR CSV
 // =============================================
 async function exportCSV() {
-    const btn = document.querySelector('[onclick="exportCSV()"]');
+    const btn = document.getElementById('export-csv-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'A exportar...'; }
     const data = await fetchCollection('stock', false);
     if (!data || Object.keys(data).length === 0) {
@@ -1832,7 +1891,7 @@ async function exportCSV() {
 // =============================================
 // PONTO 25: exportar histórico de ferramentas para CSV
 async function exportToolHistoryCSV() {
-    const btn = document.querySelector('[onclick="exportToolHistoryCSV()"]');
+    const btn = document.getElementById('export-hist-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'A exportar...'; }
     try {
         const ferrData = await fetchCollection('ferramentas', true);
@@ -1872,6 +1931,7 @@ async function exportToolHistoryCSV() {
         showToast('Erro ao exportar histórico', 'error');
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = 'Exportar Histórico'; }
+
     }
 }
 
@@ -1927,8 +1987,16 @@ function closeDupModal() {
 // =============================================
 // UNIDADE DE MEDIDA — dropdown inline no input
 // =============================================
-const UNIT_LABELS = { un: 'Unidade', L: 'Litros', m: 'Metros (m)', m2: 'Metros² (m²)' };
-const UNIT_SHORT  = { un: 'Unidade', L: 'Litros', m: 'm', m2: 'm²' };
+// Fonte única de verdade para unidades — adicionar aqui para afectar toda a app
+const UNITS = [
+    { value: 'un', label: 'Unidade',     short: 'Unidade' },
+    { value: 'L',  label: 'Litros (L)',  short: 'Litros'  },
+    { value: 'm',  label: 'Metros (m)',  short: 'm'       },
+    { value: 'm2', label: 'Metros² (m²)',short: 'm²'      },
+];
+// Mapas derivados (mantidos para compatibilidade interna)
+const UNIT_LABELS   = Object.fromEntries(UNITS.map(u => [u.value, u.label]));
+const UNIT_SHORT    = Object.fromEntries(UNITS.map(u => [u.value, u.short]));
 const UNIT_PREFIXES = ['inp', 'bulk', 'edit'];
 
 // Fecha todos os menus de unidade abertos
@@ -2123,6 +2191,14 @@ function _renderInvStep() {
     document.getElementById('inv-prev-btn').disabled = _invIdx === 0;
 }
 
+function invQtyDelta(delta) {
+    const el  = document.getElementById('inv-qtd');
+    if (!el) return;
+    const cur = parseFloat(el.value) || 0;
+    el.value  = Math.max(0, cur + delta);
+    el.focus();
+}
+
 function invConfirm() {
     const [id, item] = _invItems[_invIdx] || [];
     if (!id) return;
@@ -2163,7 +2239,7 @@ async function _finishInventory() {
             });
         } catch { invalidateCache('stock'); }
     }
-    renderList(document.getElementById('inp-search')?.value || '', true);
+    renderList(window._searchInputEl?.value || '', true);
     renderDashboard();
     showToast(`Inventário: ${changed.length} diferença${changed.length > 1 ? 's' : ''} corrigida${changed.length > 1 ? 's' : ''}!`);
 }
@@ -2308,9 +2384,10 @@ document.addEventListener('DOMContentLoaded', () => {
         bootApp();
     }
 
-    // Pesquisa com debounce
+    // Pesquisa com debounce — cache o elemento para evitar lookups repetidos
     const searchInput = document.getElementById('inp-search');
     const searchClear = document.getElementById('inp-search-clear');
+    window._searchInputEl = searchInput; // referência global para renderList
     if (searchInput) {
         let debounceTimer;
         searchInput.oninput = e => {
@@ -2394,14 +2471,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const item = cache.stock.data[id];
         closeDeleteModal();
         delete cache.stock.data[id];
-        renderList(document.getElementById('inp-search')?.value || '', true);
+        renderList(window._searchInputEl?.value || '', true);
         renderDashboard();
         showToast('Produto apagado');
         try {
             await apiFetch(`${BASE_URL}/stock/${id}.json`, { method:'DELETE' });
-        } catch {
+        } catch (e) {
+            console.warn('deleteProduct erro:', e?.message || e);
             cache.stock.data[id] = item;
-            renderList(document.getElementById('inp-search')?.value || '', true);
+            renderList(window._searchInputEl?.value || '', true);
             renderDashboard();
             showToast('Erro ao apagar produto','error');
         }
@@ -2487,13 +2565,14 @@ document.addEventListener('DOMContentLoaded', () => {
             notas:       document.getElementById('edit-notas')?.value.trim() || '',
         };
         cache.stock.data[id] = { ...cache.stock.data[id], ...updated };
+        btn.textContent = 'A guardar...';
         closeEditModal();
-        renderList(document.getElementById('inp-search')?.value || '', true);
-        showToast('Produto atualizado!');
+        renderList(window._searchInputEl?.value || '', true);
         try {
             await apiFetch(`${BASE_URL}/stock/${id}.json`, { method:'PATCH', body:JSON.stringify(updated) });
-        } catch { invalidateCache('stock'); showToast('Erro ao guardar alterações','error'); }
-        finally { btn.disabled = false; }
+            showToast('Produto atualizado!');
+        } catch (e) { console.warn('editProduct:', e?.message||e); invalidateCache('stock'); showToast('Erro ao guardar alterações','error'); }
+        finally { btn.disabled = false; btn.textContent = 'Guardar Alterações'; }
     });
 
     // Form: Funcionário
