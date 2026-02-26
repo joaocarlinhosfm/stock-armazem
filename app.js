@@ -401,7 +401,12 @@ function nav(viewId) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId)?.classList.add('active');
 
-    if (viewId === 'view-search') renderList().then(() => { if (_zeroFilterActive) filterZeroStock(); });
+    if (viewId === 'view-search') {
+        renderList().then(() => { if (_zeroFilterActive) filterZeroStock(); });
+        // Reset barra de pesquisa ao navegar para o stock
+        document.querySelector('.search-container')?.classList.remove('search-scrolled-away');
+        document.getElementById('search-peek-btn')?.classList.remove('visible');
+    }
     if (viewId === 'view-register') { // PONTO 19: limpa form ao navegar
         const fa = document.getElementById('form-add');
         if (fa) { fa.reset(); setUnitSelector('inp','un'); document.getElementById('inp-notas').value = ''; }
@@ -1960,6 +1965,75 @@ function _applyTheme(theme) {
     // Sync glass button indicator
     const gBtn = document.getElementById('glass-theme-btn');
     if (gBtn) gBtn.dataset.active = (theme === 'glass') ? '1' : '0';
+
+    // Liga/desliga o comportamento de scroll da barra de pesquisa
+    _setupSearchScrollBehaviour(theme === 'glass');
+}
+
+// ── Barra de pesquisa flutuante — desaparece ao fazer scroll (só glass) ──────
+let _searchScrollCleanup = null;
+
+function _setupSearchScrollBehaviour(enable) {
+    // Remove listener anterior se existir
+    if (_searchScrollCleanup) { _searchScrollCleanup(); _searchScrollCleanup = null; }
+
+    const container  = document.querySelector('.search-container');
+    if (!container) return;
+
+    // Garante que o peek btn existe (criado uma vez, reutilizado)
+    let peekBtn = document.getElementById('search-peek-btn');
+    if (!peekBtn) {
+        peekBtn = document.createElement('button');
+        peekBtn.id        = 'search-peek-btn';
+        peekBtn.className = 'search-peek-btn';
+        peekBtn.innerHTML = '🔍 Pesquisar';
+        peekBtn.setAttribute('aria-label', 'Mostrar barra de pesquisa');
+        peekBtn.onclick   = () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+        document.body.appendChild(peekBtn);
+    }
+
+    if (!enable) {
+        // Temas não-glass: repõe estado normal
+        container.classList.remove('search-scrolled-away');
+        peekBtn.classList.remove('visible');
+        return;
+    }
+
+    const HIDE_THRESHOLD  = 80;  // px de scroll para esconder
+    const SHOW_THRESHOLD  = 20;  // px de scroll para mostrar de volta
+    let   _lastScrollY    = 0;
+    let   _hidden         = false;
+    let   _rafId          = null;
+
+    const onScroll = () => {
+        if (_rafId) return; // throttle via rAF
+        _rafId = requestAnimationFrame(() => {
+            _rafId = null;
+            const sy = window.scrollY;
+            if (!_hidden && sy > HIDE_THRESHOLD) {
+                _hidden = true;
+                container.classList.add('search-scrolled-away');
+                peekBtn.classList.add('visible');
+            } else if (_hidden && sy <= SHOW_THRESHOLD) {
+                _hidden = false;
+                container.classList.remove('search-scrolled-away');
+                peekBtn.classList.remove('visible');
+            }
+            _lastScrollY = sy;
+        });
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    // Retorna função de cleanup para quando o tema mudar
+    _searchScrollCleanup = () => {
+        window.removeEventListener('scroll', onScroll);
+        container.classList.remove('search-scrolled-away');
+        peekBtn.classList.remove('visible');
+        if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+    };
 }
 
 function toggleTheme() {
@@ -2382,6 +2456,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Aplica tema guardado (claro / escuro / glass)
     const savedTheme = localStorage.getItem('hiperfrio-tema') || 'light';
     _applyTheme(savedTheme);
+    // Setup scroll behaviour com o tema carregado (DOM já existe)
+    _setupSearchScrollBehaviour(savedTheme === 'glass');
 
     // Migração legacy PIN — só corre uma vez
     if (!localStorage.getItem('hiperfrio-migrated')) {
@@ -2650,4 +2726,3 @@ if ('serviceWorker' in navigator) {
             .catch(e => console.warn('PWA SW erro:', e));
     });
 }
-a
