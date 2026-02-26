@@ -2039,6 +2039,11 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     margin-top: 3px;
 }
 
+/* ── Padding-bottom extra em glass para o pill flutuante ── */
+body.glass-mode #main-content {
+    padding-bottom: calc(62px + 30px + env(safe-area-inset-bottom));
+}
+
 /* =============================================
    FIXES — melhorias de código (análise 2026-02)
    ============================================= */
@@ -2178,20 +2183,71 @@ body.glass-mode #menu-overlay {
 }
 
 /* ── BOTTOM NAV ── */
+/* ── BOTTOM NAV — PILL FLUTUANTE (apenas glass) ── */
 body.glass-mode #bottom-nav {
-    background: rgba(10, 10, 26, 0.55);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border-top: 1px solid var(--glass-border);
-    box-shadow: 0 -1px 0 var(--glass-border-s);
+    /* Pill flutuante: margens laterais + elevado do fundo */
+    left:   14px;
+    right:  14px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    height: auto;
+    min-height: 62px;
+    border-radius: 28px;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+
+    background: rgba(12, 12, 30, 0.52);
+    backdrop-filter: saturate(200%) blur(28px);
+    -webkit-backdrop-filter: saturate(200%) blur(28px);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+        0 12px 40px rgba(0,0,0,0.35),
+        0 4px 12px rgba(0,0,0,0.20),
+        inset 0 1px 0 rgba(255,255,255,0.14);
+
+    /* Transição scroll hide/show */
+    transition:
+        transform 0.34s cubic-bezier(0.4,0,0.2,1),
+        opacity   0.34s cubic-bezier(0.4,0,0.2,1),
+        box-shadow 0.34s ease;
+    will-change: transform, opacity;
 }
-body.glass-mode .bottom-nav-item { color: rgba(255,255,255,0.55); }
-body.glass-mode .bottom-nav-item.active { color: var(--primary); }
+
+/* Estado escondido — desliza para baixo */
+body.glass-mode #bottom-nav.bnav-hidden {
+    transform: translateY(calc(100% + 24px));
+    opacity: 0;
+    pointer-events: none;
+    box-shadow: none;
+}
+
+/* Items */
+body.glass-mode .bottom-nav-item {
+    color: rgba(255,255,255,0.48);
+    border-radius: 22px;
+    padding: 7px 4px;
+    transition: color 0.18s, background 0.18s;
+    position: relative;
+}
+body.glass-mode .bottom-nav-item:active {
+    background: rgba(255,255,255,0.08);
+}
+
+/* Indicador activo: blob atrás do item em vez de barra no topo */
+body.glass-mode .bottom-nav-item.active {
+    color: #fff;
+}
 body.glass-mode .bottom-nav-item.active::before {
-    background: rgba(10, 132, 255, 0.25);
-    border: 1px solid rgba(10, 132, 255, 0.40);
-    border-radius: 12px;
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 22px;
+    background: rgba(10, 132, 255, 0.28);
+    border: 1px solid rgba(10, 132, 255, 0.38);
+    box-shadow: 0 0 16px rgba(10, 132, 255, 0.20);
+    top: 0; left: 0; right: 0; bottom: 0;
+    height: auto; width: auto;
 }
+body.glass-mode .bnav-icon  { font-size: 1.25rem; position: relative; z-index: 1; }
+body.glass-mode .bnav-label { font-size: 0.60rem; font-weight: 700; letter-spacing: 0.2px; position: relative; z-index: 1; }
 
 /* ── CARDS DE STOCK ── */
 body.glass-mode .item-card {
