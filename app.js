@@ -2389,6 +2389,7 @@ async function whRender() {
 
     // Breadcrumb
     _whRenderBreadcrumb();
+    _whUpdatePlantaBtn(); // PASSO 2
 
     // Título do botão +
     const nextLevelKey = WH_LEVELS[depth];  // o que vamos criar
@@ -2592,6 +2593,35 @@ function _whRenderDrawer(gavId) {
 }
 
 // ── Breadcrumb ──────────────────────────────────────────────────────────────
+
+// PASSO 2: botão "Ver na Planta" — aparece se o corredor actual está ligado a uma zona
+function _whUpdatePlantaBtn() {
+    const btn = document.getElementById('wh-planta-btn');
+    if (!btn) return;
+    // Só mostra no nível corredor (stack de tamanho 1)
+    if (_whNavStack.length !== 1) { btn.classList.add('hidden'); return; }
+    const corredorId = _whNavStack[0].id;
+    // Verifica se existe alguma zona ligada a este corredor
+    const linked = Object.values(_mapZones || {}).some(z => z.corredor_id === corredorId);
+    btn.classList.toggle('hidden', !linked);
+}
+
+// Navega da Estrutura para a zona correspondente na Planta
+function whGoToPlanta() {
+    if (_whNavStack.length < 1) return;
+    const corredorId = _whNavStack[0].id;
+    whSwitchTab('planta');
+    // Pequeno delay para o tab estar visível antes do SVG render
+    setTimeout(() => {
+        // Highlight na planta — faz scroll para a zona (visual apenas)
+        const zoneEntry = Object.entries(_mapZones || {}).find(([, z]) => z.corredor_id === corredorId);
+        if (zoneEntry) {
+            const [zid, zone] = zoneEntry;
+            _mapSelectedZoneId = zid;
+            _mapRenderSVG();
+        }
+    }, 80);
+}
 
 function _whRenderBreadcrumb() {
     const bc = document.getElementById('wh-breadcrumb');
@@ -2921,6 +2951,108 @@ function whCloseDeleteModal() {
     document.getElementById('wh-delete-modal')?.classList.remove('active');
 }
 
+
+// ── PASSO 3: Redimensionamento e movimento de zonas ────────────────────────
+
+function _mapClearResizeOverlay() {
+    const ov = document.getElementById('map-resize-overlay');
+    if (ov) ov.classList.add('hidden');
+    _mapResizeZoneId = null;
+    _mapResizeHandle = null;
+    _mapResizeStart  = null;
+}
+
+function _mapShowResizeOverlay(id, zone) {
+    _mapResizeZoneId = id;
+    const ov   = document.getElementById('map-resize-overlay');
+    const wrap = document.getElementById('map-svg-wrap');
+    if (!ov || !wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    ov.style.left   = (zone.x * rect.width)  + 'px';
+    ov.style.top    = (zone.y * rect.height) + 'px';
+    ov.style.width  = (zone.w * rect.width)  + 'px';
+    ov.style.height = (zone.h * rect.height) + 'px';
+    ov.style.borderColor = zone.color || ZONE_COLORS[0];
+    ov.classList.remove('hidden');
+    _mapSetupResizeHandles(id, zone);
+}
+
+function _mapSetupResizeHandles(id, zone) {
+    const ov   = document.getElementById('map-resize-overlay');
+    const wrap = document.getElementById('map-svg-wrap');
+    if (!ov || !wrap) return;
+
+    // Clone to remove old listeners
+    const newOv = ov.cloneNode(true);
+    ov.parentNode.replaceChild(newOv, ov);
+    newOv.style.borderColor = zone.color || ZONE_COLORS[0];
+
+    const handles = newOv.querySelectorAll('[data-handle]');
+    handles.forEach(handle => {
+        const onHStart = e => {
+            e.stopPropagation();
+            e.preventDefault();
+            _mapResizeHandle = handle.dataset.handle;
+            _mapResizeStart  = {
+                ..._mapGetRelativeCoords(e, wrap),
+                origZone: { ...zone }
+            };
+            document.addEventListener('mousemove', onHMove);
+            document.addEventListener('mouseup',   onHEnd);
+            document.addEventListener('touchmove', onHMove, { passive: false });
+            document.addEventListener('touchend',  onHEnd);
+        };
+        handle.addEventListener('mousedown',  onHStart);
+        handle.addEventListener('touchstart', onHStart, { passive: false });
+    });
+
+    const onHMove = e => {
+        if (!_mapResizeStart || !_mapResizeHandle) return;
+        e.preventDefault();
+        const cur  = _mapGetRelativeCoords(e, wrap);
+        const dx   = _mapSnap(cur.x - _mapResizeStart.x);
+        const dy   = _mapSnap(cur.y - _mapResizeStart.y);
+        const orig = _mapResizeStart.origZone;
+        let nx = orig.x, ny = orig.y, nw = orig.w, nh = orig.h;
+
+        if      (_mapResizeHandle === 'move') { nx = _mapSnap(orig.x + dx); ny = _mapSnap(orig.y + dy); }
+        else if (_mapResizeHandle === 'nw')   { nx = _mapSnap(orig.x + dx); ny = _mapSnap(orig.y + dy); nw = orig.w - dx; nh = orig.h - dy; }
+        else if (_mapResizeHandle === 'ne')   { ny = _mapSnap(orig.y + dy); nw = orig.w + dx; nh = orig.h - dy; }
+        else if (_mapResizeHandle === 'sw')   { nx = _mapSnap(orig.x + dx); nw = orig.w - dx; nh = orig.h + dy; }
+        else if (_mapResizeHandle === 'se')   { nw = orig.w + dx; nh = orig.h + dy; }
+
+        // Clamp
+        nx = Math.max(0, Math.min(nx, 0.95)); ny = Math.max(0, Math.min(ny, 0.95));
+        nw = Math.max(0.04, Math.min(nw, 1 - nx)); nh = Math.max(0.03, Math.min(nh, 1 - ny));
+
+        if (_mapZones[id]) { _mapZones[id] = { ..._mapZones[id], x: nx, y: ny, w: nw, h: nh }; }
+
+        // Update overlay position live
+        const wrapRect = wrap.getBoundingClientRect();
+        const ovEl = document.getElementById('map-resize-overlay');
+        if (ovEl) {
+            ovEl.style.left   = (nx * wrapRect.width)  + 'px';
+            ovEl.style.top    = (ny * wrapRect.height) + 'px';
+            ovEl.style.width  = (nw * wrapRect.width)  + 'px';
+            ovEl.style.height = (nh * wrapRect.height) + 'px';
+        }
+        _mapRenderSVG();
+    };
+
+    const onHEnd = async () => {
+        document.removeEventListener('mousemove', onHMove);
+        document.removeEventListener('mouseup',   onHEnd);
+        document.removeEventListener('touchmove', onHMove);
+        document.removeEventListener('touchend',  onHEnd);
+        if (_mapResizeZoneId && _mapZones[_mapResizeZoneId]) {
+            await _mapSaveZones();
+            showToast('Zona actualizada!');
+        }
+        _mapResizeHandle = null;
+        _mapResizeStart  = null;
+    };
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // Tema
@@ -3232,8 +3364,45 @@ if ('serviceWorker' in navigator) {
 // =============================================
 // MAPA DO ARMAZÉM
 // =============================================
-const MAP_IMAGE_KEY  = 'hiperfrio-map-image';   // localStorage (base64)
+const MAP_IMAGE_KEY  = 'hiperfrio-map-image';   // localStorage (cache local)
 const MAP_ZONES_URL  = `${BASE_URL}/config/mapZones.json`;
+const MAP_IMAGE_URL  = `${BASE_URL}/config/mapImage.json`;  // Firebase (sync entre dispositivos)
+
+// Guarda imagem: localStorage (rápido) + Firebase (partilhado)
+async function _mapSaveImage(base64) {
+    localStorage.setItem(MAP_IMAGE_KEY, base64);
+    try {
+        const url = await authUrl(MAP_IMAGE_URL);
+        await fetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(base64)
+        });
+    } catch { /* offline — fica só no localStorage */ }
+}
+
+// Carrega imagem: localStorage primeiro (instantâneo), senão Firebase
+async function _mapLoadImage() {
+    const local = localStorage.getItem(MAP_IMAGE_KEY);
+    if (local) return local;
+    try {
+        const url  = await authUrl(MAP_IMAGE_URL);
+        const res  = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (data) { localStorage.setItem(MAP_IMAGE_KEY, data); return data; }
+    } catch { /* offline */ }
+    return null;
+}
+
+// Apaga imagem: localStorage + Firebase
+async function _mapDeleteImage() {
+    localStorage.removeItem(MAP_IMAGE_KEY);
+    try {
+        const url = await authUrl(MAP_IMAGE_URL);
+        await fetch(url, { method: 'DELETE' });
+    } catch { /* offline */ }
+}
 const ZONE_COLORS    = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6',
                          '#06b6d4','#84cc16','#f97316','#ec4899','#14b8a6'];
 
@@ -3244,8 +3413,15 @@ let _mapTool        = 'zone';  // 'zone' | 'pointer'
 let _mapDrawing     = false;
 let _mapDrawStart   = null;    // { x%, y% }
 let _mapNavStack    = [];      // breadcrumb stack of zone IDs
-let _mapPendingZone = null;    // zone being drawn before modal
-let _mapSelectedColor = ZONE_COLORS[0];
+let _mapSelectedZoneId  = null;  // PASSO 2: zona em destaque
+let _mapPendingZone     = null;  // zone being drawn before modal
+let _mapSelectedColor   = ZONE_COLORS[0];
+// PASSO 3
+let _mapActiveCorredorId = null;  // corredor seleccionado na toolbar
+let _mapResizeZoneId     = null;  // zona a ser redimensionada
+let _mapResizeHandle     = null;  // 'nw'|'ne'|'sw'|'se'|'move'
+let _mapResizeStart      = null;  // { x, y, origZone }
+let _mapSnapGrid         = 0.025; // snap de 2.5% (≈ 1/40)
 
 // ── Dados ──────────────────────────────────────────────────────────────────
 
@@ -3272,13 +3448,13 @@ async function _mapSaveZones() {
 
 // ── Imagem ─────────────────────────────────────────────────────────────────
 
-function mapUploadImage(input) {
+async function mapUploadImage(input) {
     const file = input.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = e => {
         const img = new Image();
-        img.onload = () => {
+        img.onload = async () => {
             // Redimensiona para máx 1400px preservando ratio
             const MAX = 1400;
             let w = img.width, h = img.height;
@@ -3288,7 +3464,7 @@ function mapUploadImage(input) {
             canvas.getContext('2d').drawImage(img, 0, 0, w, h);
             const compressed = canvas.toDataURL('image/jpeg', 0.82);
             try {
-                localStorage.setItem(MAP_IMAGE_KEY, compressed);
+                await _mapSaveImage(compressed);
                 showToast('Planta carregada!');
                 renderMapView();
             } catch {
@@ -3305,8 +3481,8 @@ function mapClearImage() {
     openConfirmModal({
         icon: '🗑️', title: 'Limpar planta?',
         desc: 'A imagem será removida. As zonas definidas mantêm-se.',
-        onConfirm: () => {
-            localStorage.removeItem(MAP_IMAGE_KEY);
+        onConfirm: async () => {
+            await _mapDeleteImage();
             renderMapView();
         }
     });
@@ -3316,6 +3492,7 @@ function mapClearImage() {
 
 async function renderMapView() {
     await _mapLoadZones();
+    await _whLoad(); // PASSO 2: corredores necessários para dropdown e cores
 
     const placeholder  = document.getElementById('map-placeholder');
     const svgWrap      = document.getElementById('map-svg-wrap');
@@ -3328,7 +3505,7 @@ async function renderMapView() {
     if (editToolbar) editToolbar.classList.toggle('hidden', !_mapEditMode);
     if (editToggle)  editToggle.textContent = _mapEditMode ? '✅ Concluir' : '✏️ Editar';
 
-    const imgSrc = localStorage.getItem(MAP_IMAGE_KEY);
+    const imgSrc = await _mapLoadImage();
 
     if (!imgSrc) {
         placeholder.classList.remove('hidden');
@@ -3353,6 +3530,8 @@ async function renderMapView() {
     _mapRenderSVG();
     _mapSetupInteraction();
     _mapUpdatePanel();
+    // PASSO 3: chips de corredor
+    if (_mapEditMode) _mapBuildCorredorChips();
 }
 
 // ── SVG render ──────────────────────────────────────────────────────────────
@@ -3386,8 +3565,14 @@ function _mapRenderSVG() {
         rect.setAttribute('stroke', color);
         rect.setAttribute('stroke-width', '2');
 
-        // Label background pill
-        const labelH = 22, labelPad = 8;
+        // PASSO 2: usa cor do corredor ligado se disponível
+        const linkedCor = zone.corredor_id && _whData?.corredores?.[zone.corredor_id];
+        const displayColor = linkedCor ? (linkedCor.cor || color) : color;
+        rect.setAttribute('fill',   displayColor + '2a');
+        rect.setAttribute('stroke', displayColor);
+
+        // Label pill com badge de ligação
+        const labelH = 22;
         const fo = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
         fo.setAttribute('x',      `${zone.x * 100}%`);
         fo.setAttribute('y',      `${zone.y * 100}%`);
@@ -3396,21 +3581,40 @@ function _mapRenderSVG() {
         fo.setAttribute('class', 'zone-fo');
         const div = document.createElement('div');
         div.className   = 'zone-label-pill';
-        div.style.background = color;
-        div.textContent = (hasKids ? '📁 ' : '📍 ') + (zone.label || zone.prefix || id);
+        div.style.background = displayColor;
+        const prefix = zone.corredor_id ? '📂 ' : (hasKids ? '📁 ' : '📍 ');
+        div.textContent = prefix + (zone.label || zone.prefix || id);
         fo.appendChild(div);
 
         g.appendChild(rect);
         g.appendChild(fo);
 
         // Clique em modo visualização
+        // PASSO 2: destaque da zona seleccionada
+        if (id === _mapSelectedZoneId) {
+            rect.setAttribute('stroke-width', '3');
+            rect.setAttribute('fill', displayColor + '45');
+            // Auto-clear highlight after 2s
+            setTimeout(() => { _mapSelectedZoneId = null; }, 2000);
+        }
+
         g.addEventListener('click', e => {
             e.stopPropagation();
+
             if (_mapEditMode && _mapTool === 'pointer') {
-                _mapOpenZoneEditor(id, zone);
+                // PASSO 3: em modo Mover, mostra handles de resize
+                _mapClearResizeOverlay();
+                _mapShowResizeOverlay(id, zone);
                 return;
             }
             if (!_mapEditMode) {
+                // PASSO 2: se zona ligada a corredor, navega para a Estrutura
+                if (zone.corredor_id && _whData?.corredores?.[zone.corredor_id]) {
+                    const cor = _whData.corredores[zone.corredor_id];
+                    _whNavStack = [{ level: 'corredor', id: zone.corredor_id, nome: cor.nome, cor: cor.cor }];
+                    whSwitchTab('struct');
+                    return;
+                }
                 if (hasKids) {
                     _mapNavStack.push(id);
                     _mapUpdateBreadcrumb();
@@ -3531,13 +3735,20 @@ function _mapUpdatePanel() {
 function mapToggleEdit() {
     _mapEditMode = !_mapEditMode;
     _mapTool     = 'zone';
+    _mapActiveCorredorId = null; // reset corredor selection
+    _mapClearResizeOverlay();
     renderMapView();
+    if (_mapEditMode) _mapBuildCorredorChips(); // PASSO 3
 }
 
 function mapSetTool(tool) {
     _mapTool = tool;
     document.querySelectorAll('.map-tool-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`map-tool-${tool}`)?.classList.add('active');
+    // PASSO 3: row de corredores só visível em modo desenhar
+    const row = document.getElementById('map-toolbar-row-corredores');
+    if (row) row.classList.toggle('hidden', tool !== 'zone');
+    if (tool !== 'zone') _mapClearResizeOverlay();
 }
 
 function _mapGetRelativeCoords(e, el) {
@@ -3585,14 +3796,17 @@ function _mapSetupInteraction() {
                 y: Math.max(0,Math.min(1,(e.changedTouches[0].clientY - newWrap.getBoundingClientRect().top) /newWrap.getBoundingClientRect().height)) }
             : _mapGetRelativeCoords(e, newWrap);
         if (prevEl) prevEl.classList.add('hidden');
-        const x = Math.min(_mapDrawStart.x, coords.x);
-        const y = Math.min(_mapDrawStart.y, coords.y);
-        const w = Math.abs(coords.x - _mapDrawStart.x);
-        const wh = Math.abs(coords.y - _mapDrawStart.y);
+        // PASSO 3: snap ambas as coordenadas
+        const sx = _mapSnap(Math.min(_mapDrawStart.x, coords.x));
+        const sy = _mapSnap(Math.min(_mapDrawStart.y, coords.y));
+        const ex = _mapSnap(Math.max(_mapDrawStart.x, coords.x));
+        const ey = _mapSnap(Math.max(_mapDrawStart.y, coords.y));
         _mapDrawStart = null;
+        const w = ex - sx, wh = ey - sy;
         if (w < 0.03 || wh < 0.03) return; // demasiado pequeno
-        _mapPendingZone = { x, y, w, h: wh, color: _mapSelectedColor,
-                            parent: _mapNavStack.length ? _mapNavStack[_mapNavStack.length-1] : null };
+        _mapPendingZone = { x: sx, y: sy, w, h: wh,
+            color: _mapSelectedColor,
+            parent: _mapNavStack.length ? _mapNavStack[_mapNavStack.length-1] : null };
         _mapOpenZoneEditor(null, _mapPendingZone);
     };
 
@@ -3602,39 +3816,116 @@ function _mapSetupInteraction() {
     newWrap.addEventListener('touchstart', onStart, { passive: false });
     newWrap.addEventListener('touchmove',  onMove,  { passive: false });
     newWrap.addEventListener('touchend',   onEnd);
+    // PASSO 3: clique no fundo limpa overlay de resize
+    newWrap.addEventListener('click', e => {
+        if (e.target === newWrap || e.target.tagName === 'IMG') _mapClearResizeOverlay();
+    });
+}
+
+function _mapSnap(val) {
+    // PASSO 3: snap suave à grelha de _mapSnapGrid
+    return Math.round(val / _mapSnapGrid) * _mapSnapGrid;
 }
 
 function _mapUpdatePreview(start, end, prevEl, wrap) {
-    const rect  = wrap.getBoundingClientRect();
-    const x = Math.min(start.x, end.x) * rect.width;
-    const y = Math.min(start.y, end.y) * rect.height;
-    const w = Math.abs(end.x - start.x) * rect.width;
-    const h = Math.abs(end.y - start.y) * rect.height;
-    prevEl.style.left   = x + 'px';
-    prevEl.style.top    = y + 'px';
-    prevEl.style.width  = w + 'px';
-    prevEl.style.height = h + 'px';
-    prevEl.style.borderColor = _mapSelectedColor;
-    prevEl.style.background  = _mapSelectedColor + '22';
+    const rect = wrap.getBoundingClientRect();
+    // PASSO 3: snap ambas as coordenadas
+    const sx = _mapSnap(Math.min(start.x, end.x));
+    const sy = _mapSnap(Math.min(start.y, end.y));
+    const ex = _mapSnap(Math.max(start.x, end.x));
+    const ey = _mapSnap(Math.max(start.y, end.y));
+    prevEl.style.left   = (sx * rect.width)  + 'px';
+    prevEl.style.top    = (sy * rect.height) + 'px';
+    prevEl.style.width  = ((ex - sx) * rect.width)  + 'px';
+    prevEl.style.height = ((ey - sy) * rect.height) + 'px';
+    // Usa cor do corredor activo
+    const color = _mapSelectedColor;
+    prevEl.style.borderColor = color;
+    prevEl.style.background  = color + '30';
+    prevEl.style.boxShadow   = `0 0 0 1px ${color}60`;
 }
 
 // ── Modal de zona ───────────────────────────────────────────────────────────
 
 function _mapOpenZoneEditor(id, zone) {
     document.getElementById('zone-editing-id').value = id || '';
-    document.getElementById('zone-label-input').value  = zone?.label  || '';
+
+    // PASSO 3: se nova zona, auto-fill do corredor activo na toolbar
+    const autoCorredorId = !id && _mapActiveCorredorId ? _mapActiveCorredorId : (zone?.corredor_id || '');
+    const autoCorredor   = autoCorredorId ? _whData?.corredores?.[autoCorredorId] : null;
+
+    document.getElementById('zone-label-input').value  = zone?.label  || (autoCorredor?.nome || '');
     document.getElementById('zone-prefix-input').value = zone?.prefix || '';
     document.getElementById('zone-modal-title').textContent = id ? 'Editar Zona' : 'Nova Zona';
     const delBtn = document.getElementById('zone-delete-btn');
     if (delBtn) delBtn.style.display = id ? 'block' : 'none';
 
-    // Cor actual ou default
-    _mapSelectedColor = zone?.color || ZONE_COLORS[0];
+    // Cor: corredor activo > cor da zona > default
+    _mapSelectedColor = autoCorredor?.cor || zone?.color || ZONE_COLORS[0];
     _mapBuildColorPicker();
+
+    // PASSO 2: dropdown de corredor (pré-seleccionado com corredor activo)
+    _mapBuildCorredorDropdown(autoCorredorId);
 
     document.getElementById('zone-modal').classList.add('active');
     focusModal('zone-modal');
     setTimeout(() => document.getElementById('zone-label-input')?.focus(), 100);
+}
+
+// PASSO 3: constrói chips de corredor na toolbar
+function _mapBuildCorredorChips() {
+    const el = document.getElementById('map-corredor-chips');
+    const row = document.getElementById('map-toolbar-row-corredores');
+    if (!el) return;
+    const corredores = Object.entries(_whData?.corredores || {})
+        .sort(([,a],[,b]) => (a.ordem||0)-(b.ordem||0) || (a.nome||'').localeCompare(b.nome||'','pt'));
+    if (corredores.length === 0) {
+        if (row) row.classList.add('hidden');
+        return;
+    }
+    if (row) row.classList.remove('hidden');
+    el.innerHTML = '';
+    // Opção "Livre" (sem corredor)
+    const freeBtn = document.createElement('button');
+    freeBtn.type = 'button';
+    freeBtn.className = 'map-corredor-chip' + (!_mapActiveCorredorId ? ' active' : '');
+    freeBtn.textContent = '⬜ Livre';
+    freeBtn.onclick = () => { _mapActiveCorredorId = null; _mapSelectedColor = ZONE_COLORS[0]; _mapBuildCorredorChips(); };
+    el.appendChild(freeBtn);
+    corredores.forEach(([id, c]) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'map-corredor-chip' + (id === _mapActiveCorredorId ? ' active' : '');
+        btn.style.setProperty('--chip-color', c.cor || ZONE_COLORS[0]);
+        btn.innerHTML = `<span class="map-chip-dot"></span>${c.nome || id}`;
+        btn.onclick = () => {
+            _mapActiveCorredorId = id;
+            _mapSelectedColor    = c.cor || ZONE_COLORS[0];
+            _mapBuildCorredorChips();
+        };
+        el.appendChild(btn);
+    });
+}
+
+// Constrói o dropdown de corredores no modal de zona
+function _mapBuildCorredorDropdown(selectedId) {
+    const wrap = document.getElementById('zone-corredor-group');
+    const sel  = document.getElementById('zone-corredor-select');
+    if (!wrap || !sel) return;
+
+    const corredores = Object.entries(_whData?.corredores || {})
+        .sort(([,a],[,b]) => (a.ordem||0)-(b.ordem||0) || (a.nome||'').localeCompare(b.nome||'','pt'));
+
+    if (corredores.length === 0) {
+        wrap.classList.add('hidden');
+        return;
+    }
+    wrap.classList.remove('hidden');
+    sel.innerHTML = '<option value="">— Nenhum (usar apenas prefixo) —</option>'
+        + corredores.map(([id, c]) =>
+            `<option value="${id}" ${id === selectedId ? 'selected' : ''}
+             style="color:${c.cor||'inherit'}">${c.nome || id}</option>`
+        ).join('');
 }
 
 function _mapBuildColorPicker() {
@@ -3662,19 +3953,25 @@ function closeZoneModal() {
 }
 
 async function mapSaveZone() {
-    const label  = document.getElementById('zone-label-input').value.trim();
-    const prefix = document.getElementById('zone-prefix-input').value.trim().toUpperCase();
-    const editId = document.getElementById('zone-editing-id').value;
+    const label       = document.getElementById('zone-label-input').value.trim();
+    const prefix      = document.getElementById('zone-prefix-input').value.trim().toUpperCase();
+    const editId      = document.getElementById('zone-editing-id').value;
+    const corredor_id = document.getElementById('zone-corredor-select')?.value || '';
 
     if (!label) { showToast('Nome da zona obrigatório', 'error'); return; }
 
     if (editId && _mapZones[editId]) {
-        // Editar existente
-        _mapZones[editId] = { ..._mapZones[editId], label, prefix, color: _mapSelectedColor };
+        _mapZones[editId] = { ..._mapZones[editId], label, prefix, color: _mapSelectedColor, corredor_id };
     } else {
-        // Nova zona
         const id = 'zone_' + Date.now();
-        _mapZones[id] = { ..._mapPendingZone, label, prefix, color: _mapSelectedColor };
+        _mapZones[id] = { ..._mapPendingZone, label, prefix, color: _mapSelectedColor, corredor_id };
+    }
+
+    // PASSO 2: se zona ligada a corredor, usa a cor do corredor
+    const zoneId = editId || Object.keys(_mapZones).find(k => !_mapZones[k].parent && _mapZones[k].label === label);
+    if (corredor_id && _whData?.corredores?.[corredor_id]?.cor) {
+        const z = _mapZones[editId || zoneId];
+        if (z) z.color = _whData.corredores[corredor_id].cor;
     }
 
     closeZoneModal();
