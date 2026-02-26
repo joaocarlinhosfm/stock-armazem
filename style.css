@@ -388,6 +388,8 @@ header h1 {
     backdrop-filter: blur(8px); 
 }
 .modal-overlay.active { display: flex !important; }
+/* Icon picker sobrepõe outros modais */
+#icon-picker-modal { z-index: 6000; }
 
 .modal-content { background: var(--card-bg); width: 90%; max-width: 400px; padding: 25px; border-radius: 24px; }
 .worker-select-list {
@@ -912,7 +914,6 @@ body.is-offline #app-layout {
    MODAL — focus trap outline
    ============================================= */
 .modal-overlay:focus { outline: none; }
-.modal-overlay.active { isolation: isolate; }
 
 /* =============================================
    ECRÃ DE SELEÇÃO DE PERFIL
