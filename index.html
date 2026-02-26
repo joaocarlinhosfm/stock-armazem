@@ -6,6 +6,7 @@
     <title>Hiperfrio Stock</title>
     
     <link rel="manifest" href="manifest.json">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' https://*.firebasedatabase.app https://*.googleapis.com https://*.firebaseapp.com; font-src https://fonts.gstatic.com; img-src 'self' data:;">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
@@ -107,7 +108,11 @@
             <form id="form-add" class="pro-form">
                 <div class="form-group"><label for="inp-codigo">REFERÊNCIA</label><input type="text" id="inp-codigo" class="blue-input" required></div>
                 <div class="form-group"><label for="inp-nome">NOME</label><input type="text" id="inp-nome" class="blue-input" required></div>
-                <div class="form-group"><label for="inp-loc">LOCAL</label><input type="text" id="inp-loc" class="blue-input"></div>
+                <div class="form-group">
+                    <label for="inp-loc">LOCAL</label>
+                    <input type="text" id="inp-loc" class="blue-input" placeholder="Ex: A1, B3-P2...">
+                    <span class="form-hint">Deixar em branco → SEM LOCAL</span>
+                </div>
 <div class="qty-row">
                     <div class="form-group qty-field">
                         <label for="inp-qtd">QUANTIDADE</label>
@@ -247,14 +252,14 @@
                         <span class="settings-item-title">Exportar Stock para CSV</span>
                         <span class="settings-item-desc">Descarrega todo o inventário em formato CSV</span>
                     </div>
-                    <button class="btn-settings-action" onclick="exportCSV()">Exportar</button>
+                    <button class="btn-settings-action" id="export-csv-btn" onclick="exportCSV()">Exportar</button>
                 </div>
                 <div class="settings-item">
                     <div class="settings-item-info">
                         <span class="settings-item-title">Exportar Histórico de Ferramentas</span>
                         <span class="settings-item-desc">Descarrega todas as atribuições e devoluções em CSV</span>
                     </div>
-                    <button class="btn-settings-action" onclick="exportToolHistoryCSV()">Exportar Histórico</button>
+                    <button class="btn-settings-action" id="export-hist-btn" onclick="exportToolHistoryCSV()">Exportar Histórico</button>
                 </div>
                 <div class="settings-item">
                     <div class="settings-item-info">
@@ -356,7 +361,7 @@
                 <button class="pin-key" onclick="pinSetupKey('0')">0</button>
                 <button class="pin-key pin-key-del" onclick="pinSetupDel()">⌫</button>
             </div>
-            <button class="btn-cancel" id="pin-remove-btn" onclick="removePin()" class="hidden">Remover PIN</button>
+            <button class="btn-cancel hidden" id="pin-remove-btn" onclick="removePin()">Remover PIN</button>
         </div>
     </div>
 
@@ -455,14 +460,6 @@
     </div>
 
     <!-- Modal: Picker de ícone de ferramenta -->
-    <div id="icon-picker-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="icon-picker-title">
-        <div class="modal-content modal-content-wide icon-picker-modal-content">
-            <h3 id="icon-picker-title" class="icon-picker-title">Escolher Ícone</h3>
-            <div class="icon-picker-cats" id="icon-picker-cats"></div>
-            <div class="icon-picker-grid" id="icon-picker-grid"></div>
-        </div>
-    </div>
-
     <!-- Modal: Editar ferramenta (ponto 11) -->
     <div id="edit-tool-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-tool-title">
         <div class="modal-content">
@@ -497,9 +494,9 @@
             <div class="inv-qty-row">
                 <label class="inv-qty-label">QUANTIDADE</label>
                 <div class="inv-qty-controls">
-                    <button type="button" class="btn-qty" onclick="document.getElementById('inv-qtd').value=Math.max(0,parseFloat(document.getElementById('inv-qtd').value||0)-1)">−</button>
+                    <button type="button" class="btn-qty" onclick="invQtyDelta(-1)">−</button>
                     <input type="number" id="inv-qtd" class="inv-qty-input" min="0" step="any" inputmode="decimal">
-                    <button type="button" class="btn-qty" onclick="document.getElementById('inv-qtd').value=parseFloat(document.getElementById('inv-qtd').value||0)+1">+</button>
+                    <button type="button" class="btn-qty" onclick="invQtyDelta(1)">+</button>
                 </div>
                 <span id="inv-unidade" class="inv-unidade-label"></span>
             </div>
@@ -521,6 +518,14 @@
             <button onclick="closeToolTimeline()" class="btn-cancel">Fechar</button>
         </div>
     </div>
+    <div id="icon-picker-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="icon-picker-title">
+        <div class="modal-content modal-content-wide icon-picker-modal-content">
+            <h3 id="icon-picker-title" class="icon-picker-title">Escolher Ícone</h3>
+            <div class="icon-picker-cats" id="icon-picker-cats"></div>
+            <div class="icon-picker-grid" id="icon-picker-grid"></div>
+        </div>
+    </div>
+
 
     <!-- Modal: Trocar de perfil -->
     <div id="switch-role-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="switch-role-title">
@@ -562,3 +567,5 @@
     <script src="app.js"></script>
 </body>
 </html>
+
+z
