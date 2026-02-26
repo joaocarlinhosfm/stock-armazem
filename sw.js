@@ -1,10 +1,21 @@
 // Cache version — bump this string on every deploy to force SW update
-const CACHE_VERSION = 'hiperfrio-v5.11';
-const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json'];
+// TIP: use a CI/CD script to auto-replace this with a build hash
+const CACHE_VERSION = 'hiperfrio-v5.12';
+const ASSETS = [
+    './',
+    './index.html',
+    './style.css',
+    './app.js',
+    './manifest.json',
+    './icon-192.png',   // FIX #27 — ícones agora em cache para offline
+    './icon-512.png',
+];
 
 self.addEventListener('install', e => {
     e.waitUntil(
-        caches.open(CACHE_VERSION).then(c => c.addAll(ASSETS))
+        caches.open(CACHE_VERSION)
+            .then(c => c.addAll(ASSETS))
+            .catch(err => console.warn('[SW] install cache error:', err)) // FIX #28
     );
     self.skipWaiting();
 });
@@ -13,7 +24,7 @@ self.addEventListener('activate', e => {
     e.waitUntil(
         caches.keys().then(keys =>
             Promise.all(keys.filter(k => k !== CACHE_VERSION).map(k => caches.delete(k)))
-        )
+        ).catch(err => console.warn('[SW] activate cleanup error:', err)) // FIX #28
     );
     self.clients.claim();
 });
@@ -39,13 +50,15 @@ self.addEventListener('fetch', e => {
         return;
     }
 
-    // Cache-first for CSS/JS assets
+    // Cache-first for CSS/JS/image assets
     e.respondWith(
-        caches.match(e.request).then(cached => cached || fetch(e.request))
+        caches.match(e.request).then(cached => cached || fetch(e.request)
+            .catch(err => console.warn('[SW] fetch failed:', e.request.url, err))
+        )
     );
 });
 
-// ── PONTO 25: Background Sync ──────────────────────────────
+// ── Background Sync ────────────────────────────────────────────────────────
 // Quando a ligação volta (mesmo com a app fechada), o SW acorda
 // e envia mensagem a todos os clientes para sincronizarem a fila offline.
 self.addEventListener('sync', e => {
@@ -53,11 +66,9 @@ self.addEventListener('sync', e => {
         e.waitUntil(
             self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then(clients => {
                 if (clients.length > 0) {
-                    // App está aberta — diz-lhe para sincronizar
                     clients.forEach(c => c.postMessage({ type: 'SYNC_QUEUE' }));
                 }
-                // Se não há clientes, a sincronização acontecerá quando o utilizador abrir a app
-            })
+            }).catch(err => console.warn('[SW] sync error:', err)) // FIX #28
         );
     }
 });
