@@ -439,7 +439,7 @@ function nav(viewId) {
     if (document.getElementById('side-menu')?.classList.contains('open')) toggleMenu();
     window.scrollTo(0, 0);
     // Re-setup swipe ao entrar na admin (slider pode ter sido re-renderizado)
-    if (viewId === 'view-admin') { _setupAdminSwipe(); switchAdminTab(ADMIN_TABS[_adminIdx], false); }
+    if (viewId === 'view-admin') { switchAdminTab(ADMIN_TABS[_adminIdx], false); }
     // Garante que o bottom nav pill está visível ao mudar de vista
     document.getElementById('bottom-nav')?.classList.remove('bnav-hidden');
 }
@@ -1976,17 +1976,25 @@ function switchAdminTab(tab, animate = true) {
 }
 
 // ── Swipe detector no slider wrap ────────────────────────────────────────────
+// AbortController para garantir que os listeners são limpos antes de re-setup
+let _adminSwipeAC = null;
+
 function _setupAdminSwipe() {
     const wrap   = document.getElementById('admin-slider-wrap');
     const slider = document.getElementById('admin-slider');
     if (!wrap || !slider) return;
 
+    // Remove listeners anteriores antes de adicionar novos
+    if (_adminSwipeAC) { _adminSwipeAC.abort(); }
+    _adminSwipeAC = new AbortController();
+    const sig = _adminSwipeAC.signal;
+
     let startX = 0, startY = 0;
     let deltaX = 0;
-    let intent = null;   // 'h' | 'v' | null — decidido após 10px de movimento
+    let intent = null;   // 'h' | 'v' | null
     let active = false;
 
-    const INTENT_THRESHOLD = 10;   // px para decidir h vs v
+    const INTENT_THRESHOLD = 8;    // px para decidir h vs v
     const SWIPE_THRESHOLD  = 50;   // px para confirmar mudança de tab
     const RESIST = 0.25;           // resistência nos extremos
 
@@ -1997,39 +2005,39 @@ function _setupAdminSwipe() {
         deltaX = 0;
         intent = null;
         active = true;
-    }, { passive: true });
+    }, { passive: true, signal: sig });
 
     wrap.addEventListener('touchmove', e => {
         if (!active || e.touches.length !== 1) return;
         const dx = e.touches[0].clientX - startX;
         const dy = e.touches[0].clientY - startY;
 
-        // Decide intenção na primeira vez que passa o threshold
+        // Decide intenção uma só vez
         if (intent === null && (Math.abs(dx) > INTENT_THRESHOLD || Math.abs(dy) > INTENT_THRESHOLD)) {
             intent = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
         }
         if (intent !== 'h') return;   // scroll vertical — não interferir
 
-        e.preventDefault();   // bloqueia scroll vertical durante swipe h
+        e.preventDefault();
         deltaX = dx;
 
-        // Resistência nos extremos (primeiro/último painel)
+        // Resistência nos extremos
         let extra = deltaX;
         if ((_adminIdx === 0 && deltaX > 0) || (_adminIdx === ADMIN_TABS.length - 1 && deltaX < 0)) {
             extra = deltaX * RESIST;
         }
 
-        // Segue o dedo sem transição
         slider.classList.add('is-dragging');
         const base = -_adminIdx * 33.3333;
-        // extra em percentagem relativa ao wrapper (slider tem width:300%)
-        const extraPct = (extra / wrap.offsetWidth) * 100 / 3;
         slider.style.transform = `translateX(calc(${base}% + ${extra}px))`;
-    }, { passive: false });
+    }, { passive: false, signal: sig });
 
     const onEnd = () => {
-        if (!active || intent !== 'h') { active = false; intent = null; return; }
+        if (!active) return;
         active = false;
+
+        if (intent !== 'h') { intent = null; return; }
+
         slider.classList.remove('is-dragging');
 
         if (deltaX < -SWIPE_THRESHOLD && _adminIdx < ADMIN_TABS.length - 1) {
@@ -2037,15 +2045,14 @@ function _setupAdminSwipe() {
         } else if (deltaX > SWIPE_THRESHOLD && _adminIdx > 0) {
             switchAdminTab(ADMIN_TABS[_adminIdx - 1]);
         } else {
-            // Volta à posição sem swipe suficiente
-            switchAdminTab(ADMIN_TABS[_adminIdx]);
+            switchAdminTab(ADMIN_TABS[_adminIdx]);   // volta à posição
         }
         deltaX = 0;
         intent = null;
     };
 
-    wrap.addEventListener('touchend',    onEnd, { passive: true });
-    wrap.addEventListener('touchcancel', onEnd, { passive: true });
+    wrap.addEventListener('touchend',    onEnd, { passive: true, signal: sig });
+    wrap.addEventListener('touchcancel', onEnd, { passive: true, signal: sig });
 }
 
 // =============================================
