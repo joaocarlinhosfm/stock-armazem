@@ -438,6 +438,8 @@ function nav(viewId) {
 
     if (document.getElementById('side-menu')?.classList.contains('open')) toggleMenu();
     window.scrollTo(0, 0);
+    // Re-setup swipe ao entrar na admin (slider pode ter sido re-renderizado)
+    if (viewId === 'view-admin') { _setupAdminSwipe(); switchAdminTab(ADMIN_TABS[_adminIdx], false); }
     // Garante que o bottom nav pill está visível ao mudar de vista
     document.getElementById('bottom-nav')?.classList.remove('bnav-hidden');
 }
@@ -1942,11 +1944,108 @@ async function exportToolHistoryCSV() {
     }
 }
 
-function switchAdminTab(tab) {
-    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('tab-'+tab)?.classList.add('active');
-    document.getElementById('panel-'+tab)?.classList.add('active');
+// =============================================
+// ADMIN — slider com swipe entre tabs
+// =============================================
+const ADMIN_TABS  = ['workers', 'tools', 'settings'];
+let   _adminIdx   = 0;   // índice activo
+
+function switchAdminTab(tab, animate = true) {
+    const idx = ADMIN_TABS.indexOf(tab);
+    if (idx < 0) return;
+    _adminIdx = idx;
+
+    // Actualiza botões
+    document.querySelectorAll('.admin-tab').forEach((t, i) =>
+        t.classList.toggle('active', i === idx)
+    );
+
+    // Move slider (sem .active nos painéis — visibilidade é por transform)
+    const slider = document.getElementById('admin-slider');
+    if (slider) {
+        if (!animate) slider.classList.add('is-dragging');
+        // Cada painel ocupa 1/3 do slider (width:300%)
+        // translateX(-idx * 33.333%) move para o painel certo
+        slider.style.transform = `translateX(-${idx * 33.3333}%)`;
+        if (!animate) {
+            // força reflow para garantir sem transição no reset
+            void slider.offsetWidth;
+            slider.classList.remove('is-dragging');
+        }
+    }
+}
+
+// ── Swipe detector no slider wrap ────────────────────────────────────────────
+function _setupAdminSwipe() {
+    const wrap   = document.getElementById('admin-slider-wrap');
+    const slider = document.getElementById('admin-slider');
+    if (!wrap || !slider) return;
+
+    let startX = 0, startY = 0;
+    let deltaX = 0;
+    let intent = null;   // 'h' | 'v' | null — decidido após 10px de movimento
+    let active = false;
+
+    const INTENT_THRESHOLD = 10;   // px para decidir h vs v
+    const SWIPE_THRESHOLD  = 50;   // px para confirmar mudança de tab
+    const RESIST = 0.25;           // resistência nos extremos
+
+    wrap.addEventListener('touchstart', e => {
+        if (e.touches.length !== 1) return;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        deltaX = 0;
+        intent = null;
+        active = true;
+    }, { passive: true });
+
+    wrap.addEventListener('touchmove', e => {
+        if (!active || e.touches.length !== 1) return;
+        const dx = e.touches[0].clientX - startX;
+        const dy = e.touches[0].clientY - startY;
+
+        // Decide intenção na primeira vez que passa o threshold
+        if (intent === null && (Math.abs(dx) > INTENT_THRESHOLD || Math.abs(dy) > INTENT_THRESHOLD)) {
+            intent = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
+        }
+        if (intent !== 'h') return;   // scroll vertical — não interferir
+
+        e.preventDefault();   // bloqueia scroll vertical durante swipe h
+        deltaX = dx;
+
+        // Resistência nos extremos (primeiro/último painel)
+        let extra = deltaX;
+        if ((_adminIdx === 0 && deltaX > 0) || (_adminIdx === ADMIN_TABS.length - 1 && deltaX < 0)) {
+            extra = deltaX * RESIST;
+        }
+
+        // Segue o dedo sem transição
+        slider.classList.add('is-dragging');
+        const base = -_adminIdx * 33.3333;
+        // extra em percentagem relativa ao wrapper (slider tem width:300%)
+        const extraPct = (extra / wrap.offsetWidth) * 100 / 3;
+        slider.style.transform = `translateX(calc(${base}% + ${extra}px))`;
+    }, { passive: false });
+
+    const onEnd = () => {
+        if (!active || intent !== 'h') { active = false; intent = null; return; }
+        active = false;
+        slider.classList.remove('is-dragging');
+
+        if (deltaX < -SWIPE_THRESHOLD && _adminIdx < ADMIN_TABS.length - 1) {
+            switchAdminTab(ADMIN_TABS[_adminIdx + 1]);
+        } else if (deltaX > SWIPE_THRESHOLD && _adminIdx > 0) {
+            switchAdminTab(ADMIN_TABS[_adminIdx - 1]);
+        } else {
+            // Volta à posição sem swipe suficiente
+            switchAdminTab(ADMIN_TABS[_adminIdx]);
+        }
+        deltaX = 0;
+        intent = null;
+    };
+
+    wrap.addEventListener('touchend',    onEnd, { passive: true });
+    wrap.addEventListener('touchcancel', onEnd, { passive: true });
 }
 
 // =============================================
@@ -3053,6 +3152,7 @@ document.addEventListener('DOMContentLoaded', () => {
     _applyTheme(savedTheme);
     // Setup scroll behaviours com o tema carregado (DOM já existe)
     _setupSearchScrollBehaviour(savedTheme === 'glass');
+    _setupAdminSwipe();
     _setupBottomNavScrollBehaviour(true); // pill activo em todos os temas
 
     // Migração legacy PIN — só corre uma vez
