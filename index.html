@@ -188,8 +188,12 @@
                 <button class="admin-tab" id="tab-settings" onclick="switchAdminTab('settings')">⚙️ Definições</button>
             </div>
 
+            <!-- Slider wrap — clips horizontal overflow, swipe actua aqui -->
+            <div class="admin-slider-wrap" id="admin-slider-wrap">
+            <div class="admin-slider" id="admin-slider">
+
             <!-- Tab: Funcionários -->
-            <section class="admin-panel active" id="panel-workers">
+            <section class="admin-panel" id="panel-workers">
                 <form id="form-worker" class="pro-form-inline">
                     <input type="text" id="worker-name" class="blue-input" placeholder="Nome do funcionário" required>
                     <button type="submit" class="btn-primary">+</button>
@@ -281,6 +285,9 @@
                 </div>
 
             </section>
+
+            </div><!-- end admin-slider -->
+            </div><!-- end admin-slider-wrap -->
         </div>
         </main>
 
