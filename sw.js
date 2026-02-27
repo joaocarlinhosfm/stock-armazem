@@ -1,6 +1,6 @@
 // Cache version — bump this string on every deploy to force SW update
 // TIP: use a CI/CD script to auto-replace this with a build hash
-const CACHE_VERSION = 'hiperfrio-v5.12';
+const CACHE_VERSION = 'hiperfrio-v5.11';
 const ASSETS = [
     './',
     './index.html',
@@ -72,3 +72,4 @@ self.addEventListener('sync', e => {
         );
     }
 });
+
