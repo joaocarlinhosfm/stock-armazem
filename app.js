@@ -1175,29 +1175,41 @@ async function renderAdminTools() {
     }
     Object.entries(data).forEach(([id, t]) => {
         const row = document.createElement('div');
-        row.className = 'admin-list-row';
+        row.className = 'admin-list-row admin-tool-row';
+
+        // Nome da ferramenta
         const lbl = document.createElement('span');
         lbl.className   = 'admin-list-label';
-        lbl.textContent = `${t.icone || '🪛'} ${t.nome}`;
-        const btn = document.createElement('button');
-        btn.className = 'admin-list-delete';
-        btn.textContent = '🗑️';
-        btn.onclick = () => openConfirmModal({
+        lbl.textContent = `${t.icone || '🪛'}  ${t.nome}`;
+
+        // Barra de acções alinhada à esquerda
+        const actions = document.createElement('div');
+        actions.className = 'admin-tool-actions';
+
+        const editBtn = document.createElement('button');
+        editBtn.className   = 'admin-tool-btn admin-tool-btn-edit';
+        editBtn.innerHTML   = '✏️ <span>Editar</span>';
+        editBtn.onclick     = () => openEditToolModal(id, t);
+
+        const histBtn = document.createElement('button');
+        histBtn.className   = 'admin-tool-btn admin-tool-btn-hist';
+        histBtn.innerHTML   = '📋 <span>Histórico</span>';
+        histBtn.onclick     = () => openHistoryModal(id, t.nome);
+
+        const delBtn = document.createElement('button');
+        delBtn.className   = 'admin-tool-btn admin-tool-btn-del';
+        delBtn.innerHTML   = '🗑️ <span>Eliminar</span>';
+        delBtn.onclick     = () => openConfirmModal({
             icon:'🗑️', title:'Apagar ferramenta?',
             desc:`"${escapeHtml(t.nome)}" será removida permanentemente.`,
             onConfirm: () => deleteTool(id)
         });
-        const editBtn = document.createElement('button');
-        editBtn.className   = 'admin-list-edit';
-        editBtn.textContent = '✏️';
-        editBtn.title       = 'Editar';
-        editBtn.onclick     = () => openEditToolModal(id, t);
-        const histBtn = document.createElement('button');
-        histBtn.className   = 'admin-list-hist';
-        histBtn.textContent = '📋';
-        histBtn.title       = 'Ver histórico';
-        histBtn.onclick     = () => openHistoryModal(id, t.nome);
-        row.appendChild(lbl); row.appendChild(editBtn); row.appendChild(histBtn); row.appendChild(btn);
+
+        actions.appendChild(editBtn);
+        actions.appendChild(histBtn);
+        actions.appendChild(delBtn);
+        row.appendChild(lbl);
+        row.appendChild(actions);
         list.appendChild(row);
     });
 }
@@ -2066,13 +2078,14 @@ function _applyTheme(theme) {
     if (theme === 'dark')  document.body.classList.add('dark-mode');
     if (theme === 'glass') document.body.classList.add('glass-mode');
 
-    // Sync toggle dark/light
+    // Sync hidden legacy elements (still used by some paths)
     const t = document.getElementById('theme-toggle-admin');
     if (t) t.checked = (theme === 'dark');
-
-    // Sync glass button indicator
     const gBtn = document.getElementById('glass-theme-btn');
     if (gBtn) gBtn.dataset.active = (theme === 'glass') ? '1' : '0';
+
+    // Sync theme dropdown UI
+    _syncThemeDropdown(theme);
 
     // Barra de status Android — meta theme-color dinâmica
     const themeColors = {
@@ -2212,21 +2225,60 @@ function _setupBottomNavScrollBehaviour(enable) {
 }
 
 function toggleTheme() {
-    // Cicla entre claro ↔ escuro (o toggle original)
     const current = localStorage.getItem('hiperfrio-tema') || 'light';
     const next    = (current === 'dark' || current === 'glass') ? 'light' : 'dark';
-    localStorage.setItem('hiperfrio-tema', next);
-    _applyTheme(next);
+    setTheme(next);
 }
 
 function toggleGlassTheme() {
     const current = localStorage.getItem('hiperfrio-tema') || 'light';
-    const next    = current === 'glass' ? 'light' : 'glass';
-    localStorage.setItem('hiperfrio-tema', next);
-    _applyTheme(next);
-    // Sincroniza o toggle dark/light (glass desactiva-o)
-    const t = document.getElementById('theme-toggle-admin');
-    if (t) t.checked = false;
+    setTheme(current === 'glass' ? 'light' : 'glass');
+}
+
+// Ponto de entrada único para mudança de tema
+function setTheme(theme) {
+    localStorage.setItem('hiperfrio-tema', theme);
+    _applyTheme(theme);
+    closeThemeDropdown();
+}
+
+// Sincroniza o dropdown com o tema activo
+const _THEME_META = {
+    light: { icon: '☀️', label: 'Claro' },
+    dark:  { icon: '🌙', label: 'Escuro' },
+    glass: { icon: '🫧', label: 'Liquid Glass' },
+};
+function _syncThemeDropdown(theme) {
+    const meta = _THEME_META[theme] || _THEME_META.light;
+    const iconEl  = document.getElementById('theme-dropdown-icon');
+    const labelEl = document.getElementById('theme-dropdown-label');
+    const descEl  = document.getElementById('theme-current-desc');
+    if (iconEl)  iconEl.textContent  = meta.icon;
+    if (labelEl) labelEl.textContent = meta.label;
+    if (descEl)  descEl.textContent  = meta.label;
+    // Tick nos itens do menu
+    document.querySelectorAll('.theme-option').forEach(opt => {
+        opt.classList.toggle('active', opt.dataset.theme === theme);
+    });
+}
+
+function toggleThemeDropdown() {
+    const menu = document.getElementById('theme-menu');
+    const wrap = document.getElementById('theme-dropdown-wrap');
+    if (!menu) return;
+    const open = menu.classList.toggle('open');
+    wrap?.classList.toggle('open', open);
+    if (open) {
+        // Fecha ao clicar fora
+        setTimeout(() => {
+            document.addEventListener('click', closeThemeDropdown, { once: true });
+        }, 0);
+    }
+}
+
+function closeThemeDropdown() {
+    document.getElementById('theme-menu')?.classList.remove('open');
+    document.getElementById('theme-dropdown-wrap')?.classList.remove('open');
 }
 
 // =============================================
