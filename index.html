@@ -221,27 +221,41 @@
             <section class="admin-panel" id="panel-settings">
 
                 <div class="settings-group-label">APARÊNCIA</div>
-                <div class="settings-item">
+                <div class="settings-item settings-item-theme">
                     <div class="settings-item-info">
-                        <span class="settings-item-title">Tema Escuro</span>
-                        <span class="settings-item-desc">Alterna entre modo claro e escuro</span>
+                        <span class="settings-item-title">Tema</span>
+                        <span class="settings-item-desc" id="theme-current-desc">Claro</span>
                     </div>
-                    <label class="compact-switch">
-                        <input type="checkbox" id="theme-toggle-admin" onchange="toggleTheme()">
-                        <span class="compact-slider"><span>☀️</span><span>🌙</span></span>
-                    </label>
-                </div>
-                <div class="settings-item">
-                    <div class="settings-item-info">
-                        <span class="settings-item-title">Liquid Glass</span>
-                        <span class="settings-item-desc">Tema translúcido estilo iOS 26</span>
+                    <div class="theme-dropdown-wrap" id="theme-dropdown-wrap">
+                        <button class="theme-dropdown-btn" id="theme-dropdown-btn" onclick="toggleThemeDropdown()">
+                            <span id="theme-dropdown-icon">☀️</span>
+                            <span id="theme-dropdown-label">Claro</span>
+                            <span class="theme-dropdown-arrow">›</span>
+                        </button>
+                        <div class="theme-menu" id="theme-menu">
+                            <button class="theme-option" data-theme="light" onclick="setTheme('light')">
+                                <span class="theme-option-icon">☀️</span>
+                                <span class="theme-option-label">Claro</span>
+                                <span class="theme-option-check">✓</span>
+                            </button>
+                            <button class="theme-option" data-theme="dark" onclick="setTheme('dark')">
+                                <span class="theme-option-icon">🌙</span>
+                                <span class="theme-option-label">Escuro</span>
+                                <span class="theme-option-check">✓</span>
+                            </button>
+                            <button class="theme-option" data-theme="glass" onclick="setTheme('glass')">
+                                <span class="theme-option-icon">🫧</span>
+                                <span class="theme-option-label">Liquid Glass</span>
+                                <span class="theme-option-check">✓</span>
+                            </button>
+                        </div>
                     </div>
-                    <button id="glass-theme-btn" class="glass-theme-btn" onclick="toggleGlassTheme()">
-                        <span>🫧</span>
-                        <span>Glass</span>
-                        <span class="glass-theme-active-dot"></span>
-                    </button>
                 </div>
+                <!-- Hidden inputs mantidos para compatibilidade com código JS existente -->
+                <input type="checkbox" id="theme-toggle-admin" style="display:none" onchange="toggleTheme()">
+                <button id="glass-theme-btn" style="display:none" onclick="toggleGlassTheme()">
+                    <span class="glass-theme-active-dot"></span>
+                </button>
 
                 <div class="settings-group-label">SEGURANÇA</div>
                 <div class="settings-item">
