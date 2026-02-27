@@ -491,10 +491,38 @@
         </div>
     </div>
 
-    <!-- Modal: Inventário guiado (ponto 26) -->
+    <!-- Modal: Inventário — configuração inicial (zonas + opções) -->
+    <div id="inv-setup-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="inv-setup-title">
+        <div class="modal-content modal-content-wide">
+            <div class="modal-icon">📋</div>
+            <h3 id="inv-setup-title">Inventário Guiado</h3>
+            <p class="modal-desc">Escolhe as zonas a inventariar</p>
+
+            <div class="inv-setup-zone-header">
+                <span class="inv-setup-label">ZONAS</span>
+                <button type="button" class="inv-setup-toggle-all" onclick="invSetupToggleAll()">Seleccionar todas</button>
+            </div>
+            <div id="inv-setup-zones" class="inv-setup-zones"></div>
+
+            <div class="inv-setup-option">
+                <label class="inv-setup-option-label">
+                    <input type="checkbox" id="inv-skip-zeros">
+                    <span>Ignorar produtos com stock a zero</span>
+                </label>
+            </div>
+
+            <button class="btn-primary" onclick="invSetupStart()" style="margin-top:4px">Iniciar Inventário →</button>
+            <button class="btn-cancel" onclick="closeInvSetup()">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Modal: Inventário guiado — percurso produto a produto -->
     <div id="inv-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="inv-modal-title">
         <div class="modal-content modal-content-wide">
-            <h3 id="inv-modal-title">📋 Inventário Guiado</h3>
+            <div class="inv-header-row">
+                <h3 id="inv-modal-title">📋 Inventário</h3>
+                <span id="inv-zone-badge" class="inv-zone-badge"></span>
+            </div>
             <div class="inv-progress-wrap">
                 <div class="inv-progress-bar-bg"><div id="inv-progress-bar" class="inv-progress-bar-fill"></div></div>
                 <span id="inv-progress-text" class="inv-progress-text">1 / ?</span>
@@ -511,12 +539,41 @@
                 </div>
                 <span id="inv-unidade" class="inv-unidade-label"></span>
             </div>
+            <div id="inv-orig-qty" class="inv-orig-qty"></div>
             <div class="inv-actions">
                 <button id="inv-prev-btn" onclick="invPrev()" class="btn-cancel inv-prev">← Anterior</button>
                 <button onclick="invSkip()" class="btn-cancel inv-skip">Saltar →</button>
                 <button onclick="invConfirm()" class="btn-primary inv-confirm">Confirmar ✓</button>
             </div>
             <button onclick="closeInventory()" class="btn-cancel" style="margin-top:10px;width:100%">Cancelar inventário</button>
+        </div>
+    </div>
+
+    <!-- Modal: Inventário — revisão antes de guardar -->
+    <div id="inv-review-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="inv-review-title">
+        <div class="modal-content modal-content-wide">
+            <div class="modal-icon">🔍</div>
+            <h3 id="inv-review-title">Rever Alterações</h3>
+            <p class="modal-desc" id="inv-review-desc"></p>
+            <div id="inv-review-list" class="inv-review-list"></div>
+            <button class="btn-primary" onclick="invReviewConfirm()" style="margin-top:8px">Guardar Inventário ✓</button>
+            <button class="btn-cancel" onclick="invReviewBack()">← Voltar</button>
+        </div>
+    </div>
+
+    <!-- Modal: Inventário — resultado final com estatísticas -->
+    <div id="inv-result-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="inv-result-title">
+        <div class="modal-content modal-content-wide">
+            <div class="modal-icon">✅</div>
+            <h3 id="inv-result-title">Inventário Concluído</h3>
+            <div id="inv-result-stats" class="inv-result-stats"></div>
+            <button class="btn-primary inv-export-btn" onclick="exportInventoryExcel()">
+                📊 Exportar para Excel
+            </button>
+            <button class="btn-primary inv-email-btn" onclick="exportInventoryEmail()" style="margin-top:8px">
+                📧 Enviar por Email
+            </button>
+            <button class="btn-cancel" onclick="closeInvResult()">Fechar</button>
         </div>
     </div>
 
@@ -575,7 +632,8 @@
                 });
         });
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
-
