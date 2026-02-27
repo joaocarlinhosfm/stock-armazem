@@ -1984,8 +1984,8 @@ function _applyTheme(theme) {
 
     // Liga/desliga o comportamento de scroll da barra de pesquisa
     _setupSearchScrollBehaviour(theme === 'glass');
-    // Liga/desliga o comportamento de scroll do bottom nav pill
-    _setupBottomNavScrollBehaviour(theme === 'glass');
+    // Scroll hide/show do pill — activo em todos os temas
+    _setupBottomNavScrollBehaviour(true);
 }
 
 // ── Barra de pesquisa flutuante — desaparece ao fazer scroll (só glass) ──────
@@ -2063,12 +2063,6 @@ function _setupBottomNavScrollBehaviour(enable) {
 
     const nav = document.getElementById('bottom-nav');
     if (!nav) return;
-
-    if (!enable) {
-        // Temas não-glass: garante que está visível e sem classes residuais
-        nav.classList.remove('bnav-hidden');
-        return;
-    }
 
     // Detecção de direcção: esconde ao descer, mostra ao subir
     const SCROLL_SENSITIVITY = 6;   // px mínimos de delta para reagir
@@ -3059,7 +3053,7 @@ document.addEventListener('DOMContentLoaded', () => {
     _applyTheme(savedTheme);
     // Setup scroll behaviours com o tema carregado (DOM já existe)
     _setupSearchScrollBehaviour(savedTheme === 'glass');
-    _setupBottomNavScrollBehaviour(savedTheme === 'glass');
+    _setupBottomNavScrollBehaviour(true); // pill activo em todos os temas
 
     // Migração legacy PIN — só corre uma vez
     if (!localStorage.getItem('hiperfrio-migrated')) {
