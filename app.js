@@ -1968,6 +1968,20 @@ function _applyTheme(theme) {
     const gBtn = document.getElementById('glass-theme-btn');
     if (gBtn) gBtn.dataset.active = (theme === 'glass') ? '1' : '0';
 
+    // Barra de status Android — meta theme-color dinâmica
+    const themeColors = {
+        light: '#2563eb',
+        dark:  '#0f172a',
+        glass: '#0d0a20',   // mesma cor do fundo aurora do glass
+    };
+    let metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (!metaTheme) {
+        metaTheme = document.createElement('meta');
+        metaTheme.name = 'theme-color';
+        document.head.appendChild(metaTheme);
+    }
+    metaTheme.content = themeColors[theme] || themeColors.light;
+
     // Liga/desliga o comportamento de scroll da barra de pesquisa
     _setupSearchScrollBehaviour(theme === 'glass');
     // Liga/desliga o comportamento de scroll do bottom nav pill
