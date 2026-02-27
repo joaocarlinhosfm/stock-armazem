@@ -2318,73 +2318,266 @@ function _selectIcon(icon) {
 
 
 // =============================================
-// PONTO 26: MODO INVENTÁRIO GUIADO
+// INVENTÁRIO GUIADO — v2
+// Pontos: filtro por zona, revisão, retoma, stats, Excel, email
 // =============================================
-let _invItems     = [];   // lista ordenada por local
-let _invIdx       = 0;    // índice actual
-let _invChanges   = {};   // { id: novaQtd }
 
+const INV_RESUME_KEY = 'hiperfrio-inv-resume';
+
+// Estado da sessão de inventário
+let _invItems     = [];        // produtos a percorrer
+let _invIdx       = 0;         // índice actual
+let _invChanges   = {};        // { id: newQty } — confirmados
+let _invSkipped   = new Set(); // ids saltados
+let _invOptions   = { zones: null, skipZeros: false }; // null = todas as zonas
+let _invLastData  = null;      // snapshot dos dados no início (para o Excel)
+
+// ── PASSO 0: Abrir configuração ────────────────────────────────────────────
 async function startInventory() {
     const data = await fetchCollection('stock', true);
     if (!data || Object.keys(data).length === 0) {
         showToast('Sem produtos para inventariar', 'error'); return;
     }
-    // Ordena por localização depois nome
+
+    // Verifica se existe sessão guardada para retomar
+    const saved = _invLoadResume();
+    if (saved) {
+        openConfirmModal({
+            icon: '💾',
+            title: 'Retomar inventário?',
+            desc: `Tens um inventário em curso (${saved.idx + 1}/${saved.items.length} produtos). Continuar onde ficaste?`,
+            onConfirm: () => _resumeInventory(saved),
+        });
+        // Adiciona botão "Começar novo" ao modal confirm
+        setTimeout(() => {
+            const okBtn = document.getElementById('confirm-modal-ok');
+            if (!okBtn) return;
+            let newBtn = document.getElementById('inv-resume-new-btn');
+            if (!newBtn) {
+                newBtn = document.createElement('button');
+                newBtn.id        = 'inv-resume-new-btn';
+                newBtn.className = 'btn-cancel';
+                newBtn.style.cssText = 'width:100%;margin-top:6px;color:var(--text-muted)';
+                newBtn.textContent = 'Começar novo inventário';
+                newBtn.onclick = () => {
+                    closeConfirmModal();
+                    _invClearResume();
+                    _openInvSetup(data);
+                };
+                okBtn.parentNode.insertBefore(newBtn, okBtn.nextSibling);
+            }
+        }, 60);
+        return;
+    }
+
+    _openInvSetup(data);
+}
+
+function _openInvSetup(data) {
+    // Extrai zonas únicas ordenadas
+    const zones = [...new Set(
+        Object.values(data)
+            .filter(p => !String(p.codigo||'').startsWith('_tmp_'))
+            .map(p => (p.localizacao||'').trim().toUpperCase())
+            .filter(Boolean)
+    )].sort((a,b) => a.localeCompare(b,'pt'));
+
+    const container = document.getElementById('inv-setup-zones');
+    container.innerHTML = '';
+
+    if (zones.length === 0) {
+        container.innerHTML = '<p class="modal-desc" style="margin:0">Todos os produtos serão inventariados (sem zonas definidas).</p>';
+    } else {
+        zones.forEach(zone => {
+            const chip = document.createElement('button');
+            chip.type      = 'button';
+            chip.className = 'inv-zone-chip active';
+            chip.dataset.zone = zone;
+            chip.textContent  = zone;
+            chip.onclick = () => {
+                chip.classList.toggle('active');
+                _updateInvSetupBtn();
+            };
+            container.appendChild(chip);
+        });
+    }
+
+    document.getElementById('inv-skip-zeros').checked = false;
+    _updateInvSetupBtn();
+    document.getElementById('inv-setup-modal').classList.add('active');
+    focusModal('inv-setup-modal');
+}
+
+function invSetupToggleAll() {
+    const chips = document.querySelectorAll('.inv-zone-chip');
+    const allActive = [...chips].every(c => c.classList.contains('active'));
+    chips.forEach(c => c.classList.toggle('active', !allActive));
+    _updateInvSetupBtn();
+}
+
+function _updateInvSetupBtn() {
+    const chips   = document.querySelectorAll('.inv-zone-chip');
+    const active  = [...chips].filter(c => c.classList.contains('active'));
+    const btn     = document.querySelector('#inv-setup-modal .btn-primary');
+    const toggleBtn = document.querySelector('.inv-setup-toggle-all');
+    if (!btn) return;
+    if (chips.length === 0) {
+        btn.textContent = 'Iniciar Inventário →';
+    } else if (active.length === 0) {
+        btn.textContent = 'Selecciona pelo menos uma zona';
+        btn.disabled = true;
+        if (toggleBtn) toggleBtn.textContent = 'Seleccionar todas';
+        return;
+    } else {
+        const allActive = active.length === chips.length;
+        btn.textContent = allActive
+            ? `Iniciar — todos os produtos →`
+            : `Iniciar — ${active.length} zona${active.length > 1 ? 's' : ''} →`;
+        if (toggleBtn) toggleBtn.textContent = allActive ? 'Limpar selecção' : 'Seleccionar todas';
+    }
+    btn.disabled = false;
+}
+
+function closeInvSetup() {
+    document.getElementById('inv-setup-modal').classList.remove('active');
+}
+
+async function invSetupStart() {
+    const chips = document.querySelectorAll('.inv-zone-chip');
+    const activeZones = chips.length === 0
+        ? null
+        : [...chips].filter(c => c.classList.contains('active')).map(c => c.dataset.zone);
+
+    if (activeZones && activeZones.length === 0) return;
+
+    const skipZeros = document.getElementById('inv-skip-zeros').checked;
+    closeInvSetup();
+    await _startInvWithOptions(activeZones, skipZeros);
+}
+
+// ── PASSO 1: Correr o inventário ──────────────────────────────────────────
+async function _startInvWithOptions(zones, skipZeros) {
+    const data = cache.stock.data;
+    if (!data) return;
+    _invLastData = data;
+
+    const allChips  = document.querySelectorAll('.inv-zone-chip');
+    const allZones  = allChips.length === 0 || zones === null
+        || zones.length === document.querySelectorAll('.inv-zone-chip').length;
+
+    _invOptions = { zones, skipZeros, allZones };
+
     _invItems = Object.entries(data)
-        .filter(([k]) => !k.startsWith('_tmp_'))
+        .filter(([k, p]) => {
+            if (k.startsWith('_tmp_')) return false;
+            if (skipZeros && (p.quantidade || 0) === 0) return false;
+            if (zones !== null) {
+                const z = (p.localizacao||'').trim().toUpperCase();
+                return zones.includes(z);
+            }
+            return true;
+        })
         .sort(([,a],[,b]) => {
             const la = (a.localizacao||'ZZZ').toUpperCase();
             const lb = (b.localizacao||'ZZZ').toUpperCase();
             return la !== lb ? la.localeCompare(lb,'pt') : (a.nome||'').localeCompare(b.nome||'','pt');
         });
+
+    if (_invItems.length === 0) {
+        showToast('Nenhum produto corresponde aos filtros seleccionados', 'error'); return;
+    }
+
     _invIdx     = 0;
     _invChanges = {};
+    _invSkipped = new Set();
+
     document.getElementById('inv-modal').classList.add('active');
     focusModal('inv-modal');
     _renderInvStep();
 }
 
+function _resumeInventory(saved) {
+    closeConfirmModal();
+    _invItems    = saved.items;
+    _invIdx      = saved.idx;
+    _invChanges  = saved.changes;
+    _invSkipped  = new Set(saved.skipped || []);
+    _invOptions  = saved.options || { zones: null, skipZeros: false };
+    _invLastData = cache.stock.data;
+    document.getElementById('inv-modal').classList.add('active');
+    focusModal('inv-modal');
+    _renderInvStep();
+    showToast(`A retomar — produto ${_invIdx + 1} de ${_invItems.length}`);
+}
+
+// ── Render do passo actual ────────────────────────────────────────────────
 function _renderInvStep() {
-    const total  = _invItems.length;
+    const total      = _invItems.length;
     const [id, item] = _invItems[_invIdx] || [];
     if (!id) { _finishInventory(); return; }
 
-    document.getElementById('inv-progress-text').textContent =
-        `${_invIdx + 1} / ${total}`;
-    document.getElementById('inv-progress-bar').style.width =
-        `${Math.round((_invIdx / total) * 100)}%`;
-    document.getElementById('inv-local').textContent =
-        item.localizacao ? `📍 ${item.localizacao.toUpperCase()}` : '📍 SEM LOCAL';
-    document.getElementById('inv-ref').textContent = item.codigo || '';
-    document.getElementById('inv-nome').textContent = item.nome || '';
-    document.getElementById('inv-unidade').textContent = item.unidade && item.unidade !== 'un' ? item.unidade : '';
-    const qtyInput = document.getElementById('inv-qtd');
-    qtyInput.value = _invChanges[id] !== undefined ? _invChanges[id] : (item.quantidade || 0);
+    document.getElementById('inv-progress-text').textContent = `${_invIdx + 1} / ${total}`;
+    document.getElementById('inv-progress-bar').style.width  = `${Math.round((_invIdx / total) * 100)}%`;
+
+    const zona = (item.localizacao||'').trim().toUpperCase();
+    document.getElementById('inv-local').textContent = zona ? `📍 ${zona}` : '📍 SEM LOCAL';
+    document.getElementById('inv-ref').textContent   = item.codigo  || '';
+    document.getElementById('inv-nome').textContent  = item.nome    || '';
+    document.getElementById('inv-unidade').textContent =
+        item.unidade && item.unidade !== 'un' ? item.unidade : '';
+
+    // Badge de zona filtrada
+    const badge = document.getElementById('inv-zone-badge');
+    if (badge) {
+        if (_invOptions.zones !== null && !_invOptions.allZones) {
+            badge.textContent = `${_invOptions.zones.length} zona${_invOptions.zones.length > 1 ? 's' : ''}`;
+            badge.style.display = '';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    // Quantidade: usa valor já confirmado se existir, senão o original
+    const currentVal = _invChanges[id] !== undefined ? _invChanges[id] : (item.quantidade || 0);
+    const qtyInput   = document.getElementById('inv-qtd');
+    qtyInput.value   = currentVal;
     qtyInput.focus();
     qtyInput.select();
 
-    // Botão prev
+    // Mostra a quantidade original do sistema como referência
+    const origEl = document.getElementById('inv-orig-qty');
+    if (origEl) {
+        const orig = item.quantidade || 0;
+        origEl.textContent = `Sistema: ${fmtQty(orig, item.unidade)}`;
+        origEl.className   = 'inv-orig-qty' + (_invChanges[id] !== undefined && _invChanges[id] !== orig ? ' inv-orig-changed' : '');
+    }
+
     document.getElementById('inv-prev-btn').disabled = _invIdx === 0;
+    _invSaveResume();
 }
 
 function invQtyDelta(delta) {
-    const el  = document.getElementById('inv-qtd');
+    const el = document.getElementById('inv-qtd');
     if (!el) return;
-    const cur = parseFloat(el.value) || 0;
-    el.value  = Math.max(0, cur + delta);
+    el.value = Math.max(0, (parseFloat(el.value) || 0) + delta);
     el.focus();
 }
 
 function invConfirm() {
-    const [id, item] = _invItems[_invIdx] || [];
+    const [id] = _invItems[_invIdx] || [];
     if (!id) return;
     const val = parseFloat(document.getElementById('inv-qtd').value);
-    if (!isNaN(val) && val >= 0) _invChanges[id] = val;
+    if (!isNaN(val) && val >= 0) {
+        _invChanges[id] = val;
+        _invSkipped.delete(id);
+    }
     if (_invIdx < _invItems.length - 1) { _invIdx++; _renderInvStep(); }
     else _finishInventory();
 }
 
 function invSkip() {
+    const [id] = _invItems[_invIdx] || [];
+    if (id) _invSkipped.add(id);
     if (_invIdx < _invItems.length - 1) { _invIdx++; _renderInvStep(); }
     else _finishInventory();
 }
@@ -2395,29 +2588,362 @@ function invPrev() {
 
 function closeInventory() {
     document.getElementById('inv-modal').classList.remove('active');
+    // Progresso guardado — não apaga para possível retoma
 }
 
-async function _finishInventory() {
+// ── PASSO 2: Revisão antes de guardar ────────────────────────────────────
+function _finishInventory() {
     document.getElementById('inv-modal').classList.remove('active');
+    _invClearResume(); // limpa a sessão guardada
+
+    const data = cache.stock.data || {};
     const changed = Object.entries(_invChanges).filter(([id, newQty]) => {
-        const oldQty = cache.stock.data?.[id]?.quantidade;
+        const oldQty = data[id]?.quantidade;
         return oldQty !== undefined && newQty !== oldQty;
     });
+
+    // Abre modal de revisão
+    _openInvReview(changed, data);
+}
+
+function _openInvReview(changed, data) {
+    const total     = _invItems.length;
+    const confirmed = Object.keys(_invChanges).length;
+    const skipped   = _invSkipped.size;
+
+    const descEl = document.getElementById('inv-review-desc');
+    descEl.textContent = changed.length === 0
+        ? `${confirmed} produto${confirmed !== 1?'s':''} confirmado${confirmed !== 1?'s':''} — sem diferenças de quantidade.`
+        : `${changed.length} diferença${changed.length !== 1?'s':''} encontrada${changed.length !== 1?'s':''}. Revê e confirma antes de guardar.`;
+
+    const listEl = document.getElementById('inv-review-list');
+    listEl.innerHTML = '';
+
     if (changed.length === 0) {
-        showToast('Inventário concluído — sem diferenças!'); return;
+        listEl.innerHTML = '<div class="empty-msg">Tudo conforme ✓</div>';
+    } else {
+        changed.forEach(([id, newQty]) => {
+            const item   = data[id] || {};
+            const oldQty = item.quantidade || 0;
+            const diff   = newQty - oldQty;
+            const row    = document.createElement('label');
+            row.className = 'inv-review-row';
+
+            const cb  = document.createElement('input');
+            cb.type   = 'checkbox';
+            cb.checked = true;
+            cb.dataset.id = id;
+            cb.className  = 'inv-review-cb';
+
+            const info = document.createElement('div');
+            info.className = 'inv-review-info';
+
+            const nome = document.createElement('span');
+            nome.className   = 'inv-review-nome';
+            nome.textContent = item.nome || id;
+
+            const qty = document.createElement('span');
+            qty.className = 'inv-review-qty';
+            const sign = diff > 0 ? '+' : '';
+            qty.innerHTML = `<span class="inv-rev-old">${fmtQty(oldQty, item.unidade)}</span>`
+                + ` → <span class="inv-rev-new">${fmtQty(newQty, item.unidade)}</span>`
+                + ` <span class="inv-rev-diff ${diff > 0 ? 'inv-rev-plus' : 'inv-rev-minus'}">(${sign}${fmtQty(diff, item.unidade)})</span>`;
+
+            info.appendChild(nome);
+            info.appendChild(qty);
+            row.appendChild(cb);
+            row.appendChild(info);
+            listEl.appendChild(row);
+        });
     }
-    // Aplica alterações
-    for (const [id, newQty] of changed) {
-        if (cache.stock.data?.[id]) cache.stock.data[id].quantidade = newQty;
+
+    document.getElementById('inv-review-modal').classList.add('active');
+    focusModal('inv-review-modal');
+}
+
+function invReviewBack() {
+    document.getElementById('inv-review-modal').classList.remove('active');
+    // Reabre o inventário no último produto
+    document.getElementById('inv-modal').classList.add('active');
+    _invSaveResume();
+}
+
+async function invReviewConfirm() {
+    document.getElementById('inv-review-modal').classList.remove('active');
+
+    const data    = cache.stock.data || {};
+    const checked = [...document.querySelectorAll('.inv-review-cb:checked')].map(cb => cb.dataset.id);
+
+    // Estatísticas para o ecrã de resultado
+    let totalAdded   = 0;
+    let totalRemoved = 0;
+    let savedCount   = 0;
+
+    for (const id of checked) {
+        const newQty = _invChanges[id];
+        const oldQty = data[id]?.quantidade || 0;
+        if (newQty === undefined) continue;
+        const diff = newQty - oldQty;
+        if (diff > 0) totalAdded   += diff;
+        if (diff < 0) totalRemoved += Math.abs(diff);
+        savedCount++;
+        if (data[id]) data[id].quantidade = newQty;
         try {
             await apiFetch(`${BASE_URL}/stock/${id}.json`, {
-                method:'PATCH', body: JSON.stringify({ quantidade: newQty })
+                method: 'PATCH', body: JSON.stringify({ quantidade: newQty })
             });
-        } catch { invalidateCache('stock'); }
+        } catch (e) { console.warn('invSave:', e?.message||e); invalidateCache('stock'); }
     }
+
     renderList(window._searchInputEl?.value || '', true);
     renderDashboard();
-    showToast(`Inventário: ${changed.length} diferença${changed.length > 1 ? 's' : ''} corrigida${changed.length > 1 ? 's' : ''}!`);
+
+    // Guardar snapshot final para exportação
+    _invLastData = { ...cache.stock.data };
+
+    // Mostrar resultado com stats
+    _openInvResult({
+        total:      _invItems.length,
+        confirmed:  Object.keys(_invChanges).length,
+        skipped:    _invSkipped.size,
+        saved:      savedCount,
+        added:      totalAdded,
+        removed:    totalRemoved,
+    });
+}
+
+// ── PASSO 3: Resultado e exportação ──────────────────────────────────────
+function _openInvResult(stats) {
+    const statsEl = document.getElementById('inv-result-stats');
+    statsEl.innerHTML = `
+        <div class="inv-stat-grid">
+            <div class="inv-stat-card inv-stat-ok">
+                <span class="inv-stat-num">${stats.confirmed}</span>
+                <span class="inv-stat-label">Confirmados</span>
+            </div>
+            <div class="inv-stat-card inv-stat-skip">
+                <span class="inv-stat-num">${stats.skipped}</span>
+                <span class="inv-stat-label">Saltados</span>
+            </div>
+            <div class="inv-stat-card inv-stat-plus">
+                <span class="inv-stat-num">+${stats.added}</span>
+                <span class="inv-stat-label">Unid. adicionadas</span>
+            </div>
+            <div class="inv-stat-card inv-stat-minus">
+                <span class="inv-stat-num">−${stats.removed}</span>
+                <span class="inv-stat-label">Unid. removidas</span>
+            </div>
+        </div>
+        ${stats.saved > 0
+            ? `<p class="inv-result-saved">${stats.saved} alteração${stats.saved !== 1?'s':''} guardada${stats.saved !== 1?'s':''} no sistema.</p>`
+            : '<p class="inv-result-saved">Nenhuma diferença encontrada — stock conforme!</p>'}
+    `;
+    document.getElementById('inv-result-modal').classList.add('active');
+    focusModal('inv-result-modal');
+}
+
+function closeInvResult() {
+    document.getElementById('inv-result-modal').classList.remove('active');
+}
+
+// ── Exportação Excel ──────────────────────────────────────────────────────
+function exportInventoryExcel() {
+    const data = _invLastData || cache.stock.data || {};
+    const now  = new Date();
+    const dateStr = now.toLocaleDateString('pt-PT');
+    const timeStr = now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+
+    // Sheet 1: Inventário completo
+    const rows = _invItems.map(([id, item]) => {
+        const newQty  = _invChanges[id];
+        const origQty = item.quantidade || 0;
+        const status  = _invSkipped.has(id) ? 'Saltado'
+            : newQty === undefined             ? 'Não verificado'
+            : newQty === origQty               ? 'Conforme'
+            : newQty > origQty                 ? 'Corrigido ↑'
+            :                                    'Corrigido ↓';
+        return {
+            'Referência':    item.codigo   || '',
+            'Nome':          item.nome     || '',
+            'Zona':          item.localizacao || 'SEM LOCAL',
+            'Qtd Sistema':   origQty,
+            'Qtd Inventário':newQty !== undefined ? newQty : origQty,
+            'Diferença':     newQty !== undefined ? newQty - origQty : 0,
+            'Unidade':       item.unidade === 'un' || !item.unidade ? '' : item.unidade,
+            'Estado':        status,
+            'Notas':         item.notas || '',
+        };
+    });
+
+    // Sheet 2: Apenas diferenças
+    const diffRows = rows.filter(r => r['Diferença'] !== 0);
+
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1
+    const ws1 = XLSX.utils.json_to_sheet(rows);
+    ws1['!cols'] = [12,30,12,14,16,12,10,18,25].map(w => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws1, 'Inventário Completo');
+
+    // Sheet 2
+    if (diffRows.length > 0) {
+        const ws2 = XLSX.utils.json_to_sheet(diffRows);
+        ws2['!cols'] = [12,30,12,14,16,12,10,18,25].map(w => ({ wch: w }));
+        XLSX.utils.book_append_sheet(wb, ws2, 'Diferenças');
+    }
+
+    // Sheet 3: Resumo
+    const summaryData = [
+        ['Hiperfrio Stock — Relatório de Inventário', ''],
+        ['Data', dateStr],
+        ['Hora', timeStr],
+        ['Produtos verificados', Object.keys(_invChanges).length],
+        ['Produtos saltados', _invSkipped.size],
+        ['Total de produtos', _invItems.length],
+        ['Diferenças encontradas', diffRows.length],
+        ['Unidades adicionadas', rows.reduce((s,r) => s + Math.max(0, r['Diferença']), 0)],
+        ['Unidades removidas',   rows.reduce((s,r) => s + Math.abs(Math.min(0, r['Diferença'])), 0)],
+    ];
+    const ws3 = XLSX.utils.aoa_to_sheet(summaryData);
+    ws3['!cols'] = [{ wch: 30 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, ws3, 'Resumo');
+
+    const filename = `inventario-hiperfrio-${now.toISOString().slice(0,10)}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    showToast('Excel exportado com sucesso!');
+}
+
+// ── Envio por email ───────────────────────────────────────────────────────
+async function exportInventoryEmail() {
+    const now     = new Date();
+    const dateStr = now.toLocaleDateString('pt-PT');
+    const data    = _invLastData || cache.stock.data || {};
+    const diffRows = _invItems
+        .filter(([id]) => {
+            const nq = _invChanges[id];
+            return nq !== undefined && nq !== (data[id]?.quantidade || 0);
+        })
+        .map(([id, item]) => {
+            const nq = _invChanges[id];
+            const oq = item.quantidade || 0;
+            return `• ${item.nome||id} (${item.localizacao||'sem zona'}): ${fmtQty(oq, item.unidade)} → ${fmtQty(nq, item.unidade)}`;
+        });
+
+    const body = encodeURIComponent(
+        'Inventário Hiperfrio — ' + dateStr + '\n\n'
+        + 'Produtos verificados: ' + Object.keys(_invChanges).length + '/' + _invItems.length + '\n'
+        + 'Diferenças encontradas: ' + diffRows.length + '\n\n'
+        + (diffRows.length > 0 ? 'ALTERAÇÕES:\n' + diffRows.join('\n') + '\n\n' : 'Sem diferenças de stock.\n\n')
+        + '(Ficheiro Excel em anexo — exportar com o botão "Exportar para Excel")'
+    );
+
+        const subject = encodeURIComponent(`Inventário Hiperfrio — ${dateStr}`);
+
+    // Tenta Web Share API (Android partilha nativa com ficheiro)
+    if (navigator.canShare) {
+        try {
+            // Gera o ficheiro para partilhar
+            const wb   = _buildInventoryWorkbook();
+            const blob = new Blob(
+                [XLSX.write(wb, { bookType: 'xlsx', type: 'array' })],
+                { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+            );
+            const file = new File([blob], `inventario-hiperfrio-${now.toISOString().slice(0,10)}.xlsx`,
+                { type: blob.type });
+
+            if (navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title:   `Inventário Hiperfrio — ${dateStr}`,
+                    text:    `Relatório de inventário de ${dateStr}`,
+                    files:   [file],
+                });
+                return;
+            }
+        } catch (e) {
+            if (e.name !== 'AbortError') console.warn('share:', e);
+        }
+    }
+
+    // Fallback: download do Excel + abre cliente de email
+    exportInventoryExcel();
+    setTimeout(() => {
+        window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+    }, 800);
+}
+
+// Helper partilhado por exportInventoryEmail e exportInventoryExcel
+function _buildInventoryWorkbook() {
+    const data = _invLastData || cache.stock.data || {};
+    const now  = new Date();
+    const rows = _invItems.map(([id, item]) => {
+        const newQty  = _invChanges[id];
+        const origQty = item.quantidade || 0;
+        const status  = _invSkipped.has(id) ? 'Saltado'
+            : newQty === undefined ? 'Não verificado'
+            : newQty === origQty   ? 'Conforme'
+            : newQty > origQty     ? 'Corrigido ↑' : 'Corrigido ↓';
+        return {
+            'Referência': item.codigo||'', 'Nome': item.nome||'',
+            'Zona': item.localizacao||'SEM LOCAL',
+            'Qtd Sistema': origQty,
+            'Qtd Inventário': newQty !== undefined ? newQty : origQty,
+            'Diferença': newQty !== undefined ? newQty - origQty : 0,
+            'Unidade': item.unidade === 'un' || !item.unidade ? '' : item.unidade,
+            'Estado': status, 'Notas': item.notas||'',
+        };
+    });
+    const wb  = XLSX.utils.book_new();
+    const ws1 = XLSX.utils.json_to_sheet(rows);
+    ws1['!cols'] = [12,30,12,14,16,12,10,18,25].map(w => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws1, 'Inventário Completo');
+    const diffRows = rows.filter(r => r['Diferença'] !== 0);
+    if (diffRows.length > 0) {
+        const ws2 = XLSX.utils.json_to_sheet(diffRows);
+        ws2['!cols'] = [12,30,12,14,16,12,10,18,25].map(w => ({ wch: w }));
+        XLSX.utils.book_append_sheet(wb, ws2, 'Diferenças');
+    }
+    const ws3 = XLSX.utils.aoa_to_sheet([
+        ['Hiperfrio Stock — Relatório de Inventário',''],
+        ['Data', now.toLocaleDateString('pt-PT')],
+        ['Hora', now.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})],
+        ['Produtos verificados', Object.keys(_invChanges).length],
+        ['Produtos saltados', _invSkipped.size],
+        ['Total de produtos', _invItems.length],
+        ['Diferenças encontradas', diffRows.length],
+    ]);
+    ws3['!cols'] = [{ wch: 30 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, ws3, 'Resumo');
+    return wb;
+}
+
+// ── Persistência (retoma de sessão interrompida) ──────────────────────────
+function _invSaveResume() {
+    try {
+        localStorage.setItem(INV_RESUME_KEY, JSON.stringify({
+            idx:     _invIdx,
+            items:   _invItems,
+            changes: _invChanges,
+            skipped: [..._invSkipped],
+            options: _invOptions,
+            ts:      Date.now(),
+        }));
+    } catch (e) { console.warn('invSaveResume:', e); }
+}
+
+function _invLoadResume() {
+    try {
+        const raw = localStorage.getItem(INV_RESUME_KEY);
+        if (!raw) return null;
+        const saved = JSON.parse(raw);
+        // Ignora sessões com mais de 24 horas
+        if (!saved || Date.now() - (saved.ts||0) > 86400000) { _invClearResume(); return null; }
+        if (!saved.items || saved.items.length === 0) { _invClearResume(); return null; }
+        return saved;
+    } catch { return null; }
+}
+
+function _invClearResume() {
+    localStorage.removeItem(INV_RESUME_KEY);
 }
 
 // =============================================
@@ -2596,7 +3122,10 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'history-modal',      close: closeHistoryModal },
             { id: 'icon-picker-modal',  close: closeIconPicker },
             { id: 'dup-modal',          close: closeDupModal },
+            { id: 'inv-setup-modal',    close: closeInvSetup },
             { id: 'inv-modal',          close: closeInventory },
+            { id: 'inv-review-modal',   close: invReviewBack },
+            { id: 'inv-result-modal',   close: closeInvResult },
             { id: 'timeline-modal',     close: closeToolTimeline },
             { id: 'edit-tool-modal',    close: closeEditToolModal },
         ];
