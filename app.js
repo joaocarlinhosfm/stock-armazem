@@ -402,7 +402,10 @@ function nav(viewId) {
     document.getElementById(viewId)?.classList.add('active');
 
     if (viewId === 'view-search') {
-        renderList().then(() => { if (_zeroFilterActive) filterZeroStock(); });
+        renderList().then(() => {
+            if (_zeroFilterActive) filterZeroStock();
+            if (_pendingZeroFilter) { _pendingZeroFilter = false; filterZeroStock(); }
+        });
         // Reset barra de pesquisa ao navegar para o stock
         document.querySelector('.search-container')?.classList.remove('search-scrolled-away');
         document.getElementById('search-peek-btn')?.classList.remove('visible');
@@ -3430,3 +3433,4 @@ if ('serviceWorker' in navigator) {
             .catch(e => console.warn('PWA SW erro:', e));
     });
 }
+z
