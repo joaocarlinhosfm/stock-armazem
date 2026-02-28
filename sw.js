@@ -1,14 +1,15 @@
 // Cache version — bump this string on every deploy to force SW update
 // TIP: use a CI/CD script to auto-replace this with a build hash
-const CACHE_VERSION = 'hiperfrio-v5.11';
+const CACHE_VERSION = 'hiperfrio-v5.13';
 const ASSETS = [
     './',
     './index.html',
     './style.css',
     './app.js',
     './manifest.json',
-    './icon-192.png',   // FIX #27 — ícones agora em cache para offline
+    './icon-192.png',
     './icon-512.png',
+    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
 ];
 
 self.addEventListener('install', e => {
@@ -72,4 +73,3 @@ self.addEventListener('sync', e => {
         );
     }
 });
-
