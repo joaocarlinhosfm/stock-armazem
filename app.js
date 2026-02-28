@@ -45,7 +45,7 @@ async function getAuthToken() {
     }
 
     _authTokenExp = now + 3_500_000; // ~58 min
-    console.log('✅ Firebase Auth: token obtido com sucesso');
+    console.debug('✅ Firebase Auth: token obtido com sucesso');
     return _authToken;
 }
 
@@ -58,7 +58,7 @@ function _scheduleTokenRenewal() {
             try {
                 _authToken = await window._firebaseUser.getIdToken(true);
                 _authTokenExp = Date.now() + 3_500_000;
-                console.log('🔄 Token renovado proactivamente');
+                console.debug('🔄 Token renovado proactivamente');
             } catch(e) { console.warn('Falha na renovação do token:', e.message); }
         }
         _scheduleTokenRenewal(); // agenda próxima renovação
@@ -713,7 +713,7 @@ function _refreshZoneDatalist() {
     const dl = document.getElementById('zone-datalist');
     if (!dl) return;
     const hist = JSON.parse(localStorage.getItem(ZONE_HISTORY_KEY) || '[]');
-    dl.innerHTML = hist.map(z => `<option value="${z}">`).join('');
+    dl.innerHTML = hist.map(z => `<option value="${escapeHtml(z)}">`).join('');
 }
 
 // PONTO 20: fechar lote com resumo
@@ -2068,9 +2068,6 @@ function _setupAdminSwipe() {
 }
 
 // =============================================
-// TEMA
-// =============================================
-// =============================================
 // TEMAS — claro / escuro / liquid glass
 // =============================================
 function _applyTheme(theme) {
@@ -2831,6 +2828,8 @@ async function invReviewConfirm() {
     let totalRemoved = 0;
     let savedCount   = 0;
 
+    // Calcula estatísticas e actualiza cache local primeiro
+    const patches = [];
     for (const id of checked) {
         const newQty = _invChanges[id];
         const oldQty = data[id]?.quantidade || 0;
@@ -2840,11 +2839,19 @@ async function invReviewConfirm() {
         if (diff < 0) totalRemoved += Math.abs(diff);
         savedCount++;
         if (data[id]) data[id].quantidade = newQty;
-        try {
-            await apiFetch(`${BASE_URL}/stock/${id}.json`, {
+        patches.push({ id, newQty });
+    }
+    // Envia todos os PATCHes em paralelo — muito mais rápido que em série
+    const results = await Promise.allSettled(
+        patches.map(({ id, newQty }) =>
+            apiFetch(`${BASE_URL}/stock/${id}.json`, {
                 method: 'PATCH', body: JSON.stringify({ quantidade: newQty })
-            });
-        } catch (e) { console.warn('invSave:', e?.message||e); invalidateCache('stock'); }
+            })
+        )
+    );
+    if (results.some(r => r.status === 'rejected')) {
+        console.warn('invSave: alguns PATCHes falharam');
+        invalidateCache('stock');
     }
 
     renderList(window._searchInputEl?.value || '', true);
@@ -2900,67 +2907,8 @@ function closeInvResult() {
 
 // ── Exportação Excel ──────────────────────────────────────────────────────
 function exportInventoryExcel() {
-    const data = _invLastData || cache.stock.data || {};
-    const now  = new Date();
-    const dateStr = now.toLocaleDateString('pt-PT');
-    const timeStr = now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-
-    // Sheet 1: Inventário completo
-    const rows = _invItems.map(([id, item]) => {
-        const newQty  = _invChanges[id];
-        const origQty = item.quantidade || 0;
-        const status  = _invSkipped.has(id) ? 'Saltado'
-            : newQty === undefined             ? 'Não verificado'
-            : newQty === origQty               ? 'Conforme'
-            : newQty > origQty                 ? 'Corrigido ↑'
-            :                                    'Corrigido ↓';
-        return {
-            'Referência':    item.codigo   || '',
-            'Nome':          item.nome     || '',
-            'Zona':          item.localizacao || 'SEM LOCAL',
-            'Qtd Sistema':   origQty,
-            'Qtd Inventário':newQty !== undefined ? newQty : origQty,
-            'Diferença':     newQty !== undefined ? newQty - origQty : 0,
-            'Unidade':       item.unidade === 'un' || !item.unidade ? '' : item.unidade,
-            'Estado':        status,
-            'Notas':         item.notas || '',
-        };
-    });
-
-    // Sheet 2: Apenas diferenças
-    const diffRows = rows.filter(r => r['Diferença'] !== 0);
-
-    const wb = XLSX.utils.book_new();
-
-    // Sheet 1
-    const ws1 = XLSX.utils.json_to_sheet(rows);
-    ws1['!cols'] = [12,30,12,14,16,12,10,18,25].map(w => ({ wch: w }));
-    XLSX.utils.book_append_sheet(wb, ws1, 'Inventário Completo');
-
-    // Sheet 2
-    if (diffRows.length > 0) {
-        const ws2 = XLSX.utils.json_to_sheet(diffRows);
-        ws2['!cols'] = [12,30,12,14,16,12,10,18,25].map(w => ({ wch: w }));
-        XLSX.utils.book_append_sheet(wb, ws2, 'Diferenças');
-    }
-
-    // Sheet 3: Resumo
-    const summaryData = [
-        ['Hiperfrio Stock — Relatório de Inventário', ''],
-        ['Data', dateStr],
-        ['Hora', timeStr],
-        ['Produtos verificados', Object.keys(_invChanges).length],
-        ['Produtos saltados', _invSkipped.size],
-        ['Total de produtos', _invItems.length],
-        ['Diferenças encontradas', diffRows.length],
-        ['Unidades adicionadas', rows.reduce((s,r) => s + Math.max(0, r['Diferença']), 0)],
-        ['Unidades removidas',   rows.reduce((s,r) => s + Math.abs(Math.min(0, r['Diferença'])), 0)],
-    ];
-    const ws3 = XLSX.utils.aoa_to_sheet(summaryData);
-    ws3['!cols'] = [{ wch: 30 }, { wch: 20 }];
-    XLSX.utils.book_append_sheet(wb, ws3, 'Resumo');
-
-    const filename = `inventario-hiperfrio-${now.toISOString().slice(0,10)}.xlsx`;
+    const wb       = _buildInventoryWorkbook();
+    const filename = `inventario-hiperfrio-${new Date().toISOString().slice(0,10)}.xlsx`;
     XLSX.writeFile(wb, filename);
     showToast('Excel exportado com sucesso!');
 }
@@ -3209,10 +3157,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Aplica tema guardado (claro / escuro / glass)
     const savedTheme = localStorage.getItem('hiperfrio-tema') || 'light';
     _applyTheme(savedTheme);
-    // Setup scroll behaviours com o tema carregado (DOM já existe)
-    _setupSearchScrollBehaviour(savedTheme === 'glass');
+    // _applyTheme já chama _setupSearchScrollBehaviour e _setupBottomNavScrollBehaviour
     _setupAdminSwipe();
-    _setupBottomNavScrollBehaviour(true); // pill activo em todos os temas
 
     // Migração legacy PIN — só corre uma vez
     if (!localStorage.getItem('hiperfrio-migrated')) {
@@ -3480,7 +3426,7 @@ document.addEventListener('DOMContentLoaded', () => {
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
-            .then(() => console.log('PWA SW registado'))
+            .then(() => console.debug('PWA SW registado'))
             .catch(e => console.warn('PWA SW erro:', e));
     });
 }
