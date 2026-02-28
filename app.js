@@ -434,13 +434,15 @@ function nav(viewId) {
 
     document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
     const bnavMap = {
-        'view-search':'bnav-search','view-tools':'bnav-tools','view-register':'bnav-register',
-        'view-bulk':'bnav-bulk','view-admin':'bnav-admin'
+        'view-search':'bnav-search','view-tools':'bnav-tools',
+        'view-register':'bnav-add','view-bulk':'bnav-add',
+        'view-admin':'bnav-admin'
     };
     document.getElementById(bnavMap[viewId])?.classList.add('active');
 
     if (document.getElementById('side-menu')?.classList.contains('open')) toggleMenu();
     window.scrollTo(0, 0);
+    bnavAddClose(); // fecha o mini-menu ao navegar
     // Re-setup swipe ao entrar na admin (slider pode ter sido re-renderizado)
     if (viewId === 'view-admin') { switchAdminTab(ADMIN_TABS[_adminIdx], false); }
     // Garante que o bottom nav pill está visível ao mudar de vista
@@ -3154,6 +3156,47 @@ function closeToolTimeline() {
 }
 
 
+
+// =============================================
+// BOTTOM NAV — botão + com mini-menu
+// =============================================
+let _bnavAddOpen = false;
+
+function bnavAddToggle() {
+    _bnavAddOpen ? bnavAddClose() : bnavAddOpen();
+}
+
+function bnavAddOpen() {
+    _bnavAddOpen = true;
+    const menu    = document.getElementById('bnav-add-menu');
+    const overlay = document.getElementById('bnav-add-overlay');
+    const btn     = document.getElementById('bnav-add');
+    menu?.classList.add('open');
+    overlay?.classList.add('open');
+    btn?.classList.add('add-open');
+    // fecha ao pressionar Escape
+    document.addEventListener('keydown', _bnavAddEsc, { once: true });
+}
+
+function bnavAddClose() {
+    _bnavAddOpen = false;
+    const menu    = document.getElementById('bnav-add-menu');
+    const overlay = document.getElementById('bnav-add-overlay');
+    const btn     = document.getElementById('bnav-add');
+    menu?.classList.remove('open');
+    overlay?.classList.remove('open');
+    btn?.classList.remove('add-open');
+}
+
+function _bnavAddEsc(e) {
+    if (e.key === 'Escape') bnavAddClose();
+}
+
+function bnavAddChoose(viewId) {
+    bnavAddClose();
+    nav(viewId);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // Tema
@@ -3433,4 +3476,3 @@ if ('serviceWorker' in navigator) {
             .catch(e => console.warn('PWA SW erro:', e));
     });
 }
-z
