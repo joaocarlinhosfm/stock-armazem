@@ -61,6 +61,7 @@
             </div>
             
             <ul class="menu-items">
+                <li id="nav-dashboard" onclick="nav('view-dashboard')"><span>📊</span> Dashboard</li>
                 <li id="nav-search" class="active" onclick="nav('view-search')"><span>🔍</span> Consultar Stock</li>
                 <li id="nav-tools" onclick="nav('view-tools')"><span>🛠️</span> Ferramentas</li>
                 <li id="nav-register" onclick="nav('view-register')" data-manager-only><span>➕</span> Novo Produto</li>
@@ -87,11 +88,23 @@
                 </div>
                 <button id="btn-refresh" onclick="forceRefresh()" title="Atualizar stock">↻</button>
             </div>
-            <div id="dashboard"></div>
             <div id="stock-list"></div>
         </div>
 
-        <div id="view-tools" class="view">
+        <div id="view-dashboard" class="view">
+            <div class="dash-view-header">
+                <h2 class="dash-view-title">Dashboard</h2>
+                <button id="btn-dash-refresh" class="dash-refresh-btn" onclick="renderDashboard(true)" title="Actualizar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                        <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="dashboard"></div>
+        </div>
+
+                <div id="view-tools" class="view">
             <div class="tools-header">
                 <h2>Painel de Ferramentas</h2>
                 <button class="btn-timeline" onclick="openToolTimeline()" title="Ver timeline">📅 Timeline</button>
@@ -333,6 +346,15 @@
     <div id="bnav-add-overlay" class="bnav-add-overlay" onclick="bnavAddClose()" aria-hidden="true"></div>
 
     <nav id="bottom-nav">
+        <button class="bottom-nav-item" id="bnav-dashboard" onclick="nav('view-dashboard')" aria-label="Dashboard">
+            <span class="bnav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                </svg>
+            </span>
+            <span class="bnav-label">Dashboard</span>
+        </button>
         <button class="bottom-nav-item active" id="bnav-search" onclick="nav('view-search')" aria-label="Stock">
             <span class="bnav-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -340,14 +362,6 @@
                 </svg>
             </span>
             <span class="bnav-label">Stock</span>
-        </button>
-        <button class="bottom-nav-item" id="bnav-tools" onclick="nav('view-tools')" aria-label="Ferramentas">
-            <span class="bnav-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-                </svg>
-            </span>
-            <span class="bnav-label">Ferramentas</span>
         </button>
         <!-- Botão + central (manager only) -->
         <button class="bottom-nav-item bnav-add-btn" id="bnav-add" onclick="bnavAddToggle()" data-manager-only aria-label="Adicionar">
