@@ -150,9 +150,9 @@ function switchRole() {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     // Reset nav activo
     document.querySelectorAll('.menu-items li, .bottom-nav-item').forEach(b => b.classList.remove('active'));
-    // Volta ao stock ao próximo login
-    document.getElementById('view-search')?.classList.add('active');
-    document.getElementById('nav-search')?.classList.add('active');
+    // Volta ao dashboard ao próximo login
+    document.getElementById('view-dashboard')?.classList.add('active');
+    document.getElementById('nav-dashboard')?.classList.add('active');
 }
 
 function openSwitchRoleModal() {
@@ -166,13 +166,14 @@ function closeSwitchRoleModal() {
 // Inicializa a app após o perfil estar definido
 async function bootApp() {
     try { await getAuthToken(); } catch { /* offline — continua com cache */ }
-    _scheduleTokenRenewal(); // inicia ciclo de renovação proactiva (ponto 1)
-    renderDashboard();
+    _scheduleTokenRenewal();
     renderList();
     fetchCollection('ferramentas');
     fetchCollection('funcionarios');
     updatePinStatusUI();
     updateOfflineBanner();
+    // Navega para o dashboard como vista inicial
+    nav('view-dashboard');
 }
 
 // =============================================
@@ -423,10 +424,12 @@ function nav(viewId) {
     }
     if (viewId === 'view-tools')  renderTools();
 
+    if (viewId === 'view-dashboard') { renderDashboard(true); }
     if (viewId === 'view-admin')  { renderWorkers(); renderAdminTools(); }
 
     document.querySelectorAll('.menu-items li').forEach(li => li.classList.remove('active'));
     const sideMap = {
+        'view-dashboard':'nav-dashboard',
         'view-search':'nav-search','view-tools':'nav-tools','view-register':'nav-register',
         'view-bulk':'nav-bulk','view-admin':'nav-admin'
     };
@@ -434,6 +437,7 @@ function nav(viewId) {
 
     document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
     const bnavMap = {
+        'view-dashboard':'bnav-dashboard',
         'view-search':'bnav-search','view-tools':'bnav-tools',
         'view-register':'bnav-add','view-bulk':'bnav-add',
         'view-admin':'bnav-admin'
@@ -475,19 +479,21 @@ function _getDashTrend(field, currentVal) {
     } catch { return null; }
 }
 
-async function renderDashboard() {
+async function renderDashboard(force = false) {
     const el = document.getElementById('dashboard');
     if (!el) return;
 
-    // Mostra skeleton enquanto carrega
+    // Spinner no botão de refresh
+    const refreshBtn = document.getElementById('btn-dash-refresh');
+    if (refreshBtn) refreshBtn.classList.add('spinning');
+
     el.innerHTML = '';
     el.className = 'dashboard';
 
-    // Invalida cache dos dois ao mesmo tempo para garantir consistência temporal
     const ts = Date.now();
     const [stockData, ferrData] = await Promise.all([
-        fetchCollection('stock', ts > cache.stock.lastFetch + 60000),
-        fetchCollection('ferramentas', ts > cache.ferramentas.lastFetch + 60000)
+        fetchCollection('stock', force || ts > cache.stock.lastFetch + 60000),
+        fetchCollection('ferramentas', force || ts > cache.ferramentas.lastFetch + 60000)
     ]);
 
     const stockEntries  = Object.values(stockData || {});
@@ -560,6 +566,8 @@ async function renderDashboard() {
         card.appendChild(lbl);
         el.appendChild(card);
     });
+
+    if (refreshBtn) refreshBtn.classList.remove('spinning');
 }
 
 
