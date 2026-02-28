@@ -3650,3 +3650,68 @@ body.glass-mode .bnav-add-option-icon {
     background: rgba(37,99,235,0.25);
     color: #60a5fa;
 }
+
+/* =============================================
+   VIEW DASHBOARD — vista dedicada
+   ============================================= */
+.dash-view-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 16px 12px;
+}
+.dash-view-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.5px;
+}
+.dash-refresh-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--input-fill);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.dash-refresh-btn:hover { background: var(--primary-soft); color: var(--primary); }
+.dash-refresh-btn svg { display: block; }
+.dash-refresh-btn.spinning svg {
+    animation: spin 0.7s linear infinite;
+}
+
+/* Dashboard cards — mais espaço na vista dedicada */
+#view-dashboard .dashboard {
+    padding: 0 12px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+#view-dashboard .dash-card {
+    border-radius: 18px;
+    padding: 20px 16px;
+    min-height: 110px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+#view-dashboard .dash-icon { font-size: 1.8rem; }
+#view-dashboard .dash-value { font-size: 2rem; font-weight: 800; }
+#view-dashboard .dash-label { font-size: 0.78rem; }
+
+/* Glass */
+body.glass-mode .dash-view-title { color: rgba(255,255,255,0.95); }
+body.glass-mode .dash-refresh-btn {
+    background: rgba(255,255,255,0.10);
+    color: rgba(255,255,255,0.60);
+    border: 1px solid var(--glass-border);
+}
+body.glass-mode .dash-refresh-btn:hover {
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+}
