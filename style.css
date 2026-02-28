@@ -11,7 +11,6 @@
     --success: #22c55e;
     --header-h: 60px;
     --sidebar-w: 260px;
-    --bottom-nav-h: 68px;
 }
 
 .dark-mode {
@@ -29,6 +28,12 @@
     padding: 0; 
     -webkit-tap-highlight-color: transparent; 
     outline: none; 
+}
+/* Acessibilidade: repõe outline para utilizadores de teclado */
+:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 4px;
 }
 
 body { 
@@ -423,6 +428,7 @@ header h1 {
 .modal-overlay { 
     position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 5000; 
     display: none !important; align-items: center; justify-content: center; 
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px); 
 }
 .modal-overlay.active { display: flex !important; }
@@ -2213,6 +2219,7 @@ body.glass-mode::after {
 /* ── HEADER ── */
 body.glass-mode header {
     background: var(--glass-bg);
+    -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border-bottom: 1px solid var(--glass-border);
@@ -2223,6 +2230,7 @@ body.glass-mode header {
 /* ── SIDE MENU ── */
 body.glass-mode #side-menu {
     background: var(--glass-bg);
+    -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border-right: 1px solid var(--glass-border);
@@ -2255,6 +2263,7 @@ body.glass-mode .menu-divider {
 }
 body.glass-mode #menu-overlay {
     background: rgba(0, 0, 0, 0.50);
+    -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
 }
@@ -2263,6 +2272,7 @@ body.glass-mode #menu-overlay {
 /* ── BOTTOM NAV — overrides glass (pill base já definido globalmente) ── */
 body.glass-mode #bottom-nav {
     background: rgba(12, 12, 30, 0.52);
+    -webkit-backdrop-filter: saturate(200%) blur(28px);
     backdrop-filter: saturate(200%) blur(28px);
     -webkit-backdrop-filter: saturate(200%) blur(28px);
     border-color: var(--glass-border);
@@ -2283,6 +2293,7 @@ body.glass-mode .bottom-nav-item.active::before {
 /* ── CARDS DE STOCK ── */
 body.glass-mode .item-card {
     background: var(--glass-bg-card);
+    -webkit-backdrop-filter: var(--glass-blur-sm);
     backdrop-filter: var(--glass-blur-sm);
     -webkit-backdrop-filter: var(--glass-blur-sm);
     border: 1px solid var(--glass-border);
@@ -2319,6 +2330,7 @@ body.glass-mode .card-notas { color: rgba(255,255,255,0.60); }
 /* ── DASHBOARD ── */
 body.glass-mode .dash-card {
     background: var(--glass-bg-card);
+    -webkit-backdrop-filter: var(--glass-blur-sm);
     backdrop-filter: var(--glass-blur-sm);
     -webkit-backdrop-filter: var(--glass-blur-sm);
     border: 1px solid var(--glass-border);
@@ -2346,6 +2358,7 @@ body.glass-mode .dash-value { color: #fff; }
 /* ── FERRAMENTAS ── */
 body.glass-mode .tool-card {
     background: var(--glass-bg-card);
+    -webkit-backdrop-filter: var(--glass-blur-sm);
     backdrop-filter: var(--glass-blur-sm);
     -webkit-backdrop-filter: var(--glass-blur-sm);
     border: 1px solid var(--glass-border);
@@ -2376,6 +2389,7 @@ body.glass-mode .blue-input {
     border: 1px solid var(--glass-border);
     color: #fff;
     border-radius: 14px;
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
 }
@@ -2402,6 +2416,7 @@ body.glass-mode .unit-dropdown-btn.active {
 }
 body.glass-mode .unit-menu {
     background: rgba(20, 20, 40, 0.75);
+    -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border);
@@ -2418,6 +2433,7 @@ body.glass-mode .unit-option.active {
 /* Sort menu */
 body.glass-mode #sort-menu {
     background: rgba(20, 20, 40, 0.80);
+    -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border);
@@ -2443,6 +2459,7 @@ body.glass-mode .btn-primary {
     background: linear-gradient(135deg, rgba(10,132,255,0.85), rgba(90,80,255,0.75));
     border: 1px solid rgba(10, 132, 255, 0.50);
     box-shadow: 0 4px 16px rgba(10, 132, 255, 0.30), inset 0 1px 0 rgba(255,255,255,0.20);
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     color: #fff;
@@ -2470,6 +2487,7 @@ body.glass-mode .btn-settings-action {
     border: 1px solid var(--glass-border);
     color: rgba(255,255,255,0.85);
     border-radius: 12px;
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
 }
 body.glass-mode .btn-settings-action:hover {
@@ -2481,11 +2499,13 @@ body.glass-mode .btn-settings-action:hover {
 /* ── MODAIS ── */
 body.glass-mode .modal-overlay {
     background: rgba(0, 0, 0, 0.55);
+    -webkit-backdrop-filter: blur(6px);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
 }
 body.glass-mode .modal-content {
     background: rgba(18, 18, 40, 0.72);
+    -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border);
@@ -2519,6 +2539,7 @@ body.glass-mode .pin-key {
     border-radius: 50%;
     font-size: 1.3rem;
     box-shadow: 0 2px 8px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.12);
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     transition: background 0.12s, transform 0.10s;
@@ -2594,6 +2615,7 @@ body.glass-mode .settings-item {
     background: rgba(255,255,255,0.06);
     border: 1px solid var(--glass-border);
     border-radius: 16px;
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
 }
@@ -2638,6 +2660,7 @@ body.glass-mode #role-screen {
 }
 body.glass-mode #role-screen-inner {
     background: rgba(15, 15, 35, 0.55);
+    -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border);
@@ -2652,6 +2675,7 @@ body.glass-mode .role-btn {
     border: 1px solid var(--glass-border);
     border-radius: 20px;
     color: #fff;
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     box-shadow: 0 4px 16px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.12);
@@ -2670,6 +2694,7 @@ body.glass-mode .role-btn-desc  { color: rgba(255,255,255,0.55); }
 /* ── TOAST ── */
 body.glass-mode .toast {
     background: rgba(30, 30, 60, 0.80);
+    -webkit-backdrop-filter: var(--glass-blur-sm);
     backdrop-filter: var(--glass-blur-sm);
     -webkit-backdrop-filter: var(--glass-blur-sm);
     border: 1px solid var(--glass-border);
@@ -2681,6 +2706,7 @@ body.glass-mode .toast {
 /* ── OFFLINE BANNER ── */
 body.glass-mode #offline-banner {
     background: rgba(255, 149, 10, 0.20);
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border-bottom: 1px solid rgba(255,149,10,0.35);
@@ -2691,6 +2717,7 @@ body.glass-mode #offline-banner {
 body.glass-mode .zero-filter-badge {
     background: rgba(255,69,58,0.15);
     border: 1px solid rgba(255,69,58,0.35);
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     color: rgba(255,255,255,0.85);
@@ -2717,6 +2744,7 @@ body.glass-mode .swipe-bg-right {
 body.glass-mode .icon-picker-modal-content {
     background: rgba(18, 18, 40, 0.78);
     border: 1px solid var(--glass-border);
+    -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
 }
@@ -2787,6 +2815,7 @@ body.glass-mode .role-badge-manager,
 body.glass-mode .role-badge-worker {
     background: rgba(255,255,255,0.12);
     border: 1px solid var(--glass-border);
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     color: #fff;
     border-radius: 20px;
@@ -2805,6 +2834,7 @@ body.glass-mode .search-container {
     padding: 10px 12px;
     border-radius: 24px;
     border: 1px solid var(--glass-border);
+    -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     background: rgba(255,255,255,0.07);
@@ -2837,6 +2867,7 @@ body.glass-mode .search-peek-btn {
     left: 50%;
     transform: translateX(-50%) translateY(-60px);
     background: rgba(18,18,40,0.70);
+    -webkit-backdrop-filter: var(--glass-blur-sm);
     backdrop-filter: var(--glass-blur-sm);
     -webkit-backdrop-filter: var(--glass-blur-sm);
     border: 1px solid var(--glass-border);
@@ -2861,6 +2892,7 @@ body.glass-mode .search-input-wrap {
     background: transparent;
     border: none;
     border-radius: 14px;
+    -webkit-backdrop-filter: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     box-shadow: none;
@@ -2881,6 +2913,7 @@ body.glass-mode #btn-refresh {
     border: 1px solid var(--glass-border);
     color: rgba(255,255,255,0.80);
     border-radius: 14px;
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     flex-shrink: 0;
 }
@@ -2893,6 +2926,7 @@ body.glass-mode .btn-timeline {
     border: 1px solid var(--glass-border);
     color: rgba(255,255,255,0.80);
     border-radius: 12px;
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
 }
 body.glass-mode .tools-search-wrap .blue-input {
@@ -2911,6 +2945,7 @@ body.glass-mode .btn-load-more {
     border: 1px solid var(--glass-border);
     color: rgba(255,255,255,0.70);
     border-radius: 14px;
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
 }
 body.glass-mode .btn-load-more:hover {
@@ -2975,6 +3010,7 @@ body.glass-mode .btn-close-batch {
     border: 1px solid var(--glass-border);
     color: rgba(255,255,255,0.75);
     border-radius: 14px;
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
 }
 body.glass-mode .btn-close-batch:hover {
@@ -3002,6 +3038,7 @@ body.glass-mode .bulk-counter {
     border: 1px solid rgba(10,132,255,0.30);
     color: rgba(255,255,255,0.85);
     border-radius: 12px;
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
 }
 
@@ -3408,6 +3445,7 @@ body.glass-mode .theme-dropdown-wrap.open .theme-dropdown-btn {
 body.glass-mode .theme-dropdown-arrow { color: rgba(255,255,255,0.45); }
 body.glass-mode .theme-menu {
     background: rgba(18,18,40,0.88);
+    -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border-color: var(--glass-border);
