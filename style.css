@@ -554,10 +554,8 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
 /* ── Slider wrap — corta overflow horizontal ── */
 .admin-slider-wrap {
     overflow: hidden;
-    /* margem negativa para ir de edge a edge e não cortar sombras do card */
-    margin: 0 -2px;
-    padding: 0 2px;
-    /* permite scroll vertical dentro dos painéis */
+    /* overflow-x:clip garante corte duro mesmo com stacking contexts filhos */
+    overflow-x: clip;
     touch-action: pan-y;
 }
 
@@ -583,7 +581,6 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
     /* painéis nunca ficam display:none — visibilidade por transform */
     display: block !important;
     box-sizing: border-box;
-    padding-right: 4px;  /* micro-gap entre painéis */
 }
 
 /* Settings items */
@@ -596,6 +593,13 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
     border: 1px solid var(--border);
     border-radius: 14px;
     margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+}
+/* O settings-item com o dropdown de tema precisa de z-index superior
+   para que o menu flutue por cima dos itens abaixo */
+.settings-item-theme {
+    z-index: 10;
 }
 
 .settings-item-info {
@@ -3399,7 +3403,7 @@ body.glass-mode .admin-tool-btn-del:hover  { background: rgba(255,69,58,0.18);  
     border-radius: 14px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06);
     overflow: hidden;
-    z-index: 200;
+    z-index: 500;
     animation: fadeIn 0.15s ease-out;
 }
 .theme-menu.open { display: block; }
