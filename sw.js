@@ -1,6 +1,6 @@
 // Cache version — bump this string on every deploy to force SW update
 // TIP: use a CI/CD script to auto-replace this with a build hash
-const CACHE_VERSION = 'hiperfrio-v5.19';
+const CACHE_VERSION = 'hiperfrio-v5.20';
 const ASSETS = [
     './',
     './index.html',
@@ -31,31 +31,32 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-    // Never cache Firebase or Google Auth requests — always network
+    // Nunca interceptar Firebase, Google Auth ou Gemini
     if (e.request.url.includes('firebasedatabase.app')) return;
     if (e.request.url.includes('googleapis.com')) return;
     if (e.request.url.includes('gstatic.com')) return;
     if (e.request.url.includes('firebaseapp.com')) return;
 
-    // Network-first for HTML to always get latest app
-    if (e.request.mode === 'navigate') {
-        e.respondWith(
-            fetch(e.request)
-                .then(res => {
+    // Network-first para todos os assets do app (HTML, CSS, JS, imagens)
+    // Cache apenas como fallback offline — garante que o deploy chega sempre
+    e.respondWith(
+        fetch(e.request)
+            .then(res => {
+                // Só guarda em cache respostas válidas do nosso próprio domínio
+                if (res.ok && (
+                    e.request.url.includes(self.location.origin) ||
+                    e.request.url.includes('cdnjs.cloudflare.com')
+                )) {
                     const clone = res.clone();
                     caches.open(CACHE_VERSION).then(c => c.put(e.request, clone));
-                    return res;
-                })
-                .catch(() => caches.match(e.request))
-        );
-        return;
-    }
-
-    // Cache-first for CSS/JS/image assets
-    e.respondWith(
-        caches.match(e.request).then(cached => cached || fetch(e.request)
-            .catch(err => console.warn('[SW] fetch failed:', e.request.url, err))
-        )
+                }
+                return res;
+            })
+            .catch(() => {
+                // Offline: serve da cache se disponível
+                return caches.match(e.request)
+                    .then(cached => cached || new Response('Offline', { status: 503 }));
+            })
     );
 });
 
