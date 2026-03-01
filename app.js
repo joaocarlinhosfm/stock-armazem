@@ -424,12 +424,14 @@ function nav(viewId) {
     }
     if (viewId === 'view-tools')  renderTools();
 
-    if (viewId === 'view-dashboard') { renderDashboard(true); renderPats(); }
+    if (viewId === 'view-dashboard') { renderDashboard(true); updatePatCount(); }
+    if (viewId === 'view-pedidos')   { renderPats(); }
     if (viewId === 'view-admin')  { renderWorkers(); renderAdminTools(); }
 
     document.querySelectorAll('.menu-items li').forEach(li => li.classList.remove('active'));
     const sideMap = {
         'view-dashboard':'nav-dashboard',
+        'view-pedidos':'nav-pedidos',
         'view-search':'nav-search','view-tools':'nav-tools','view-register':'nav-register',
         'view-bulk':'nav-bulk','view-admin':'nav-admin'
     };
@@ -3503,30 +3505,38 @@ if ('serviceWorker' in navigator) {
 // PEDIDOS PAT
 // =============================================
 const PAT_URL = `${BASE_URL}/pedidos.json`;
-let _patProducts = []; // produtos seleccionados no modal
-let _patDropdownIdx = -1; // índice seleccionado no dropdown (teclado)
+let _patProducts = []; // {id, codigo, nome, quantidade}
+let _patDropdownIdx = -1;
 
-// ── Cache local de pedidos (TTL 2min) ────────────────────────────────────────
 const _patCache = { data: null, lastFetch: 0 };
 
 async function _fetchPats(force = false) {
     const now = Date.now();
-    if (!force && _patCache.data && now - _patCache.lastFetch < 120000) {
-        return _patCache.data;
-    }
+    if (!force && _patCache.data && now - _patCache.lastFetch < 120000) return _patCache.data;
     try {
         const url = await authUrl(`${BASE_URL}/pedidos.json`);
         const res = await fetch(url);
         if (!res.ok) throw new Error(res.status);
         _patCache.data = await res.json() || {};
         _patCache.lastFetch = now;
-    } catch {
-        _patCache.data = _patCache.data || {};
-    }
+    } catch { _patCache.data = _patCache.data || {}; }
     return _patCache.data;
 }
 
-// ── Renderizar lista de PATs no dashboard ────────────────────────────────────
+// ── Contador no card do dashboard ────────────────────────────────────────────
+async function updatePatCount() {
+    const el = document.getElementById('dash-pedidos-count');
+    if (!el) return;
+    const pats = await _fetchPats();
+    const pendentes = Object.values(pats || {}).filter(p => p.status !== 'levantado').length;
+    el.textContent = pendentes === 0 ? 'Nenhum pendente'
+                   : pendentes === 1 ? '1 pedido pendente'
+                   : `${pendentes} pedidos pendentes`;
+    const card = document.getElementById('dash-pedidos-card');
+    if (card) card.classList.toggle('dash-pedidos-btn--has', pendentes > 0);
+}
+
+// ── Renderizar lista de PATs ──────────────────────────────────────────────────
 async function renderPats() {
     const el = document.getElementById('pat-list');
     if (!el) return;
@@ -3539,13 +3549,15 @@ async function renderPats() {
 
     if (entries.length === 0) {
         el.innerHTML = '<div class="pat-empty">Nenhum pedido pendente.</div>';
+        updatePatCount();
         return;
     }
 
     el.innerHTML = '';
     entries.forEach(([id, pat]) => {
         const card = document.createElement('div');
-        card.className = 'pat-card';
+        const separacao = !!pat.separacao;
+        card.className = 'pat-card' + (separacao ? ' pat-card-separacao' : '');
         card.onclick = () => openPatDetail(id, pat);
 
         const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
@@ -3554,12 +3566,15 @@ async function renderPats() {
 
         card.innerHTML = `
             <div class="pat-card-top">
-                <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}">PAT ${escapeHtml(pat.numero || '—')}</span>
+                <div class="pat-card-top-left">
+                    <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}">PAT ${escapeHtml(pat.numero || '—')}</span>
+                    ${separacao ? '<span class="pat-sep-tag">📦 Separação</span>' : ''}
+                </div>
                 <span class="pat-dias ${urgente ? 'pat-dias-urgente' : ''}">${diasLabel}</span>
             </div>
             <div class="pat-card-estab">${escapeHtml(pat.estabelecimento || 'Sem estabelecimento')}</div>
             <div class="pat-card-produtos">${(pat.produtos || []).map(p =>
-                `<span class="pat-prod-chip">${escapeHtml(p.codigo || p.nome || '?')}</span>`
+                `<span class="pat-prod-chip">${escapeHtml(p.codigo || '?')} × ${p.quantidade || 1}</span>`
             ).join('')}</div>
             <div class="pat-card-actions" onclick="event.stopPropagation()">
                 <button class="pat-btn-levantado" onclick="marcarPatLevantado('${id}')">✓ Levantado</button>
@@ -3567,9 +3582,10 @@ async function renderPats() {
             </div>`;
         el.appendChild(card);
     });
+    updatePatCount();
 }
 
-// ── Abrir modal de criação ───────────────────────────────────────────────────
+// ── Modal criar ───────────────────────────────────────────────────────────────
 function openPatModal() {
     _patProducts = [];
     document.getElementById('pat-numero').value = '';
@@ -3578,6 +3594,7 @@ function openPatModal() {
     document.getElementById('pat-product-dropdown').innerHTML = '';
     document.getElementById('pat-product-chips').innerHTML = '';
     document.getElementById('pat-numero-hint').textContent = '';
+    document.getElementById('pat-separacao').checked = false;
     document.getElementById('pat-modal').classList.add('active');
     focusModal('pat-modal');
     setTimeout(() => document.getElementById('pat-numero').focus(), 80);
@@ -3588,7 +3605,7 @@ function closePatModal() {
     document.getElementById('pat-product-dropdown').innerHTML = '';
 }
 
-// ── Autocomplete de produtos ─────────────────────────────────────────────────
+// ── Autocomplete de produtos ──────────────────────────────────────────────────
 function patProductSearch(val) {
     _patDropdownIdx = -1;
     const dd = document.getElementById('pat-product-dropdown');
@@ -3598,7 +3615,7 @@ function patProductSearch(val) {
     const stock = cache.stock.data || {};
     const matches = Object.entries(stock)
         .filter(([id, item]) => {
-            if (_patProducts.some(p => p.id === id)) return false; // já adicionado
+            if (_patProducts.some(p => p.id === id)) return false;
             const codigo = (item.codigo || '').toLowerCase();
             const nome   = (item.nome   || '').toLowerCase();
             return codigo.startsWith(q) || nome.includes(q);
@@ -3615,8 +3632,11 @@ function patProductSearch(val) {
         const opt = document.createElement('div');
         opt.className = 'pat-dd-option';
         opt.dataset.idx = i;
-        opt.innerHTML = `<span class="pat-dd-code">${escapeHtml((item.codigo||'SEMREF').toUpperCase())}</span>
-                         <span class="pat-dd-name">${escapeHtml(item.nome||'')}</span>`;
+        const stockQty = item.quantidade || 0;
+        opt.innerHTML = `
+            <span class="pat-dd-code">${escapeHtml((item.codigo||'SEMREF').toUpperCase())}</span>
+            <span class="pat-dd-name">${escapeHtml(item.nome||'')}</span>
+            <span class="pat-dd-stock">Stock: ${stockQty}</span>`;
         opt.onmousedown = (e) => { e.preventDefault(); patAddProduct(id, item); };
         dd.appendChild(opt);
     });
@@ -3626,7 +3646,6 @@ function patProductKeydown(e) {
     const dd = document.getElementById('pat-product-dropdown');
     const opts = dd.querySelectorAll('.pat-dd-option');
     if (!opts.length) return;
-
     if (e.key === 'ArrowDown') {
         e.preventDefault();
         _patDropdownIdx = Math.min(_patDropdownIdx + 1, opts.length - 1);
@@ -3645,7 +3664,13 @@ function patProductKeydown(e) {
 
 function patAddProduct(id, item) {
     if (_patProducts.some(p => p.id === id)) return;
-    _patProducts.push({ id, codigo: (item.codigo||'SEMREF').toUpperCase(), nome: item.nome || '' });
+    _patProducts.push({
+        id,
+        codigo: (item.codigo || 'SEMREF').toUpperCase(),
+        nome: item.nome || '',
+        quantidade: 1,
+        stockDisponivel: item.quantidade || 0
+    });
     _renderPatChips();
     document.getElementById('pat-product-search').value = '';
     document.getElementById('pat-product-dropdown').innerHTML = '';
@@ -3657,26 +3682,58 @@ function patRemoveProduct(id) {
     _renderPatChips();
 }
 
+function patSetQty(id, val) {
+    const prod = _patProducts.find(p => p.id === id);
+    if (!prod) return;
+    const n = Math.max(1, parseInt(val) || 1);
+    prod.quantidade = n;
+    // Actualiza visualmente o input sem re-renderizar tudo
+    const inp = document.querySelector(`.pat-chip[data-id="${id}"] .pat-chip-qty`);
+    if (inp && inp !== document.activeElement) inp.value = n;
+}
+
 function _renderPatChips() {
     const el = document.getElementById('pat-product-chips');
     el.innerHTML = '';
     _patProducts.forEach(p => {
         const chip = document.createElement('div');
         chip.className = 'pat-chip';
-        chip.innerHTML = `<span>${escapeHtml(p.codigo)}</span>
-                          <span class="pat-chip-name">${escapeHtml(p.nome)}</span>
-                          <button class="pat-chip-remove" onclick="patRemoveProduct('${p.id}')" aria-label="Remover">×</button>`;
+        chip.dataset.id = p.id;
+        chip.innerHTML = `
+            <div class="pat-chip-info">
+                <span class="pat-chip-code">${escapeHtml(p.codigo)}</span>
+                <span class="pat-chip-name">${escapeHtml(p.nome)}</span>
+            </div>
+            <div class="pat-chip-controls">
+                <span class="pat-chip-stock-label">Stock: ${p.stockDisponivel}</span>
+                <div class="pat-chip-qty-wrap">
+                    <button class="pat-chip-qty-btn" onmousedown="event.preventDefault()" onclick="patQtyStep('${p.id}',-1)">−</button>
+                    <input class="pat-chip-qty" type="number" min="1" value="${p.quantidade}"
+                        onchange="patSetQty('${p.id}',this.value)"
+                        onblur="patSetQty('${p.id}',this.value)">
+                    <button class="pat-chip-qty-btn" onmousedown="event.preventDefault()" onclick="patQtyStep('${p.id}',1)">+</button>
+                </div>
+                <button class="pat-chip-remove" onclick="patRemoveProduct('${p.id}')" aria-label="Remover">×</button>
+            </div>`;
         el.appendChild(chip);
     });
 }
 
-// ── Guardar PAT ──────────────────────────────────────────────────────────────
-async function savePat() {
-    const numero = document.getElementById('pat-numero').value.trim();
-    const estab  = document.getElementById('pat-estabelecimento').value.trim();
-    const hint   = document.getElementById('pat-numero-hint');
+function patQtyStep(id, delta) {
+    const prod = _patProducts.find(p => p.id === id);
+    if (!prod) return;
+    prod.quantidade = Math.max(1, (prod.quantidade || 1) + delta);
+    const inp = document.querySelector(`.pat-chip[data-id="${id}"] .pat-chip-qty`);
+    if (inp) inp.value = prod.quantidade;
+}
 
-    // Validação: 6 dígitos numéricos
+// ── Guardar PAT ───────────────────────────────────────────────────────────────
+async function savePat() {
+    const numero    = document.getElementById('pat-numero').value.trim();
+    const estab     = document.getElementById('pat-estabelecimento').value.trim();
+    const separacao = document.getElementById('pat-separacao').checked;
+    const hint      = document.getElementById('pat-numero-hint');
+
     if (!/^\d{6}$/.test(numero)) {
         hint.textContent = 'O Nº PAT deve ter exactamente 6 dígitos.';
         hint.style.color = 'var(--danger)';
@@ -3688,7 +3745,13 @@ async function savePat() {
     const payload = {
         numero,
         estabelecimento: estab,
-        produtos: _patProducts,
+        separacao,
+        produtos: _patProducts.map(p => ({
+            id: p.id,
+            codigo: p.codigo,
+            nome: p.nome,
+            quantidade: p.quantidade || 1
+        })),
         status: 'pendente',
         criadoEm: Date.now(),
     };
@@ -3709,51 +3772,77 @@ async function savePat() {
         closePatModal();
         renderPats();
         showToast(`PAT ${numero} registada!`);
-    } catch {
-        showToast('Erro ao guardar pedido', 'error');
-    }
+    } catch { showToast('Erro ao guardar pedido', 'error'); }
 }
 
-// ── Marcar como levantado ────────────────────────────────────────────────────
+// ── Marcar como levantado ─────────────────────────────────────────────────────
 async function marcarPatLevantado(id) {
+    const pat = _patCache.data?.[id];
+    const separacao = !!pat?.separacao;
+
+    const desc = separacao
+        ? 'Pedido com Separação de Material — o stock dos produtos será descontado automaticamente.'
+        : 'O pedido será removido dos pendentes. O stock não será alterado.';
+
     openConfirmModal({
         icon: '✅',
         title: 'Marcar como levantado?',
-        desc: 'O pedido será removido da lista de pendentes.',
+        desc,
         onConfirm: async () => {
             try {
-                const url = await authUrl(`${BASE_URL}/pedidos/${id}.json`);
-                await fetch(url, {
+                // 1 — Marca como levantado na Firebase
+                const patUrl = await authUrl(`${BASE_URL}/pedidos/${id}.json`);
+                await fetch(patUrl, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ status: 'levantado', levantadoEm: Date.now() }),
                 });
                 if (_patCache.data?.[id]) _patCache.data[id].status = 'levantado';
+
+                // 2 — Se separação: desconta stock de cada produto
+                if (separacao && pat.produtos?.length) {
+                    const patches = pat.produtos.map(async (p) => {
+                        if (!p.id) return;
+                        const stockItem = cache.stock.data?.[p.id];
+                        const atual = stockItem?.quantidade ?? 0;
+                        const novaQty = Math.max(0, atual - (p.quantidade || 1));
+                        // Actualiza cache local
+                        if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = novaQty;
+                        // PATCH na Firebase
+                        const sUrl = await authUrl(`${BASE_URL}/stock/${p.id}.json`);
+                        return fetch(sUrl, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ quantidade: novaQty }),
+                        });
+                    });
+                    await Promise.allSettled(patches);
+                    renderList(); // actualiza lista de stock
+                }
+
                 renderPats();
-                showToast('Pedido marcado como levantado!');
-            } catch {
-                showToast('Erro ao actualizar pedido', 'error');
-            }
+                updatePatCount();
+                showToast(separacao ? 'Levantado — stock descontado!' : 'Pedido marcado como levantado!');
+            } catch { showToast('Erro ao actualizar pedido', 'error'); }
         }
     });
 }
 
-// ── Apagar PAT ───────────────────────────────────────────────────────────────
+// ── Apagar PAT ────────────────────────────────────────────────────────────────
 async function apagarPat(id) {
     openConfirmModal({
         icon: '🗑️',
         title: 'Apagar pedido?',
-        desc: 'O pedido será eliminado permanentemente.',
+        desc: 'O pedido será eliminado permanentemente. O stock não é alterado.',
         onConfirm: async () => {
             try {
                 const url = await authUrl(`${BASE_URL}/pedidos/${id}.json`);
                 await fetch(url, { method: 'DELETE' });
                 if (_patCache.data) delete _patCache.data[id];
                 renderPats();
+                updatePatCount();
                 showToast('Pedido apagado');
-            } catch {
-                showToast('Erro ao apagar pedido', 'error');
-            }
+            } catch { showToast('Erro ao apagar pedido', 'error'); }
         }
     });
 }
@@ -3763,21 +3852,25 @@ function openPatDetail(id, pat) {
     const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
     const data = pat.criadoEm ? new Date(pat.criadoEm).toLocaleDateString('pt-PT') : '—';
     const urgente = dias >= 3;
+    const separacao = !!pat.separacao;
 
     document.getElementById('pat-detail-body').innerHTML = `
         <div class="pat-detail-header">
-            <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}" style="font-size:1rem;padding:6px 14px">PAT ${escapeHtml(pat.numero||'—')}</span>
+            <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}" style="font-size:1rem;padding:6px 14px">PAT ${escapeHtml(pat.numero || '—')}</span>
+            ${separacao ? '<span class="pat-sep-tag" style="margin-top:8px">📦 Separação de Material</span>' : ''}
         </div>
-        <div class="pat-detail-row"><span class="pat-detail-lbl">Estabelecimento</span><span>${escapeHtml(pat.estabelecimento||'Não especificado')}</span></div>
+        <div class="pat-detail-row"><span class="pat-detail-lbl">Estabelecimento</span><span>${escapeHtml(pat.estabelecimento || 'Não especificado')}</span></div>
         <div class="pat-detail-row"><span class="pat-detail-lbl">Criado em</span><span>${data}</span></div>
-        <div class="pat-detail-row"><span class="pat-detail-lbl">Estado</span><span>${dias >= 3 ? '🔴 Urgente' : '🟡 Pendente'} (${dias === 0 ? 'hoje' : `${dias}d`})</span></div>
+        <div class="pat-detail-row"><span class="pat-detail-lbl">Desconto stock</span><span>${separacao ? '✅ Sim (ao levantar)' : '⛔ Não'}</span></div>
+        <div class="pat-detail-row"><span class="pat-detail-lbl">Estado</span><span>${urgente ? '🔴 Urgente' : '🟡 Pendente'} (${dias === 0 ? 'hoje' : `${dias}d`})</span></div>
         ${pat.produtos?.length ? `
         <div class="pat-detail-lbl" style="margin-top:14px;margin-bottom:8px">Produtos reservados</div>
         <div class="pat-detail-produtos">
             ${pat.produtos.map(p => `
                 <div class="pat-detail-prod">
-                    <span class="pat-dd-code">${escapeHtml(p.codigo||'?')}</span>
-                    <span class="pat-dd-name">${escapeHtml(p.nome||'')}</span>
+                    <span class="pat-dd-code">${escapeHtml(p.codigo || '?')}</span>
+                    <span class="pat-dd-name">${escapeHtml(p.nome || '')}</span>
+                    <span class="pat-detail-qty">× ${p.quantidade || 1}</span>
                 </div>`).join('')}
         </div>` : '<div class="pat-empty" style="margin-top:12px">Sem produtos associados.</div>'}
         <div class="pat-detail-actions">
