@@ -3907,7 +3907,7 @@ function openGeminiKeyModal() {
     if (inp) inp.value = getGeminiKey();
     document.getElementById('gemini-key-modal').classList.add('active');
     focusModal('gemini-key-modal');
-    setTimeout(() => inp?.focus(), 80);
+    setTimeout(() => inp && inp.focus(), 80);
 }
 
 function closeGeminiKeyModal() {
@@ -3916,24 +3916,20 @@ function closeGeminiKeyModal() {
 
 function saveGeminiKey() {
     const key = document.getElementById('gemini-key-input').value.trim();
-    if (!key) {
-        showToast('Introduz uma API key válida', 'error');
-        return;
-    }
+    if (!key) { showToast('Introduz uma API key válida', 'error'); return; }
     localStorage.setItem(GEMINI_KEY_STORAGE, key);
     closeGeminiKeyModal();
     showToast('API key guardada!');
 }
 
-// Aciona o input de ficheiro (câmara)
+// ── Aciona câmara ─────────────────────────────────────────────────────────────
 function patScanDocument() {
-    const key = getGeminiKey();
-    if (!key) {
+    if (!getGeminiKey()) {
         openConfirmModal({
             icon: '🤖',
             title: 'API Key não configurada',
-            desc: 'Para usar a leitura por foto precisas de configurar a Gemini API Key nas definições.',
-            onConfirm: () => { closePatModal(); setTimeout(() => { nav('view-admin'); }, 200); }
+            desc: 'Para usar a leitura por foto configura a Gemini API Key nas definições.',
+            onConfirm: function() { closePatModal(); setTimeout(function() { nav('view-admin'); }, 200); }
         });
         return;
     }
@@ -3941,47 +3937,132 @@ function patScanDocument() {
     document.getElementById('pat-scan-input').click();
 }
 
-// Processa a imagem seleccionada
-async function patProcessImage(input) {
-    const file = input.files?.[0];
+// ── Redimensiona imagem antes de enviar (melhoria 1) ─────────────────────────
+function _resizeImage(file, maxPx, quality) {
+    return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onerror = function() { reject(new Error('Falha na leitura')); };
+        reader.onload = function(e) {
+            var img = new Image();
+            img.onerror = function() { reject(new Error('Imagem inválida')); };
+            img.onload = function() {
+                var w = img.width, h = img.height;
+                // Só reduz se for maior que o limite
+                if (w <= maxPx && h <= maxPx) {
+                    // Já pequena — usa original em base64
+                    resolve({ base64: e.target.result.split(',')[1], mime: file.type || 'image/jpeg' });
+                    return;
+                }
+                var ratio = Math.min(maxPx / w, maxPx / h);
+                var canvas = document.createElement('canvas');
+                canvas.width  = Math.round(w * ratio);
+                canvas.height = Math.round(h * ratio);
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                var dataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve({ base64: dataUrl.split(',')[1], mime: 'image/jpeg' });
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// ── Normaliza código para matching fuzzy (melhoria 3) ────────────────────────
+function _normalizeCode(code) {
+    return (code || '').toUpperCase()
+        .replace(/[\s\-_\.]/g, '')   // remove espaços, hífens, underscores, pontos
+        .replace(/^0+/, '');            // remove zeros à esquerda
+}
+
+function _matchProductCode(codDoc, stock) {
+    var normDoc = _normalizeCode(codDoc);
+    if (!normDoc) return null;
+    // 1. Correspondência exacta
+    var exact = Object.entries(stock).find(function(entry) {
+        return _normalizeCode(entry[1].codigo) === normDoc;
+    });
+    if (exact) return exact;
+    // 2. Correspondência parcial — doc contém código do stock ou vice-versa
+    var partial = Object.entries(stock).find(function(entry) {
+        var normStock = _normalizeCode(entry[1].codigo);
+        return normStock && (normDoc.includes(normStock) || normStock.includes(normDoc));
+    });
+    return partial || null;
+}
+
+// ── Pré-visualização antes de enviar (melhoria 4) ────────────────────────────
+function patProcessImage(input) {
+    var file = input.files && input.files[0];
     if (!file) return;
 
-    const btn = document.getElementById('pat-scan-btn');
+    // Mostra preview e pede confirmação antes de enviar
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        _showScanPreview(e.target.result, file);
+    };
+    reader.readAsDataURL(file);
+}
+
+function _showScanPreview(dataUrl, file) {
+    var overlay = document.getElementById('pat-scan-preview-overlay');
+    if (!overlay) return;
+    var img = document.getElementById('pat-scan-preview-img');
+    if (img) img.src = dataUrl;
+    overlay.classList.add('active');
+    // Botão confirmar envia a imagem
+    var confirmBtn = document.getElementById('pat-scan-preview-confirm');
+    if (confirmBtn) {
+        confirmBtn.onclick = function() {
+            overlay.classList.remove('active');
+            _sendToGemini(file);
+        };
+    }
+    var retakeBtn = document.getElementById('pat-scan-preview-retake');
+    if (retakeBtn) {
+        retakeBtn.onclick = function() {
+            overlay.classList.remove('active');
+            document.getElementById('pat-scan-input').value = '';
+            document.getElementById('pat-scan-input').click();
+        };
+    }
+}
+
+// ── Envia para Gemini e extrai dados (melhorias 1+2) ─────────────────────────
+async function _sendToGemini(file) {
+    var btn = document.getElementById('pat-scan-btn');
     btn.disabled = true;
     btn.classList.add('pat-scan-btn--loading');
-    btn.innerHTML = '<span class="pat-scan-spinner"></span> A analisar documento...';
+    btn.innerHTML = '<span class="pat-scan-spinner"></span> A redimensionar...';
 
     try {
-        // Converte para base64
-        const base64 = await new Promise((res, rej) => {
-            const r = new FileReader();
-            r.onload = () => res(r.result.split(',')[1]);
-            r.onerror = () => rej(new Error('Falha na leitura do ficheiro'));
-            r.readAsDataURL(file);
-        });
+        // Melhoria 1: reduz para 1400px, qualidade 88% — mantém legibilidade, ~10x mais pequeno
+        var resized = await _resizeImage(file, 1400, 0.88);
+        btn.innerHTML = '<span class="pat-scan-spinner"></span> A analisar documento...';
 
-        // Prepara contexto com os produtos do stock para correspondência
-        const stock = cache.stock.data || {};
-        const produtosList = Object.entries(stock)
-            .map(([id, item]) => `${(item.codigo || 'SEMREF').toUpperCase()} — ${item.nome || ''}`)
-            .join('\n');
+        // Melhoria 2: prompt focado APENAS em extracção — sem lista de stock
+        // A correspondência faz-se localmente depois
+        var prompt = [
+            'Analisa este documento e extrai APENAS as seguintes informações em JSON:',
+            '',
+            '{',
+            '  "numero_pat": "string com 6 dígitos numéricos (campo PAT, Nº PAT, N.º PAT ou número de 6 dígitos)",',
+            '  "estabelecimento": "string com nome do cliente ou estabelecimento",',
+            '  "separacao_material": boolean (true se mencionar separação, guia de transporte, GT, guia de remessa),',
+            '  "produtos": [',
+            '    { "codigo": "referência/código do artigo exatamente como aparece no documento", "quantidade": número }',
+            '  ]',
+            '}',
+            '',
+            'Regras:',
+            '- Copia os códigos EXACTAMENTE como estão no documento, sem alterar',
+            '- Se um campo não existir, usa null',
+            '- Responde APENAS com JSON válido, sem markdown, sem texto extra'
+        ].join('\n');
 
-        const prompt = `Analisa este documento e extrai as seguintes informações em formato JSON:
-- numero_pat: string com 6 dígitos (procura "PAT", "N.º PAT", "Nº PAT" ou número de 6 dígitos)
-- estabelecimento: string com o nome do cliente/estabelecimento
-- separacao_material: boolean (true se o documento mencionar "separação", "guia de transporte", "GT" ou similar)
-- produtos: array de objectos com { codigo: string, quantidade: number }
-
-Lista de produtos disponíveis no stock para correspondência (código — nome):
-${produtosList}
-
-Tenta fazer correspondência dos artigos/referências do documento com os códigos da lista acima.
-Se não encontrares correspondência exacta, usa o código que aparece no documento.
-Responde APENAS com JSON válido, sem texto adicional, sem markdown.`;
-
-        const key = getGeminiKey();
-        const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+        var key = getGeminiKey();
+        var res = await fetch(
+            'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -3989,29 +4070,34 @@ Responde APENAS com JSON válido, sem texto adicional, sem markdown.`;
                     contents: [{
                         parts: [
                             { text: prompt },
-                            { inline_data: { mime_type: file.type || 'image/jpeg', data: base64 } }
+                            { inline_data: { mime_type: resized.mime, data: resized.base64 } }
                         ]
                     }],
-                    generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
+                    generationConfig: { temperature: 0, maxOutputTokens: 512 }
                 })
             }
         );
 
         if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            const msg = err?.error?.message || `Erro ${res.status}`;
-            throw new Error(msg);
+            var errData = {};
+            try { errData = await res.json(); } catch(_e) {}
+            throw new Error((errData.error && errData.error.message) || ('Erro ' + res.status));
         }
 
-        const data = await res.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        var data = await res.json();
+        var text = (data.candidates &&
+                    data.candidates[0] &&
+                    data.candidates[0].content &&
+                    data.candidates[0].content.parts &&
+                    data.candidates[0].content.parts[0] &&
+                    data.candidates[0].content.parts[0].text) || '';
 
-        // Parse JSON — remove eventuais ```json fences
-        const clean = text.replace(/```json|```/g, '').trim();
-        const parsed = JSON.parse(clean);
+        // Remove eventuais ```json fences
+        var clean = text.replace(/```json|```/g, '').trim();
+        var parsed = JSON.parse(clean);
 
-        // Pré-preenche os campos
-        await patFillFromScan(parsed);
+        // Melhoria 2+3: correspondência local com fuzzy match
+        await _fillFromExtraction(parsed);
 
         btn.classList.remove('pat-scan-btn--loading');
         btn.disabled = false;
@@ -4020,7 +4106,7 @@ Responde APENAS com JSON válido, sem texto adicional, sem markdown.`;
         btn.style.borderColor = 'rgba(34,197,94,0.35)';
         btn.style.color = '#16a34a';
 
-    } catch (err) {
+    } catch(err) {
         console.error('Gemini error:', err);
         btn.classList.remove('pat-scan-btn--loading');
         btn.disabled = false;
@@ -4029,18 +4115,18 @@ Responde APENAS com JSON válido, sem texto adicional, sem markdown.`;
         btn.style.borderColor = 'rgba(239,68,68,0.25)';
         btn.style.color = 'var(--danger)';
 
-        const msg = err.message?.includes('API_KEY') ? 'API key inválida — verifica nas definições'
-                  : err.message?.includes('QUOTA')   ? 'Limite diário atingido — tenta amanhã'
-                  : 'Não foi possível ler o documento';
+        var msg = 'Não foi possível ler o documento';
+        if (err.message && err.message.indexOf('API_KEY') !== -1) msg = 'API key inválida — verifica nas definições';
+        else if (err.message && err.message.indexOf('QUOTA') !== -1) msg = 'Limite diário atingido — tenta amanhã';
         showToast(msg, 'error');
     }
 }
 
-// Preenche o modal com os dados extraídos pelo Gemini
-async function patFillFromScan(data) {
+// ── Preenche o modal com dados extraídos + fuzzy match (melhoria 2+3) ─────────
+async function _fillFromExtraction(data) {
     // Nº PAT
     if (data.numero_pat) {
-        const pat = String(data.numero_pat).replace(/\D/g, '').slice(0, 6);
+        var pat = String(data.numero_pat).replace(/[^0-9]/g, '').slice(0, 6);
         document.getElementById('pat-numero').value = pat;
         document.getElementById('pat-numero-hint').textContent = '';
     }
@@ -4055,46 +4141,51 @@ async function patFillFromScan(data) {
         document.getElementById('pat-separacao').checked = true;
     }
 
-    // Produtos — faz match na cache do stock
-    if (Array.isArray(data.produtos) && data.produtos.length > 0) {
-        const stock = cache.stock.data || {};
-        // Garante que a cache está carregada
-        if (!Object.keys(stock).length) await fetchCollection('stock');
+    // Produtos — fuzzy match local (melhoria 3)
+    if (!Array.isArray(data.produtos) || !data.produtos.length) return;
 
-        _patProducts = [];
-        data.produtos.forEach(p => {
-            const codBusca = (p.codigo || '').toUpperCase().trim();
-            if (!codBusca) return;
+    var stock = cache.stock.data || {};
+    if (!Object.keys(stock).length) await fetchCollection('stock');
+    stock = cache.stock.data || {};
 
-            // Procura correspondência exacta pelo código
-            const match = Object.entries(stock).find(([, item]) =>
-                (item.codigo || '').toUpperCase().trim() === codBusca
-            );
+    _patProducts = [];
+    var naoEncontrados = [];
 
-            if (match) {
-                const [id, item] = match;
-                if (!_patProducts.some(x => x.id === id)) {
-                    _patProducts.push({
-                        id,
-                        codigo: codBusca,
-                        nome: item.nome || '',
-                        quantidade: Math.max(1, parseInt(p.quantidade) || 1),
-                        stockDisponivel: item.quantidade || 0
-                    });
-                }
-            } else {
-                // Código não encontrado no stock — adiciona mesmo assim como referência
-                if (!_patProducts.some(x => x.codigo === codBusca)) {
-                    _patProducts.push({
-                        id: `ext_${codBusca}`,
-                        codigo: codBusca,
-                        nome: '(não encontrado no stock)',
-                        quantidade: Math.max(1, parseInt(p.quantidade) || 1),
-                        stockDisponivel: 0
-                    });
-                }
+    data.produtos.forEach(function(p) {
+        var codDoc = (p.codigo || '').trim();
+        if (!codDoc) return;
+
+        var match = _matchProductCode(codDoc, stock);
+
+        if (match) {
+            var id = match[0], item = match[1];
+            if (!_patProducts.some(function(x) { return x.id === id; })) {
+                _patProducts.push({
+                    id: id,
+                    codigo: (item.codigo || codDoc).toUpperCase(),
+                    nome: item.nome || '',
+                    quantidade: Math.max(1, parseInt(p.quantidade) || 1),
+                    stockDisponivel: item.quantidade || 0
+                });
             }
-        });
-        _renderPatChips();
+        } else {
+            naoEncontrados.push(codDoc);
+            if (!_patProducts.some(function(x) { return x.codigo === codDoc.toUpperCase(); })) {
+                _patProducts.push({
+                    id: 'ext_' + codDoc,
+                    codigo: codDoc.toUpperCase(),
+                    nome: '(não encontrado no stock)',
+                    quantidade: Math.max(1, parseInt(p.quantidade) || 1),
+                    stockDisponivel: 0
+                });
+            }
+        }
+    });
+
+    _renderPatChips();
+
+    if (naoEncontrados.length) {
+        showToast(naoEncontrados.length + ' ref. não encontrada(s) no stock — verifica', 'error');
     }
 }
+s
