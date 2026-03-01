@@ -3773,46 +3773,33 @@ body.glass-mode .dash-refresh-btn:hover {
    PEDIDOS PAT
    ============================================= */
 
-/* ── Secção no dashboard ── */
-.pat-section {
-    margin: 0 0 100px;
-    padding: 0 4px;
-}
-.pat-section-header {
+/* ── Card no dashboard ── */
+.dash-pedidos-btn {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-    padding: 0 4px;
-}
-.pat-section-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.pat-section-title h3 {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--text-main);
-}
-.pat-add-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
-    background: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 20px;
-    font-size: 0.80rem;
-    font-weight: 700;
+    gap: 14px;
+    margin: 8px 4px 24px;
+    padding: 16px 18px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 18px;
     cursor: pointer;
-    font-family: 'Inter', sans-serif;
-    transition: opacity 0.15s;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    -webkit-tap-highlight-color: transparent;
 }
-.pat-add-btn:active { opacity: 0.8; }
+.dash-pedidos-btn:active { transform: scale(0.985); }
+.dash-pedidos-icon { font-size: 1.6rem; line-height: 1; }
+.dash-pedidos-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.dash-pedidos-title { font-size: 0.92rem; font-weight: 700; color: var(--text-main); }
+.dash-pedidos-count { font-size: 0.78rem; color: var(--text-muted); }
+.dash-pedidos-btn--has .dash-pedidos-count { color: var(--primary); font-weight: 600; }
+.dash-pedidos-arrow { color: var(--text-muted); flex-shrink: 0; }
 
-/* ── Card de PAT ── */
+/* ── Vista pedidos ── */
+.pat-list-wrap { padding: 0 4px 100px; }
+
+/* ── Card de PAT pendente ── */
 .pat-card {
     background: var(--card-bg);
     border: 1px solid var(--border);
@@ -3820,18 +3807,29 @@ body.glass-mode .dash-refresh-btn:hover {
     padding: 14px 16px;
     margin-bottom: 10px;
     cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
 }
-.pat-card:active {
-    transform: scale(0.985);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+.pat-card:active { transform: scale(0.985); }
+
+/* Separação de material — destaque laranja */
+.pat-card-separacao {
+    background: rgba(245, 158, 11, 0.07);
+    border-color: rgba(245, 158, 11, 0.35);
 }
+.dark-mode .pat-card-separacao {
+    background: rgba(245, 158, 11, 0.10);
+    border-color: rgba(245, 158, 11, 0.40);
+}
+
 .pat-card-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 6px;
+    gap: 8px;
 }
+.pat-card-top-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .pat-badge {
     display: inline-block;
     background: var(--primary-soft);
@@ -3842,15 +3840,18 @@ body.glass-mode .dash-refresh-btn:hover {
     font-weight: 800;
     letter-spacing: 0.5px;
 }
-.pat-badge-urgente {
-    background: rgba(239,68,68,0.12);
-    color: var(--danger);
+.pat-badge-urgente { background: rgba(239,68,68,0.12); color: var(--danger); }
+.pat-sep-tag {
+    display: inline-block;
+    background: rgba(245,158,11,0.12);
+    color: #d97706;
+    border-radius: 8px;
+    padding: 3px 9px;
+    font-size: 0.73rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
 }
-.pat-dias {
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--text-muted);
-}
+.pat-dias { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
 .pat-dias-urgente { color: var(--danger); font-weight: 700; }
 .pat-card-estab {
     font-size: 0.90rem;
@@ -3861,13 +3862,7 @@ body.glass-mode .dash-refresh-btn:hover {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.pat-card-produtos {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-bottom: 10px;
-    min-height: 10px;
-}
+.pat-card-produtos { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; min-height: 8px; }
 .pat-prod-chip {
     background: var(--input-fill);
     color: var(--text-muted);
@@ -3877,11 +3872,11 @@ body.glass-mode .dash-refresh-btn:hover {
     font-weight: 700;
     letter-spacing: 0.3px;
 }
-.pat-card-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 4px;
+.pat-card-separacao .pat-prod-chip {
+    background: rgba(245,158,11,0.10);
+    color: #d97706;
 }
+.pat-card-actions { display: flex; gap: 8px; }
 .pat-btn-levantado {
     flex: 1;
     padding: 8px 12px;
@@ -3895,7 +3890,7 @@ body.glass-mode .dash-refresh-btn:hover {
     font-family: 'Inter', sans-serif;
     transition: background 0.15s;
 }
-.pat-btn-levantado:active { background: rgba(34,197,94,0.20); }
+.pat-btn-levantado:active { background: rgba(34,197,94,0.22); }
 .pat-btn-apagar {
     padding: 8px 12px;
     background: rgba(239,68,68,0.08);
@@ -3908,36 +3903,58 @@ body.glass-mode .dash-refresh-btn:hover {
     transition: background 0.15s;
 }
 .pat-btn-apagar:active { background: rgba(239,68,68,0.18); }
-
-.pat-loading, .pat-empty {
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    padding: 24px 0;
-}
+.pat-loading, .pat-empty { text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 32px 0; }
 
 /* ── Modal PAT ── */
-.pat-modal-content {
-    max-height: 88vh;
-    overflow-y: auto;
-    text-align: left !important;
-}
+.pat-modal-content { max-height: 90vh; overflow-y: auto; text-align: left !important; }
 .pat-form { margin: 16px 0 0; display: flex; flex-direction: column; gap: 14px; }
 .pat-field { display: flex; flex-direction: column; gap: 5px; position: relative; }
-.pat-label {
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
-}
+.pat-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
 .pat-required { color: var(--danger); }
 .pat-input { width: 100%; }
-.pat-hint {
-    font-size: 0.74rem;
-    min-height: 16px;
-    transition: color 0.15s;
+.pat-hint { font-size: 0.74rem; min-height: 16px; }
+
+/* Toggle separação */
+.pat-separacao-wrap { padding: 4px 0; }
+.pat-separacao-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
 }
+.pat-separacao-cb { display: none; }
+.pat-separacao-toggle {
+    width: 44px;
+    height: 26px;
+    background: var(--border);
+    border-radius: 13px;
+    flex-shrink: 0;
+    position: relative;
+    margin-top: 2px;
+    transition: background 0.22s;
+}
+.pat-separacao-toggle::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.20);
+    transition: transform 0.22s cubic-bezier(0.34,1.4,0.64,1);
+}
+.pat-separacao-cb:checked + .pat-separacao-toggle {
+    background: #f59e0b;
+}
+.pat-separacao-cb:checked + .pat-separacao-toggle::after {
+    transform: translateX(18px);
+}
+.pat-separacao-text { display: flex; flex-direction: column; gap: 2px; }
+.pat-separacao-title { font-size: 0.90rem; font-weight: 700; color: var(--text-main); }
+.pat-separacao-desc { font-size: 0.75rem; color: var(--text-muted); line-height: 1.3; }
 
 /* Autocomplete dropdown */
 .pat-product-input-wrap { position: relative; }
@@ -3949,7 +3966,7 @@ body.glass-mode .dash-refresh-btn:hover {
     border: 1px solid var(--border);
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-    z-index: 100;
+    z-index: 200;
     overflow: hidden;
     max-height: 220px;
     overflow-y: auto;
@@ -3965,127 +3982,85 @@ body.glass-mode .dash-refresh-btn:hover {
 }
 .pat-dd-option:last-child { border-bottom: none; }
 .pat-dd-option:hover, .pat-dd-option.focused { background: var(--primary-soft); }
-.pat-dd-code {
-    font-size: 0.75rem;
-    font-weight: 800;
-    color: var(--primary);
-    letter-spacing: 0.5px;
-    flex-shrink: 0;
-    min-width: 60px;
-}
-.pat-dd-name {
-    font-size: 0.83rem;
-    color: var(--text-main);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.pat-dd-empty {
-    padding: 12px 14px;
-    font-size: 0.83rem;
-    color: var(--text-muted);
-    text-align: center;
-}
+.pat-dd-code { font-size: 0.75rem; font-weight: 800; color: var(--primary); letter-spacing: 0.5px; flex-shrink: 0; min-width: 60px; }
+.pat-dd-name { font-size: 0.83rem; color: var(--text-main); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pat-dd-stock { font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
+.pat-dd-empty { padding: 12px 14px; font-size: 0.83rem; color: var(--text-muted); text-align: center; }
 
-/* Chips de produtos seleccionados */
-.pat-product-chips {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-top: 4px;
-}
+/* Chips de produtos com quantidade */
+.pat-product-chips { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
 .pat-chip {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
+    gap: 10px;
     background: var(--input-fill);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 7px 10px;
+    border-radius: 12px;
+    padding: 10px 12px;
 }
-.pat-chip span:first-child {
-    font-size: 0.74rem;
-    font-weight: 800;
-    color: var(--primary);
-    letter-spacing: 0.4px;
-    min-width: 56px;
-}
-.pat-chip-name {
-    flex: 1;
-    font-size: 0.82rem;
+.pat-chip-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.pat-chip-code { font-size: 0.74rem; font-weight: 800; color: var(--primary); letter-spacing: 0.4px; }
+.pat-chip-name { font-size: 0.80rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pat-chip-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.pat-chip-stock-label { font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; }
+.pat-chip-qty-wrap { display: flex; align-items: center; gap: 4px; }
+.pat-chip-qty-btn {
+    width: 26px; height: 26px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem; font-weight: 700;
+    cursor: pointer;
     color: var(--text-main);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.12s;
+}
+.pat-chip-qty-btn:active { background: var(--primary-soft); color: var(--primary); }
+.pat-chip-qty {
+    width: 42px;
+    text-align: center;
+    font-size: 0.88rem;
+    font-weight: 700;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-main);
+    padding: 4px 2px;
+    font-family: 'Inter', sans-serif;
 }
 .pat-chip-remove {
-    background: none;
-    border: none;
+    background: none; border: none;
     color: var(--text-muted);
     font-size: 1.1rem;
     cursor: pointer;
     padding: 0 2px;
     line-height: 1;
     flex-shrink: 0;
+    transition: color 0.12s;
 }
 .pat-chip-remove:hover { color: var(--danger); }
 
 /* ── Modal detalhe ── */
-.pat-detail-header { text-align: center; margin-bottom: 16px; }
-.pat-detail-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 9px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 0.88rem;
-    gap: 12px;
-}
-.pat-detail-row:last-of-type { border-bottom: none; }
-.pat-detail-lbl {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    flex-shrink: 0;
-}
+.pat-detail-header { text-align: center; margin-bottom: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.pat-detail-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; gap: 12px; }
+.pat-detail-lbl { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
 .pat-detail-produtos { display: flex; flex-direction: column; gap: 6px; }
-.pat-detail-prod {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: var(--input-fill);
-    border-radius: 10px;
-    padding: 8px 12px;
-}
-.pat-detail-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 16px;
-}
+.pat-detail-prod { display: flex; align-items: center; gap: 10px; background: var(--input-fill); border-radius: 10px; padding: 8px 12px; }
+.pat-detail-qty { font-size: 0.80rem; font-weight: 700; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
+.pat-detail-actions { display: flex; gap: 8px; margin-top: 16px; }
 
 /* ── Dark mode ── */
 .dark-mode .pat-btn-levantado { color: #4ade80; border-color: rgba(74,222,128,0.25); background: rgba(74,222,128,0.08); }
 
 /* ── Glass mode ── */
-body.glass-mode .pat-card {
-    background: var(--glass-bg-card);
-    -webkit-backdrop-filter: var(--glass-blur-sm);
-    backdrop-filter: var(--glass-blur-sm);
-    border-color: var(--glass-border);
-}
-body.glass-mode .pat-product-dropdown {
-    background: rgba(12,8,32,0.90);
-    -webkit-backdrop-filter: blur(20px);
-    backdrop-filter: blur(20px);
-    border-color: var(--glass-border);
-}
-body.glass-mode .pat-chip {
-    background: var(--glass-bg);
-    border-color: var(--glass-border);
-}
-body.glass-mode .pat-prod-chip {
-    background: rgba(255,255,255,0.10);
-    color: rgba(255,255,255,0.60);
-}
+body.glass-mode .dash-pedidos-btn { background: var(--glass-bg-card); -webkit-backdrop-filter: var(--glass-blur-sm); backdrop-filter: var(--glass-blur-sm); border-color: var(--glass-border); }
+body.glass-mode .pat-card { background: var(--glass-bg-card); -webkit-backdrop-filter: var(--glass-blur-sm); backdrop-filter: var(--glass-blur-sm); border-color: var(--glass-border); }
+body.glass-mode .pat-card-separacao { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.30); }
+body.glass-mode .pat-product-dropdown { background: rgba(12,8,32,0.90); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-color: var(--glass-border); }
+body.glass-mode .pat-chip { background: var(--glass-bg); border-color: var(--glass-border); }
+body.glass-mode .pat-chip-qty { background: var(--glass-bg); border-color: var(--glass-border); color: #fff; }
+body.glass-mode .pat-chip-qty-btn { background: var(--glass-bg); border-color: var(--glass-border); color: #fff; }
+body.glass-mode .pat-prod-chip { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.60); }
+body.glass-mode .pat-sep-tag { background: rgba(245,158,11,0.20); color: #fbbf24; }
