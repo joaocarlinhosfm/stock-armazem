@@ -2336,7 +2336,7 @@ body.glass-mode #menu-overlay {
 /* ── BOTTOM NAV — overrides glass (pill base já definido globalmente) ── */
 body.glass-mode #bottom-nav {
     /* Vidro translúcido — fundo aurora visível através */
-    background: rgba(12, 8, 32, 0.38);
+    background: rgba(12, 8, 32, 0.18);
     -webkit-backdrop-filter: saturate(220%) blur(36px) brightness(1.08);
     backdrop-filter: saturate(220%) blur(36px) brightness(1.08);
 
@@ -2348,29 +2348,8 @@ body.glass-mode #bottom-nav {
         0 8px 32px rgba(0, 0, 0, 0.55),
         0 2px 8px  rgba(0, 0, 0, 0.30),
         0 0px 60px rgba(10, 100, 255, 0.12),
-        inset 0 1px 0 rgba(255,255,255,0.28),
-        inset 0 -1px 0 rgba(255,255,255,0.06);
-}
-
-/* Reflexo especular interior — linha de luz no topo da pill */
-body.glass-mode #bottom-nav::before {
-    content: '';
-    position: absolute;
-    top: 6px;
-    left: 16px;
-    right: 16px;
-    height: 1px;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255,255,255,0.35) 30%,
-        rgba(255,255,255,0.50) 50%,
-        rgba(255,255,255,0.35) 70%,
-        transparent
-    );
-    border-radius: 1px;
-    pointer-events: none;
-    z-index: 0;
+        inset 0 1px 0 rgba(255,255,255,0.14),
+        inset 0 -1px 0 rgba(255,255,255,0.04);
 }
 
 /* Ícones inactivos — brancos suaves */
@@ -3789,3 +3768,4 @@ body.glass-mode .dash-refresh-btn:hover {
     background: rgba(255,255,255,0.18);
     color: #fff;
 }
+z
