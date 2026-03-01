@@ -4127,10 +4127,13 @@ async function _sendToGemini() {
         btn.style.borderColor = 'rgba(239,68,68,0.25)';
         btn.style.color = 'var(--danger)';
 
-        var msg = 'Não foi possível ler o documento';
-        if (err.message && err.message.indexOf('API_KEY') !== -1) msg = 'API key inválida — verifica nas definições';
-        else if (err.message && err.message.indexOf('QUOTA') !== -1) msg = 'Limite diário atingido — tenta amanhã';
-        showToast(msg, 'error');
+        // Mostra o erro real para diagnóstico
+        var msg = err.message || 'Erro desconhecido';
+        if (msg.indexOf('API_KEY') !== -1 || msg.indexOf('API key') !== -1) msg = 'API key inválida — verifica nas definições';
+        else if (msg.indexOf('QUOTA') !== -1) msg = 'Limite diário atingido — tenta amanhã';
+        else if (msg.indexOf('Sem imagem') !== -1) msg = 'Erro ao carregar imagem — tenta de novo';
+        // Mostra mensagem completa para diagnóstico (truncada a 120 chars)
+        showToast(msg.slice(0, 120), 'error');
     }
 }
 
