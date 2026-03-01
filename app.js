@@ -3937,34 +3937,28 @@ function patScanDocument() {
     document.getElementById('pat-scan-input').click();
 }
 
-// ── Redimensiona imagem antes de enviar (melhoria 1) ─────────────────────────
-function _resizeImage(file, maxPx, quality) {
+// ── Redimensiona a partir de dataUrl já em memória ───────────────────────────
+function _resizeDataUrl(dataUrl, mime, maxPx, quality) {
     return new Promise(function(resolve, reject) {
-        var reader = new FileReader();
-        reader.onerror = function() { reject(new Error('Falha na leitura')); };
-        reader.onload = function(e) {
-            var img = new Image();
-            img.onerror = function() { reject(new Error('Imagem inválida')); };
-            img.onload = function() {
-                var w = img.width, h = img.height;
-                // Só reduz se for maior que o limite
-                if (w <= maxPx && h <= maxPx) {
-                    // Já pequena — usa original em base64
-                    resolve({ base64: e.target.result.split(',')[1], mime: file.type || 'image/jpeg' });
-                    return;
-                }
-                var ratio = Math.min(maxPx / w, maxPx / h);
-                var canvas = document.createElement('canvas');
-                canvas.width  = Math.round(w * ratio);
-                canvas.height = Math.round(h * ratio);
-                var ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                var dataUrl = canvas.toDataURL('image/jpeg', quality);
-                resolve({ base64: dataUrl.split(',')[1], mime: 'image/jpeg' });
-            };
-            img.src = e.target.result;
+        var img = new Image();
+        img.onerror = function() { reject(new Error('Imagem inválida')); };
+        img.onload = function() {
+            var w = img.width, h = img.height;
+            if (w <= maxPx && h <= maxPx) {
+                // Já pequena — usa directamente
+                resolve({ base64: dataUrl.split(',')[1], mime: mime });
+                return;
+            }
+            var ratio = Math.min(maxPx / w, maxPx / h);
+            var canvas = document.createElement('canvas');
+            canvas.width  = Math.round(w * ratio);
+            canvas.height = Math.round(h * ratio);
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            var out = canvas.toDataURL('image/jpeg', quality);
+            resolve({ base64: out.split(',')[1], mime: 'image/jpeg' });
         };
-        reader.readAsDataURL(file);
+        img.src = dataUrl;
     });
 }
 
@@ -3991,37 +3985,48 @@ function _matchProductCode(codDoc, stock) {
     return partial || null;
 }
 
-// ── Pré-visualização antes de enviar (melhoria 4) ────────────────────────────
+// ── Pré-visualização antes de enviar ─────────────────────────────────────────
+// Lê o ficheiro IMEDIATAMENTE (antes de poder expirar no Android)
+// e guarda base64+mime em memória para usar no envio
 function patProcessImage(input) {
     var file = input.files && input.files[0];
     if (!file) return;
 
-    // Mostra preview e pede confirmação antes de enviar
+    var mime = file.type || 'image/jpeg';
     var reader = new FileReader();
+    reader.onerror = function() { showToast('Não foi possível ler a imagem', 'error'); };
     reader.onload = function(e) {
-        _showScanPreview(e.target.result, file);
+        var dataUrl = e.target.result;
+        // Guarda em memória — o File object pode expirar no Android mas o dataUrl não
+        _patScanDataUrl = dataUrl;
+        _patScanMime    = mime;
+        _showScanPreview(dataUrl);
     };
     reader.readAsDataURL(file);
 }
 
-function _showScanPreview(dataUrl, file) {
+var _patScanDataUrl = null;
+var _patScanMime    = 'image/jpeg';
+
+function _showScanPreview(dataUrl) {
     var overlay = document.getElementById('pat-scan-preview-overlay');
     if (!overlay) return;
     var img = document.getElementById('pat-scan-preview-img');
     if (img) img.src = dataUrl;
     overlay.classList.add('active');
-    // Botão confirmar envia a imagem
+
     var confirmBtn = document.getElementById('pat-scan-preview-confirm');
     if (confirmBtn) {
         confirmBtn.onclick = function() {
             overlay.classList.remove('active');
-            _sendToGemini(file);
+            _sendToGemini();  // usa _patScanDataUrl/_patScanMime em memória
         };
     }
     var retakeBtn = document.getElementById('pat-scan-preview-retake');
     if (retakeBtn) {
         retakeBtn.onclick = function() {
             overlay.classList.remove('active');
+            _patScanDataUrl = null;
             document.getElementById('pat-scan-input').value = '';
             document.getElementById('pat-scan-input').click();
         };
@@ -4029,35 +4034,42 @@ function _showScanPreview(dataUrl, file) {
 }
 
 // ── Envia para Gemini e extrai dados (melhorias 1+2) ─────────────────────────
-async function _sendToGemini(file) {
+async function _sendToGemini() {
     var btn = document.getElementById('pat-scan-btn');
     btn.disabled = true;
     btn.classList.add('pat-scan-btn--loading');
     btn.innerHTML = '<span class="pat-scan-spinner"></span> A redimensionar...';
 
     try {
-        // Melhoria 1: reduz para 1400px, qualidade 88% — mantém legibilidade, ~10x mais pequeno
-        var resized = await _resizeImage(file, 1400, 0.88);
+        if (!_patScanDataUrl) throw new Error('Sem imagem para enviar');
+        // Redimensiona a partir do dataUrl já em memória (evita re-leitura do File)
+        var resized = await _resizeDataUrl(_patScanDataUrl, _patScanMime, 1400, 0.88);
         btn.innerHTML = '<span class="pat-scan-spinner"></span> A analisar documento...';
 
         // Melhoria 2: prompt focado APENAS em extracção — sem lista de stock
         // A correspondência faz-se localmente depois
         var prompt = [
-            'Analisa este documento e extrai APENAS as seguintes informações em JSON:',
+            'Este é um documento interno de pedido de material com o seguinte formato:',
+            '- A linha principal começa com "PAT:" seguido de 6 dígitos, e o nome do estabelecimento aparece logo a seguir na mesma linha. Exemplo: "PAT: 123456   Nome do Estabelecimento"',
+            '- Abaixo dessa linha estão as referências dos produtos com as respectivas quantidades',
+            '- Pode conter menção a "Separação", "Guia de Transporte" ou "GT" em algum campo',
+            '',
+            'Extrai APENAS as seguintes informações e devolve em JSON:',
             '',
             '{',
-            '  "numero_pat": "string com 6 dígitos numéricos (campo PAT, Nº PAT, N.º PAT ou número de 6 dígitos)",',
-            '  "estabelecimento": "string com nome do cliente ou estabelecimento",',
-            '  "separacao_material": boolean (true se mencionar separação, guia de transporte, GT, guia de remessa),',
+            '  "numero_pat": "os 6 dígitos numéricos que aparecem imediatamente após \"PAT:\"",',
+            '  "estabelecimento": "o texto que aparece na mesma linha após os 6 dígitos do PAT",',
+            '  "separacao_material": true se o documento mencionar separação, guia de transporte ou GT, caso contrário false,',
             '  "produtos": [',
-            '    { "codigo": "referência/código do artigo exatamente como aparece no documento", "quantidade": número }',
+            '    { "codigo": "referência/código exactamente como aparece no documento", "quantidade": número inteiro }',
             '  ]',
             '}',
             '',
-            'Regras:',
-            '- Copia os códigos EXACTAMENTE como estão no documento, sem alterar',
-            '- Se um campo não existir, usa null',
-            '- Responde APENAS com JSON válido, sem markdown, sem texto extra'
+            'Regras importantes:',
+            '- Copia os códigos de produto EXACTAMENTE como estão — não alteres maiúsculas, hífens nem zeros',
+            '- O estabelecimento é o texto na mesma linha do PAT, a seguir aos 6 dígitos',
+            '- Se um campo não existir no documento usa null',
+            '- Responde APENAS com JSON válido, sem markdown, sem texto extra, sem explicações'
         ].join('\n');
 
         var key = getGeminiKey();
@@ -4188,4 +4200,3 @@ async function _fillFromExtraction(data) {
         showToast(naoEncontrados.length + ' ref. não encontrada(s) no stock — verifica', 'error');
     }
 }
-s
