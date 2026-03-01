@@ -296,6 +296,15 @@
                     <span class="glass-theme-active-dot"></span>
                 </button>
 
+                <div class="settings-group-label">INTEGRAÇÕES</div>
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Gemini API Key</span>
+                        <span class="settings-item-desc">Necessária para leitura de documentos por foto</span>
+                    </div>
+                    <button class="btn-settings-action" onclick="openGeminiKeyModal()">Configurar</button>
+                </div>
+
                 <div class="settings-group-label">SEGURANÇA</div>
                 <div class="settings-item">
                     <div class="settings-item-info">
@@ -424,6 +433,16 @@
             <div class="modal-icon">📋</div>
             <h3 id="pat-modal-title">Novo Pedido</h3>
 
+            <!-- Botão de leitura por foto -->
+            <button class="pat-scan-btn" onclick="patScanDocument()" id="pat-scan-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                </svg>
+                Ler documento por foto
+            </button>
+            <input type="file" id="pat-scan-input" accept="image/*" capture="environment" style="display:none" onchange="patProcessImage(this)">
+
             <div class="pat-form">
                 <!-- PAT number -->
                 <div class="pat-field">
@@ -477,6 +496,19 @@
         <div class="modal-content pat-modal-content">
             <div id="pat-detail-body"></div>
             <button class="btn-cancel" onclick="closePatDetail()" style="width:100%;margin-top:12px">Fechar</button>
+        </div>
+    </div>
+
+    <!-- Modal: Gemini API Key -->
+    <div id="gemini-key-modal" class="modal-overlay" role="dialog" aria-modal="true">
+        <div class="modal-content">
+            <div class="modal-icon">🤖</div>
+            <h3>Gemini API Key</h3>
+            <p class="modal-desc">Obtém a tua chave gratuita em <strong>aistudio.google.com</strong> e cola aqui.</p>
+            <input type="text" id="gemini-key-input" class="blue-input" placeholder="AIza..." autocomplete="off" style="width:100%;margin:12px 0 4px">
+            <p style="font-size:0.74rem;color:var(--text-muted);margin-bottom:14px">A chave é guardada apenas neste dispositivo.</p>
+            <button class="btn-primary" onclick="saveGeminiKey()" style="width:100%">Guardar</button>
+            <button class="btn-cancel" onclick="closeGeminiKeyModal()" style="width:100%;margin-top:8px">Cancelar</button>
         </div>
     </div>
 
