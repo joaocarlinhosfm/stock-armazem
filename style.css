@@ -397,7 +397,7 @@ header h1 {
     border-radius: 26px;
     transition: color 0.22s ease;
     -webkit-tap-highlight-color: transparent;
-    overflow: hidden;
+    /* overflow:hidden removido — causava corte de SVG no Android WebView */
 }
 
 /* Ripple ao tocar */
@@ -448,6 +448,7 @@ header h1 {
 .bnav-icon svg {
     width: 22px;
     height: 22px;
+    display: block; /* evita espaço inline no Android */
     stroke-width: 1.8;
     transition: stroke-width 0.22s ease;
 }
