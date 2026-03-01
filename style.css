@@ -3768,4 +3768,324 @@ body.glass-mode .dash-refresh-btn:hover {
     background: rgba(255,255,255,0.18);
     color: #fff;
 }
-z
+
+/* =============================================
+   PEDIDOS PAT
+   ============================================= */
+
+/* ── Secção no dashboard ── */
+.pat-section {
+    margin: 0 0 100px;
+    padding: 0 4px;
+}
+.pat-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding: 0 4px;
+}
+.pat-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.pat-section-title h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+.pat-add-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    font-size: 0.80rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: opacity 0.15s;
+}
+.pat-add-btn:active { opacity: 0.8; }
+
+/* ── Card de PAT ── */
+.pat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.pat-card:active {
+    transform: scale(0.985);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.pat-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+.pat-badge {
+    display: inline-block;
+    background: var(--primary-soft);
+    color: var(--primary);
+    border-radius: 8px;
+    padding: 3px 10px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+.pat-badge-urgente {
+    background: rgba(239,68,68,0.12);
+    color: var(--danger);
+}
+.pat-dias {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+.pat-dias-urgente { color: var(--danger); font-weight: 700; }
+.pat-card-estab {
+    font-size: 0.90rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pat-card-produtos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 10px;
+    min-height: 10px;
+}
+.pat-prod-chip {
+    background: var(--input-fill);
+    color: var(--text-muted);
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 0.70rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+.pat-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+.pat-btn-levantado {
+    flex: 1;
+    padding: 8px 12px;
+    background: rgba(34,197,94,0.10);
+    color: #16a34a;
+    border: 1px solid rgba(34,197,94,0.25);
+    border-radius: 10px;
+    font-size: 0.80rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.15s;
+}
+.pat-btn-levantado:active { background: rgba(34,197,94,0.20); }
+.pat-btn-apagar {
+    padding: 8px 12px;
+    background: rgba(239,68,68,0.08);
+    color: var(--danger);
+    border: 1px solid rgba(239,68,68,0.20);
+    border-radius: 10px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.15s;
+}
+.pat-btn-apagar:active { background: rgba(239,68,68,0.18); }
+
+.pat-loading, .pat-empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 24px 0;
+}
+
+/* ── Modal PAT ── */
+.pat-modal-content {
+    max-height: 88vh;
+    overflow-y: auto;
+    text-align: left !important;
+}
+.pat-form { margin: 16px 0 0; display: flex; flex-direction: column; gap: 14px; }
+.pat-field { display: flex; flex-direction: column; gap: 5px; position: relative; }
+.pat-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+.pat-required { color: var(--danger); }
+.pat-input { width: 100%; }
+.pat-hint {
+    font-size: 0.74rem;
+    min-height: 16px;
+    transition: color 0.15s;
+}
+
+/* Autocomplete dropdown */
+.pat-product-input-wrap { position: relative; }
+.pat-product-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 100;
+    overflow: hidden;
+    max-height: 220px;
+    overflow-y: auto;
+}
+.pat-dd-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
+}
+.pat-dd-option:last-child { border-bottom: none; }
+.pat-dd-option:hover, .pat-dd-option.focused { background: var(--primary-soft); }
+.pat-dd-code {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    min-width: 60px;
+}
+.pat-dd-name {
+    font-size: 0.83rem;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pat-dd-empty {
+    padding: 12px 14px;
+    font-size: 0.83rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* Chips de produtos seleccionados */
+.pat-product-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+}
+.pat-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--input-fill);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 7px 10px;
+}
+.pat-chip span:first-child {
+    font-size: 0.74rem;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: 0.4px;
+    min-width: 56px;
+}
+.pat-chip-name {
+    flex: 1;
+    font-size: 0.82rem;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pat-chip-remove {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.pat-chip-remove:hover { color: var(--danger); }
+
+/* ── Modal detalhe ── */
+.pat-detail-header { text-align: center; margin-bottom: 16px; }
+.pat-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.88rem;
+    gap: 12px;
+}
+.pat-detail-row:last-of-type { border-bottom: none; }
+.pat-detail-lbl {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+}
+.pat-detail-produtos { display: flex; flex-direction: column; gap: 6px; }
+.pat-detail-prod {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--input-fill);
+    border-radius: 10px;
+    padding: 8px 12px;
+}
+.pat-detail-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+/* ── Dark mode ── */
+.dark-mode .pat-btn-levantado { color: #4ade80; border-color: rgba(74,222,128,0.25); background: rgba(74,222,128,0.08); }
+
+/* ── Glass mode ── */
+body.glass-mode .pat-card {
+    background: var(--glass-bg-card);
+    -webkit-backdrop-filter: var(--glass-blur-sm);
+    backdrop-filter: var(--glass-blur-sm);
+    border-color: var(--glass-border);
+}
+body.glass-mode .pat-product-dropdown {
+    background: rgba(12,8,32,0.90);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border-color: var(--glass-border);
+}
+body.glass-mode .pat-chip {
+    background: var(--glass-bg);
+    border-color: var(--glass-border);
+}
+body.glass-mode .pat-prod-chip {
+    background: rgba(255,255,255,0.10);
+    color: rgba(255,255,255,0.60);
+}
