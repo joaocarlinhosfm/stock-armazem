@@ -3,7 +3,7 @@
 // Estratégia: network-first para tudo, sem pré-cache de app assets
 // Isto garante que os deploys chegam sempre sem ciclos de cache bloqueados
 // ─────────────────────────────────────────────────────────────────────────────
-const SW_VERSION = 'hiperfrio-v5.29';
+const SW_VERSION = 'hiperfrio-v5.30';
 
 // Apenas bibliotecas externas imutáveis ficam em cache
 const IMMUTABLE_ASSETS = [
@@ -43,6 +43,7 @@ self.addEventListener('fetch', e => {
     if (url.includes('googleapis.com')) return;
     if (url.includes('gstatic.com')) return;
     if (url.includes('firebaseapp.com')) return;
+    if (url.includes('ocr.space')) return;
 
     // Libs externas imutáveis — cache-first (nunca mudam, hash na URL)
     if (url.includes('cdnjs.cloudflare.com')) {
