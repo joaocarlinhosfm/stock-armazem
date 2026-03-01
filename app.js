@@ -3595,9 +3595,17 @@ function openPatModal() {
     document.getElementById('pat-product-chips').innerHTML = '';
     document.getElementById('pat-numero-hint').textContent = '';
     document.getElementById('pat-separacao').checked = false;
+    // Reset scan button
+    const scanBtn = document.getElementById('pat-scan-btn');
+    if (scanBtn) { scanBtn.classList.remove('pat-scan-btn--loading'); scanBtn.disabled = false; scanBtn.innerHTML = _patScanBtnDefault(); }
     document.getElementById('pat-modal').classList.add('active');
     focusModal('pat-modal');
     setTimeout(() => document.getElementById('pat-numero').focus(), 80);
+}
+
+function _patScanBtnDefault() {
+    const svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+    return svg + 'Ler documento por foto';
 }
 
 function closePatModal() {
@@ -3883,4 +3891,210 @@ function openPatDetail(id, pat) {
 
 function closePatDetail() {
     document.getElementById('pat-detail-modal').classList.remove('active');
+}
+
+// =============================================
+// GEMINI — LEITURA DE DOCUMENTO PAT
+// =============================================
+const GEMINI_KEY_STORAGE = 'hiperfrio-gemini-key';
+
+function getGeminiKey() {
+    return localStorage.getItem(GEMINI_KEY_STORAGE) || '';
+}
+
+function openGeminiKeyModal() {
+    const inp = document.getElementById('gemini-key-input');
+    if (inp) inp.value = getGeminiKey();
+    document.getElementById('gemini-key-modal').classList.add('active');
+    focusModal('gemini-key-modal');
+    setTimeout(() => inp?.focus(), 80);
+}
+
+function closeGeminiKeyModal() {
+    document.getElementById('gemini-key-modal').classList.remove('active');
+}
+
+function saveGeminiKey() {
+    const key = document.getElementById('gemini-key-input').value.trim();
+    if (!key) {
+        showToast('Introduz uma API key válida', 'error');
+        return;
+    }
+    localStorage.setItem(GEMINI_KEY_STORAGE, key);
+    closeGeminiKeyModal();
+    showToast('API key guardada!');
+}
+
+// Aciona o input de ficheiro (câmara)
+function patScanDocument() {
+    const key = getGeminiKey();
+    if (!key) {
+        openConfirmModal({
+            icon: '🤖',
+            title: 'API Key não configurada',
+            desc: 'Para usar a leitura por foto precisas de configurar a Gemini API Key nas definições.',
+            onConfirm: () => { closePatModal(); setTimeout(() => { nav('view-admin'); }, 200); }
+        });
+        return;
+    }
+    document.getElementById('pat-scan-input').value = '';
+    document.getElementById('pat-scan-input').click();
+}
+
+// Processa a imagem seleccionada
+async function patProcessImage(input) {
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const btn = document.getElementById('pat-scan-btn');
+    btn.disabled = true;
+    btn.classList.add('pat-scan-btn--loading');
+    btn.innerHTML = '<span class="pat-scan-spinner"></span> A analisar documento...';
+
+    try {
+        // Converte para base64
+        const base64 = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result.split(',')[1]);
+            r.onerror = () => rej(new Error('Falha na leitura do ficheiro'));
+            r.readAsDataURL(file);
+        });
+
+        // Prepara contexto com os produtos do stock para correspondência
+        const stock = cache.stock.data || {};
+        const produtosList = Object.entries(stock)
+            .map(([id, item]) => `${(item.codigo || 'SEMREF').toUpperCase()} — ${item.nome || ''}`)
+            .join('\n');
+
+        const prompt = `Analisa este documento e extrai as seguintes informações em formato JSON:
+- numero_pat: string com 6 dígitos (procura "PAT", "N.º PAT", "Nº PAT" ou número de 6 dígitos)
+- estabelecimento: string com o nome do cliente/estabelecimento
+- separacao_material: boolean (true se o documento mencionar "separação", "guia de transporte", "GT" ou similar)
+- produtos: array de objectos com { codigo: string, quantidade: number }
+
+Lista de produtos disponíveis no stock para correspondência (código — nome):
+${produtosList}
+
+Tenta fazer correspondência dos artigos/referências do documento com os códigos da lista acima.
+Se não encontrares correspondência exacta, usa o código que aparece no documento.
+Responde APENAS com JSON válido, sem texto adicional, sem markdown.`;
+
+        const key = getGeminiKey();
+        const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: prompt },
+                            { inline_data: { mime_type: file.type || 'image/jpeg', data: base64 } }
+                        ]
+                    }],
+                    generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
+                })
+            }
+        );
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            const msg = err?.error?.message || `Erro ${res.status}`;
+            throw new Error(msg);
+        }
+
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+        // Parse JSON — remove eventuais ```json fences
+        const clean = text.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(clean);
+
+        // Pré-preenche os campos
+        await patFillFromScan(parsed);
+
+        btn.classList.remove('pat-scan-btn--loading');
+        btn.disabled = false;
+        btn.innerHTML = '✅ Documento lido — revê os campos';
+        btn.style.background = 'rgba(34,197,94,0.12)';
+        btn.style.borderColor = 'rgba(34,197,94,0.35)';
+        btn.style.color = '#16a34a';
+
+    } catch (err) {
+        console.error('Gemini error:', err);
+        btn.classList.remove('pat-scan-btn--loading');
+        btn.disabled = false;
+        btn.innerHTML = '⚠️ Erro — tenta novamente';
+        btn.style.background = 'rgba(239,68,68,0.08)';
+        btn.style.borderColor = 'rgba(239,68,68,0.25)';
+        btn.style.color = 'var(--danger)';
+
+        const msg = err.message?.includes('API_KEY') ? 'API key inválida — verifica nas definições'
+                  : err.message?.includes('QUOTA')   ? 'Limite diário atingido — tenta amanhã'
+                  : 'Não foi possível ler o documento';
+        showToast(msg, 'error');
+    }
+}
+
+// Preenche o modal com os dados extraídos pelo Gemini
+async function patFillFromScan(data) {
+    // Nº PAT
+    if (data.numero_pat) {
+        const pat = String(data.numero_pat).replace(/\D/g, '').slice(0, 6);
+        document.getElementById('pat-numero').value = pat;
+        document.getElementById('pat-numero-hint').textContent = '';
+    }
+
+    // Estabelecimento
+    if (data.estabelecimento) {
+        document.getElementById('pat-estabelecimento').value = data.estabelecimento;
+    }
+
+    // Separação de material
+    if (data.separacao_material) {
+        document.getElementById('pat-separacao').checked = true;
+    }
+
+    // Produtos — faz match na cache do stock
+    if (Array.isArray(data.produtos) && data.produtos.length > 0) {
+        const stock = cache.stock.data || {};
+        // Garante que a cache está carregada
+        if (!Object.keys(stock).length) await fetchCollection('stock');
+
+        _patProducts = [];
+        data.produtos.forEach(p => {
+            const codBusca = (p.codigo || '').toUpperCase().trim();
+            if (!codBusca) return;
+
+            // Procura correspondência exacta pelo código
+            const match = Object.entries(stock).find(([, item]) =>
+                (item.codigo || '').toUpperCase().trim() === codBusca
+            );
+
+            if (match) {
+                const [id, item] = match;
+                if (!_patProducts.some(x => x.id === id)) {
+                    _patProducts.push({
+                        id,
+                        codigo: codBusca,
+                        nome: item.nome || '',
+                        quantidade: Math.max(1, parseInt(p.quantidade) || 1),
+                        stockDisponivel: item.quantidade || 0
+                    });
+                }
+            } else {
+                // Código não encontrado no stock — adiciona mesmo assim como referência
+                if (!_patProducts.some(x => x.codigo === codBusca)) {
+                    _patProducts.push({
+                        id: `ext_${codBusca}`,
+                        codigo: codBusca,
+                        nome: '(não encontrado no stock)',
+                        quantidade: Math.max(1, parseInt(p.quantidade) || 1),
+                        stockDisponivel: 0
+                    });
+                }
+            }
+        });
+        _renderPatChips();
+    }
 }
