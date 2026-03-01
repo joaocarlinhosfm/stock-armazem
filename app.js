@@ -3493,11 +3493,42 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.28';
+
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-            .then(() => console.debug('PWA SW registado'))
+        // 1 — Regista o SW novo
+        navigator.serviceWorker.register('sw.js?v=5.28')
+            .then(reg => {
+                console.debug('PWA SW registado:', reg.scope);
+                // 2 — Verifica se o SW activo é a versão correcta
+                // Se for uma versão antiga (cache-first), força update imediato
+                if (reg.active) {
+                    const msgChannel = new MessageChannel();
+                    msgChannel.port1.onmessage = e => {
+                        if (e.data && e.data.version !== SW_EXPECTED_VERSION) {
+                            console.warn('SW desactualizado — a forçar update...');
+                            reg.update().then(() => {
+                                // Após update, recarrega para aplicar
+                                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                                    window.location.reload();
+                                }, { once: true });
+                            });
+                        }
+                    };
+                    reg.active.postMessage({ type: 'GET_VERSION' }, [msgChannel.port2]);
+                }
+            })
             .catch(e => console.warn('PWA SW erro:', e));
+
+        // 3 — Se o SW mudar enquanto a app está aberta, recarrega automaticamente
+        let swRefreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!swRefreshing) {
+                swRefreshing = true;
+                window.location.reload();
+            }
+        });
     });
 }
 
@@ -3894,27 +3925,55 @@ function closePatDetail() {
 }
 
 // =============================================
-// OCR — LEITURA DE DOCUMENTO PAT (Tesseract.js)
+// OCR — LEITURA DE DOCUMENTO PAT (OCR.space)
+// API gratuita: 25.000 pedidos/mês, sem worker, sem ficheiros de linguagem
+// Registo gratuito em: ocr.space/ocrapi
 // =============================================
 
-// Tesseract é carregado via CDN no index.html — sem API key, sem quotas, 100% local
+const OCR_KEY_STORAGE = 'hiperfrio-ocr-key';
+const OCR_DEFAULT_KEY = 'helloworld'; // chave pública de teste (funcional mas limitada)
 
-        //
-var _patScanDataUrl = null;
-var _patScanMime    = 'image/jpeg';
+function getOcrKey() {
+    return localStorage.getItem(OCR_KEY_STORAGE) || OCR_DEFAULT_KEY;
+}
 
-        //
-function openGeminiKeyModal() { /* substituído por Tesseract — sem API key necessária */ showToast('OCR local activo — não precisas de API key', 'success'); }
+// Stub de compatibilidade (modal Gemini foi removido)
+function openGeminiKeyModal() {
+    showToast('Usa Admin → Definições → OCR para configurar a chave', 'error');
+}
 function closeGeminiKeyModal() {}
 function saveGeminiKey() {}
 
-        //
+// Abre modal da chave OCR
+function openOcrKeyModal() {
+    var inp = document.getElementById('ocr-key-input');
+    if (inp) inp.value = getOcrKey() === OCR_DEFAULT_KEY ? '' : getOcrKey();
+    document.getElementById('ocr-key-modal').classList.add('active');
+    focusModal('ocr-key-modal');
+    setTimeout(function() { inp && inp.focus(); }, 80);
+}
+function closeOcrKeyModal() {
+    document.getElementById('ocr-key-modal').classList.remove('active');
+}
+function saveOcrKey() {
+    var key = document.getElementById('ocr-key-input').value.trim();
+    if (!key) { localStorage.removeItem(OCR_KEY_STORAGE); closeOcrKeyModal(); showToast('Chave removida — a usar chave de teste'); return; }
+    localStorage.setItem(OCR_KEY_STORAGE, key);
+    closeOcrKeyModal();
+    showToast('Chave OCR guardada!');
+}
+
+// ── Variáveis de estado ───────────────────────────────────────────────────────
+var _patScanDataUrl = null;
+var _patScanMime    = 'image/jpeg';
+
+// ── Aciona câmara ─────────────────────────────────────────────────────────────
 function patScanDocument() {
     document.getElementById('pat-scan-input').value = '';
     document.getElementById('pat-scan-input').click();
 }
 
-        //
+// ── Lê ficheiro para memória imediatamente (evita expiração no Android) ───────
 function patProcessImage(input) {
     var file = input.files && input.files[0];
     if (!file) return;
@@ -3929,14 +3988,13 @@ function patProcessImage(input) {
     reader.readAsDataURL(file);
 }
 
-        //
+// ── Pré-visualização ──────────────────────────────────────────────────────────
 function _showScanPreview(dataUrl) {
     var overlay = document.getElementById('pat-scan-preview-overlay');
     if (!overlay) return;
     var img = document.getElementById('pat-scan-preview-img');
     if (img) img.src = dataUrl;
     overlay.classList.add('active');
-
     var confirmBtn = document.getElementById('pat-scan-preview-confirm');
     if (confirmBtn) {
         confirmBtn.onclick = function() {
@@ -3955,7 +4013,7 @@ function _showScanPreview(dataUrl) {
     }
 }
 
-        //
+// ── Redimensiona para envio ───────────────────────────────────────────────────
 function _resizeDataUrl(dataUrl, mime, maxPx, quality) {
     return new Promise(function(resolve, reject) {
         var img = new Image();
@@ -3963,7 +4021,7 @@ function _resizeDataUrl(dataUrl, mime, maxPx, quality) {
         img.onload = function() {
             var w = img.width, h = img.height;
             if (w <= maxPx && h <= maxPx) {
-                resolve({ base64: dataUrl.split(',')[1], dataUrl: dataUrl, mime: mime });
+                resolve({ dataUrl: dataUrl, mime: mime });
                 return;
             }
             var ratio = Math.min(maxPx / w, maxPx / h);
@@ -3972,40 +4030,13 @@ function _resizeDataUrl(dataUrl, mime, maxPx, quality) {
             canvas.height = Math.round(h * ratio);
             canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
             var out = canvas.toDataURL('image/jpeg', quality);
-            resolve({ base64: out.split(',')[1], dataUrl: out, mime: 'image/jpeg' });
+            resolve({ dataUrl: out, mime: 'image/jpeg' });
         };
         img.src = dataUrl;
     });
 }
 
-        //
-
-// ── Carregamento dinâmico do Tesseract v4 (cdnjs — já em cache pelo SW) ──────
-var _tesseractLoading = null;
-function _loadTesseract() {
-    if (typeof Tesseract !== 'undefined') return Promise.resolve();
-    if (_tesseractLoading) return _tesseractLoading;
-    _tesseractLoading = new Promise(function(resolve, reject) {
-        var script = document.createElement('script');
-        // cdnjs está whitelisted no Service Worker — funciona offline após primeira carga
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.4/tesseract.min.js';
-        script.crossOrigin = 'anonymous';
-        script.onload = function() {
-            if (typeof Tesseract !== 'undefined') {
-                resolve();
-            } else {
-                reject(new Error('Motor OCR carregado mas não disponível — tenta recarregar a app.'));
-            }
-        };
-        script.onerror = function() {
-            _tesseractLoading = null; // permite tentar de novo
-            reject(new Error('Falha ao carregar motor OCR — verifica a ligação à internet.'));
-        };
-        document.head.appendChild(script);
-    });
-    return _tesseractLoading;
-}
-
+// ── OCR via OCR.space API ─────────────────────────────────────────────────────
 async function _runOCR() {
     var btn = document.getElementById('pat-scan-btn');
     btn.disabled = true;
@@ -4013,34 +4044,46 @@ async function _runOCR() {
     btn.innerHTML = '<span class="pat-scan-spinner"></span> A preparar imagem...';
 
     try {
-        if (!_patScanDataUrl) throw new Error('Sem imagem');
+        if (!_patScanDataUrl) throw new Error('Sem imagem — tenta de novo');
 
-        // Redimensiona para melhor performance do OCR
-        var resized = await _resizeDataUrl(_patScanDataUrl, _patScanMime, 1600, 0.92);
-
+        var resized = await _resizeDataUrl(_patScanDataUrl, _patScanMime, 1600, 0.90);
         btn.innerHTML = '<span class="pat-scan-spinner"></span> A ler documento...';
 
-        // Carrega Tesseract se necessário (seguro chamar múltiplas vezes)
-        btn.innerHTML = '<span class="pat-scan-spinner"></span> A carregar motor OCR...';
-        await _loadTesseract();
+        // Envia para OCR.space via FormData
+        var formData = new FormData();
+        formData.append('apikey', getOcrKey());
+        formData.append('language', 'por');          // português
+        formData.append('isOverlayRequired', 'false');
+        formData.append('detectOrientation', 'true'); // corrige foto torta
+        formData.append('scale', 'true');             // melhora texto pequeno
+        formData.append('isTable', 'false');
+        formData.append('OCREngine', '2');            // motor mais preciso para documentos
+        formData.append('base64Image', resized.dataUrl);
 
-        var result = await Tesseract.recognize(resized.dataUrl, 'por+eng', {
-            logger: function(m) {
-                if (m.status === 'recognizing text') {
-                    var pct = Math.round((m.progress || 0) * 100);
-                    btn.innerHTML = '<span class="pat-scan-spinner"></span> A ler... ' + pct + '%';
-                }
-            }
+        var res = await fetch('https://api.ocr.space/parse/image', {
+            method: 'POST',
+            body: formData
         });
 
-        var text = result.data.text || '';
-        console.log('[OCR] Texto extraído:', text); // debug — ver no console
+        if (!res.ok) throw new Error('Erro de rede: ' + res.status);
+
+        var data = await res.json();
+        console.log('[OCR] Resposta:', JSON.stringify(data));
+
+        if (data.IsErroredOnProcessing) {
+            throw new Error(data.ErrorMessage || 'Erro no processamento da imagem');
+        }
+
+        var text = (data.ParsedResults && data.ParsedResults[0] && data.ParsedResults[0].ParsedText) || '';
+        console.log('[OCR] Texto extraído:', text);
+
+        if (!text.trim()) throw new Error('Não foi possível extrair texto — melhora a iluminação e nitidez da foto');
 
         var parsed = _parseDocumentText(text);
-        console.log('[OCR] Parsed:', JSON.stringify(parsed)); // debug
+        console.log('[OCR] Parsed:', JSON.stringify(parsed));
 
         if (!parsed.numero_pat && !parsed.produtos.length) {
-            throw new Error('Não foi possível identificar dados no documento. Verifica a nitidez da foto.');
+            throw new Error('Dados não reconhecidos — verifica se a foto está nítida e com boa iluminação');
         }
 
         await _fillFromExtraction(parsed);
@@ -4060,58 +4103,40 @@ async function _runOCR() {
         btn.style.background = 'rgba(239,68,68,0.08)';
         btn.style.borderColor = 'rgba(239,68,68,0.25)';
         btn.style.color = 'var(--danger)';
-        showToast((_e.message || 'Erro OCR').slice(0, 120), 'error');
+        showToast((_e.message || 'Erro OCR').slice(0, 140), 'error');
     }
 }
 
-        //
-// Conhece o formato: "PAT: 123456   Nome do Estabelecimento"
-// e linhas de produtos: "REF001   2" ou "2x REF001" ou "REF001 - 2 un"
+// ── Parser do texto extraído ──────────────────────────────────────────────────
 function _parseDocumentText(text) {
-    var result = {
-        numero_pat:          null,
-        estabelecimento:     null,
-        separacao_material:  false,
-        produtos:            []
-    };
-
+    var result = { numero_pat: null, estabelecimento: null, separacao_material: false, produtos: [] };
     var lines = text.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
 
     lines.forEach(function(line) {
-                //
-        // Formato: "PAT: 123456   Nome" ou "PAT 123456 Nome" ou "PAT:123456"
+        // PAT + Estabelecimento — "PAT: 123456   Nome" ou variantes OCR
         var patMatch = line.match(/PAT\s*[:\-]?\s*(\d{6})\s*(.*)?/i);
         if (patMatch && !result.numero_pat) {
             result.numero_pat = patMatch[1];
-            var estabRaw = (patMatch[2] || '').trim();
-            // Remove caracteres OCR espúrios no início (ex: "| Nome" → "Nome")
-            estabRaw = estabRaw.replace(/^[\|\-\_\:\s]+/, '').trim();
-            if (estabRaw.length > 1) result.estabelecimento = estabRaw;
+            var estab = (patMatch[2] || '').replace(/^[\|\-\_\:\s]+/, '').trim();
+            if (estab.length > 1) result.estabelecimento = estab;
             return;
         }
 
-                //
-        if (/separa[çc][aã]o|guia.{0,10}transporte|guia.{0,5}remessa|GT/i.test(line)) {
+        // Separação de material
+        if (/separa[cç][aã]o|guia.{0,10}transporte|guia.{0,5}remessa|GT/i.test(line)) {
             result.separacao_material = true;
         }
 
-                //
-        // Padrões comuns em documentos de material:
-        //  "REF001   5"              código seguido de número
-        //  "5   REF001"              número seguido de código
-        //  "REF001 - 5 un"           com separador e unidade
-        //  "5x REF001"               multiplicador prefixado
-        //  "REF-001   Descrição   5" código com hífen, descrição no meio, qty no fim
-
-        // Padrão 1: NxCODIGO ou N x CODIGO
+        // Produtos: vários formatos
+        // "5x REF001" ou "5 x REF001"
         var p1 = line.match(/^(\d+)\s*[xX]\s*([A-Z0-9][A-Z0-9\-\.\/\_]{1,20})/i);
         if (p1) { _addProduto(result, p1[2], parseInt(p1[1])); return; }
 
-        // Padrão 2: CODIGO seguido de quantidade no fim da linha
-        var p2 = line.match(/^([A-Z0-9][A-Z0-9\-\.\/\_]{1,20})\s+(?:[^\d]*\s+)?(\d+)\s*(?:un|pç|pc|cx|cx\.?|und?\.?)?$/i);
+        // "REF001   5" — código seguido de quantidade
+        var p2 = line.match(/^([A-Z0-9][A-Z0-9\-\.\/\_]{1,20})\s+(?:[^\d]*\s+)?(\d+)\s*(?:un|p[cç]|cx|und?)?\.?$/i);
         if (p2) { _addProduto(result, p2[1], parseInt(p2[2])); return; }
 
-        // Padrão 3: quantidade no início + código
+        // "5   REF001" — quantidade seguida de código
         var p3 = line.match(/^(\d+)\s+([A-Z0-9][A-Z0-9\-\.\/\_]{2,20})/i);
         if (p3) { _addProduto(result, p3[2], parseInt(p3[1])); return; }
     });
@@ -4121,26 +4146,20 @@ function _parseDocumentText(text) {
 
 function _addProduto(result, codigo, quantidade) {
     var cod = codigo.toUpperCase().trim();
-    // Evita códigos que são apenas números pequenos (confusos com quantidades)
-    if (/^\d{1,3}$/.test(cod)) return;
-    // Evita duplicados
+    if (/^\d{1,3}$/.test(cod)) return; // evita confundir quantidades com códigos
     if (result.produtos.some(function(p) { return p.codigo === cod; })) return;
     result.produtos.push({ codigo: cod, quantidade: quantidade || 1 });
 }
 
-        //
+// ── Preenchimento do modal ────────────────────────────────────────────────────
 async function _fillFromExtraction(data) {
     if (data.numero_pat) {
         var pat = String(data.numero_pat).replace(/[^0-9]/g, '').slice(0, 6);
         document.getElementById('pat-numero').value = pat;
         document.getElementById('pat-numero-hint').textContent = '';
     }
-    if (data.estabelecimento) {
-        document.getElementById('pat-estabelecimento').value = data.estabelecimento;
-    }
-    if (data.separacao_material) {
-        document.getElementById('pat-separacao').checked = true;
-    }
+    if (data.estabelecimento) document.getElementById('pat-estabelecimento').value = data.estabelecimento;
+    if (data.separacao_material) document.getElementById('pat-separacao').checked = true;
 
     if (!Array.isArray(data.produtos) || !data.produtos.length) return;
 
@@ -4158,51 +4177,29 @@ async function _fillFromExtraction(data) {
         if (match) {
             var id = match[0], item = match[1];
             if (!_patProducts.some(function(x) { return x.id === id; })) {
-                _patProducts.push({
-                    id: id,
-                    codigo: (item.codigo || codDoc).toUpperCase(),
-                    nome: item.nome || '',
-                    quantidade: Math.max(1, parseInt(p.quantidade) || 1),
-                    stockDisponivel: item.quantidade || 0
-                });
+                _patProducts.push({ id: id, codigo: (item.codigo || codDoc).toUpperCase(), nome: item.nome || '', quantidade: Math.max(1, parseInt(p.quantidade) || 1), stockDisponivel: item.quantidade || 0 });
             }
         } else {
             naoEncontrados.push(codDoc);
             if (!_patProducts.some(function(x) { return x.codigo === codDoc.toUpperCase(); })) {
-                _patProducts.push({
-                    id: 'ext_' + codDoc,
-                    codigo: codDoc.toUpperCase(),
-                    nome: '(não encontrado no stock)',
-                    quantidade: Math.max(1, parseInt(p.quantidade) || 1),
-                    stockDisponivel: 0
-                });
+                _patProducts.push({ id: 'ext_' + codDoc, codigo: codDoc.toUpperCase(), nome: '(não encontrado no stock)', quantidade: Math.max(1, parseInt(p.quantidade) || 1), stockDisponivel: 0 });
             }
         }
     });
 
     _renderPatChips();
-    if (naoEncontrados.length) {
-        showToast(naoEncontrados.length + ' ref. não encontrada(s) — verifica', 'error');
-    }
+    if (naoEncontrados.length) showToast(naoEncontrados.length + ' ref. não encontrada(s) — verifica', 'error');
 }
 
-        //
+// ── Fuzzy match ───────────────────────────────────────────────────────────────
 function _normalizeCode(code) {
-    return (code || '').toUpperCase()
-        .replace(/[\s\-_\.]/g, '')
-        .replace(/^0+/, '');
+    return (code || '').toUpperCase().replace(/[\s\-_\.]/g, '').replace(/^0+/, '');
 }
-
 function _matchProductCode(codDoc, stock) {
     var normDoc = _normalizeCode(codDoc);
     if (!normDoc) return null;
-    var exact = Object.entries(stock).find(function(e) {
-        return _normalizeCode(e[1].codigo) === normDoc;
-    });
+    var exact = Object.entries(stock).find(function(e) { return _normalizeCode(e[1].codigo) === normDoc; });
     if (exact) return exact;
-    var partial = Object.entries(stock).find(function(e) {
-        var n = _normalizeCode(e[1].codigo);
-        return n && (normDoc.includes(n) || n.includes(normDoc));
-    });
+    var partial = Object.entries(stock).find(function(e) { var n = _normalizeCode(e[1].codigo); return n && (normDoc.includes(n) || n.includes(normDoc)); });
     return partial || null;
 }
