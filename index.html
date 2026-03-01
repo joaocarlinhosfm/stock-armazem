@@ -102,6 +102,23 @@
                 </button>
             </div>
             <div id="dashboard"></div>
+
+            <!-- ── Pedidos PAT ── -->
+            <div class="pat-section">
+                <div class="pat-section-header">
+                    <div class="pat-section-title">
+                        <span>📋</span>
+                        <h3>Pedidos Pendentes</h3>
+                    </div>
+                    <button class="pat-add-btn" onclick="openPatModal()" data-manager-only>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        Novo Pedido
+                    </button>
+                </div>
+                <div id="pat-list"></div>
+            </div>
         </div>
 
                 <div id="view-tools" class="view">
@@ -391,6 +408,56 @@
         </button>
 
     </nav>
+
+    <!-- Modal: PAT — criar pedido -->
+    <div id="pat-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pat-modal-title">
+        <div class="modal-content pat-modal-content">
+            <div class="modal-icon">📋</div>
+            <h3 id="pat-modal-title">Novo Pedido</h3>
+
+            <div class="pat-form">
+                <!-- PAT number -->
+                <div class="pat-field">
+                    <label class="pat-label">Nº PAT <span class="pat-required">*</span></label>
+                    <input type="text" id="pat-numero" class="blue-input pat-input"
+                        placeholder="000000" maxlength="6" inputmode="numeric"
+                        pattern="[0-9]{6}" autocomplete="off">
+                    <span class="pat-hint" id="pat-numero-hint"></span>
+                </div>
+
+                <!-- Estabelecimento -->
+                <div class="pat-field">
+                    <label class="pat-label">Estabelecimento</label>
+                    <input type="text" id="pat-estabelecimento" class="blue-input pat-input"
+                        placeholder="Nome do estabelecimento" autocomplete="off">
+                </div>
+
+                <!-- Produtos -->
+                <div class="pat-field">
+                    <label class="pat-label">Produtos</label>
+                    <div class="pat-product-input-wrap">
+                        <input type="text" id="pat-product-search" class="blue-input pat-input"
+                            placeholder="Código ou nome do produto..." autocomplete="off"
+                            oninput="patProductSearch(this.value)"
+                            onkeydown="patProductKeydown(event)">
+                        <div id="pat-product-dropdown" class="pat-product-dropdown"></div>
+                    </div>
+                    <div id="pat-product-chips" class="pat-product-chips"></div>
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="savePat()" style="width:100%;margin-top:4px">Guardar Pedido</button>
+            <button class="btn-cancel" onclick="closePatModal()" style="width:100%;margin-top:8px">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Modal: PAT — ver detalhe -->
+    <div id="pat-detail-modal" class="modal-overlay" role="dialog" aria-modal="true">
+        <div class="modal-content pat-modal-content">
+            <div id="pat-detail-body"></div>
+            <button class="btn-cancel" onclick="closePatDetail()" style="width:100%;margin-top:12px">Fechar</button>
+        </div>
+    </div>
 
     <!-- Modal: Entregar ferramenta -->
     <div id="worker-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="worker-modal-title">
