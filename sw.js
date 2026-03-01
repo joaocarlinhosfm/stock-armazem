@@ -1,6 +1,6 @@
 // Cache version — bump this string on every deploy to force SW update
 // TIP: use a CI/CD script to auto-replace this with a build hash
-const CACHE_VERSION = 'hiperfrio-v5.27';
+const CACHE_VERSION = 'hiperfrio-v5.28';
 const ASSETS = [
     './',
     './index.html',
@@ -10,6 +10,7 @@ const ASSETS = [
     './icon-192.png',
     './icon-512.png',
     'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.4/tesseract.min.js',
 ];
 
 self.addEventListener('install', e => {
