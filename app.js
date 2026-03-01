@@ -424,7 +424,7 @@ function nav(viewId) {
     }
     if (viewId === 'view-tools')  renderTools();
 
-    if (viewId === 'view-dashboard') { renderDashboard(true); }
+    if (viewId === 'view-dashboard') { renderDashboard(true); renderPats(); }
     if (viewId === 'view-admin')  { renderWorkers(); renderAdminTools(); }
 
     document.querySelectorAll('.menu-items li').forEach(li => li.classList.remove('active'));
@@ -3206,6 +3206,20 @@ function bnavAddChoose(viewId) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // PAT: só aceita dígitos
+    document.getElementById('pat-numero')?.addEventListener('input', function() {
+        this.value = this.value.replace(/\D/g, '').slice(0, 6);
+        const hint = document.getElementById('pat-numero-hint');
+        if (hint) {
+            if (this.value.length > 0 && this.value.length < 6) {
+                hint.textContent = `${this.value.length}/6 dígitos`;
+                hint.style.color = 'var(--text-muted)';
+            } else {
+                hint.textContent = '';
+            }
+        }
+    });
+
 
     // Tema
     // Aplica tema guardado (claro / escuro / glass)
@@ -3483,4 +3497,297 @@ if ('serviceWorker' in navigator) {
             .then(() => console.debug('PWA SW registado'))
             .catch(e => console.warn('PWA SW erro:', e));
     });
+}
+
+// =============================================
+// PEDIDOS PAT
+// =============================================
+const PAT_URL = `${BASE_URL}/pedidos.json`;
+let _patProducts = []; // produtos seleccionados no modal
+let _patDropdownIdx = -1; // índice seleccionado no dropdown (teclado)
+
+// ── Cache local de pedidos (TTL 2min) ────────────────────────────────────────
+const _patCache = { data: null, lastFetch: 0 };
+
+async function _fetchPats(force = false) {
+    const now = Date.now();
+    if (!force && _patCache.data && now - _patCache.lastFetch < 120000) {
+        return _patCache.data;
+    }
+    try {
+        const url = await authUrl(`${BASE_URL}/pedidos.json`);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(res.status);
+        _patCache.data = await res.json() || {};
+        _patCache.lastFetch = now;
+    } catch {
+        _patCache.data = _patCache.data || {};
+    }
+    return _patCache.data;
+}
+
+// ── Renderizar lista de PATs no dashboard ────────────────────────────────────
+async function renderPats() {
+    const el = document.getElementById('pat-list');
+    if (!el) return;
+    el.innerHTML = '<div class="pat-loading">A carregar...</div>';
+
+    const pats = await _fetchPats();
+    const entries = Object.entries(pats || {})
+        .filter(([, p]) => p.status !== 'levantado')
+        .sort((a, b) => (b[1].criadoEm || 0) - (a[1].criadoEm || 0));
+
+    if (entries.length === 0) {
+        el.innerHTML = '<div class="pat-empty">Nenhum pedido pendente.</div>';
+        return;
+    }
+
+    el.innerHTML = '';
+    entries.forEach(([id, pat]) => {
+        const card = document.createElement('div');
+        card.className = 'pat-card';
+        card.onclick = () => openPatDetail(id, pat);
+
+        const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
+        const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
+        const urgente = dias >= 3;
+
+        card.innerHTML = `
+            <div class="pat-card-top">
+                <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}">PAT ${escapeHtml(pat.numero || '—')}</span>
+                <span class="pat-dias ${urgente ? 'pat-dias-urgente' : ''}">${diasLabel}</span>
+            </div>
+            <div class="pat-card-estab">${escapeHtml(pat.estabelecimento || 'Sem estabelecimento')}</div>
+            <div class="pat-card-produtos">${(pat.produtos || []).map(p =>
+                `<span class="pat-prod-chip">${escapeHtml(p.codigo || p.nome || '?')}</span>`
+            ).join('')}</div>
+            <div class="pat-card-actions" onclick="event.stopPropagation()">
+                <button class="pat-btn-levantado" onclick="marcarPatLevantado('${id}')">✓ Levantado</button>
+                <button class="pat-btn-apagar" onclick="apagarPat('${id}')">🗑</button>
+            </div>`;
+        el.appendChild(card);
+    });
+}
+
+// ── Abrir modal de criação ───────────────────────────────────────────────────
+function openPatModal() {
+    _patProducts = [];
+    document.getElementById('pat-numero').value = '';
+    document.getElementById('pat-estabelecimento').value = '';
+    document.getElementById('pat-product-search').value = '';
+    document.getElementById('pat-product-dropdown').innerHTML = '';
+    document.getElementById('pat-product-chips').innerHTML = '';
+    document.getElementById('pat-numero-hint').textContent = '';
+    document.getElementById('pat-modal').classList.add('active');
+    focusModal('pat-modal');
+    setTimeout(() => document.getElementById('pat-numero').focus(), 80);
+}
+
+function closePatModal() {
+    document.getElementById('pat-modal').classList.remove('active');
+    document.getElementById('pat-product-dropdown').innerHTML = '';
+}
+
+// ── Autocomplete de produtos ─────────────────────────────────────────────────
+function patProductSearch(val) {
+    _patDropdownIdx = -1;
+    const dd = document.getElementById('pat-product-dropdown');
+    const q = val.trim().toLowerCase();
+    if (!q) { dd.innerHTML = ''; return; }
+
+    const stock = cache.stock.data || {};
+    const matches = Object.entries(stock)
+        .filter(([id, item]) => {
+            if (_patProducts.some(p => p.id === id)) return false; // já adicionado
+            const codigo = (item.codigo || '').toLowerCase();
+            const nome   = (item.nome   || '').toLowerCase();
+            return codigo.startsWith(q) || nome.includes(q);
+        })
+        .slice(0, 8);
+
+    if (matches.length === 0) {
+        dd.innerHTML = '<div class="pat-dd-empty">Sem resultados</div>';
+        return;
+    }
+
+    dd.innerHTML = '';
+    matches.forEach(([id, item], i) => {
+        const opt = document.createElement('div');
+        opt.className = 'pat-dd-option';
+        opt.dataset.idx = i;
+        opt.innerHTML = `<span class="pat-dd-code">${escapeHtml((item.codigo||'SEMREF').toUpperCase())}</span>
+                         <span class="pat-dd-name">${escapeHtml(item.nome||'')}</span>`;
+        opt.onmousedown = (e) => { e.preventDefault(); patAddProduct(id, item); };
+        dd.appendChild(opt);
+    });
+}
+
+function patProductKeydown(e) {
+    const dd = document.getElementById('pat-product-dropdown');
+    const opts = dd.querySelectorAll('.pat-dd-option');
+    if (!opts.length) return;
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        _patDropdownIdx = Math.min(_patDropdownIdx + 1, opts.length - 1);
+        opts.forEach((o, i) => o.classList.toggle('focused', i === _patDropdownIdx));
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        _patDropdownIdx = Math.max(_patDropdownIdx - 1, 0);
+        opts.forEach((o, i) => o.classList.toggle('focused', i === _patDropdownIdx));
+    } else if (e.key === 'Enter' && _patDropdownIdx >= 0) {
+        e.preventDefault();
+        opts[_patDropdownIdx]?.dispatchEvent(new MouseEvent('mousedown'));
+    } else if (e.key === 'Escape') {
+        dd.innerHTML = '';
+    }
+}
+
+function patAddProduct(id, item) {
+    if (_patProducts.some(p => p.id === id)) return;
+    _patProducts.push({ id, codigo: (item.codigo||'SEMREF').toUpperCase(), nome: item.nome || '' });
+    _renderPatChips();
+    document.getElementById('pat-product-search').value = '';
+    document.getElementById('pat-product-dropdown').innerHTML = '';
+    document.getElementById('pat-product-search').focus();
+}
+
+function patRemoveProduct(id) {
+    _patProducts = _patProducts.filter(p => p.id !== id);
+    _renderPatChips();
+}
+
+function _renderPatChips() {
+    const el = document.getElementById('pat-product-chips');
+    el.innerHTML = '';
+    _patProducts.forEach(p => {
+        const chip = document.createElement('div');
+        chip.className = 'pat-chip';
+        chip.innerHTML = `<span>${escapeHtml(p.codigo)}</span>
+                          <span class="pat-chip-name">${escapeHtml(p.nome)}</span>
+                          <button class="pat-chip-remove" onclick="patRemoveProduct('${p.id}')" aria-label="Remover">×</button>`;
+        el.appendChild(chip);
+    });
+}
+
+// ── Guardar PAT ──────────────────────────────────────────────────────────────
+async function savePat() {
+    const numero = document.getElementById('pat-numero').value.trim();
+    const estab  = document.getElementById('pat-estabelecimento').value.trim();
+    const hint   = document.getElementById('pat-numero-hint');
+
+    // Validação: 6 dígitos numéricos
+    if (!/^\d{6}$/.test(numero)) {
+        hint.textContent = 'O Nº PAT deve ter exactamente 6 dígitos.';
+        hint.style.color = 'var(--danger)';
+        document.getElementById('pat-numero').focus();
+        return;
+    }
+    hint.textContent = '';
+
+    const payload = {
+        numero,
+        estabelecimento: estab,
+        produtos: _patProducts,
+        status: 'pendente',
+        criadoEm: Date.now(),
+    };
+
+    try {
+        const url = await authUrl(`${BASE_URL}/pedidos.json`);
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(res.status);
+        const r = await res.json();
+        if (r?.name) {
+            if (!_patCache.data) _patCache.data = {};
+            _patCache.data[r.name] = payload;
+        }
+        closePatModal();
+        renderPats();
+        showToast(`PAT ${numero} registada!`);
+    } catch {
+        showToast('Erro ao guardar pedido', 'error');
+    }
+}
+
+// ── Marcar como levantado ────────────────────────────────────────────────────
+async function marcarPatLevantado(id) {
+    openConfirmModal({
+        icon: '✅',
+        title: 'Marcar como levantado?',
+        desc: 'O pedido será removido da lista de pendentes.',
+        onConfirm: async () => {
+            try {
+                const url = await authUrl(`${BASE_URL}/pedidos/${id}.json`);
+                await fetch(url, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'levantado', levantadoEm: Date.now() }),
+                });
+                if (_patCache.data?.[id]) _patCache.data[id].status = 'levantado';
+                renderPats();
+                showToast('Pedido marcado como levantado!');
+            } catch {
+                showToast('Erro ao actualizar pedido', 'error');
+            }
+        }
+    });
+}
+
+// ── Apagar PAT ───────────────────────────────────────────────────────────────
+async function apagarPat(id) {
+    openConfirmModal({
+        icon: '🗑️',
+        title: 'Apagar pedido?',
+        desc: 'O pedido será eliminado permanentemente.',
+        onConfirm: async () => {
+            try {
+                const url = await authUrl(`${BASE_URL}/pedidos/${id}.json`);
+                await fetch(url, { method: 'DELETE' });
+                if (_patCache.data) delete _patCache.data[id];
+                renderPats();
+                showToast('Pedido apagado');
+            } catch {
+                showToast('Erro ao apagar pedido', 'error');
+            }
+        }
+    });
+}
+
+// ── Ver detalhe ───────────────────────────────────────────────────────────────
+function openPatDetail(id, pat) {
+    const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
+    const data = pat.criadoEm ? new Date(pat.criadoEm).toLocaleDateString('pt-PT') : '—';
+    const urgente = dias >= 3;
+
+    document.getElementById('pat-detail-body').innerHTML = `
+        <div class="pat-detail-header">
+            <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}" style="font-size:1rem;padding:6px 14px">PAT ${escapeHtml(pat.numero||'—')}</span>
+        </div>
+        <div class="pat-detail-row"><span class="pat-detail-lbl">Estabelecimento</span><span>${escapeHtml(pat.estabelecimento||'Não especificado')}</span></div>
+        <div class="pat-detail-row"><span class="pat-detail-lbl">Criado em</span><span>${data}</span></div>
+        <div class="pat-detail-row"><span class="pat-detail-lbl">Estado</span><span>${dias >= 3 ? '🔴 Urgente' : '🟡 Pendente'} (${dias === 0 ? 'hoje' : `${dias}d`})</span></div>
+        ${pat.produtos?.length ? `
+        <div class="pat-detail-lbl" style="margin-top:14px;margin-bottom:8px">Produtos reservados</div>
+        <div class="pat-detail-produtos">
+            ${pat.produtos.map(p => `
+                <div class="pat-detail-prod">
+                    <span class="pat-dd-code">${escapeHtml(p.codigo||'?')}</span>
+                    <span class="pat-dd-name">${escapeHtml(p.nome||'')}</span>
+                </div>`).join('')}
+        </div>` : '<div class="pat-empty" style="margin-top:12px">Sem produtos associados.</div>'}
+        <div class="pat-detail-actions">
+            <button class="pat-btn-levantado" style="flex:1" onclick="closePatDetail();marcarPatLevantado('${id}')">✓ Marcar Levantado</button>
+            <button class="pat-btn-apagar" onclick="closePatDetail();apagarPat('${id}')">🗑</button>
+        </div>`;
+    document.getElementById('pat-detail-modal').classList.add('active');
+    focusModal('pat-detail-modal');
+}
+
+function closePatDetail() {
+    document.getElementById('pat-detail-modal').classList.remove('active');
 }
