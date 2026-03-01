@@ -499,6 +499,21 @@
         </div>
     </div>
 
+    <!-- Overlay: pré-visualização da foto PAT -->
+    <div id="pat-scan-preview-overlay" class="pat-preview-overlay" aria-modal="true" role="dialog">
+        <div class="pat-preview-box">
+            <p class="pat-preview-title">Confirma a foto</p>
+            <p class="pat-preview-hint">Verifica se o documento está legível e sem reflexos antes de enviar.</p>
+            <div class="pat-preview-img-wrap">
+                <img id="pat-scan-preview-img" class="pat-preview-img" alt="Pré-visualização" src="">
+            </div>
+            <div class="pat-preview-actions">
+                <button id="pat-scan-preview-retake" class="btn-cancel" style="flex:1">🔄 Repetir</button>
+                <button id="pat-scan-preview-confirm" class="btn-primary" style="flex:1">✓ Enviar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Gemini API Key -->
     <div id="gemini-key-modal" class="modal-overlay" role="dialog" aria-modal="true">
         <div class="modal-content">
@@ -838,3 +853,4 @@
     <script src="app.js"></script>
 </body>
 </html>
+
