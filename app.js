@@ -3979,6 +3979,33 @@ function _resizeDataUrl(dataUrl, mime, maxPx, quality) {
 }
 
         //
+
+// ── Carregamento dinâmico do Tesseract v4 (cdnjs — já em cache pelo SW) ──────
+var _tesseractLoading = null;
+function _loadTesseract() {
+    if (typeof Tesseract !== 'undefined') return Promise.resolve();
+    if (_tesseractLoading) return _tesseractLoading;
+    _tesseractLoading = new Promise(function(resolve, reject) {
+        var script = document.createElement('script');
+        // cdnjs está whitelisted no Service Worker — funciona offline após primeira carga
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.4/tesseract.min.js';
+        script.crossOrigin = 'anonymous';
+        script.onload = function() {
+            if (typeof Tesseract !== 'undefined') {
+                resolve();
+            } else {
+                reject(new Error('Motor OCR carregado mas não disponível — tenta recarregar a app.'));
+            }
+        };
+        script.onerror = function() {
+            _tesseractLoading = null; // permite tentar de novo
+            reject(new Error('Falha ao carregar motor OCR — verifica a ligação à internet.'));
+        };
+        document.head.appendChild(script);
+    });
+    return _tesseractLoading;
+}
+
 async function _runOCR() {
     var btn = document.getElementById('pat-scan-btn');
     btn.disabled = true;
@@ -3993,8 +4020,9 @@ async function _runOCR() {
 
         btn.innerHTML = '<span class="pat-scan-spinner"></span> A ler documento...';
 
-        // Garante que Tesseract está disponível
-        if (typeof Tesseract === 'undefined') throw new Error('Tesseract não carregado — verifica a ligação');
+        // Carrega Tesseract se necessário (seguro chamar múltiplas vezes)
+        btn.innerHTML = '<span class="pat-scan-spinner"></span> A carregar motor OCR...';
+        await _loadTesseract();
 
         var result = await Tesseract.recognize(resized.dataUrl, 'por+eng', {
             logger: function(m) {
