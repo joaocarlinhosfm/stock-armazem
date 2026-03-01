@@ -4064,3 +4064,56 @@ body.glass-mode .pat-chip-qty { background: var(--glass-bg); border-color: var(-
 body.glass-mode .pat-chip-qty-btn { background: var(--glass-bg); border-color: var(--glass-border); color: #fff; }
 body.glass-mode .pat-prod-chip { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.60); }
 body.glass-mode .pat-sep-tag { background: rgba(245,158,11,0.20); color: #fbbf24; }
+
+/* =============================================
+   GEMINI — SCAN BUTTON
+   ============================================= */
+.pat-scan-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 13px 16px;
+    margin-bottom: 6px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    border: 1.5px dashed var(--primary);
+    border-radius: 14px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+.pat-scan-btn:active { opacity: 0.75; }
+.pat-scan-btn:disabled { cursor: default; opacity: 0.85; }
+.pat-scan-btn--loading {
+    background: var(--input-fill);
+    border-style: solid;
+    color: var(--text-muted);
+}
+
+/* Spinner dentro do botão */
+.pat-scan-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(0,0,0,0.10);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+/* Glass mode */
+body.glass-mode .pat-scan-btn {
+    background: rgba(10,132,255,0.12);
+    border-color: rgba(10,132,255,0.45);
+    color: #60a5fa;
+}
+body.glass-mode .pat-scan-btn--loading {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.50);
+}
