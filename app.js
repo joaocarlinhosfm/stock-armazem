@@ -2002,7 +2002,7 @@ function switchAdminTab(tab, animate = true) {
     }
 }
 
-// ── Swipe detector no slider wrap ────────────────────────────────────────────
+        //
 // AbortController para garantir que os listeners são limpos antes de re-setup
 let _adminSwipeAC = null;
 
@@ -2119,7 +2119,7 @@ function _applyTheme(theme) {
     _setupBottomNavScrollBehaviour(true);
 }
 
-// ── Barra de pesquisa flutuante — desaparece ao fazer scroll (só glass) ──────
+        //
 let _searchScrollCleanup = null;
 
 function _setupSearchScrollBehaviour(enable) {
@@ -2185,7 +2185,7 @@ function _setupSearchScrollBehaviour(enable) {
     };
 }
 
-// ── Bottom nav pill flutuante — esconde ao descer, aparece ao subir ─────────
+        //
 let _bnavScrollCleanup = null;
 
 function _setupBottomNavScrollBehaviour(enable) {
@@ -2496,7 +2496,7 @@ let _invSkipped   = new Set(); // ids saltados
 let _invOptions   = { zones: null, skipZeros: false }; // null = todas as zonas
 let _invLastData  = null;      // snapshot dos dados no início (para o Excel)
 
-// ── PASSO 0: Abrir configuração ────────────────────────────────────────────
+        //
 async function startInventory() {
     const data = await fetchCollection('stock', true);
     if (!data || Object.keys(data).length === 0) {
@@ -2619,7 +2619,7 @@ async function invSetupStart() {
     await _startInvWithOptions(activeZones, skipZeros);
 }
 
-// ── PASSO 1: Correr o inventário ──────────────────────────────────────────
+        //
 async function _startInvWithOptions(zones, skipZeros) {
     const data = cache.stock.data;
     if (!data) return;
@@ -2674,7 +2674,7 @@ function _resumeInventory(saved) {
     showToast(`A retomar — produto ${_invIdx + 1} de ${_invItems.length}`);
 }
 
-// ── Render do passo actual ────────────────────────────────────────────────
+        //
 function _renderInvStep() {
     const total      = _invItems.length;
     const [id, item] = _invItems[_invIdx] || [];
@@ -2755,7 +2755,7 @@ function closeInventory() {
     // Progresso guardado — não apaga para possível retoma
 }
 
-// ── PASSO 2: Revisão antes de guardar ────────────────────────────────────
+        //
 function _finishInventory() {
     document.getElementById('inv-modal').classList.remove('active');
     _invClearResume(); // limpa a sessão guardada
@@ -2886,7 +2886,7 @@ async function invReviewConfirm() {
     });
 }
 
-// ── PASSO 3: Resultado e exportação ──────────────────────────────────────
+        //
 function _openInvResult(stats) {
     const statsEl = document.getElementById('inv-result-stats');
     statsEl.innerHTML = `
@@ -2920,7 +2920,7 @@ function closeInvResult() {
     document.getElementById('inv-result-modal').classList.remove('active');
 }
 
-// ── Exportação Excel ──────────────────────────────────────────────────────
+        //
 function exportInventoryExcel() {
     const wb       = _buildInventoryWorkbook();
     const filename = `inventario-hiperfrio-${new Date().toISOString().slice(0,10)}.xlsx`;
@@ -2928,7 +2928,7 @@ function exportInventoryExcel() {
     showToast('Excel exportado com sucesso!');
 }
 
-// ── Envio por email ───────────────────────────────────────────────────────
+        //
 async function exportInventoryEmail() {
     const now     = new Date();
     const dateStr = now.toLocaleDateString('pt-PT');
@@ -3031,7 +3031,7 @@ function _buildInventoryWorkbook() {
     return wb;
 }
 
-// ── Persistência (retoma de sessão interrompida) ──────────────────────────
+        //
 function _invSaveResume() {
     try {
         localStorage.setItem(INV_RESUME_KEY, JSON.stringify({
@@ -3523,7 +3523,7 @@ async function _fetchPats(force = false) {
     return _patCache.data;
 }
 
-// ── Contador no card do dashboard ────────────────────────────────────────────
+        //
 async function updatePatCount() {
     const el = document.getElementById('dash-pedidos-count');
     if (!el) return;
@@ -3536,7 +3536,7 @@ async function updatePatCount() {
     if (card) card.classList.toggle('dash-pedidos-btn--has', pendentes > 0);
 }
 
-// ── Renderizar lista de PATs ──────────────────────────────────────────────────
+        //
 async function renderPats() {
     const el = document.getElementById('pat-list');
     if (!el) return;
@@ -3585,7 +3585,7 @@ async function renderPats() {
     updatePatCount();
 }
 
-// ── Modal criar ───────────────────────────────────────────────────────────────
+        //
 function openPatModal() {
     _patProducts = [];
     document.getElementById('pat-numero').value = '';
@@ -3613,7 +3613,7 @@ function closePatModal() {
     document.getElementById('pat-product-dropdown').innerHTML = '';
 }
 
-// ── Autocomplete de produtos ──────────────────────────────────────────────────
+        //
 function patProductSearch(val) {
     _patDropdownIdx = -1;
     const dd = document.getElementById('pat-product-dropdown');
@@ -3735,7 +3735,7 @@ function patQtyStep(id, delta) {
     if (inp) inp.value = prod.quantidade;
 }
 
-// ── Guardar PAT ───────────────────────────────────────────────────────────────
+        //
 async function savePat() {
     const numero    = document.getElementById('pat-numero').value.trim();
     const estab     = document.getElementById('pat-estabelecimento').value.trim();
@@ -3783,7 +3783,7 @@ async function savePat() {
     } catch(_e) { showToast('Erro ao guardar pedido', 'error'); }
 }
 
-// ── Marcar como levantado ─────────────────────────────────────────────────────
+        //
 async function marcarPatLevantado(id) {
     const pat = _patCache.data?.[id];
     const separacao = !!pat?.separacao;
@@ -3836,7 +3836,7 @@ async function marcarPatLevantado(id) {
     });
 }
 
-// ── Apagar PAT ────────────────────────────────────────────────────────────────
+        //
 async function apagarPat(id) {
     openConfirmModal({
         icon: '🗑️',
@@ -3855,7 +3855,7 @@ async function apagarPat(id) {
     });
 }
 
-// ── Ver detalhe ───────────────────────────────────────────────────────────────
+        //
 function openPatDetail(id, pat) {
     const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
     const data = pat.criadoEm ? new Date(pat.criadoEm).toLocaleDateString('pt-PT') : '—';
@@ -3894,120 +3894,42 @@ function closePatDetail() {
 }
 
 // =============================================
-// GEMINI — LEITURA DE DOCUMENTO PAT
+// OCR — LEITURA DE DOCUMENTO PAT (Tesseract.js)
 // =============================================
-const GEMINI_KEY_STORAGE = 'hiperfrio-gemini-key';
 
-function getGeminiKey() {
-    return localStorage.getItem(GEMINI_KEY_STORAGE) || '';
-}
+// Tesseract é carregado via CDN no index.html — sem API key, sem quotas, 100% local
 
-function openGeminiKeyModal() {
-    const inp = document.getElementById('gemini-key-input');
-    if (inp) inp.value = getGeminiKey();
-    document.getElementById('gemini-key-modal').classList.add('active');
-    focusModal('gemini-key-modal');
-    setTimeout(() => inp && inp.focus(), 80);
-}
+        //
+var _patScanDataUrl = null;
+var _patScanMime    = 'image/jpeg';
 
-function closeGeminiKeyModal() {
-    document.getElementById('gemini-key-modal').classList.remove('active');
-}
+        //
+function openGeminiKeyModal() { /* substituído por Tesseract — sem API key necessária */ showToast('OCR local activo — não precisas de API key', 'success'); }
+function closeGeminiKeyModal() {}
+function saveGeminiKey() {}
 
-function saveGeminiKey() {
-    const key = document.getElementById('gemini-key-input').value.trim();
-    if (!key) { showToast('Introduz uma API key válida', 'error'); return; }
-    localStorage.setItem(GEMINI_KEY_STORAGE, key);
-    closeGeminiKeyModal();
-    showToast('API key guardada!');
-}
-
-// ── Aciona câmara ─────────────────────────────────────────────────────────────
+        //
 function patScanDocument() {
-    if (!getGeminiKey()) {
-        openConfirmModal({
-            icon: '🤖',
-            title: 'API Key não configurada',
-            desc: 'Para usar a leitura por foto configura a Gemini API Key nas definições.',
-            onConfirm: function() { closePatModal(); setTimeout(function() { nav('view-admin'); }, 200); }
-        });
-        return;
-    }
     document.getElementById('pat-scan-input').value = '';
     document.getElementById('pat-scan-input').click();
 }
 
-// ── Redimensiona a partir de dataUrl já em memória ───────────────────────────
-function _resizeDataUrl(dataUrl, mime, maxPx, quality) {
-    return new Promise(function(resolve, reject) {
-        var img = new Image();
-        img.onerror = function() { reject(new Error('Imagem inválida')); };
-        img.onload = function() {
-            var w = img.width, h = img.height;
-            if (w <= maxPx && h <= maxPx) {
-                // Já pequena — usa directamente
-                resolve({ base64: dataUrl.split(',')[1], mime: mime });
-                return;
-            }
-            var ratio = Math.min(maxPx / w, maxPx / h);
-            var canvas = document.createElement('canvas');
-            canvas.width  = Math.round(w * ratio);
-            canvas.height = Math.round(h * ratio);
-            var ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            var out = canvas.toDataURL('image/jpeg', quality);
-            resolve({ base64: out.split(',')[1], mime: 'image/jpeg' });
-        };
-        img.src = dataUrl;
-    });
-}
-
-// ── Normaliza código para matching fuzzy (melhoria 3) ────────────────────────
-function _normalizeCode(code) {
-    return (code || '').toUpperCase()
-        .replace(/[\s\-_\.]/g, '')   // remove espaços, hífens, underscores, pontos
-        .replace(/^0+/, '');            // remove zeros à esquerda
-}
-
-function _matchProductCode(codDoc, stock) {
-    var normDoc = _normalizeCode(codDoc);
-    if (!normDoc) return null;
-    // 1. Correspondência exacta
-    var exact = Object.entries(stock).find(function(entry) {
-        return _normalizeCode(entry[1].codigo) === normDoc;
-    });
-    if (exact) return exact;
-    // 2. Correspondência parcial — doc contém código do stock ou vice-versa
-    var partial = Object.entries(stock).find(function(entry) {
-        var normStock = _normalizeCode(entry[1].codigo);
-        return normStock && (normDoc.includes(normStock) || normStock.includes(normDoc));
-    });
-    return partial || null;
-}
-
-// ── Pré-visualização antes de enviar ─────────────────────────────────────────
-// Lê o ficheiro IMEDIATAMENTE (antes de poder expirar no Android)
-// e guarda base64+mime em memória para usar no envio
+        //
 function patProcessImage(input) {
     var file = input.files && input.files[0];
     if (!file) return;
-
     var mime = file.type || 'image/jpeg';
     var reader = new FileReader();
     reader.onerror = function() { showToast('Não foi possível ler a imagem', 'error'); };
     reader.onload = function(e) {
-        var dataUrl = e.target.result;
-        // Guarda em memória — o File object pode expirar no Android mas o dataUrl não
-        _patScanDataUrl = dataUrl;
+        _patScanDataUrl = e.target.result;
         _patScanMime    = mime;
-        _showScanPreview(dataUrl);
+        _showScanPreview(e.target.result);
     };
     reader.readAsDataURL(file);
 }
 
-var _patScanDataUrl = null;
-var _patScanMime    = 'image/jpeg';
-
+        //
 function _showScanPreview(dataUrl) {
     var overlay = document.getElementById('pat-scan-preview-overlay');
     if (!overlay) return;
@@ -4019,7 +3941,7 @@ function _showScanPreview(dataUrl) {
     if (confirmBtn) {
         confirmBtn.onclick = function() {
             overlay.classList.remove('active');
-            _sendToGemini();  // usa _patScanDataUrl/_patScanMime em memória
+            _runOCR();
         };
     }
     var retakeBtn = document.getElementById('pat-scan-preview-retake');
@@ -4033,82 +3955,66 @@ function _showScanPreview(dataUrl) {
     }
 }
 
-// ── Envia para Gemini e extrai dados (melhorias 1+2) ─────────────────────────
-async function _sendToGemini() {
+        //
+function _resizeDataUrl(dataUrl, mime, maxPx, quality) {
+    return new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.onerror = function() { reject(new Error('Imagem inválida')); };
+        img.onload = function() {
+            var w = img.width, h = img.height;
+            if (w <= maxPx && h <= maxPx) {
+                resolve({ base64: dataUrl.split(',')[1], dataUrl: dataUrl, mime: mime });
+                return;
+            }
+            var ratio = Math.min(maxPx / w, maxPx / h);
+            var canvas = document.createElement('canvas');
+            canvas.width  = Math.round(w * ratio);
+            canvas.height = Math.round(h * ratio);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            var out = canvas.toDataURL('image/jpeg', quality);
+            resolve({ base64: out.split(',')[1], dataUrl: out, mime: 'image/jpeg' });
+        };
+        img.src = dataUrl;
+    });
+}
+
+        //
+async function _runOCR() {
     var btn = document.getElementById('pat-scan-btn');
     btn.disabled = true;
     btn.classList.add('pat-scan-btn--loading');
-    btn.innerHTML = '<span class="pat-scan-spinner"></span> A redimensionar...';
+    btn.innerHTML = '<span class="pat-scan-spinner"></span> A preparar imagem...';
 
     try {
-        if (!_patScanDataUrl) throw new Error('Sem imagem para enviar');
-        // Redimensiona a partir do dataUrl já em memória (evita re-leitura do File)
-        var resized = await _resizeDataUrl(_patScanDataUrl, _patScanMime, 1400, 0.88);
-        btn.innerHTML = '<span class="pat-scan-spinner"></span> A analisar documento...';
+        if (!_patScanDataUrl) throw new Error('Sem imagem');
 
-        // Melhoria 2: prompt focado APENAS em extracção — sem lista de stock
-        // A correspondência faz-se localmente depois
-        var prompt = [
-            'Este é um documento interno de pedido de material com o seguinte formato:',
-            '- A linha principal começa com "PAT:" seguido de 6 dígitos, e o nome do estabelecimento aparece logo a seguir na mesma linha. Exemplo: "PAT: 123456   Nome do Estabelecimento"',
-            '- Abaixo dessa linha estão as referências dos produtos com as respectivas quantidades',
-            '- Pode conter menção a "Separação", "Guia de Transporte" ou "GT" em algum campo',
-            '',
-            'Extrai APENAS as seguintes informações e devolve em JSON:',
-            '',
-            '{',
-            '  "numero_pat": "os 6 dígitos numéricos que aparecem imediatamente após \"PAT:\"",',
-            '  "estabelecimento": "o texto que aparece na mesma linha após os 6 dígitos do PAT",',
-            '  "separacao_material": true se o documento mencionar separação, guia de transporte ou GT, caso contrário false,',
-            '  "produtos": [',
-            '    { "codigo": "referência/código exactamente como aparece no documento", "quantidade": número inteiro }',
-            '  ]',
-            '}',
-            '',
-            'Regras importantes:',
-            '- Copia os códigos de produto EXACTAMENTE como estão — não alteres maiúsculas, hífens nem zeros',
-            '- O estabelecimento é o texto na mesma linha do PAT, a seguir aos 6 dígitos',
-            '- Se um campo não existir no documento usa null',
-            '- Responde APENAS com JSON válido, sem markdown, sem texto extra, sem explicações'
-        ].join('\n');
+        // Redimensiona para melhor performance do OCR
+        var resized = await _resizeDataUrl(_patScanDataUrl, _patScanMime, 1600, 0.92);
 
-        var key = getGeminiKey();
-        var res = await fetch(
-            'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + key,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [
-                            { text: prompt },
-                            { inline_data: { mime_type: resized.mime, data: resized.base64 } }
-                        ]
-                    }],
-                    generationConfig: { temperature: 0, maxOutputTokens: 512 }
-                })
+        btn.innerHTML = '<span class="pat-scan-spinner"></span> A ler documento...';
+
+        // Garante que Tesseract está disponível
+        if (typeof Tesseract === 'undefined') throw new Error('Tesseract não carregado — verifica a ligação');
+
+        var result = await Tesseract.recognize(resized.dataUrl, 'por+eng', {
+            logger: function(m) {
+                if (m.status === 'recognizing text') {
+                    var pct = Math.round((m.progress || 0) * 100);
+                    btn.innerHTML = '<span class="pat-scan-spinner"></span> A ler... ' + pct + '%';
+                }
             }
-        );
+        });
 
-        if (!res.ok) {
-            var errData = {};
-            try { errData = await res.json(); } catch(_e) {}
-            throw new Error((errData.error && errData.error.message) || ('Erro ' + res.status));
+        var text = result.data.text || '';
+        console.log('[OCR] Texto extraído:', text); // debug — ver no console
+
+        var parsed = _parseDocumentText(text);
+        console.log('[OCR] Parsed:', JSON.stringify(parsed)); // debug
+
+        if (!parsed.numero_pat && !parsed.produtos.length) {
+            throw new Error('Não foi possível identificar dados no documento. Verifica a nitidez da foto.');
         }
 
-        var data = await res.json();
-        var text = (data.candidates &&
-                    data.candidates[0] &&
-                    data.candidates[0].content &&
-                    data.candidates[0].content.parts &&
-                    data.candidates[0].content.parts[0] &&
-                    data.candidates[0].content.parts[0].text) || '';
-
-        // Remove eventuais ```json fences
-        var clean = text.replace(/```json|```/g, '').trim();
-        var parsed = JSON.parse(clean);
-
-        // Melhoria 2+3: correspondência local com fuzzy match
         await _fillFromExtraction(parsed);
 
         btn.classList.remove('pat-scan-btn--loading');
@@ -4118,45 +4024,96 @@ async function _sendToGemini() {
         btn.style.borderColor = 'rgba(34,197,94,0.35)';
         btn.style.color = '#16a34a';
 
-    } catch(err) {
-        console.error('Gemini error:', err);
+    } catch(_e) {
+        console.error('[OCR] Erro:', _e);
         btn.classList.remove('pat-scan-btn--loading');
         btn.disabled = false;
         btn.innerHTML = '⚠️ Erro — tenta novamente';
         btn.style.background = 'rgba(239,68,68,0.08)';
         btn.style.borderColor = 'rgba(239,68,68,0.25)';
         btn.style.color = 'var(--danger)';
-
-        // Mostra o erro real para diagnóstico
-        var msg = err.message || 'Erro desconhecido';
-        if (msg.indexOf('API_KEY') !== -1 || msg.indexOf('API key') !== -1) msg = 'API key inválida — verifica nas definições';
-        else if (msg.indexOf('QUOTA') !== -1) msg = 'Limite diário atingido — tenta amanhã';
-        else if (msg.indexOf('Sem imagem') !== -1) msg = 'Erro ao carregar imagem — tenta de novo';
-        // Mostra mensagem completa para diagnóstico (truncada a 120 chars)
-        showToast(msg.slice(0, 120), 'error');
+        showToast((_e.message || 'Erro OCR').slice(0, 120), 'error');
     }
 }
 
-// ── Preenche o modal com dados extraídos + fuzzy match (melhoria 2+3) ─────────
+        //
+// Conhece o formato: "PAT: 123456   Nome do Estabelecimento"
+// e linhas de produtos: "REF001   2" ou "2x REF001" ou "REF001 - 2 un"
+function _parseDocumentText(text) {
+    var result = {
+        numero_pat:          null,
+        estabelecimento:     null,
+        separacao_material:  false,
+        produtos:            []
+    };
+
+    var lines = text.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+
+    lines.forEach(function(line) {
+                //
+        // Formato: "PAT: 123456   Nome" ou "PAT 123456 Nome" ou "PAT:123456"
+        var patMatch = line.match(/PAT\s*[:\-]?\s*(\d{6})\s*(.*)?/i);
+        if (patMatch && !result.numero_pat) {
+            result.numero_pat = patMatch[1];
+            var estabRaw = (patMatch[2] || '').trim();
+            // Remove caracteres OCR espúrios no início (ex: "| Nome" → "Nome")
+            estabRaw = estabRaw.replace(/^[\|\-\_\:\s]+/, '').trim();
+            if (estabRaw.length > 1) result.estabelecimento = estabRaw;
+            return;
+        }
+
+                //
+        if (/separa[çc][aã]o|guia.{0,10}transporte|guia.{0,5}remessa|GT/i.test(line)) {
+            result.separacao_material = true;
+        }
+
+                //
+        // Padrões comuns em documentos de material:
+        //  "REF001   5"              código seguido de número
+        //  "5   REF001"              número seguido de código
+        //  "REF001 - 5 un"           com separador e unidade
+        //  "5x REF001"               multiplicador prefixado
+        //  "REF-001   Descrição   5" código com hífen, descrição no meio, qty no fim
+
+        // Padrão 1: NxCODIGO ou N x CODIGO
+        var p1 = line.match(/^(\d+)\s*[xX]\s*([A-Z0-9][A-Z0-9\-\.\/\_]{1,20})/i);
+        if (p1) { _addProduto(result, p1[2], parseInt(p1[1])); return; }
+
+        // Padrão 2: CODIGO seguido de quantidade no fim da linha
+        var p2 = line.match(/^([A-Z0-9][A-Z0-9\-\.\/\_]{1,20})\s+(?:[^\d]*\s+)?(\d+)\s*(?:un|pç|pc|cx|cx\.?|und?\.?)?$/i);
+        if (p2) { _addProduto(result, p2[1], parseInt(p2[2])); return; }
+
+        // Padrão 3: quantidade no início + código
+        var p3 = line.match(/^(\d+)\s+([A-Z0-9][A-Z0-9\-\.\/\_]{2,20})/i);
+        if (p3) { _addProduto(result, p3[2], parseInt(p3[1])); return; }
+    });
+
+    return result;
+}
+
+function _addProduto(result, codigo, quantidade) {
+    var cod = codigo.toUpperCase().trim();
+    // Evita códigos que são apenas números pequenos (confusos com quantidades)
+    if (/^\d{1,3}$/.test(cod)) return;
+    // Evita duplicados
+    if (result.produtos.some(function(p) { return p.codigo === cod; })) return;
+    result.produtos.push({ codigo: cod, quantidade: quantidade || 1 });
+}
+
+        //
 async function _fillFromExtraction(data) {
-    // Nº PAT
     if (data.numero_pat) {
         var pat = String(data.numero_pat).replace(/[^0-9]/g, '').slice(0, 6);
         document.getElementById('pat-numero').value = pat;
         document.getElementById('pat-numero-hint').textContent = '';
     }
-
-    // Estabelecimento
     if (data.estabelecimento) {
         document.getElementById('pat-estabelecimento').value = data.estabelecimento;
     }
-
-    // Separação de material
     if (data.separacao_material) {
         document.getElementById('pat-separacao').checked = true;
     }
 
-    // Produtos — fuzzy match local (melhoria 3)
     if (!Array.isArray(data.produtos) || !data.produtos.length) return;
 
     var stock = cache.stock.data || {};
@@ -4169,9 +4126,7 @@ async function _fillFromExtraction(data) {
     data.produtos.forEach(function(p) {
         var codDoc = (p.codigo || '').trim();
         if (!codDoc) return;
-
         var match = _matchProductCode(codDoc, stock);
-
         if (match) {
             var id = match[0], item = match[1];
             if (!_patProducts.some(function(x) { return x.id === id; })) {
@@ -4198,8 +4153,28 @@ async function _fillFromExtraction(data) {
     });
 
     _renderPatChips();
-
     if (naoEncontrados.length) {
-        showToast(naoEncontrados.length + ' ref. não encontrada(s) no stock — verifica', 'error');
+        showToast(naoEncontrados.length + ' ref. não encontrada(s) — verifica', 'error');
     }
+}
+
+        //
+function _normalizeCode(code) {
+    return (code || '').toUpperCase()
+        .replace(/[\s\-_\.]/g, '')
+        .replace(/^0+/, '');
+}
+
+function _matchProductCode(codDoc, stock) {
+    var normDoc = _normalizeCode(codDoc);
+    if (!normDoc) return null;
+    var exact = Object.entries(stock).find(function(e) {
+        return _normalizeCode(e[1].codigo) === normDoc;
+    });
+    if (exact) return exact;
+    var partial = Object.entries(stock).find(function(e) {
+        var n = _normalizeCode(e[1].codigo);
+        return n && (normDoc.includes(n) || n.includes(normDoc));
+    });
+    return partial || null;
 }
