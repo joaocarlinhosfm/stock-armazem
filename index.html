@@ -9,7 +9,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' https://*.firebasedatabase.app https://*.googleapis.com https://*.firebaseapp.com; font-src https://fonts.gstatic.com; img-src 'self' data:;">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=5.29">
 </head>
 <body>
 
@@ -300,9 +300,9 @@
                 <div class="settings-item">
                     <div class="settings-item-info">
                         <span class="settings-item-title">OCR — Leitura por foto</span>
-                        <span class="settings-item-desc">Activo — sem API key, sem limites</span>
+                        <span class="settings-item-desc">OCR.space — 25.000 pedidos/mês grátis</span>
                     </div>
-                    <span class="settings-item-badge">✓ Local</span>
+                    <button class="btn-settings-action" onclick="openOcrKeyModal()">Chave</button>
                 </div>
 
                 <div class="settings-group-label">SEGURANÇA</div>
@@ -514,7 +514,18 @@
         </div>
     </div>
 
-    <!-- Modal Gemini removido — OCR local via Tesseract.js -->
+    <!-- Modal: OCR.space API Key -->
+    <div id="ocr-key-modal" class="modal-overlay" role="dialog" aria-modal="true">
+        <div class="modal-content">
+            <div class="modal-icon">📷</div>
+            <h3>Chave OCR</h3>
+            <p class="modal-desc">Registo gratuito em <strong>ocr.space/ocrapi</strong> — 25.000 pedidos/mês.</p>
+            <p class="modal-desc" style="margin-top:4px">Sem chave usa a chave pública partilhada (pode ter limites).</p>
+            <input type="text" id="ocr-key-input" class="blue-input" placeholder="Chave de API..." autocomplete="off" style="width:100%;margin:12px 0 4px">
+            <button class="btn-primary" onclick="saveOcrKey()" style="width:100%">Guardar</button>
+            <button class="btn-cancel" onclick="closeOcrKeyModal()" style="width:100%;margin-top:8px">Cancelar</button>
+        </div>
+    </div>
 
     <!-- Modal: Entregar ferramenta -->
     <div id="worker-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="worker-modal-title">
@@ -839,6 +850,7 @@
         });
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=5.29"></script>
 </body>
 </html>
+
