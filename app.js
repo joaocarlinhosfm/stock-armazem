@@ -41,7 +41,7 @@ async function getAuthToken() {
         try {
             const forceRefreshToken = (_authToken !== null); // força renovação se já tivemos token antes
             _authToken = await window._firebaseUser.getIdToken(forceRefreshToken);
-        } catch { /* usa o token da Promise */ }
+        } catch(_e) { /* usa o token da Promise */ }
     }
 
     _authTokenExp = now + 3_500_000; // ~58 min
@@ -165,7 +165,7 @@ function closeSwitchRoleModal() {
 
 // Inicializa a app após o perfil estar definido
 async function bootApp() {
-    try { await getAuthToken(); } catch { /* offline — continua com cache */ }
+    try { await getAuthToken(); } catch(_e) { /* offline — continua com cache */ }
     _scheduleTokenRenewal();
     renderList();
     fetchCollection('ferramentas');
@@ -325,7 +325,7 @@ async function syncQueue() {
             const signedUrl = await authUrl(op.url);
             const res = await fetch(signedUrl, opts);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        } catch { failed.push(op); }
+        } catch(_e) { failed.push(op); }
     }
     queueSave(failed);
     isSyncing = false;
@@ -478,7 +478,7 @@ function _getDashTrend(field, currentVal) {
         const diff = currentVal - snap.prev[field];
         if (diff === 0) return null;
         return diff;
-    } catch { return null; }
+    } catch(_e) { return null; }
 }
 
 async function renderDashboard(force = false) {
@@ -1016,7 +1016,7 @@ function openInlineQtyEdit(id, item) {
         try {
             await apiFetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: newVal }) });
             renderDashboard();
-        } catch { showToast('Erro ao guardar','error'); }
+        } catch(_e) { showToast('Erro ao guardar','error'); }
     };
     const cancelFn = () => { wrap.replaceWith(qtyEl); };
     inp.addEventListener('keydown', e => {
@@ -1334,7 +1334,7 @@ async function assignTool(worker) {
             method:'PATCH', body:JSON.stringify({status:'alocada',colaborador:worker,dataEntrega})
         });
         await addToolHistoryEvent(id, 'atribuida', worker);
-    } catch { invalidateCache('ferramentas'); showToast('Erro ao guardar.','error'); }
+    } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao guardar.','error'); }
 }
 
 async function returnTool(id) {
@@ -1398,7 +1398,7 @@ async function saveEditTool() {
         await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, {
             method:'PATCH', body: JSON.stringify({ nome, icone })
         });
-    } catch { invalidateCache('ferramentas'); showToast('Erro ao guardar','error'); }
+    } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao guardar','error'); }
 }
 
 async function deleteTool(id) {
@@ -1409,7 +1409,7 @@ async function deleteTool(id) {
         try {
             await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, { method:'DELETE' });
             showToast('Ferramenta apagada');
-        } catch { invalidateCache('ferramentas'); showToast('Erro ao apagar.','error'); }
+        } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao apagar.','error'); }
     };
     if (tool?.status === 'alocada') {
         openConfirmModal({
@@ -1459,7 +1459,7 @@ async function deleteWorker(id) {
     renderWorkers();
     try {
         await apiFetch(`${BASE_URL}/funcionarios/${id}.json`, { method:'DELETE' });
-    } catch { invalidateCache('funcionarios'); showToast('Erro ao apagar.','error'); }
+    } catch(_e) { invalidateCache('funcionarios'); showToast('Erro ao apagar.','error'); }
 }
 
 // =============================================
@@ -1684,7 +1684,7 @@ async function isPinLockedRemote() {
         if (!data) return false;
         if (Date.now() < (data.until || 0)) return data.until;
         return false;
-    } catch { return false; } // offline — usa local
+    } catch(_e) { return false; } // offline — usa local
 }
 
 function recordPinFailure() {
@@ -3054,7 +3054,7 @@ function _invLoadResume() {
         if (!saved || Date.now() - (saved.ts||0) > 86400000) { _invClearResume(); return null; }
         if (!saved.items || saved.items.length === 0) { _invClearResume(); return null; }
         return saved;
-    } catch { return null; }
+    } catch(_e) { return null; }
 }
 
 function _invClearResume() {
@@ -3383,7 +3383,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderDashboard();
                 setUnitSelector('inp', 'un');
                 showToast('Produto Registado!'); nav('view-search'); e.target.reset();
-            } catch { invalidateCache('stock'); showToast('Erro ao registar produto','error'); }
+            } catch(_e) { invalidateCache('stock'); showToast('Erro ao registar produto','error'); }
             finally { btn.disabled = false; }
         };
         checkDuplicateCodigo(codigo, doSave);
@@ -3419,7 +3419,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('bulk-qtd').value    = '1';
                 document.getElementById('bulk-notas').value  = '';
                 document.getElementById('bulk-codigo').focus();
-            } catch { invalidateCache('stock'); showToast('Erro ao adicionar ao lote','error'); }
+            } catch(_e) { invalidateCache('stock'); showToast('Erro ao adicionar ao lote','error'); }
             finally { btn.disabled = false; }
         };
         checkDuplicateCodigo(codigo, doSave);
@@ -3462,7 +3462,7 @@ document.addEventListener('DOMContentLoaded', () => {
             else { cache.funcionarios.data[`_tmp_${Date.now()}`] = {nome}; }
             document.getElementById('worker-name').value = '';
             renderWorkers(); showToast('Funcionário adicionado');
-        } catch { invalidateCache('funcionarios'); showToast('Erro ao adicionar funcionário','error'); }
+        } catch(_e) { invalidateCache('funcionarios'); showToast('Erro ao adicionar funcionário','error'); }
     });
 
     // Form: Registar Ferramenta
@@ -3480,7 +3480,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('reg-tool-icon').value = '🪛';
             document.getElementById('reg-tool-icon-btn').textContent = '🪛';
             renderAdminTools(); showToast('Ferramenta registada');
-        } catch { invalidateCache('ferramentas'); showToast('Erro ao registar ferramenta','error'); }
+        } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao registar ferramenta','error'); }
     });
 
     // Form: Editar Ferramenta
@@ -3519,7 +3519,7 @@ async function _fetchPats(force = false) {
         if (!res.ok) throw new Error(res.status);
         _patCache.data = await res.json() || {};
         _patCache.lastFetch = now;
-    } catch { _patCache.data = _patCache.data || {}; }
+    } catch(_e) { _patCache.data = _patCache.data || {}; }
     return _patCache.data;
 }
 
@@ -3780,7 +3780,7 @@ async function savePat() {
         closePatModal();
         renderPats();
         showToast(`PAT ${numero} registada!`);
-    } catch { showToast('Erro ao guardar pedido', 'error'); }
+    } catch(_e) { showToast('Erro ao guardar pedido', 'error'); }
 }
 
 // ── Marcar como levantado ─────────────────────────────────────────────────────
@@ -3831,7 +3831,7 @@ async function marcarPatLevantado(id) {
                 renderPats();
                 updatePatCount();
                 showToast(separacao ? 'Levantado — stock descontado!' : 'Pedido marcado como levantado!');
-            } catch { showToast('Erro ao actualizar pedido', 'error'); }
+            } catch(_e) { showToast('Erro ao actualizar pedido', 'error'); }
         }
     });
 }
@@ -3850,7 +3850,7 @@ async function apagarPat(id) {
                 renderPats();
                 updatePatCount();
                 showToast('Pedido apagado');
-            } catch { showToast('Erro ao apagar pedido', 'error'); }
+            } catch(_e) { showToast('Erro ao apagar pedido', 'error'); }
         }
     });
 }
