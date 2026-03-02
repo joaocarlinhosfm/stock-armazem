@@ -3734,13 +3734,21 @@ body.glass-mode .bnav-add-option-icon {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
     padding: 20px 16px 12px;
+    /* impede scroll lateral no Android quando botão é largo */
+    overflow: hidden;
 }
 .dash-view-title {
     font-size: 1.4rem;
     font-weight: 800;
     color: var(--text-main);
     letter-spacing: -0.5px;
+    /* título cede espaço ao botão em vez de o empurrar */
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .dash-refresh-btn {
     display: flex;
@@ -3793,29 +3801,28 @@ body.glass-mode .dash-refresh-btn:hover {
 }
 
 /* =============================================
+   PEDIDOS PAT — pesquisa e botão
+   ============================================= */
 
-/* ── Barra de pesquisa PAT ── */
+/* Barra de pesquisa */
 .pat-search-wrap {
-    padding: 0 0 10px;
+    padding: 0 16px 12px;
 }
 .pat-search-input {
     width: 100%;
     box-sizing: border-box;
 }
 
-/* ── Botão Novo Pedido ── */
+/* Botão Novo Pedido — não sai do ecrã */
 .pat-add-btn {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 14px;
+    padding: 8px 12px;
     font-size: 0.82rem;
     white-space: nowrap;
     flex-shrink: 0;
 }
-
-   PEDIDOS PAT
-   ============================================= */
 
 /* ── Card no dashboard ── */
 
