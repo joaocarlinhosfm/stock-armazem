@@ -4203,3 +4203,4 @@ function _matchProductCode(codDoc, stock) {
     var partial = Object.entries(stock).find(function(e) { var n = _normalizeCode(e[1].codigo); return n && (normDoc.includes(n) || n.includes(normDoc)); });
     return partial || null;
 }
+
