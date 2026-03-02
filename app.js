@@ -424,7 +424,7 @@ function nav(viewId) {
     }
     if (viewId === 'view-tools')  renderTools();
 
-    if (viewId === 'view-dashboard') { renderDashboard(true); updatePatCount(); }
+    if (viewId === 'view-dashboard') { renderDashboard(true); }
     if (viewId === 'view-pedidos')   { renderPats(); }
     if (viewId === 'view-admin')  { renderWorkers(); renderAdminTools(); }
 
@@ -3554,11 +3554,8 @@ function _getPatPendingCount() {
 }
 
 async function updatePatCount() {
-    // Actualiza a cache de PATs para o card do dashboard ter o valor correcto
+    // Actualiza a cache de PATs — card do dashboard lê _getPatPendingCount() da cache
     await _fetchPats();
-    // Re-renderiza o dashboard se estiver visível
-    const dash = document.getElementById('dashboard');
-    if (dash && dash.closest('.view.active')) renderDashboard();
 }
 
 var _patSearchQuery = '';
