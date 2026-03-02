@@ -4049,25 +4049,36 @@ async function _runOCR() {
         var resized = await _resizeDataUrl(_patScanDataUrl, _patScanMime, 1600, 0.90);
         btn.innerHTML = '<span class="pat-scan-spinner"></span> A ler documento...';
 
-        // Envia para OCR.space via FormData
+        // Converte dataUrl para Blob e envia como ficheiro (mais fiável que base64 em texto)
+        var base64Data = resized.dataUrl.split(',')[1];
+        var byteChars  = atob(base64Data);
+        var byteArr    = new Uint8Array(byteChars.length);
+        for (var i = 0; i < byteChars.length; i++) { byteArr[i] = byteChars.charCodeAt(i); }
+        var blob = new Blob([byteArr], { type: 'image/jpeg' });
+
         var formData = new FormData();
-        formData.append('apikey', getOcrKey());
-        formData.append('language', 'por');          // português
-        formData.append('isOverlayRequired', 'false');
-        formData.append('detectOrientation', 'true'); // corrige foto torta
-        formData.append('scale', 'true');             // melhora texto pequeno
-        formData.append('isTable', 'false');
-        formData.append('OCREngine', '2');            // motor mais preciso para documentos
-        formData.append('base64Image', resized.dataUrl);
+        formData.append('apikey',              getOcrKey());
+        formData.append('language',            'por');
+        formData.append('isOverlayRequired',   'false');
+        formData.append('detectOrientation',   'true');
+        formData.append('scale',               'true');
+        formData.append('OCREngine',           '2');
+        formData.append('file',                blob, 'doc.jpg');
 
-        var res = await fetch('https://api.ocr.space/parse/image', {
-            method: 'POST',
-            body: formData
-        });
+        var res;
+        try {
+            res = await fetch('https://api.ocr.space/parse/image', {
+                method: 'POST',
+                body: formData
+            });
+        } catch(fetchErr) {
+            throw new Error('Sem ligação ao servidor OCR (' + (fetchErr.message || 'rede') + '). Confirma que a app foi recarregada após o último deploy.');
+        }
 
-        if (!res.ok) throw new Error('Erro de rede: ' + res.status);
+        if (!res.ok) throw new Error('Servidor OCR respondeu ' + res.status + ' — chave inválida ou limite atingido');
 
-        var data = await res.json();
+        var data;
+        try { data = await res.json(); } catch(_e) { throw new Error('Resposta inválida do servidor OCR'); }
         console.log('[OCR] Resposta:', JSON.stringify(data));
 
         if (data.IsErroredOnProcessing) {
@@ -4203,4 +4214,3 @@ function _matchProductCode(codDoc, stock) {
     var partial = Object.entries(stock).find(function(e) { var n = _normalizeCode(e[1].codigo); return n && (normDoc.includes(n) || n.includes(normDoc)); });
     return partial || null;
 }
-
