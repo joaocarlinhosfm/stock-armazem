@@ -3925,43 +3925,39 @@ function closePatDetail() {
 }
 
 // =============================================
-// OCR — LEITURA DE DOCUMENTO PAT (OCR.space)
-// API gratuita: 25.000 pedidos/mês, sem worker, sem ficheiros de linguagem
-// Registo gratuito em: ocr.space/ocrapi
+// OCR — LEITURA DE DOCUMENTO PAT (Gemini)
+// API gratuita: 1500 pedidos/dia
+// Chave em: aistudio.google.com (sem cartão)
 // =============================================
 
-const OCR_KEY_STORAGE = 'hiperfrio-ocr-key';
-const OCR_DEFAULT_KEY = 'helloworld'; // chave pública de teste (funcional mas limitada)
+const GEMINI_KEY_STORAGE = 'hiperfrio-gemini-key';
 
-function getOcrKey() {
-    return localStorage.getItem(OCR_KEY_STORAGE) || OCR_DEFAULT_KEY;
+function getGeminiKey() {
+    return localStorage.getItem(GEMINI_KEY_STORAGE) || '';
 }
 
-// Stub de compatibilidade (modal Gemini foi removido)
 function openGeminiKeyModal() {
-    showToast('Usa Admin → Definições → OCR para configurar a chave', 'error');
-}
-function closeGeminiKeyModal() {}
-function saveGeminiKey() {}
-
-// Abre modal da chave OCR
-function openOcrKeyModal() {
-    var inp = document.getElementById('ocr-key-input');
-    if (inp) inp.value = getOcrKey() === OCR_DEFAULT_KEY ? '' : getOcrKey();
-    document.getElementById('ocr-key-modal').classList.add('active');
-    focusModal('ocr-key-modal');
+    var inp = document.getElementById('gemini-key-input');
+    if (inp) inp.value = getGeminiKey();
+    document.getElementById('gemini-key-modal').classList.add('active');
+    focusModal('gemini-key-modal');
     setTimeout(function() { inp && inp.focus(); }, 80);
 }
-function closeOcrKeyModal() {
-    document.getElementById('ocr-key-modal').classList.remove('active');
+function closeGeminiKeyModal() {
+    document.getElementById('gemini-key-modal').classList.remove('active');
 }
-function saveOcrKey() {
-    var key = document.getElementById('ocr-key-input').value.trim();
-    if (!key) { localStorage.removeItem(OCR_KEY_STORAGE); closeOcrKeyModal(); showToast('Chave removida — a usar chave de teste'); return; }
-    localStorage.setItem(OCR_KEY_STORAGE, key);
-    closeOcrKeyModal();
-    showToast('Chave OCR guardada!');
+function saveGeminiKey() {
+    var key = document.getElementById('gemini-key-input').value.trim();
+    if (!key) { showToast('Introduz uma API key válida', 'error'); return; }
+    localStorage.setItem(GEMINI_KEY_STORAGE, key);
+    closeGeminiKeyModal();
+    showToast('Chave Gemini guardada!');
 }
+
+// Compatibilidade com referências OCR antigas
+function openOcrKeyModal() { openGeminiKeyModal(); }
+function closeOcrKeyModal() { closeGeminiKeyModal(); }
+function saveOcrKey() { saveGeminiKey(); }
 
 // ── Variáveis de estado ───────────────────────────────────────────────────────
 var _patScanDataUrl = null;
@@ -3969,11 +3965,20 @@ var _patScanMime    = 'image/jpeg';
 
 // ── Aciona câmara ─────────────────────────────────────────────────────────────
 function patScanDocument() {
+    if (!getGeminiKey()) {
+        openConfirmModal({
+            icon: '🤖',
+            title: 'Chave Gemini não configurada',
+            desc: 'Vai a aistudio.google.com, cria uma chave grátis e configura em Admin → Definições → OCR.',
+            onConfirm: function() { closePatModal(); setTimeout(function() { nav('view-admin'); }, 200); }
+        });
+        return;
+    }
     document.getElementById('pat-scan-input').value = '';
     document.getElementById('pat-scan-input').click();
 }
 
-// ── Lê ficheiro para memória imediatamente (evita expiração no Android) ───────
+// ── Lê ficheiro para memória imediatamente ────────────────────────────────────
 function patProcessImage(input) {
     var file = input.files && input.files[0];
     if (!file) return;
@@ -4020,10 +4025,7 @@ function _resizeDataUrl(dataUrl, mime, maxPx, quality) {
         img.onerror = function() { reject(new Error('Imagem inválida')); };
         img.onload = function() {
             var w = img.width, h = img.height;
-            if (w <= maxPx && h <= maxPx) {
-                resolve({ dataUrl: dataUrl, mime: mime });
-                return;
-            }
+            if (w <= maxPx && h <= maxPx) { resolve({ dataUrl: dataUrl, mime: mime }); return; }
             var ratio = Math.min(maxPx / w, maxPx / h);
             var canvas = document.createElement('canvas');
             canvas.width  = Math.round(w * ratio);
@@ -4036,7 +4038,7 @@ function _resizeDataUrl(dataUrl, mime, maxPx, quality) {
     });
 }
 
-// ── OCR via OCR.space API ─────────────────────────────────────────────────────
+// ── OCR via Gemini Vision ─────────────────────────────────────────────────────
 async function _runOCR() {
     var btn = document.getElementById('pat-scan-btn');
     btn.disabled = true;
@@ -4046,55 +4048,59 @@ async function _runOCR() {
     try {
         if (!_patScanDataUrl) throw new Error('Sem imagem — tenta de novo');
 
-        var resized = await _resizeDataUrl(_patScanDataUrl, _patScanMime, 1600, 0.90);
+        var resized = await _resizeDataUrl(_patScanDataUrl, _patScanMime, 1400, 0.88);
         btn.innerHTML = '<span class="pat-scan-spinner"></span> A ler documento...';
 
-        // Converte dataUrl para Blob e envia como ficheiro (mais fiável que base64 em texto)
-        var base64Data = resized.dataUrl.split(',')[1];
-        var byteChars  = atob(base64Data);
-        var byteArr    = new Uint8Array(byteChars.length);
-        for (var i = 0; i < byteChars.length; i++) { byteArr[i] = byteChars.charCodeAt(i); }
-        var blob = new Blob([byteArr], { type: 'image/jpeg' });
+        var base64 = resized.dataUrl.split(',')[1];
+        var key    = getGeminiKey();
 
-        var formData = new FormData();
-        formData.append('apikey',              getOcrKey());
-        formData.append('language',            'por');
-        formData.append('isOverlayRequired',   'false');
-        formData.append('detectOrientation',   'true');
-        formData.append('scale',               'true');
-        formData.append('OCREngine',           '2');
-        formData.append('file',                blob, 'doc.jpg');
+        var prompt = [
+            'Este documento tem o seguinte formato:',
+            '- Linha principal: "PAT: 123456   Nome do Estabelecimento" (6 dígitos após PAT:, estabelecimento na mesma linha a seguir)',
+            '- Linhas seguintes: referências de produtos com quantidades',
+            '- Pode conter "Separação", "Guia de Transporte" ou "GT"',
+            '',
+            'Extrai em JSON (responde APENAS com JSON válido, sem markdown):',
+            '{',
+            '  "numero_pat": "6 dígitos após PAT:",',
+            '  "estabelecimento": "texto na mesma linha após os 6 dígitos",',
+            '  "separacao_material": true ou false,',
+            '  "produtos": [{"codigo": "exactamente como no documento", "quantidade": número}]',
+            '}'
+        ].join('\n');
 
-        var res;
-        try {
-            res = await fetch('https://api.ocr.space/parse/image', {
-                method: 'POST',
-                body: formData
-            });
-        } catch(fetchErr) {
-            throw new Error('Sem ligação ao servidor OCR (' + (fetchErr.message || 'rede') + '). Confirma que a app foi recarregada após o último deploy.');
+        var body = JSON.stringify({
+            contents: [{ parts: [
+                { text: prompt },
+                { inline_data: { mime_type: resized.mime, data: base64 } }
+            ]}],
+            generationConfig: { temperature: 0, maxOutputTokens: 512 }
+        });
+
+        var res = await fetch(
+            'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + key,
+            { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body }
+        );
+
+        if (!res.ok) {
+            var errData = {};
+            try { errData = await res.json(); } catch(_e) {}
+            var errMsg = (errData.error && errData.error.message) || ('Erro ' + res.status);
+            if (res.status === 400) throw new Error('Chave Gemini inválida — verifica em Admin → Definições → OCR');
+            if (res.status === 429) throw new Error('Limite diário atingido (1500/dia) — tenta amanhã');
+            throw new Error(errMsg);
         }
 
-        if (!res.ok) throw new Error('Servidor OCR respondeu ' + res.status + ' — chave inválida ou limite atingido');
+        var data = await res.json();
+        var text = (data.candidates && data.candidates[0] && data.candidates[0].content &&
+                    data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
+                    data.candidates[0].content.parts[0].text) || '';
 
-        var data;
-        try { data = await res.json(); } catch(_e) { throw new Error('Resposta inválida do servidor OCR'); }
-        console.log('[OCR] Resposta:', JSON.stringify(data));
+        var clean  = text.replace(/```json|```/g, '').trim();
+        var parsed = JSON.parse(clean);
 
-        if (data.IsErroredOnProcessing) {
-            throw new Error(data.ErrorMessage || 'Erro no processamento da imagem');
-        }
-
-        var text = (data.ParsedResults && data.ParsedResults[0] && data.ParsedResults[0].ParsedText) || '';
-        console.log('[OCR] Texto extraído:', text);
-
-        if (!text.trim()) throw new Error('Não foi possível extrair texto — melhora a iluminação e nitidez da foto');
-
-        var parsed = _parseDocumentText(text);
-        console.log('[OCR] Parsed:', JSON.stringify(parsed));
-
-        if (!parsed.numero_pat && !parsed.produtos.length) {
-            throw new Error('Dados não reconhecidos — verifica se a foto está nítida e com boa iluminação');
+        if (!parsed.numero_pat && (!parsed.produtos || !parsed.produtos.length)) {
+            throw new Error('Não foram encontrados dados — verifica a nitidez da foto');
         }
 
         await _fillFromExtraction(parsed);
@@ -4107,59 +4113,15 @@ async function _runOCR() {
         btn.style.color = '#16a34a';
 
     } catch(_e) {
-        console.error('[OCR] Erro:', _e);
+        console.error('[OCR]', _e);
         btn.classList.remove('pat-scan-btn--loading');
         btn.disabled = false;
         btn.innerHTML = '⚠️ Erro — tenta novamente';
         btn.style.background = 'rgba(239,68,68,0.08)';
         btn.style.borderColor = 'rgba(239,68,68,0.25)';
         btn.style.color = 'var(--danger)';
-        showToast((_e.message || 'Erro OCR').slice(0, 140), 'error');
+        showToast((_e.message || 'Erro').slice(0, 140), 'error');
     }
-}
-
-// ── Parser do texto extraído ──────────────────────────────────────────────────
-function _parseDocumentText(text) {
-    var result = { numero_pat: null, estabelecimento: null, separacao_material: false, produtos: [] };
-    var lines = text.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
-
-    lines.forEach(function(line) {
-        // PAT + Estabelecimento — "PAT: 123456   Nome" ou variantes OCR
-        var patMatch = line.match(/PAT\s*[:\-]?\s*(\d{6})\s*(.*)?/i);
-        if (patMatch && !result.numero_pat) {
-            result.numero_pat = patMatch[1];
-            var estab = (patMatch[2] || '').replace(/^[\|\-\_\:\s]+/, '').trim();
-            if (estab.length > 1) result.estabelecimento = estab;
-            return;
-        }
-
-        // Separação de material
-        if (/separa[cç][aã]o|guia.{0,10}transporte|guia.{0,5}remessa|GT/i.test(line)) {
-            result.separacao_material = true;
-        }
-
-        // Produtos: vários formatos
-        // "5x REF001" ou "5 x REF001"
-        var p1 = line.match(/^(\d+)\s*[xX]\s*([A-Z0-9][A-Z0-9\-\.\/\_]{1,20})/i);
-        if (p1) { _addProduto(result, p1[2], parseInt(p1[1])); return; }
-
-        // "REF001   5" — código seguido de quantidade
-        var p2 = line.match(/^([A-Z0-9][A-Z0-9\-\.\/\_]{1,20})\s+(?:[^\d]*\s+)?(\d+)\s*(?:un|p[cç]|cx|und?)?\.?$/i);
-        if (p2) { _addProduto(result, p2[1], parseInt(p2[2])); return; }
-
-        // "5   REF001" — quantidade seguida de código
-        var p3 = line.match(/^(\d+)\s+([A-Z0-9][A-Z0-9\-\.\/\_]{2,20})/i);
-        if (p3) { _addProduto(result, p3[2], parseInt(p3[1])); return; }
-    });
-
-    return result;
-}
-
-function _addProduto(result, codigo, quantidade) {
-    var cod = codigo.toUpperCase().trim();
-    if (/^\d{1,3}$/.test(cod)) return; // evita confundir quantidades com códigos
-    if (result.produtos.some(function(p) { return p.codigo === cod; })) return;
-    result.produtos.push({ codigo: cod, quantidade: quantidade || 1 });
 }
 
 // ── Preenchimento do modal ────────────────────────────────────────────────────
