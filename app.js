@@ -440,7 +440,7 @@ function nav(viewId) {
     document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
     const bnavMap = {
         'view-dashboard':'bnav-dashboard',
-        'view-search':'bnav-search','view-tools':'bnav-tools',
+        'view-search':'bnav-search','view-pedidos':'bnav-pedidos',
         'view-register':'bnav-add','view-bulk':'bnav-add',
         'view-admin':'bnav-admin'
     };
@@ -538,6 +538,11 @@ async function renderDashboard(force = false) {
             trend: null,
             action: () => { nav('view-tools'); showToast(`${alocadasHaMuito.length} ferramenta(s) alocada(s) há mais de ${ALERTA_DIAS} dias!`, 'error'); }
         }] : []),
+        {
+            label: 'Pendentes', value: _getPatPendingCount(), icon: '📋', cls: '',
+            trend: null,
+            action: () => nav('view-pedidos')
+        },
     ];
 
     cards.forEach(c => {
@@ -2002,7 +2007,6 @@ function switchAdminTab(tab, animate = true) {
     }
 }
 
-        //
 // AbortController para garantir que os listeners são limpos antes de re-setup
 let _adminSwipeAC = null;
 
@@ -2119,7 +2123,6 @@ function _applyTheme(theme) {
     _setupBottomNavScrollBehaviour(true);
 }
 
-        //
 let _searchScrollCleanup = null;
 
 function _setupSearchScrollBehaviour(enable) {
@@ -2185,7 +2188,6 @@ function _setupSearchScrollBehaviour(enable) {
     };
 }
 
-        //
 let _bnavScrollCleanup = null;
 
 function _setupBottomNavScrollBehaviour(enable) {
@@ -2496,7 +2498,6 @@ let _invSkipped   = new Set(); // ids saltados
 let _invOptions   = { zones: null, skipZeros: false }; // null = todas as zonas
 let _invLastData  = null;      // snapshot dos dados no início (para o Excel)
 
-        //
 async function startInventory() {
     const data = await fetchCollection('stock', true);
     if (!data || Object.keys(data).length === 0) {
@@ -2619,7 +2620,6 @@ async function invSetupStart() {
     await _startInvWithOptions(activeZones, skipZeros);
 }
 
-        //
 async function _startInvWithOptions(zones, skipZeros) {
     const data = cache.stock.data;
     if (!data) return;
@@ -2674,7 +2674,6 @@ function _resumeInventory(saved) {
     showToast(`A retomar — produto ${_invIdx + 1} de ${_invItems.length}`);
 }
 
-        //
 function _renderInvStep() {
     const total      = _invItems.length;
     const [id, item] = _invItems[_invIdx] || [];
@@ -2755,7 +2754,6 @@ function closeInventory() {
     // Progresso guardado — não apaga para possível retoma
 }
 
-        //
 function _finishInventory() {
     document.getElementById('inv-modal').classList.remove('active');
     _invClearResume(); // limpa a sessão guardada
@@ -2886,7 +2884,6 @@ async function invReviewConfirm() {
     });
 }
 
-        //
 function _openInvResult(stats) {
     const statsEl = document.getElementById('inv-result-stats');
     statsEl.innerHTML = `
@@ -2920,7 +2917,6 @@ function closeInvResult() {
     document.getElementById('inv-result-modal').classList.remove('active');
 }
 
-        //
 function exportInventoryExcel() {
     const wb       = _buildInventoryWorkbook();
     const filename = `inventario-hiperfrio-${new Date().toISOString().slice(0,10)}.xlsx`;
@@ -2928,7 +2924,6 @@ function exportInventoryExcel() {
     showToast('Excel exportado com sucesso!');
 }
 
-        //
 async function exportInventoryEmail() {
     const now     = new Date();
     const dateStr = now.toLocaleDateString('pt-PT');
@@ -3031,7 +3026,6 @@ function _buildInventoryWorkbook() {
     return wb;
 }
 
-        //
 function _invSaveResume() {
     try {
         localStorage.setItem(INV_RESUME_KEY, JSON.stringify({
@@ -3554,20 +3548,26 @@ async function _fetchPats(force = false) {
     return _patCache.data;
 }
 
-        //
-async function updatePatCount() {
-    const el = document.getElementById('dash-pedidos-count');
-    if (!el) return;
-    const pats = await _fetchPats();
-    const pendentes = Object.values(pats || {}).filter(p => p.status !== 'levantado').length;
-    el.textContent = pendentes === 0 ? 'Nenhum pendente'
-                   : pendentes === 1 ? '1 pedido pendente'
-                   : `${pendentes} pedidos pendentes`;
-    const card = document.getElementById('dash-pedidos-card');
-    if (card) card.classList.toggle('dash-pedidos-btn--has', pendentes > 0);
+function _getPatPendingCount() {
+    const data = cache._patCache && cache._patCache.data ? cache._patCache.data : (_patCache && _patCache.data ? _patCache.data : {});
+    return Object.values(data).filter(p => p.status !== 'levantado').length;
 }
 
-        //
+async function updatePatCount() {
+    // Actualiza a cache de PATs para o card do dashboard ter o valor correcto
+    await _fetchPats();
+    // Re-renderiza o dashboard se estiver visível
+    const dash = document.getElementById('dashboard');
+    if (dash && dash.closest('.view.active')) renderDashboard();
+}
+
+var _patSearchQuery = '';
+
+function patSearchFilter(val) {
+    _patSearchQuery = (val || '').toLowerCase().trim();
+    renderPats();
+}
+
 async function renderPats() {
     const el = document.getElementById('pat-list');
     if (!el) return;
@@ -3576,6 +3576,11 @@ async function renderPats() {
     const pats = await _fetchPats();
     const entries = Object.entries(pats || {})
         .filter(([, p]) => p.status !== 'levantado')
+        .filter(([, p]) => {
+            if (!_patSearchQuery) return true;
+            return (p.numero || '').toLowerCase().includes(_patSearchQuery) ||
+                   (p.estabelecimento || '').toLowerCase().includes(_patSearchQuery);
+        })
         .sort((a, b) => (b[1].criadoEm || 0) - (a[1].criadoEm || 0));
 
     if (entries.length === 0) {
@@ -3599,7 +3604,7 @@ async function renderPats() {
             <div class="pat-card-top">
                 <div class="pat-card-top-left">
                     <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}">PAT ${escapeHtml(pat.numero || '—')}</span>
-                    ${separacao ? '<span class="pat-sep-tag">📦 Separação</span>' : ''}
+                    ${separacao ? '<span class="pat-sep-tag">📄 Guia Transporte</span>' : ''}
                 </div>
                 <span class="pat-dias ${urgente ? 'pat-dias-urgente' : ''}">${diasLabel}</span>
             </div>
@@ -3616,7 +3621,6 @@ async function renderPats() {
     updatePatCount();
 }
 
-        //
 function openPatModal() {
     _patProducts = [];
     document.getElementById('pat-numero').value = '';
@@ -3626,25 +3630,17 @@ function openPatModal() {
     document.getElementById('pat-product-chips').innerHTML = '';
     document.getElementById('pat-numero-hint').textContent = '';
     document.getElementById('pat-separacao').checked = false;
-    // Reset scan button
-    const scanBtn = document.getElementById('pat-scan-btn');
-    if (scanBtn) { scanBtn.classList.remove('pat-scan-btn--loading'); scanBtn.disabled = false; scanBtn.innerHTML = _patScanBtnDefault(); }
     document.getElementById('pat-modal').classList.add('active');
     focusModal('pat-modal');
     setTimeout(() => document.getElementById('pat-numero').focus(), 80);
 }
 
-function _patScanBtnDefault() {
-    const svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
-    return svg + 'Ler documento por foto';
-}
 
 function closePatModal() {
     document.getElementById('pat-modal').classList.remove('active');
     document.getElementById('pat-product-dropdown').innerHTML = '';
 }
 
-        //
 function patProductSearch(val) {
     _patDropdownIdx = -1;
     const dd = document.getElementById('pat-product-dropdown');
@@ -3766,7 +3762,6 @@ function patQtyStep(id, delta) {
     if (inp) inp.value = prod.quantidade;
 }
 
-        //
 async function savePat() {
     const numero    = document.getElementById('pat-numero').value.trim();
     const estab     = document.getElementById('pat-estabelecimento').value.trim();
@@ -3814,7 +3809,6 @@ async function savePat() {
     } catch(_e) { showToast('Erro ao guardar pedido', 'error'); }
 }
 
-        //
 async function marcarPatLevantado(id) {
     const pat = _patCache.data?.[id];
     const separacao = !!pat?.separacao;
@@ -3867,7 +3861,6 @@ async function marcarPatLevantado(id) {
     });
 }
 
-        //
 async function apagarPat(id) {
     openConfirmModal({
         icon: '🗑️',
@@ -3886,7 +3879,6 @@ async function apagarPat(id) {
     });
 }
 
-        //
 function openPatDetail(id, pat) {
     const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
     const data = pat.criadoEm ? new Date(pat.criadoEm).toLocaleDateString('pt-PT') : '—';
@@ -3896,7 +3888,7 @@ function openPatDetail(id, pat) {
     document.getElementById('pat-detail-body').innerHTML = `
         <div class="pat-detail-header">
             <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}" style="font-size:1rem;padding:6px 14px">PAT ${escapeHtml(pat.numero || '—')}</span>
-            ${separacao ? '<span class="pat-sep-tag" style="margin-top:8px">📦 Separação de Material</span>' : ''}
+            ${separacao ? '<span class="pat-sep-tag" style="margin-top:8px">📄 Guia Transporte de Material</span>' : ''}
         </div>
         <div class="pat-detail-row"><span class="pat-detail-lbl">Estabelecimento</span><span>${escapeHtml(pat.estabelecimento || 'Não especificado')}</span></div>
         <div class="pat-detail-row"><span class="pat-detail-lbl">Criado em</span><span>${data}</span></div>
@@ -3922,257 +3914,4 @@ function openPatDetail(id, pat) {
 
 function closePatDetail() {
     document.getElementById('pat-detail-modal').classList.remove('active');
-}
-
-// =============================================
-// OCR — LEITURA DE DOCUMENTO PAT (Gemini)
-// API gratuita: 1500 pedidos/dia
-// Chave em: aistudio.google.com (sem cartão)
-// =============================================
-
-const GEMINI_KEY_STORAGE = 'hiperfrio-gemini-key';
-
-function getGeminiKey() {
-    return localStorage.getItem(GEMINI_KEY_STORAGE) || '';
-}
-
-function openGeminiKeyModal() {
-    var inp = document.getElementById('gemini-key-input');
-    if (inp) inp.value = getGeminiKey();
-    document.getElementById('gemini-key-modal').classList.add('active');
-    focusModal('gemini-key-modal');
-    setTimeout(function() { inp && inp.focus(); }, 80);
-}
-function closeGeminiKeyModal() {
-    document.getElementById('gemini-key-modal').classList.remove('active');
-}
-function saveGeminiKey() {
-    var key = document.getElementById('gemini-key-input').value.trim();
-    if (!key) { showToast('Introduz uma API key válida', 'error'); return; }
-    localStorage.setItem(GEMINI_KEY_STORAGE, key);
-    closeGeminiKeyModal();
-    showToast('Chave Gemini guardada!');
-}
-
-// Compatibilidade com referências OCR antigas
-function openOcrKeyModal() { openGeminiKeyModal(); }
-function closeOcrKeyModal() { closeGeminiKeyModal(); }
-function saveOcrKey() { saveGeminiKey(); }
-
-// ── Variáveis de estado ───────────────────────────────────────────────────────
-var _patScanDataUrl = null;
-var _patScanMime    = 'image/jpeg';
-
-// ── Aciona câmara ─────────────────────────────────────────────────────────────
-function patScanDocument() {
-    if (!getGeminiKey()) {
-        openConfirmModal({
-            icon: '🤖',
-            title: 'Chave Gemini não configurada',
-            desc: 'Vai a aistudio.google.com, cria uma chave grátis e configura em Admin → Definições → OCR.',
-            onConfirm: function() { closePatModal(); setTimeout(function() { nav('view-admin'); }, 200); }
-        });
-        return;
-    }
-    document.getElementById('pat-scan-input').value = '';
-    document.getElementById('pat-scan-input').click();
-}
-
-// ── Lê ficheiro para memória imediatamente ────────────────────────────────────
-function patProcessImage(input) {
-    var file = input.files && input.files[0];
-    if (!file) return;
-    var mime = file.type || 'image/jpeg';
-    var reader = new FileReader();
-    reader.onerror = function() { showToast('Não foi possível ler a imagem', 'error'); };
-    reader.onload = function(e) {
-        _patScanDataUrl = e.target.result;
-        _patScanMime    = mime;
-        _showScanPreview(e.target.result);
-    };
-    reader.readAsDataURL(file);
-}
-
-// ── Pré-visualização ──────────────────────────────────────────────────────────
-function _showScanPreview(dataUrl) {
-    var overlay = document.getElementById('pat-scan-preview-overlay');
-    if (!overlay) return;
-    var img = document.getElementById('pat-scan-preview-img');
-    if (img) img.src = dataUrl;
-    overlay.classList.add('active');
-    var confirmBtn = document.getElementById('pat-scan-preview-confirm');
-    if (confirmBtn) {
-        confirmBtn.onclick = function() {
-            overlay.classList.remove('active');
-            _runOCR();
-        };
-    }
-    var retakeBtn = document.getElementById('pat-scan-preview-retake');
-    if (retakeBtn) {
-        retakeBtn.onclick = function() {
-            overlay.classList.remove('active');
-            _patScanDataUrl = null;
-            document.getElementById('pat-scan-input').value = '';
-            document.getElementById('pat-scan-input').click();
-        };
-    }
-}
-
-// ── Redimensiona para envio ───────────────────────────────────────────────────
-function _resizeDataUrl(dataUrl, mime, maxPx, quality) {
-    return new Promise(function(resolve, reject) {
-        var img = new Image();
-        img.onerror = function() { reject(new Error('Imagem inválida')); };
-        img.onload = function() {
-            var w = img.width, h = img.height;
-            if (w <= maxPx && h <= maxPx) { resolve({ dataUrl: dataUrl, mime: mime }); return; }
-            var ratio = Math.min(maxPx / w, maxPx / h);
-            var canvas = document.createElement('canvas');
-            canvas.width  = Math.round(w * ratio);
-            canvas.height = Math.round(h * ratio);
-            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-            var out = canvas.toDataURL('image/jpeg', quality);
-            resolve({ dataUrl: out, mime: 'image/jpeg' });
-        };
-        img.src = dataUrl;
-    });
-}
-
-// ── OCR via Gemini Vision ─────────────────────────────────────────────────────
-async function _runOCR() {
-    var btn = document.getElementById('pat-scan-btn');
-    btn.disabled = true;
-    btn.classList.add('pat-scan-btn--loading');
-    btn.innerHTML = '<span class="pat-scan-spinner"></span> A preparar imagem...';
-
-    try {
-        if (!_patScanDataUrl) throw new Error('Sem imagem — tenta de novo');
-
-        var resized = await _resizeDataUrl(_patScanDataUrl, _patScanMime, 1400, 0.88);
-        btn.innerHTML = '<span class="pat-scan-spinner"></span> A ler documento...';
-
-        var base64 = resized.dataUrl.split(',')[1];
-        var key    = getGeminiKey();
-
-        var prompt = [
-            'Este documento tem o seguinte formato:',
-            '- Linha principal: "PAT: 123456   Nome do Estabelecimento" (6 dígitos após PAT:, estabelecimento na mesma linha a seguir)',
-            '- Linhas seguintes: referências de produtos com quantidades',
-            '- Pode conter "Separação", "Guia de Transporte" ou "GT"',
-            '',
-            'Extrai em JSON (responde APENAS com JSON válido, sem markdown):',
-            '{',
-            '  "numero_pat": "6 dígitos após PAT:",',
-            '  "estabelecimento": "texto na mesma linha após os 6 dígitos",',
-            '  "separacao_material": true ou false,',
-            '  "produtos": [{"codigo": "exactamente como no documento", "quantidade": número}]',
-            '}'
-        ].join('\n');
-
-        var body = JSON.stringify({
-            contents: [{ parts: [
-                { text: prompt },
-                { inline_data: { mime_type: resized.mime, data: base64 } }
-            ]}],
-            generationConfig: { temperature: 0, maxOutputTokens: 512 }
-        });
-
-        var res = await fetch(
-            'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + key,
-            { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body }
-        );
-
-        if (!res.ok) {
-            var errData = {};
-            try { errData = await res.json(); } catch(_e) {}
-            var errMsg = (errData.error && errData.error.message) || ('Erro ' + res.status);
-            if (res.status === 400) throw new Error('Chave Gemini inválida — verifica em Admin → Definições → OCR');
-            if (res.status === 429) throw new Error('Limite diário atingido (1500/dia) — tenta amanhã');
-            throw new Error(errMsg);
-        }
-
-        var data = await res.json();
-        var text = (data.candidates && data.candidates[0] && data.candidates[0].content &&
-                    data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
-                    data.candidates[0].content.parts[0].text) || '';
-
-        var clean  = text.replace(/```json|```/g, '').trim();
-        var parsed = JSON.parse(clean);
-
-        if (!parsed.numero_pat && (!parsed.produtos || !parsed.produtos.length)) {
-            throw new Error('Não foram encontrados dados — verifica a nitidez da foto');
-        }
-
-        await _fillFromExtraction(parsed);
-
-        btn.classList.remove('pat-scan-btn--loading');
-        btn.disabled = false;
-        btn.innerHTML = '✅ Documento lido — revê os campos';
-        btn.style.background = 'rgba(34,197,94,0.12)';
-        btn.style.borderColor = 'rgba(34,197,94,0.35)';
-        btn.style.color = '#16a34a';
-
-    } catch(_e) {
-        console.error('[OCR]', _e);
-        btn.classList.remove('pat-scan-btn--loading');
-        btn.disabled = false;
-        btn.innerHTML = '⚠️ Erro — tenta novamente';
-        btn.style.background = 'rgba(239,68,68,0.08)';
-        btn.style.borderColor = 'rgba(239,68,68,0.25)';
-        btn.style.color = 'var(--danger)';
-        showToast((_e.message || 'Erro').slice(0, 140), 'error');
-    }
-}
-
-// ── Preenchimento do modal ────────────────────────────────────────────────────
-async function _fillFromExtraction(data) {
-    if (data.numero_pat) {
-        var pat = String(data.numero_pat).replace(/[^0-9]/g, '').slice(0, 6);
-        document.getElementById('pat-numero').value = pat;
-        document.getElementById('pat-numero-hint').textContent = '';
-    }
-    if (data.estabelecimento) document.getElementById('pat-estabelecimento').value = data.estabelecimento;
-    if (data.separacao_material) document.getElementById('pat-separacao').checked = true;
-
-    if (!Array.isArray(data.produtos) || !data.produtos.length) return;
-
-    var stock = cache.stock.data || {};
-    if (!Object.keys(stock).length) await fetchCollection('stock');
-    stock = cache.stock.data || {};
-
-    _patProducts = [];
-    var naoEncontrados = [];
-
-    data.produtos.forEach(function(p) {
-        var codDoc = (p.codigo || '').trim();
-        if (!codDoc) return;
-        var match = _matchProductCode(codDoc, stock);
-        if (match) {
-            var id = match[0], item = match[1];
-            if (!_patProducts.some(function(x) { return x.id === id; })) {
-                _patProducts.push({ id: id, codigo: (item.codigo || codDoc).toUpperCase(), nome: item.nome || '', quantidade: Math.max(1, parseInt(p.quantidade) || 1), stockDisponivel: item.quantidade || 0 });
-            }
-        } else {
-            naoEncontrados.push(codDoc);
-            if (!_patProducts.some(function(x) { return x.codigo === codDoc.toUpperCase(); })) {
-                _patProducts.push({ id: 'ext_' + codDoc, codigo: codDoc.toUpperCase(), nome: '(não encontrado no stock)', quantidade: Math.max(1, parseInt(p.quantidade) || 1), stockDisponivel: 0 });
-            }
-        }
-    });
-
-    _renderPatChips();
-    if (naoEncontrados.length) showToast(naoEncontrados.length + ' ref. não encontrada(s) — verifica', 'error');
-}
-
-// ── Fuzzy match ───────────────────────────────────────────────────────────────
-function _normalizeCode(code) {
-    return (code || '').toUpperCase().replace(/[\s\-_\.]/g, '').replace(/^0+/, '');
-}
-function _matchProductCode(codDoc, stock) {
-    var normDoc = _normalizeCode(codDoc);
-    if (!normDoc) return null;
-    var exact = Object.entries(stock).find(function(e) { return _normalizeCode(e[1].codigo) === normDoc; });
-    if (exact) return exact;
-    var partial = Object.entries(stock).find(function(e) { var n = _normalizeCode(e[1].codigo); return n && (normDoc.includes(n) || n.includes(normDoc)); });
-    return partial || null;
 }
