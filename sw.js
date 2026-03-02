@@ -3,7 +3,7 @@
 // Estratégia: network-first para tudo, sem pré-cache de app assets
 // Isto garante que os deploys chegam sempre sem ciclos de cache bloqueados
 // ─────────────────────────────────────────────────────────────────────────────
-const SW_VERSION = 'hiperfrio-v5.34';
+const SW_VERSION = 'hiperfrio-v5.38';
 
 // Apenas bibliotecas externas imutáveis ficam em cache
 const IMMUTABLE_ASSETS = [
@@ -41,6 +41,8 @@ self.addEventListener('fetch', e => {
     // Nunca interceptar Firebase, Google, APIs externas
     if (url.includes('firebasedatabase.app')) return;
     if (url.includes('googleapis.com')) return;
+    if (url.includes('unpkg.com')) return;
+    if (url.includes('tessdata.projectnaptha.com')) return;
     if (url.includes('gstatic.com')) return;
     if (url.includes('firebaseapp.com')) return;
 
