@@ -3793,31 +3793,31 @@ body.glass-mode .dash-refresh-btn:hover {
 }
 
 /* =============================================
+
+/* ── Barra de pesquisa PAT ── */
+.pat-search-wrap {
+    padding: 0 0 10px;
+}
+.pat-search-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* ── Botão Novo Pedido ── */
+.pat-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
    PEDIDOS PAT
    ============================================= */
 
 /* ── Card no dashboard ── */
-.dash-pedidos-btn {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin: 8px 4px 24px;
-    padding: 16px 18px;
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    -webkit-tap-highlight-color: transparent;
-}
-.dash-pedidos-btn:active { transform: scale(0.985); }
-.dash-pedidos-icon { font-size: 1.6rem; line-height: 1; }
-.dash-pedidos-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-.dash-pedidos-title { font-size: 0.92rem; font-weight: 700; color: var(--text-main); }
-.dash-pedidos-count { font-size: 0.78rem; color: var(--text-muted); }
-.dash-pedidos-btn--has .dash-pedidos-count { color: var(--primary); font-weight: 600; }
-.dash-pedidos-arrow { color: var(--text-muted); flex-shrink: 0; }
 
 /* ── Vista pedidos ── */
 .pat-list-wrap { padding: 0 4px 100px; }
@@ -4078,7 +4078,6 @@ body.glass-mode .dash-refresh-btn:hover {
 .dark-mode .pat-btn-levantado { color: #4ade80; border-color: rgba(74,222,128,0.25); background: rgba(74,222,128,0.08); }
 
 /* ── Glass mode ── */
-body.glass-mode .dash-pedidos-btn { background: var(--glass-bg-card); -webkit-backdrop-filter: var(--glass-blur-sm); backdrop-filter: var(--glass-blur-sm); border-color: var(--glass-border); }
 body.glass-mode .pat-card { background: var(--glass-bg-card); -webkit-backdrop-filter: var(--glass-blur-sm); backdrop-filter: var(--glass-blur-sm); border-color: var(--glass-border); }
 body.glass-mode .pat-card-separacao { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.30); }
 body.glass-mode .pat-product-dropdown { background: rgba(12,8,32,0.90); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-color: var(--glass-border); }
@@ -4087,129 +4086,3 @@ body.glass-mode .pat-chip-qty { background: var(--glass-bg); border-color: var(-
 body.glass-mode .pat-chip-qty-btn { background: var(--glass-bg); border-color: var(--glass-border); color: #fff; }
 body.glass-mode .pat-prod-chip { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.60); }
 body.glass-mode .pat-sep-tag { background: rgba(245,158,11,0.20); color: #fbbf24; }
-
-/* =============================================
-   GEMINI — SCAN BUTTON
-   ============================================= */
-.pat-scan-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    width: 100%;
-    padding: 13px 16px;
-    margin-bottom: 6px;
-    background: var(--primary-soft);
-    color: var(--primary);
-    border: 1.5px dashed var(--primary);
-    border-radius: 14px;
-    font-size: 0.88rem;
-    font-weight: 700;
-    font-family: 'Inter', sans-serif;
-    cursor: pointer;
-    transition: background 0.15s, opacity 0.15s;
-    -webkit-tap-highlight-color: transparent;
-}
-.pat-scan-btn:active { opacity: 0.75; }
-.pat-scan-btn:disabled { cursor: default; opacity: 0.85; }
-.pat-scan-btn--loading {
-    background: var(--input-fill);
-    border-style: solid;
-    color: var(--text-muted);
-}
-
-/* Spinner dentro do botão */
-.pat-scan-spinner {
-    width: 16px;
-    height: 16px;
-    border: 2px solid rgba(0,0,0,0.10);
-    border-top-color: currentColor;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    flex-shrink: 0;
-}
-
-/* Glass mode */
-body.glass-mode .pat-scan-btn {
-    background: rgba(10,132,255,0.12);
-    border-color: rgba(10,132,255,0.45);
-    color: #60a5fa;
-}
-body.glass-mode .pat-scan-btn--loading {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.15);
-    color: rgba(255,255,255,0.50);
-}
-
-/* ── Overlay de pré-visualização da foto ── */
-.pat-preview-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.85);
-    z-index: 9000;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.22s ease;
-}
-.pat-preview-overlay.active {
-    opacity: 1;
-    pointer-events: all;
-}
-.pat-preview-box {
-    background: var(--card-bg);
-    border-radius: 24px 24px 0 0;
-    padding: 20px 20px 36px;
-    width: 100%;
-    max-width: 480px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    transform: translateY(40px);
-    transition: transform 0.28s cubic-bezier(0.34,1.2,0.64,1);
-}
-.pat-preview-overlay.active .pat-preview-box {
-    transform: translateY(0);
-}
-.pat-preview-title {
-    font-size: 1rem;
-    font-weight: 800;
-    color: var(--text-main);
-    text-align: center;
-}
-.pat-preview-hint {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    text-align: center;
-    line-height: 1.4;
-}
-.pat-preview-img-wrap {
-    width: 100%;
-    border-radius: 14px;
-    overflow: hidden;
-    background: #000;
-    max-height: 52vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.pat-preview-img {
-    width: 100%;
-    max-height: 52vh;
-    object-fit: contain;
-    display: block;
-}
-.pat-preview-actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 4px;
-}
-
-body.glass-mode .pat-preview-box {
-    background: rgba(12,8,32,0.92);
-    -webkit-backdrop-filter: blur(24px);
-    backdrop-filter: blur(24px);
-    border-top: 1px solid var(--glass-border);
-}
