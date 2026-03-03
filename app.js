@@ -425,7 +425,13 @@ function nav(viewId) {
     if (viewId === 'view-tools')  renderTools();
 
     if (viewId === 'view-dashboard') { renderDashboard(true); }
-    if (viewId === 'view-pedidos')   { renderPats(); }
+    if (viewId === 'view-pedidos') {
+        // Limpa pesquisa ao entrar na vista para não confundir ao voltar
+        _patSearchQuery = '';
+        const searchEl = document.getElementById('pat-search');
+        if (searchEl) searchEl.value = '';
+        renderPats();
+    }
     if (viewId === 'view-admin')  { renderWorkers(); renderAdminTools(); }
 
     document.querySelectorAll('.menu-items li').forEach(li => li.classList.remove('active'));
@@ -495,7 +501,9 @@ async function renderDashboard(force = false) {
     const ts = Date.now();
     const [stockData, ferrData] = await Promise.all([
         fetchCollection('stock', force || ts > cache.stock.lastFetch + 60000),
-        fetchCollection('ferramentas', force || ts > cache.ferramentas.lastFetch + 60000)
+        fetchCollection('ferramentas', force || ts > cache.ferramentas.lastFetch + 60000),
+        // Garante que _patCache está carregada para o card "Pendentes" mostrar valor correcto
+        _fetchPats(force || !_patCache.data),
     ]);
 
     const stockEntries  = Object.values(stockData || {});
@@ -3487,12 +3495,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.28';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.39';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.28')
+        navigator.serviceWorker.register('sw.js?v=5.39')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -3549,7 +3557,8 @@ async function _fetchPats(force = false) {
 }
 
 function _getPatPendingCount() {
-    const data = cache._patCache && cache._patCache.data ? cache._patCache.data : (_patCache && _patCache.data ? _patCache.data : {});
+    // _patCache é a variável module-level correcta (cache principal não inclui pedidos)
+    const data = (_patCache && _patCache.data) ? _patCache.data : {};
     return Object.values(data).filter(p => p.status !== 'levantado').length;
 }
 
@@ -3788,21 +3797,21 @@ async function savePat() {
     };
 
     try {
-        const url = await authUrl(`${BASE_URL}/pedidos.json`);
-        const res = await fetch(url, {
+        const res = await apiFetch(`${BASE_URL}/pedidos.json`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
-        if (!res.ok) throw new Error(res.status);
-        const r = await res.json();
-        if (r?.name) {
-            if (!_patCache.data) _patCache.data = {};
-            _patCache.data[r.name] = payload;
+        if (!_patCache.data) _patCache.data = {};
+        if (res) {
+            const r = await res.json();
+            if (r?.name) _patCache.data[r.name] = payload;
+        } else {
+            // offline — guarda com ID temporário para mostrar imediatamente
+            _patCache.data[`_tmp_pat_${Date.now()}`] = payload;
         }
         closePatModal();
         renderPats();
-        showToast(`PAT ${numero} registada!`);
+        showToast(res ? `PAT ${numero} registada!` : `PAT ${numero} guardada offline — sincroniza quando tiveres ligação`);
     } catch(_e) { showToast('Erro ao guardar pedido', 'error'); }
 }
 
@@ -3820,11 +3829,9 @@ async function marcarPatLevantado(id) {
         desc,
         onConfirm: async () => {
             try {
-                // 1 — Marca como levantado na Firebase
-                const patUrl = await authUrl(`${BASE_URL}/pedidos/${id}.json`);
-                await fetch(patUrl, {
+                // 1 — Marca como levantado na Firebase (com suporte offline)
+                await apiFetch(`${BASE_URL}/pedidos/${id}.json`, {
                     method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ status: 'levantado', levantadoEm: Date.now() }),
                 });
                 if (_patCache.data?.[id]) _patCache.data[id].status = 'levantado';
@@ -3865,8 +3872,7 @@ async function apagarPat(id) {
         desc: 'O pedido será eliminado permanentemente. O stock não é alterado.',
         onConfirm: async () => {
             try {
-                const url = await authUrl(`${BASE_URL}/pedidos/${id}.json`);
-                await fetch(url, { method: 'DELETE' });
+                await apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'DELETE' });
                 if (_patCache.data) delete _patCache.data[id];
                 renderPats();
                 updatePatCount();
