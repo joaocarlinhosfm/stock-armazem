@@ -3496,12 +3496,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.39';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.41';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.39')
+        navigator.serviceWorker.register('sw.js?v=5.41')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -3670,11 +3670,7 @@ async function importClientesExcel(input) {
     const preview = document.getElementById('clientes-import-preview');
     preview.innerHTML = '<div class="pat-loading">A ler ficheiro...</div>';
     try {
-        if (!window.XLSX) {
-            preview.innerHTML = '<div class="clientes-preview-error">Biblioteca Excel não carregou. Recarrega a app e tenta de novo.</div>';
-            return;
-        }
-        const ab   = await file.arrayBuffer();
+        const ab = await file.arrayBuffer();
         const wb   = XLSX.read(ab, { type: 'array' });
         const ws   = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
