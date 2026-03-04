@@ -1987,7 +1987,7 @@ async function exportToolHistoryCSV() {
 // =============================================
 // ADMIN — slider com swipe entre tabs
 // =============================================
-const ADMIN_TABS  = ['workers', 'tools', 'settings'];
+const ADMIN_TABS  = ['workers', 'tools', 'clientes', 'settings'];
 let   _adminIdx   = 0;   // índice activo
 
 function switchAdminTab(tab, animate = true) {
@@ -2000,13 +2000,14 @@ function switchAdminTab(tab, animate = true) {
         t.classList.toggle('active', i === idx)
     );
 
+    if (tab === 'clientes') renderClientesList();
     // Move slider (sem .active nos painéis — visibilidade é por transform)
     const slider = document.getElementById('admin-slider');
     if (slider) {
         if (!animate) slider.classList.add('is-dragging');
         // Cada painel ocupa 1/3 do slider (width:300%)
         // translateX(-idx * 33.333%) move para o painel certo
-        slider.style.transform = `translateX(-${idx * 33.3333}%)`;
+        slider.style.transform = `translateX(-${idx * 25}%)`;
         if (!animate) {
             // força reflow para garantir sem transição no reset
             void slider.offsetWidth;
@@ -2067,7 +2068,7 @@ function _setupAdminSwipe() {
         }
 
         slider.classList.add('is-dragging');
-        const base = -_adminIdx * 33.3333;
+        const base = -_adminIdx * 25;
         slider.style.transform = `translateX(calc(${base}% + ${extra}px))`;
     }, { passive: false, signal: sig });
 
@@ -3535,6 +3536,202 @@ if ('serviceWorker' in navigator) {
 }
 
 // =============================================
+// CLIENTES — autocomplete Nº Cliente no modal PAT
+// =============================================
+const CLIENTES_URL = `${BASE_URL}/clientes.json`;
+const _clientesCache = { data: null, lastFetch: 0 };
+
+async function _fetchClientes(force = false) {
+    const now = Date.now();
+    if (!force && _clientesCache.data && now - _clientesCache.lastFetch < 600000) return _clientesCache.data;
+    try {
+        const url = await authUrl(CLIENTES_URL);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(res.status);
+        _clientesCache.data = await res.json() || {};
+        _clientesCache.lastFetch = now;
+    } catch(_e) { _clientesCache.data = _clientesCache.data || {}; }
+    return _clientesCache.data;
+}
+
+let _clienteDropdownIdx = -1;
+
+function patClientSearch(val) {
+    _clienteDropdownIdx = -1;
+    const dd = document.getElementById('pat-client-dropdown');
+    const q  = val.trim();
+    if (!q) { dd.innerHTML = ''; return; }
+
+    const data = _clientesCache.data || {};
+
+    // Número exacto → preenche nome automaticamente, sem dropdown
+    if (/^\d{1,3}$/.test(q)) {
+        const exact = Object.values(data).find(c => c.numero === q);
+        if (exact) {
+            document.getElementById('pat-estabelecimento').value = exact.nome;
+            dd.innerHTML = '';
+            return;
+        }
+    }
+
+    // Sugestões parciais
+    const matches = Object.values(data)
+        .filter(c => c.numero.startsWith(q) || c.nome.toLowerCase().includes(q.toLowerCase()))
+        .slice(0, 8);
+
+    if (matches.length === 0) { dd.innerHTML = '<div class="pat-dd-empty">Sem resultados</div>'; return; }
+
+    dd.innerHTML = '';
+    matches.forEach((c, i) => {
+        const opt = document.createElement('div');
+        opt.className = 'pat-dd-option';
+        opt.dataset.idx = i;
+        const codeEl = document.createElement('span'); codeEl.className = 'pat-dd-code'; codeEl.textContent = c.numero;
+        const nameEl = document.createElement('span'); nameEl.className = 'pat-dd-name';  nameEl.textContent = c.nome;
+        opt.appendChild(codeEl); opt.appendChild(nameEl);
+        opt.onmousedown = (e) => {
+            e.preventDefault();
+            document.getElementById('pat-cliente-num').value   = c.numero;
+            document.getElementById('pat-estabelecimento').value = c.nome;
+            dd.innerHTML = '';
+        };
+        dd.appendChild(opt);
+    });
+}
+
+function patClientKeydown(e) {
+    const dd   = document.getElementById('pat-client-dropdown');
+    const opts = dd.querySelectorAll('.pat-dd-option');
+    if (!opts.length) return;
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        _clienteDropdownIdx = Math.min(_clienteDropdownIdx + 1, opts.length - 1);
+        opts.forEach((o, i) => o.classList.toggle('focused', i === _clienteDropdownIdx));
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        _clienteDropdownIdx = Math.max(_clienteDropdownIdx - 1, 0);
+        opts.forEach((o, i) => o.classList.toggle('focused', i === _clienteDropdownIdx));
+    } else if (e.key === 'Enter' && _clienteDropdownIdx >= 0) {
+        e.preventDefault();
+        opts[_clienteDropdownIdx]?.dispatchEvent(new MouseEvent('mousedown'));
+    } else if (e.key === 'Escape') {
+        dd.innerHTML = '';
+    }
+}
+
+// ── Lista de clientes no Admin ─────────────────────────────────────────────
+async function renderClientesList() {
+    const list = document.getElementById('clientes-list');
+    if (!list) return;
+    list.innerHTML = '<div class="pat-loading">A carregar...</div>';
+    const data    = await _fetchClientes(true);
+    const entries = Object.entries(data || {})
+        .sort((a, b) => Number(a[1].numero) - Number(b[1].numero));
+    if (entries.length === 0) {
+        list.innerHTML = '<div class="empty-msg">Nenhum cliente. Usa o botão acima para importar.</div>';
+        return;
+    }
+    list.innerHTML = '';
+    const total = document.createElement('div');
+    total.className   = 'clientes-total';
+    total.textContent = `${entries.length} clientes`;
+    list.appendChild(total);
+    entries.forEach(([id, c]) => {
+        const row = document.createElement('div');
+        row.className = 'admin-list-row';
+        const lbl = document.createElement('span');
+        lbl.className   = 'admin-list-label clientes-list-label';
+        lbl.textContent = c.numero.padStart(3, '0') + '  ·  ' + c.nome;
+        const del = document.createElement('button');
+        del.className   = 'admin-list-delete';
+        del.textContent = '🗑';
+        del.onclick = () => openConfirmModal({
+            icon: '🗑️', title: 'Apagar cliente?',
+            desc: `${escapeHtml(c.numero)} — ${escapeHtml(c.nome)}`,
+            onConfirm: async () => {
+                try {
+                    await apiFetch(`${BASE_URL}/clientes/${id}.json`, { method: 'DELETE' });
+                    delete _clientesCache.data[id];
+                    renderClientesList();
+                    showToast('Cliente apagado');
+                } catch(_e) { showToast('Erro ao apagar', 'error'); }
+            }
+        });
+        row.appendChild(lbl);
+        row.appendChild(del);
+        list.appendChild(row);
+    });
+}
+
+// ── Importar Excel de clientes ─────────────────────────────────────────────
+async function importClientesExcel(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const preview = document.getElementById('clientes-import-preview');
+    preview.innerHTML = '<div class="pat-loading">A ler ficheiro...</div>';
+    try {
+        if (!window.XLSX) {
+            await new Promise((res, rej) => {
+                const sc = document.createElement('script');
+                sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                sc.onload = res; sc.onerror = rej;
+                document.head.appendChild(sc);
+            });
+        }
+        const ab   = await file.arrayBuffer();
+        const wb   = XLSX.read(ab, { type: 'array' });
+        const ws   = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        const parsed = [];
+        rows.forEach(row => {
+            const num  = String(row[0] || '').trim();
+            const nome = String(row[1] || '').trim();
+            if (!num || !nome || /[a-zA-Z]/.test(num)) return;
+            if (/^\d{1,3}$/.test(num)) parsed.push({ numero: num, nome });
+        });
+        if (parsed.length === 0) {
+            preview.innerHTML = '<div class="clientes-preview-error">Nenhum cliente válido encontrado. Coluna A: número · Coluna B: nome.</div>';
+            return;
+        }
+        const sampleHtml = parsed.slice(0, 5)
+            .map(c => `<span class="pat-prod-chip">${escapeHtml(c.numero)} · ${escapeHtml(c.nome)}</span>`)
+            .join('') + (parsed.length > 5 ? `<span class="pat-prod-chip">+${parsed.length - 5} mais…</span>` : '');
+        preview.innerHTML = `
+            <div class="clientes-preview-info">
+                <strong>${parsed.length} clientes</strong> encontrados. Esta operação substitui todos os clientes actuais.
+            </div>
+            <div class="clientes-preview-sample">${sampleHtml}</div>
+            <button class="btn-primary" style="width:100%;margin-top:12px" onclick="confirmImportClientes()">
+                ✓ Confirmar importação
+            </button>`;
+        window._pendingClientesImport = parsed;
+    } catch(e) {
+        preview.innerHTML = `<div class="clientes-preview-error">Erro ao ler ficheiro: ${escapeHtml(e.message)}</div>`;
+    }
+    input.value = '';
+}
+
+async function confirmImportClientes() {
+    const parsed = window._pendingClientesImport;
+    if (!parsed) return;
+    const preview = document.getElementById('clientes-import-preview');
+    preview.innerHTML = '<div class="pat-loading">A importar...</div>';
+    try {
+        const obj = {};
+        parsed.forEach(c => { obj['c' + c.numero.padStart(3, '0')] = { numero: c.numero, nome: c.nome }; });
+        await apiFetch(`${BASE_URL}/clientes.json`, { method: 'PUT', body: JSON.stringify(obj) });
+        _clientesCache.data      = obj;
+        _clientesCache.lastFetch = Date.now();
+        preview.innerHTML = `<div class="clientes-preview-info">✅ ${parsed.length} clientes importados com sucesso!</div>`;
+        window._pendingClientesImport = null;
+        renderClientesList();
+        showToast(`${parsed.length} clientes importados!`);
+    } catch(e) {
+        preview.innerHTML = `<div class="clientes-preview-error">Erro ao importar: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+// =============================================
 // PEDIDOS PAT
 // =============================================
 const PAT_URL = `${BASE_URL}/pedidos.json`;
@@ -3610,6 +3807,7 @@ async function renderPats() {
             <div class="pat-card-top">
                 <div class="pat-card-top-left">
                     <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}">PAT ${escapeHtml(pat.numero || '—')}</span>
+                    ${pat.clienteNumero ? `<span class="pat-cliente-badge">${escapeHtml(pat.clienteNumero)}</span>` : ''}
                     ${separacao ? '<span class="pat-sep-tag">📄 Guia Transporte</span>' : ''}
                 </div>
                 <span class="pat-dias ${urgente ? 'pat-dias-urgente' : ''}">${diasLabel}</span>
@@ -3630,7 +3828,10 @@ async function renderPats() {
 function openPatModal() {
     _patProducts = [];
     document.getElementById('pat-numero').value = '';
+    document.getElementById('pat-cliente-num').value = '';
+    document.getElementById('pat-client-dropdown').innerHTML = '';
     document.getElementById('pat-estabelecimento').value = '';
+    _fetchClientes();
     document.getElementById('pat-product-search').value = '';
     document.getElementById('pat-product-dropdown').innerHTML = '';
     document.getElementById('pat-product-chips').innerHTML = '';
@@ -3769,8 +3970,9 @@ function patQtyStep(id, delta) {
 }
 
 async function savePat() {
-    const numero    = document.getElementById('pat-numero').value.trim();
-    const estab     = document.getElementById('pat-estabelecimento').value.trim();
+    const numero      = document.getElementById('pat-numero').value.trim();
+    const clienteNum  = document.getElementById('pat-cliente-num').value.trim();
+    const estab       = document.getElementById('pat-estabelecimento').value.trim();
     const separacao = document.getElementById('pat-separacao').checked;
     const hint      = document.getElementById('pat-numero-hint');
 
@@ -3784,6 +3986,7 @@ async function savePat() {
 
     const payload = {
         numero,
+        clienteNumero: clienteNum || null,
         estabelecimento: estab,
         separacao,
         produtos: _patProducts.map(p => ({
@@ -3891,6 +4094,7 @@ function openPatDetail(id, pat) {
     document.getElementById('pat-detail-body').innerHTML = `
         <div class="pat-detail-header">
             <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}" style="font-size:1rem;padding:6px 14px">PAT ${escapeHtml(pat.numero || '—')}</span>
+            ${pat.clienteNumero ? `<span class="pat-cliente-badge" style="font-size:0.9rem;padding:5px 12px">${escapeHtml(pat.clienteNumero)}</span>` : ''}
             ${separacao ? '<span class="pat-sep-tag" style="margin-top:8px">📄 Guia Transporte de Material</span>' : ''}
         </div>
         <div class="pat-detail-row"><span class="pat-detail-lbl">Estabelecimento</span><span>${escapeHtml(pat.estabelecimento || 'Não especificado')}</span></div>
