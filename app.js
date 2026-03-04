@@ -3671,12 +3671,8 @@ async function importClientesExcel(input) {
     preview.innerHTML = '<div class="pat-loading">A ler ficheiro...</div>';
     try {
         if (!window.XLSX) {
-            await new Promise((res, rej) => {
-                const sc = document.createElement('script');
-                sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-                sc.onload = res; sc.onerror = rej;
-                document.head.appendChild(sc);
-            });
+            preview.innerHTML = '<div class="clientes-preview-error">Biblioteca Excel não carregou. Recarrega a app e tenta de novo.</div>';
+            return;
         }
         const ab   = await file.arrayBuffer();
         const wb   = XLSX.read(ab, { type: 'array' });
