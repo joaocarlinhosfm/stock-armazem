@@ -620,10 +620,10 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
     touch-action: pan-y;
 }
 
-/* ── Slider — flex com 3 painéis lado a lado ── */
+/* ── Slider — flex com 4 painéis lado a lado ── */
 .admin-slider {
     display: flex;
-    width: 300%;
+    width: 400%;
     transform: translateX(0%);
     transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
     will-change: transform;
@@ -634,10 +634,10 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
     transition: none;
 }
 
-/* ── Cada painel ocupa 1/3 do slider = 100% do ecrã ── */
+/* ── Cada painel ocupa 1/4 do slider = 100% do ecrã ── */
 .admin-panel {
-    width: 33.3333%;
-    min-width: 33.3333%;
+    width: 25%;
+    min-width: 25%;
     flex-shrink: 0;
     /* painéis nunca ficam display:none — visibilidade por transform */
     display: block !important;
@@ -4093,3 +4093,95 @@ body.glass-mode .pat-chip-qty { background: var(--glass-bg); border-color: var(-
 body.glass-mode .pat-chip-qty-btn { background: var(--glass-bg); border-color: var(--glass-border); color: #fff; }
 body.glass-mode .pat-prod-chip { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.60); }
 body.glass-mode .pat-sep-tag { background: rgba(245,158,11,0.20); color: #fbbf24; }
+
+/* =============================================
+   CLIENTES — Nº Cliente no modal PAT + Admin
+   ============================================= */
+
+/* Campo Nº Cliente */
+.pat-client-num {
+    max-width: 90px;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+
+/* Badge Nº Cliente nos cards PAT e detalhe */
+.pat-cliente-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    background: rgba(37,99,235,0.1);
+    color: var(--primary);
+    border: 1px solid rgba(37,99,235,0.22);
+    margin-left: 4px;
+}
+.dark-mode .pat-cliente-badge {
+    background: rgba(96,165,250,0.14);
+    color: #60a5fa;
+    border-color: rgba(96,165,250,0.28);
+}
+body.glass-mode .pat-cliente-badge {
+    background: rgba(255,255,255,0.13);
+    border-color: rgba(255,255,255,0.28);
+    color: #fff;
+}
+
+/* Área de importação */
+.clientes-import-area {
+    padding: 4px 0 14px;
+}
+.clientes-import-desc {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin: 0 0 12px;
+    line-height: 1.55;
+}
+.clientes-import-btn {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    font-size: 0.85rem;
+}
+.clientes-preview {
+    margin-top: 14px;
+}
+.clientes-preview-info {
+    background: rgba(34,197,94,0.09);
+    border: 1px solid rgba(34,197,94,0.28);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.84rem;
+    margin-bottom: 8px;
+}
+.clientes-preview-error {
+    background: rgba(239,68,68,0.07);
+    border: 1px solid rgba(239,68,68,0.24);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.84rem;
+    color: var(--danger);
+}
+.clientes-preview-sample {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0 0;
+}
+.clientes-total {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 4px 0 8px;
+}
+.clientes-list-label {
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+}
