@@ -9,7 +9,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' https://*.firebasedatabase.app https://*.googleapis.com https://*.firebaseapp.com; font-src https://fonts.gstatic.com; img-src 'self' data:;">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=5.42">
+    <link rel="stylesheet" href="style.css?v=5.43">
 </head>
 <body>
 
@@ -256,9 +256,9 @@
             <section class="admin-panel" id="panel-clientes">
                 <div class="clientes-import-area">
                     <p class="clientes-import-desc">Importa clientes a partir de um ficheiro Excel.<br>
-                    <strong>Coluna A:</strong> Nº (1-3 dígitos) &nbsp;·&nbsp; <strong>Coluna B:</strong> Nome</p>
-                    <label class="btn-primary clientes-import-btn" for="clientes-xlsx-input">📂 Importar Excel</label>
-                    <input type="file" id="clientes-xlsx-input" accept=".xlsx,.xls" style="display:none"
+                    <strong>Coluna A:</strong> Nº (1-3 dígitos) &nbsp;·&nbsp; <strong>Coluna B:</strong> Nome<br><em>Recomendado: guardar como CSV no Excel (Ficheiro → Guardar Como → CSV)</em></p>
+                    <label class="btn-primary clientes-import-btn" for="clientes-xlsx-input">📂 Importar CSV / Excel</label>
+                    <input type="file" id="clientes-xlsx-input" accept=".csv,.xlsx,.xls" style="display:none"
                         onchange="importClientesExcel(this)">
                     <div id="clientes-import-preview" class="clientes-preview"></div>
                 </div>
@@ -829,6 +829,6 @@
                 });
         });
     </script>
-    <script src="app.js?v=5.42"></script>
+    <script src="app.js?v=5.43"></script>
 </body>
 </html>
