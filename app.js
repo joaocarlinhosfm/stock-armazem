@@ -3496,12 +3496,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.41';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.42';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.41')
+        navigator.serviceWorker.register('sw.js?v=5.42')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -3670,8 +3670,18 @@ async function importClientesExcel(input) {
     const preview = document.getElementById('clientes-import-preview');
     preview.innerHTML = '<div class="pat-loading">A ler ficheiro...</div>';
     try {
+        // Garante que XLSX está disponível — carrega dinamicamente se necessário
+        if (!window.XLSX) {
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                s.onload = resolve;
+                s.onerror = () => reject(new Error('Falha ao carregar biblioteca. Verifica a ligação à internet.'));
+                document.head.appendChild(s);
+            });
+        }
         const ab = await file.arrayBuffer();
-        const wb   = XLSX.read(ab, { type: 'array' });
+        const wb = XLSX.read(ab, { type: 'array' });
         const ws   = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
         const parsed = [];
