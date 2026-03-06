@@ -1,7 +1,6 @@
 // NOTA DE SEGURANÇA (#24): a apiKey do Firebase é pública por design.
 // A protecção real é feita pelas Firebase Security Rules (exigem Anonymous Auth).
 // Confirmar que as rules não permitem leitura/escrita sem token válido.
-const DB_URL   = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app/stock.json";
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
 // =============================================
@@ -170,6 +169,7 @@ async function bootApp() {
     renderList();
     fetchCollection('ferramentas');
     fetchCollection('funcionarios');
+    _fetchClientes();
     updatePinStatusUI();
     updateOfflineBanner();
     // Navega para o dashboard como vista inicial
@@ -2005,8 +2005,8 @@ function switchAdminTab(tab, animate = true) {
     const slider = document.getElementById('admin-slider');
     if (slider) {
         if (!animate) slider.classList.add('is-dragging');
-        // Cada painel ocupa 1/3 do slider (width:300%)
-        // translateX(-idx * 33.333%) move para o painel certo
+        // Cada painel ocupa 1/4 do slider (width:400%)
+        // translateX(-idx * 25%) move para o painel certo
         slider.style.transform = `translateX(-${idx * 25}%)`;
         if (!animate) {
             // força reflow para garantir sem transição no reset
@@ -3379,7 +3379,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const doSave = async () => {
             btn.disabled = true;
             try {
-                const res = await apiFetch(DB_URL, { method:'POST', body:JSON.stringify(payload) });
+                const res = await apiFetch(`${BASE_URL}/stock.json`, { method:'POST', body:JSON.stringify(payload) });
                 if (!cache.stock.data) cache.stock.data = {};
                 if (res) { const r = await res.json(); if (r?.name) cache.stock.data[r.name] = payload; }
                 else { cache.stock.data[`_tmp_${Date.now()}`] = payload; }
@@ -3409,7 +3409,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const doSave = async () => {
             btn.disabled = true;
             try {
-                const res = await apiFetch(DB_URL, { method:'POST', body:JSON.stringify(payload) });
+                const res = await apiFetch(`${BASE_URL}/stock.json`, { method:'POST', body:JSON.stringify(payload) });
                 if (!cache.stock.data) cache.stock.data = {};
                 if (res) { const r = await res.json(); if (r?.name) cache.stock.data[r.name] = payload; }
                 else { cache.stock.data[`_tmp_${Date.now()}`] = payload; }
@@ -3496,12 +3496,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.43';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.44';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.43')
+        navigator.serviceWorker.register('sw.js?v=5.44')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -3543,7 +3543,7 @@ const _clientesCache = { data: null, lastFetch: 0 };
 
 async function _fetchClientes(force = false) {
     const now = Date.now();
-    if (!force && _clientesCache.data && now - _clientesCache.lastFetch < 600000) return _clientesCache.data;
+    if (!force && _clientesCache.data && now - _clientesCache.lastFetch < 300000) return _clientesCache.data;
     try {
         const url = await authUrl(CLIENTES_URL);
         const res = await fetch(url);
@@ -3560,16 +3560,22 @@ function patClientSearch(val) {
     _clienteDropdownIdx = -1;
     const dd = document.getElementById('pat-client-dropdown');
     const q  = val.trim();
-    if (!q) { dd.innerHTML = ''; return; }
+    if (!q) { dd.innerHTML = ''; _removeClientOutsideListener(); return; }
 
     const data = _clientesCache.data || {};
 
-    // Número exacto → preenche nome automaticamente, sem dropdown
-    if (/^\d{1,3}$/.test(q)) {
-        const exact = Object.values(data).find(c => c.numero === q);
-        if (exact) {
-            document.getElementById('pat-estabelecimento').value = exact.nome;
+    // Número exacto — verifica quantos clientes partilham esse NR
+    if (/^d{1,3}$/.test(q)) {
+        const exactMatches = Object.values(data).filter(c => c.numero === q);
+        if (exactMatches.length === 1) {
+            document.getElementById('pat-estabelecimento').value = exactMatches[0].nome;
             dd.innerHTML = '';
+            _removeClientOutsideListener();
+            return;
+        }
+        if (exactMatches.length > 1) {
+            _renderClientDropdown(dd, exactMatches, true);
+            _addClientOutsideListener();
             return;
         }
     }
@@ -3577,11 +3583,25 @@ function patClientSearch(val) {
     // Sugestões parciais
     const matches = Object.values(data)
         .filter(c => c.numero.startsWith(q) || c.nome.toLowerCase().includes(q.toLowerCase()))
-        .slice(0, 8);
+        .slice(0, 10);
 
-    if (matches.length === 0) { dd.innerHTML = '<div class="pat-dd-empty">Sem resultados</div>'; return; }
+    if (matches.length === 0) {
+        dd.innerHTML = '<div class="pat-dd-empty">Sem resultados</div>';
+        _removeClientOutsideListener();
+        return;
+    }
+    _renderClientDropdown(dd, matches, false);
+    _addClientOutsideListener();
+}
 
+function _renderClientDropdown(dd, matches, isExact) {
     dd.innerHTML = '';
+    if (isExact) {
+        const hdr = document.createElement('div');
+        hdr.className = 'pat-dd-header';
+        hdr.textContent = matches.length + ' estabelecimentos com este Nº — escolhe:';
+        dd.appendChild(hdr);
+    }
     matches.forEach((c, i) => {
         const opt = document.createElement('div');
         opt.className = 'pat-dd-option';
@@ -3591,12 +3611,28 @@ function patClientSearch(val) {
         opt.appendChild(codeEl); opt.appendChild(nameEl);
         opt.onmousedown = (e) => {
             e.preventDefault();
-            document.getElementById('pat-cliente-num').value   = c.numero;
+            document.getElementById('pat-cliente-num').value    = c.numero;
             document.getElementById('pat-estabelecimento').value = c.nome;
             dd.innerHTML = '';
+            _removeClientOutsideListener();
         };
         dd.appendChild(opt);
     });
+}
+
+function _clientOutsideHandler(e) {
+    const wrap = document.querySelector('.pat-client-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+        document.getElementById('pat-client-dropdown').innerHTML = '';
+        _removeClientOutsideListener();
+    }
+}
+function _addClientOutsideListener() {
+    document.removeEventListener('click', _clientOutsideHandler);
+    document.addEventListener('click', _clientOutsideHandler);
+}
+function _removeClientOutsideListener() {
+    document.removeEventListener('click', _clientOutsideHandler);
 }
 
 function patClientKeydown(e) {
@@ -3664,74 +3700,12 @@ async function renderClientesList() {
 }
 
 // ── Importar Excel de clientes ─────────────────────────────────────────────
-async function importClientesExcel(input) {
-    const file = input.files[0];
-    if (!file) return;
+function importClientesExcel() {
     const preview = document.getElementById('clientes-import-preview');
-    preview.innerHTML = '<div class="pat-loading">A ler ficheiro...</div>';
-    try {
-        // Garante que XLSX está disponível — carrega dinamicamente se necessário
-        if (!window.XLSX) {
-            await new Promise((resolve, reject) => {
-                const s = document.createElement('script');
-                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-                s.onload = resolve;
-                s.onerror = () => reject(new Error('Falha ao carregar biblioteca. Verifica a ligação à internet.'));
-                document.head.appendChild(s);
-            });
-        }
-        const ab = await file.arrayBuffer();
-        const wb = XLSX.read(ab, { type: 'array' });
-        const ws   = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-        const parsed = [];
-        rows.forEach(row => {
-            const num  = String(row[0] || '').trim();
-            const nome = String(row[1] || '').trim();
-            if (!num || !nome || /[a-zA-Z]/.test(num)) return;
-            if (/^\d{1,3}$/.test(num)) parsed.push({ numero: num, nome });
-        });
-        if (parsed.length === 0) {
-            preview.innerHTML = '<div class="clientes-preview-error">Nenhum cliente válido encontrado. Coluna A: número · Coluna B: nome.</div>';
-            return;
-        }
-        const sampleHtml = parsed.slice(0, 5)
-            .map(c => `<span class="pat-prod-chip">${escapeHtml(c.numero)} · ${escapeHtml(c.nome)}</span>`)
-            .join('') + (parsed.length > 5 ? `<span class="pat-prod-chip">+${parsed.length - 5} mais…</span>` : '');
-        preview.innerHTML = `
-            <div class="clientes-preview-info">
-                <strong>${parsed.length} clientes</strong> encontrados. Esta operação substitui todos os clientes actuais.
-            </div>
-            <div class="clientes-preview-sample">${sampleHtml}</div>
-            <button class="btn-primary" style="width:100%;margin-top:12px" onclick="confirmImportClientes()">
-                ✓ Confirmar importação
-            </button>`;
-        window._pendingClientesImport = parsed;
-    } catch(e) {
-        preview.innerHTML = `<div class="clientes-preview-error">Erro ao ler ficheiro: ${escapeHtml(e.message)}</div>`;
-    }
-    input.value = '';
+    preview.innerHTML = '<div class="clientes-preview-info">Para actualizar a lista, importa o ficheiro <strong>clientes_firebase.json</strong> na <a href="https://console.firebase.google.com" target="_blank" style="color:var(--primary)">Firebase Console</a> → Realtime Database → nó <code>/clientes</code> → ⋮ Import JSON.</div>';
 }
 
-async function confirmImportClientes() {
-    const parsed = window._pendingClientesImport;
-    if (!parsed) return;
-    const preview = document.getElementById('clientes-import-preview');
-    preview.innerHTML = '<div class="pat-loading">A importar...</div>';
-    try {
-        const obj = {};
-        parsed.forEach(c => { obj['c' + c.numero.padStart(3, '0')] = { numero: c.numero, nome: c.nome }; });
-        await apiFetch(`${BASE_URL}/clientes.json`, { method: 'PUT', body: JSON.stringify(obj) });
-        _clientesCache.data      = obj;
-        _clientesCache.lastFetch = Date.now();
-        preview.innerHTML = `<div class="clientes-preview-info">✅ ${parsed.length} clientes importados com sucesso!</div>`;
-        window._pendingClientesImport = null;
-        renderClientesList();
-        showToast(`${parsed.length} clientes importados!`);
-    } catch(e) {
-        preview.innerHTML = `<div class="clientes-preview-error">Erro ao importar: ${escapeHtml(e.message)}</div>`;
-    }
-}
+function confirmImportClientes() {}
 
 // =============================================
 // PEDIDOS PAT
@@ -4099,6 +4073,7 @@ function openPatDetail(id, pat) {
             ${pat.clienteNumero ? `<span class="pat-cliente-badge" style="font-size:0.9rem;padding:5px 12px">${escapeHtml(pat.clienteNumero)}</span>` : ''}
             ${separacao ? '<span class="pat-sep-tag" style="margin-top:8px">📄 Guia Transporte de Material</span>' : ''}
         </div>
+        ${pat.clienteNumero ? `<div class="pat-detail-row"><span class="pat-detail-lbl">Nº Cliente</span><span>${escapeHtml(pat.clienteNumero)}</span></div>` : ''}
         <div class="pat-detail-row"><span class="pat-detail-lbl">Estabelecimento</span><span>${escapeHtml(pat.estabelecimento || 'Não especificado')}</span></div>
         <div class="pat-detail-row"><span class="pat-detail-lbl">Criado em</span><span>${data}</span></div>
         <div class="pat-detail-row"><span class="pat-detail-lbl">Desconto stock</span><span>${separacao ? '✅ Sim (ao levantar)' : '⛔ Não'}</span></div>
