@@ -9,7 +9,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' https://*.firebasedatabase.app https://*.googleapis.com https://*.firebaseapp.com; font-src https://fonts.gstatic.com; img-src 'self' data:;">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=5.46">
+    <link rel="stylesheet" href="style.css?v=5.48">
 </head>
 <body>
 
@@ -140,11 +140,11 @@
         <div id="view-register" class="view">
             <h2>Novo Produto</h2>
             <form id="form-add" class="pro-form">
-                <div class="form-group"><label for="inp-codigo">REFERÊNCIA</label><input type="text" id="inp-codigo" class="blue-input" required></div>
-                <div class="form-group"><label for="inp-nome">NOME</label><input type="text" id="inp-nome" class="blue-input" required></div>
+                <div class="form-group"><label for="inp-codigo">REFERÊNCIA</label><input type="text" id="inp-codigo" class="blue-input" required oninput="this.value=this.value.toUpperCase()"></div>
+                <div class="form-group"><label for="inp-nome">NOME</label><input type="text" id="inp-nome" class="blue-input" required oninput="this.value=this.value.toUpperCase()"></div>
                 <div class="form-group">
                     <label for="inp-loc">LOCAL</label>
-                    <input type="text" id="inp-loc" class="blue-input" placeholder="Ex: A1, B3-P2...">
+                    <input type="text" id="inp-loc" class="blue-input" placeholder="Ex: A1, B3-P2..." oninput="this.value=this.value.toUpperCase()">
                     <span class="form-hint">Deixar em branco → SEM LOCAL</span>
                 </div>
 <div class="qty-row">
@@ -169,7 +169,7 @@
                         <input type="hidden" id="inp-unidade" value="un">
                     </div>
                 </div>
-                <div class="form-group"><label for="inp-notas">NOTAS (opcional)</label><textarea id="inp-notas" class="blue-input textarea-input" placeholder="Observações, estado, localização alternativa..." rows="2"></textarea></div>
+                <div class="form-group"><label for="inp-notas">NOTAS (opcional)</label><textarea id="inp-notas" class="blue-input textarea-input" placeholder="Observações, estado, localização alternativa..." rows="2" oninput="this.value=this.value.toUpperCase()"></textarea></div>
                 <button type="submit" class="btn-primary">Gravar Produto</button>
             </form>
         </div>
@@ -179,11 +179,11 @@
             <div id="bulk-counter" class="bulk-counter hidden"></div>
             <form id="form-bulk" class="pro-form">
                 <div class="form-group"><label for="bulk-loc">ZONA</label>
-                    <input type="text" id="bulk-loc" class="blue-input" required list="zone-datalist" autocomplete="off">
+                    <input type="text" id="bulk-loc" class="blue-input" required list="zone-datalist" autocomplete="off" oninput="this.value=this.value.toUpperCase()">
                     <datalist id="zone-datalist"></datalist>
                 </div>
-                <div class="form-group"><label for="bulk-codigo">REFERÊNCIA</label><input type="text" id="bulk-codigo" class="blue-input" required></div>
-                <div class="form-group"><label for="bulk-nome">NOME</label><input type="text" id="bulk-nome" class="blue-input" required></div>
+                <div class="form-group"><label for="bulk-codigo">REFERÊNCIA</label><input type="text" id="bulk-codigo" class="blue-input" required oninput="this.value=this.value.toUpperCase()"></div>
+                <div class="form-group"><label for="bulk-nome">NOME</label><input type="text" id="bulk-nome" class="blue-input" required oninput="this.value=this.value.toUpperCase()"></div>
 <div class="qty-row">
                     <div class="form-group qty-field">
                         <label for="bulk-qtd">QUANTIDADE</label>
@@ -206,7 +206,7 @@
                         <input type="hidden" id="bulk-unidade" value="un">
                     </div>
                 </div>
-                <div class="form-group"><label for="bulk-notas">NOTAS (opcional)</label><textarea id="bulk-notas" class="blue-input textarea-input" placeholder="Observações..." rows="2"></textarea></div>
+                <div class="form-group"><label for="bulk-notas">NOTAS (opcional)</label><textarea id="bulk-notas" class="blue-input textarea-input" placeholder="Observações..." rows="2" oninput="this.value=this.value.toUpperCase()"></textarea></div>
                 <button type="submit" class="btn-primary">Adicionar ao Lote</button>
             </form>
             <button class="btn-close-batch" onclick="closeBatch()" id="btn-close-batch">📦 Fechar Lote</button>
@@ -230,7 +230,7 @@
             <!-- Tab: Funcionários -->
             <section class="admin-panel" id="panel-workers">
                 <form id="form-worker" class="pro-form-inline">
-                    <input type="text" id="worker-name" class="blue-input" placeholder="Nome do funcionário" required>
+                    <input type="text" id="worker-name" class="blue-input" placeholder="Nome do funcionário" required oninput="this.value=this.value.toUpperCase()">
                     <button type="submit" class="btn-primary">+</button>
                 </form>
                 <div id="workers-list" class="scroll-list"></div>
@@ -243,7 +243,7 @@
                         <label class="tool-reg-label">FERRAMENTA</label>
                         <div class="tool-reg-inputs">
                             <button type="button" id="reg-tool-icon-btn" class="tool-icon-pick-btn" onclick="openIconPicker();" title="Escolher ícone">🪛</button>
-                            <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required>
+                            <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required oninput="this.value=this.value.toUpperCase()">
                         </div>
                     </div>
                     <input type="hidden" id="reg-tool-icon" value="🪛">
@@ -461,7 +461,7 @@
                 <!-- Estabelecimento (nome) -->
                 <div class="pat-field">
                     <label class="pat-label">Estabelecimento</label>
-                    <input type="text" id="pat-estabelecimento" class="blue-input pat-input"
+                    <input type="text" id="pat-estabelecimento" class="blue-input pat-input" oninput="this.value=this.value.toUpperCase()"
                         placeholder="Nome do estabelecimento" autocomplete="off">
                 </div>
 
@@ -591,15 +591,15 @@
                 <input type="hidden" id="edit-id">
                 <div class="form-group">
                     <label for="edit-codigo">REFERÊNCIA</label>
-                    <input type="text" id="edit-codigo" class="blue-input" required>
+                    <input type="text" id="edit-codigo" class="blue-input" required oninput="this.value=this.value.toUpperCase()">
                 </div>
                 <div class="form-group">
                     <label for="edit-nome">NOME</label>
-                    <input type="text" id="edit-nome" class="blue-input" required>
+                    <input type="text" id="edit-nome" class="blue-input" required oninput="this.value=this.value.toUpperCase()">
                 </div>
                 <div class="form-group">
                     <label for="edit-loc">LOCAL</label>
-                    <input type="text" id="edit-loc" class="blue-input">
+                    <input type="text" id="edit-loc" class="blue-input" oninput="this.value=this.value.toUpperCase()">
                 </div>
 <div class="qty-row">
                     <div class="form-group qty-field">
@@ -625,7 +625,7 @@
                 </div>
                 <div class="form-group">
                     <label for="edit-notas">NOTAS</label>
-                    <textarea id="edit-notas" class="blue-input textarea-input" rows="2" placeholder="Observações..."></textarea>
+                    <textarea id="edit-notas" class="blue-input textarea-input" rows="2" placeholder="Observações..." oninput="this.value=this.value.toUpperCase()"></textarea>
                 </div>
                 <button type="submit" class="btn-primary">Guardar Alterações</button>
                 <button type="button" onclick="closeEditModal()" class="btn-cancel">Cancelar</button>
@@ -677,7 +677,7 @@
                     <label class="tool-reg-label">FERRAMENTA</label>
                     <div class="tool-reg-inputs">
                         <button type="button" id="edit-tool-icon-btn" class="tool-icon-pick-btn" onclick="openIconPicker('edit-tool')" title="Escolher ícone">🪛</button>
-                        <input type="text" id="edit-tool-name" class="blue-input" placeholder="Nome da ferramenta" required>
+                        <input type="text" id="edit-tool-name" class="blue-input" placeholder="Nome da ferramenta" required oninput="this.value=this.value.toUpperCase()">
                     </div>
                 </div>
                 <input type="hidden" id="edit-tool-icon-hidden" value="🪛">
@@ -829,6 +829,6 @@
                 });
         });
     </script>
-    <script src="app.js?v=5.46"></script>
+    <script src="app.js?v=5.48"></script>
 </body>
 </html>
