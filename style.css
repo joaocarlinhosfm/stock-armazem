@@ -2992,7 +2992,11 @@ body.glass-mode .search-container.search-scrolled-away {
 }
 
 /* Botão para reabrir ao tocar no topo (pulse) */
+.search-peek-btn {
+    display: none; /* escondido por defeito — só glass-mode activa */
+}
 body.glass-mode .search-peek-btn {
+    display: block;
     position: fixed;
     top: calc(var(--header-h) + 8px);
     left: 50%;
