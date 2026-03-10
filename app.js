@@ -1396,7 +1396,7 @@ function closeEditToolModal() {
 
 async function saveEditTool() {
     const id    = document.getElementById('edit-tool-id').value;
-    const nome  = document.getElementById('edit-tool-name').value.trim();
+    const nome  = document.getElementById('edit-tool-name').value.trim().toUpperCase();
     const icone = document.getElementById('edit-tool-icon-hidden').value || '🪛';
     if (!nome) { showToast('Nome obrigatório', 'error'); return; }
     if (cache.ferramentas.data?.[id]) {
@@ -3369,7 +3369,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn    = e.target.querySelector('button[type=submit]');
         const codigo = document.getElementById('inp-codigo').value.trim().toUpperCase();
         const payload = {
-            nome:        document.getElementById('inp-nome').value.trim(),
+            nome:        document.getElementById('inp-nome').value.trim().toUpperCase(),
             localizacao: document.getElementById('inp-loc').value.trim().replace(/\s+/g,'').toUpperCase(),
             quantidade:  parseFloat(document.getElementById('inp-qtd').value) || 0,
             unidade:     document.getElementById('inp-unidade').value || 'un',
@@ -3401,7 +3401,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = {
             localizacao: zona,
             codigo,
-            nome:       document.getElementById('bulk-nome').value.trim(),
+            nome:       document.getElementById('bulk-nome').value.trim().toUpperCase(),
             quantidade: parseFloat(document.getElementById('bulk-qtd').value) || 0,
             unidade:    document.getElementById('bulk-unidade').value || 'un',
             notas:      document.getElementById('bulk-notas')?.value.trim() || '',
@@ -3436,7 +3436,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.disabled = true;
         const updated = {
             codigo:      document.getElementById('edit-codigo').value.trim().toUpperCase(),
-            nome:        document.getElementById('edit-nome').value.trim(),
+            nome:        document.getElementById('edit-nome').value.trim().toUpperCase(),
             localizacao: document.getElementById('edit-loc').value.trim().replace(/\s+/g,'').toUpperCase(),
             quantidade:  parseFloat(document.getElementById('edit-qtd').value) || 0,
             unidade:     document.getElementById('edit-unidade').value || 'un',
@@ -3456,7 +3456,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Form: Funcionário
     document.getElementById('form-worker')?.addEventListener('submit', async e => {
         e.preventDefault();
-        const nome = document.getElementById('worker-name').value.trim();
+        const nome = document.getElementById('worker-name').value.trim().toUpperCase();
         if (!nome) return;
         try {
             const res = await apiFetch(`${BASE_URL}/funcionarios.json`, { method:'POST', body:JSON.stringify({nome}) });
@@ -3471,7 +3471,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Form: Registar Ferramenta
     document.getElementById('form-tool-reg')?.addEventListener('submit', async e => {
         e.preventDefault();
-        const nome  = document.getElementById('reg-tool-name').value.trim();
+        const nome  = document.getElementById('reg-tool-name').value.trim().toUpperCase();
         const icone = document.getElementById('reg-tool-icon').value || '🪛';
         const payload = { nome, icone, status:'disponivel' };
         try {
@@ -3496,7 +3496,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.46';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.47';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -3747,6 +3747,55 @@ function patSearchFilter(val) {
     renderPats();
 }
 
+// ── Popover de pedidos duplicados por estabelecimento ──────────────
+let _dupPopoverEl = null;
+
+function showDupPopover(badge, estabNorm) {
+    // fecha se já aberto para este badge
+    if (_dupPopoverEl) { _dupPopoverEl.remove(); _dupPopoverEl = null; }
+
+    const pats = Object.entries(_patCache.data || {})
+        .filter(([, p]) => p.status !== 'levantado' &&
+                (p.estabelecimento || '').trim().toLowerCase() === estabNorm)
+        .sort((a, b) => (a[1].criadoEm || 0) - (b[1].criadoEm || 0));
+
+    const pop = document.createElement('div');
+    pop.className = 'dup-popover';
+    pop.innerHTML = `
+        <div class="dup-pop-title">PATs — ${escapeHtml(pats[0]?.[1]?.estabelecimento || estabNorm)}</div>
+        ${pats.map(([, p]) => {
+            const dias = Math.floor((Date.now() - (p.criadoEm || Date.now())) / 86400000);
+            const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
+            const urgente = dias >= 3;
+            return `<div class="dup-pop-row">
+                <span class="dup-pop-pat ${urgente ? 'dup-pop-urgente' : ''}">PAT ${escapeHtml(p.numero || '—')}</span>
+                <span class="dup-pop-dias">${diasLabel}</span>
+            </div>`;
+        }).join('')}
+    `;
+    _dupPopoverEl = pop;
+
+    document.body.appendChild(pop);
+
+    // posicionar abaixo do badge
+    const rect = badge.getBoundingClientRect();
+    const pw = pop.offsetWidth || 200;
+    let left = rect.left + window.scrollX;
+    if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+    pop.style.left = left + 'px';
+    pop.style.top  = (rect.bottom + window.scrollY + 6) + 'px';
+
+    // fechar ao clicar fora
+    const close = (e) => {
+        if (!pop.contains(e.target)) {
+            pop.remove(); _dupPopoverEl = null;
+            document.removeEventListener('click', close);
+        }
+    };
+    setTimeout(() => document.addEventListener('click', close), 0);
+}
+
+
 async function renderPats() {
     const el = document.getElementById('pat-list');
     if (!el) return;
@@ -3794,7 +3843,7 @@ async function renderPats() {
                     <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}">PAT ${escapeHtml(pat.numero || '—')}</span>
                     ${pat.clienteNumero ? `<span class="pat-cliente-badge">${escapeHtml(pat.clienteNumero)}</span>` : ''}
                     ${separacao ? '<span class="pat-sep-tag">📄 Guia Transporte</span>' : ''}
-                    ${dupCount > 1 ? `<span class="pat-dup-badge">⚠ ${dupCount} pedidos</span>` : ''}
+                    ${dupCount > 1 ? `<span class="pat-dup-badge" onclick="event.stopPropagation();showDupPopover(this,'${nomeNorm}')" data-estab="${nomeNorm}">⚠ ${dupCount} pedidos</span>` : ''}
                 </div>
                 <span class="pat-dias ${urgente ? 'pat-dias-urgente' : ''}">${diasLabel}</span>
             </div>
@@ -3958,7 +4007,7 @@ function patQtyStep(id, delta) {
 async function savePat() {
     const numero      = document.getElementById('pat-numero').value.trim();
     const clienteNum  = document.getElementById('pat-cliente-num').value.trim();
-    const estab       = document.getElementById('pat-estabelecimento').value.trim();
+    const estab       = document.getElementById('pat-estabelecimento').value.trim().toUpperCase();
     const separacao = document.getElementById('pat-separacao').checked;
     const hint      = document.getElementById('pat-numero-hint');
 
