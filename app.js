@@ -491,96 +491,258 @@ async function renderDashboard(force = false) {
     const el = document.getElementById('dashboard');
     if (!el) return;
 
-    // Spinner no botão de refresh
     const refreshBtn = document.getElementById('btn-dash-refresh');
     if (refreshBtn) refreshBtn.classList.add('spinning');
 
     el.innerHTML = '';
-    el.className = 'dashboard';
+    el.className = 'dashboard-v2';
 
     const ts = Date.now();
     const [stockData, ferrData] = await Promise.all([
         fetchCollection('stock', force || ts > cache.stock.lastFetch + 60000),
         fetchCollection('ferramentas', force || ts > cache.ferramentas.lastFetch + 60000),
-        // Garante que _patCache está carregada para o card "Pendentes" mostrar valor correcto
         _fetchPats(force || !_patCache.data),
     ]);
 
-    const stockEntries  = Object.values(stockData || {});
-    const ferraEntries  = Object.values(ferrData  || {});
-    const total         = stockEntries.length;
-    const semStock      = stockEntries.filter(i => (i.quantidade || 0) === 0).length;
-    const alocadas      = ferraEntries.filter(t => t.status === 'alocada').length;
-    const totalFerr     = ferraEntries.length;
-    // PONTO 17 + 27: alertas de ferramentas alocadas há mais de 7 dias
-    const ALERTA_DIAS = 7;
-    const alocadasHaMuito = ferraEntries.filter(t => {
-        if (t.status !== 'alocada' || !t.dataEntrega) return false;
-        return (Date.now() - new Date(t.dataEntrega).getTime()) > ALERTA_DIAS * 86400000;
-    });
+    const stockEntries    = Object.values(stockData || {});
+    const ferraEntries    = Object.values(ferrData  || {});
+    const total           = stockEntries.length;
+    const semStock        = stockEntries.filter(i => (i.quantidade || 0) === 0).length;
+    const comStock        = total - semStock;
+    const alocadas        = ferraEntries.filter(t => t.status === 'alocada').length;
+    const totalFerr       = ferraEntries.length;
+    const patPendentes    = _getPatPendingCount();
+    const ALERTA_DIAS     = 7;
+    const alocadasHaMuito = ferraEntries.filter(t =>
+        t.status === 'alocada' && t.dataEntrega &&
+        (Date.now() - new Date(t.dataEntrega).getTime()) > ALERTA_DIAS * 86400000
+    );
     _saveDashSnapshot(total, semStock, alocadas);
 
-    const cards = [
-        {
-            label: 'Produtos', value: total, icon: '📦', cls: '',
-            trend: _getDashTrend('total', total),
-            action: () => { nav('view-search'); }
-        },
-        {
-            label: 'Sem stock', value: semStock, icon: '⚠️',
-            cls: semStock > 0 ? 'dash-card-warn' : '',
-            trend: _getDashTrend('semStock', semStock),
-            action: semStock > 0 ? () => {
-                _pendingZeroFilter = true;
-                nav('view-search');
-            } : null
-        },
-        {
-            label: 'Ferramentas', value: `${alocadas}/${totalFerr}`, icon: '🪛',
-            cls: alocadas === totalFerr && totalFerr > 0 ? 'dash-card-warn' : '',
-            trend: _getDashTrend('alocadas', alocadas),
-            action: () => nav('view-tools')
-        },
-        ...(alocadasHaMuito.length > 0 ? [{
-            label: `Há +${ALERTA_DIAS}d`, value: alocadasHaMuito.length, icon: '🔴', cls: 'dash-card-alert',
-            trend: null,
-            action: () => { nav('view-tools'); showToast(`${alocadasHaMuito.length} ferramenta(s) alocada(s) há mais de ${ALERTA_DIAS} dias!`, 'error'); }
-        }] : []),
-        {
-            label: 'Pendentes', value: _getPatPendingCount(), icon: '📋', cls: '',
-            trend: null,
-            action: () => nav('view-pedidos')
-        },
-    ];
+    // ── helper: cria um metric card ──────────────────────────────────────────
+    function _metricCard({ label, value, sub, accent, icon, warn, alert, onClick, progress }) {
+        const card = document.createElement('div');
+        card.className = 'dv2-card' + (warn ? ' dv2-card--warn' : '') + (alert ? ' dv2-card--alert' : '');
+        card.style.setProperty('--card-accent', accent || 'var(--primary)');
+        if (onClick) { card.style.cursor = 'pointer'; card.onclick = onClick; }
 
-    cards.forEach(c => {
-        const card  = document.createElement('div');
-        card.className = `dash-card ${c.cls}`;
-        if (c.action) {
-            card.style.cursor = 'pointer';
-            card.onclick = c.action;
-        }
-        const icon  = document.createElement('span');
-        icon.className   = 'dash-icon';
-        icon.textContent = c.icon;
-        const val   = document.createElement('span');
-        val.className   = 'dash-value';
-        val.textContent = c.value;
-        // PONTO 17: indicador de tendência
-        if (c.trend !== null && c.trend !== undefined) {
+        const top = document.createElement('div');
+        top.className = 'dv2-card-top';
+
+        const labelEl = document.createElement('span');
+        labelEl.className   = 'dv2-card-label';
+        labelEl.textContent = label;
+
+        const iconEl = document.createElement('span');
+        iconEl.className   = 'dv2-card-icon';
+        iconEl.textContent = icon;
+
+        top.appendChild(labelEl);
+        top.appendChild(iconEl);
+
+        const valEl = document.createElement('div');
+        valEl.className   = 'dv2-card-value';
+        valEl.textContent = value;
+
+        // trend
+        const trend = _getDashTrend(label === 'Produtos' ? 'total' : label === 'Sem stock' ? 'semStock' : label === 'Ferramentas' ? 'alocadas' : null, typeof value === 'number' ? value : null);
+        if (trend !== null && trend !== undefined) {
             const tr = document.createElement('span');
-            tr.className   = 'dash-trend ' + (c.trend > 0 ? 'dash-trend-up' : 'dash-trend-down');
-            tr.textContent = (c.trend > 0 ? '↑' : '↓') + Math.abs(c.trend);
-            val.appendChild(tr);
+            tr.className   = 'dv2-trend ' + (trend > 0 ? 'dv2-trend--up' : 'dv2-trend--down');
+            tr.textContent = (trend > 0 ? '↑' : '↓') + Math.abs(trend);
+            valEl.appendChild(tr);
         }
-        const lbl   = document.createElement('span');
-        lbl.className   = 'dash-label';
-        lbl.textContent = c.label;
-        card.appendChild(icon);
-        card.appendChild(val);
-        card.appendChild(lbl);
-        el.appendChild(card);
-    });
+
+        const subEl = document.createElement('div');
+        subEl.className   = 'dv2-card-sub';
+        subEl.textContent = sub || '';
+
+        card.appendChild(top);
+        card.appendChild(valEl);
+        card.appendChild(subEl);
+
+        // barra de progresso opcional
+        if (progress !== undefined && progress !== null) {
+            const barWrap = document.createElement('div');
+            barWrap.className = 'dv2-progress';
+            const barFill = document.createElement('div');
+            barFill.className = 'dv2-progress-fill';
+            barFill.style.width = Math.min(100, Math.round(progress * 100)) + '%';
+            barWrap.appendChild(barFill);
+            card.appendChild(barWrap);
+        }
+
+        return card;
+    }
+
+    // ── GRID 2×2 ─────────────────────────────────────────────────────────────
+    const grid = document.createElement('div');
+    grid.className = 'dv2-grid';
+
+    grid.appendChild(_metricCard({
+        label: 'Produtos', value: total, icon: '📦',
+        sub: `${comStock} com stock · ${semStock} esgotados`,
+        accent: '#2563eb',
+        progress: total > 0 ? comStock / total : 1,
+        onClick: () => nav('view-search'),
+    }));
+
+    grid.appendChild(_metricCard({
+        label: 'Sem stock', value: semStock, icon: semStock > 0 ? '⚠️' : '✅',
+        sub: semStock > 0 ? `${Math.round(semStock/total*100)}% do inventário` : 'Tudo com stock',
+        accent: semStock > 0 ? '#dc2626' : '#16a34a',
+        warn: semStock > 0,
+        progress: total > 0 ? semStock / total : 0,
+        onClick: semStock > 0 ? () => { _pendingZeroFilter = true; nav('view-search'); } : null,
+    }));
+
+    grid.appendChild(_metricCard({
+        label: 'Ferramentas', value: `${alocadas}/${totalFerr}`, icon: '🪛',
+        sub: alocadasHaMuito.length > 0
+            ? `⚠ ${alocadasHaMuito.length} há +${ALERTA_DIAS}d`
+            : alocadas === 0 ? 'Todas em armazém' : `${totalFerr - alocadas} em armazém`,
+        accent: alocadasHaMuito.length > 0 ? '#f59e0b' : '#2563eb',
+        warn: alocadasHaMuito.length > 0,
+        progress: totalFerr > 0 ? alocadas / totalFerr : 0,
+        onClick: () => nav('view-tools'),
+    }));
+
+    grid.appendChild(_metricCard({
+        label: 'PATs', value: patPendentes, icon: '📋',
+        sub: patPendentes === 0 ? 'Sem pendentes' : patPendentes === 1 ? '1 pedido pendente' : `${patPendentes} pedidos pendentes`,
+        accent: patPendentes > 0 ? '#7c3aed' : '#16a34a',
+        onClick: () => nav('view-pedidos'),
+    }));
+
+    el.appendChild(grid);
+
+    // ── SECÇÃO: Últimas PATs ─────────────────────────────────────────────────
+    const patEntries = Object.entries(_patCache.data || {})
+        .filter(([, p]) => p.status !== 'levantado')
+        .sort((a, b) => (b[1].criadoEm || 0) - (a[1].criadoEm || 0))
+        .slice(0, 4);
+
+    if (patEntries.length > 0) {
+        const sec = document.createElement('div');
+        sec.className = 'dv2-section';
+
+        const hdr = document.createElement('div');
+        hdr.className = 'dv2-section-hdr';
+        const hdrTitle = document.createElement('span');
+        hdrTitle.textContent = 'Últimas PATs';
+        const hdrLink = document.createElement('button');
+        hdrLink.className   = 'dv2-section-link';
+        hdrLink.textContent = 'Ver todas →';
+        hdrLink.onclick     = () => nav('view-pedidos');
+        hdr.appendChild(hdrTitle);
+        hdr.appendChild(hdrLink);
+        sec.appendChild(hdr);
+
+        const list = document.createElement('div');
+        list.className = 'dv2-pat-list';
+
+        patEntries.forEach(([id, pat]) => {
+            const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
+            const urgente = dias >= 3;
+            const row = document.createElement('div');
+            row.className = 'dv2-pat-row' + (urgente ? ' dv2-pat-row--urgente' : '');
+            row.onclick = () => openPatDetail(id, pat);
+
+            const left = document.createElement('div');
+            left.className = 'dv2-pat-left';
+
+            const num = document.createElement('span');
+            num.className   = 'dv2-pat-num';
+            num.textContent = `PAT ${escapeHtml(pat.numero || '—')}`;
+
+            const estab = document.createElement('span');
+            estab.className   = 'dv2-pat-estab';
+            estab.textContent = pat.estabelecimento || 'Sem estabelecimento';
+
+            left.appendChild(num);
+            left.appendChild(estab);
+
+            const right = document.createElement('span');
+            right.className   = 'dv2-pat-age' + (urgente ? ' dv2-pat-age--urgente' : '');
+            right.textContent = dias === 0 ? 'Hoje' : dias === 1 ? '1d' : `${dias}d`;
+
+            row.appendChild(left);
+            row.appendChild(right);
+            list.appendChild(row);
+        });
+
+        sec.appendChild(list);
+        el.appendChild(sec);
+    }
+
+    // ── SECÇÃO: Ferramentas por colaborador ──────────────────────────────────
+    const alocadasList = ferraEntries
+        .filter(t => t.status === 'alocada' && t.colaborador)
+        .sort((a, b) => (a.colaborador || '').localeCompare(b.colaborador || '', 'pt'));
+
+    if (alocadasList.length > 0) {
+        const sec2 = document.createElement('div');
+        sec2.className = 'dv2-section';
+
+        const hdr2 = document.createElement('div');
+        hdr2.className = 'dv2-section-hdr';
+        const hdr2Title = document.createElement('span');
+        hdr2Title.textContent = 'Ferramentas em uso';
+        const hdr2Link = document.createElement('button');
+        hdr2Link.className   = 'dv2-section-link';
+        hdr2Link.textContent = 'Painel →';
+        hdr2Link.onclick     = () => nav('view-tools');
+        hdr2.appendChild(hdr2Title);
+        hdr2.appendChild(hdr2Link);
+        sec2.appendChild(hdr2);
+
+        const list2 = document.createElement('div');
+        list2.className = 'dv2-ferr-list';
+
+        // Agrupa por colaborador
+        const porColab = {};
+        alocadasList.forEach(t => {
+            const c = t.colaborador;
+            if (!porColab[c]) porColab[c] = [];
+            porColab[c].push(t);
+        });
+
+        Object.entries(porColab).forEach(([colab, tools]) => {
+            const dias_max = Math.max(...tools.map(t =>
+                t.dataEntrega ? Math.floor((Date.now() - new Date(t.dataEntrega).getTime()) / 86400000) : 0
+            ));
+            const overdue = dias_max >= ALERTA_DIAS;
+
+            const row = document.createElement('div');
+            row.className = 'dv2-ferr-row' + (overdue ? ' dv2-ferr-row--overdue' : '');
+            row.onclick   = () => nav('view-tools');
+
+            const left2 = document.createElement('div');
+            left2.className = 'dv2-ferr-left';
+
+            const name = document.createElement('span');
+            name.className   = 'dv2-ferr-name';
+            name.textContent = colab;
+
+            const toolNames = document.createElement('span');
+            toolNames.className   = 'dv2-ferr-tools';
+            toolNames.textContent = tools.map(t => `${t.icone || '🪛'} ${t.nome}`).join(' · ');
+
+            left2.appendChild(name);
+            left2.appendChild(toolNames);
+
+            const badge = document.createElement('span');
+            badge.className   = 'dv2-ferr-badge' + (overdue ? ' dv2-ferr-badge--overdue' : '');
+            badge.textContent = tools.length === 1 ? '1 ferr.' : `${tools.length} ferr.`;
+
+            row.appendChild(left2);
+            row.appendChild(badge);
+            list2.appendChild(row);
+        });
+
+        sec2.appendChild(list2);
+        el.appendChild(sec2);
+    }
 
     if (refreshBtn) refreshBtn.classList.remove('spinning');
 }
