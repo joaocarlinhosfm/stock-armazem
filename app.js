@@ -3496,12 +3496,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.44';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.45';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.44')
+        navigator.serviceWorker.register('sw.js?v=5.45')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -3768,6 +3768,13 @@ async function renderPats() {
         return;
     }
 
+    // Conta pedidos por nome de estabelecimento (nome, não NR — NRs podem repetir)
+    const estabCount = {};
+    entries.forEach(([, p]) => {
+        const nome = (p.estabelecimento || '').trim().toLowerCase();
+        if (nome) estabCount[nome] = (estabCount[nome] || 0) + 1;
+    });
+
     el.innerHTML = '';
     entries.forEach(([id, pat]) => {
         const card = document.createElement('div');
@@ -3778,6 +3785,8 @@ async function renderPats() {
         const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
         const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
         const urgente = dias >= 3;
+        const nomeNorm = (pat.estabelecimento || '').trim().toLowerCase();
+        const dupCount = estabCount[nomeNorm] || 0;
 
         card.innerHTML = `
             <div class="pat-card-top">
@@ -3785,6 +3794,7 @@ async function renderPats() {
                     <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}">PAT ${escapeHtml(pat.numero || '—')}</span>
                     ${pat.clienteNumero ? `<span class="pat-cliente-badge">${escapeHtml(pat.clienteNumero)}</span>` : ''}
                     ${separacao ? '<span class="pat-sep-tag">📄 Guia Transporte</span>' : ''}
+                    ${dupCount > 1 ? `<span class="pat-dup-badge">⚠ ${dupCount} pedidos</span>` : ''}
                 </div>
                 <span class="pat-dias ${urgente ? 'pat-dias-urgente' : ''}">${diasLabel}</span>
             </div>
