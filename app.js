@@ -1375,13 +1375,9 @@ async function returnTool(id) {
 }
 
 // PONTO 11: editar ferramenta (nome + ícone)
-let _editToolId = null;
-
 function openEditToolModal(id, tool) {
-    _editToolId = id;
     document.getElementById('edit-tool-id').value   = id;
     document.getElementById('edit-tool-name').value = tool.nome || '';
-    setUnitSelector && null; // não aplica
     // Set icon
     document.getElementById('edit-tool-icon-hidden').value = tool.icone || '🪛';
     document.getElementById('edit-tool-icon-btn').textContent = tool.icone || '🪛';
@@ -1391,7 +1387,6 @@ function openEditToolModal(id, tool) {
 
 function closeEditToolModal() {
     document.getElementById('edit-tool-modal').classList.remove('active');
-    _editToolId = null;
 }
 
 async function saveEditTool() {
@@ -2486,7 +2481,8 @@ function _selectIcon(icon) {
     const hiddenEl = document.getElementById(`${_iconPickerTarget}-tool-icon`)
                   || document.getElementById(`${_iconPickerTarget}-icon-hidden`);
     if (hiddenEl) hiddenEl.value = icon;
-    const btnEl = document.getElementById(`${_iconPickerTarget}-tool-icon-btn`);
+    const _iconBtnMap = { 'reg': 'reg-tool-icon-btn', 'edit-tool': 'edit-tool-icon-btn' };
+    const btnEl = document.getElementById(_iconBtnMap[_iconPickerTarget] || `${_iconPickerTarget}-tool-icon-btn`);
     if (btnEl) btnEl.textContent = icon;
     closeIconPicker();
 }
@@ -3496,12 +3492,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.47';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.48';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.45')
+        navigator.serviceWorker.register('sw.js?v=5.48')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -3565,7 +3561,7 @@ function patClientSearch(val) {
     const data = _clientesCache.data || {};
 
     // Número exacto — verifica quantos clientes partilham esse NR
-    if (/^d{1,3}$/.test(q)) {
+    if (/^\d{1,3}$/.test(q)) {
         const exactMatches = Object.values(data).filter(c => c.numero === q);
         if (exactMatches.length === 1) {
             document.getElementById('pat-estabelecimento').value = exactMatches[0].nome;
@@ -3705,7 +3701,6 @@ function importClientesExcel() {
     preview.innerHTML = '<div class="clientes-preview-info">Para actualizar a lista, importa o ficheiro <strong>clientes_firebase.json</strong> na <a href="https://console.firebase.google.com" target="_blank" style="color:var(--primary)">Firebase Console</a> → Realtime Database → nó <code>/clientes</code> → ⋮ Import JSON.</div>';
 }
 
-function confirmImportClientes() {}
 
 // =============================================
 // PEDIDOS PAT
@@ -3749,9 +3744,11 @@ function patSearchFilter(val) {
 
 // ── Popover de pedidos duplicados por estabelecimento ──────────────
 let _dupPopoverEl = null;
+let _dupPopoverCloseHandler = null;
 
 function showDupPopover(badge, estabNorm) {
-    // fecha se já aberto para este badge
+    // fecha se já aberto + limpa listener anterior
+    if (_dupPopoverCloseHandler) { document.removeEventListener('click', _dupPopoverCloseHandler); _dupPopoverCloseHandler = null; }
     if (_dupPopoverEl) { _dupPopoverEl.remove(); _dupPopoverEl = null; }
 
     const pats = Object.entries(_patCache.data || {})
@@ -3780,19 +3777,19 @@ function showDupPopover(badge, estabNorm) {
     // posicionar abaixo do badge
     const rect = badge.getBoundingClientRect();
     const pw = pop.offsetWidth || 200;
-    let left = rect.left + window.scrollX;
+    let left = rect.left;
     if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
     pop.style.left = left + 'px';
-    pop.style.top  = (rect.bottom + window.scrollY + 6) + 'px';
+    pop.style.top  = (rect.bottom + 6) + 'px';
 
-    // fechar ao clicar fora
-    const close = (e) => {
+    _dupPopoverCloseHandler = (e) => {
         if (!pop.contains(e.target)) {
             pop.remove(); _dupPopoverEl = null;
-            document.removeEventListener('click', close);
+            document.removeEventListener('click', _dupPopoverCloseHandler);
+            _dupPopoverCloseHandler = null;
         }
     };
-    setTimeout(() => document.addEventListener('click', close), 0);
+    setTimeout(() => document.addEventListener('click', _dupPopoverCloseHandler), 0);
 }
 
 
@@ -3843,7 +3840,7 @@ async function renderPats() {
                     <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}">PAT ${escapeHtml(pat.numero || '—')}</span>
                     ${pat.clienteNumero ? `<span class="pat-cliente-badge">${escapeHtml(pat.clienteNumero)}</span>` : ''}
                     ${separacao ? '<span class="pat-sep-tag">📄 Guia Transporte</span>' : ''}
-                    ${dupCount > 1 ? `<span class="pat-dup-badge" onclick="event.stopPropagation();showDupPopover(this,'${nomeNorm}')" data-estab="${nomeNorm}">⚠ ${dupCount} pedidos</span>` : ''}
+                    ${dupCount > 1 ? `<span class="pat-dup-badge" data-estab="${nomeNorm}">⚠ ${dupCount} pedidos</span>` : ''}
                 </div>
                 <span class="pat-dias ${urgente ? 'pat-dias-urgente' : ''}">${diasLabel}</span>
             </div>
@@ -3855,6 +3852,10 @@ async function renderPats() {
                 <button class="pat-btn-levantado" onclick="marcarPatLevantado('${id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Dar como levantado</button>
                 <button class="pat-btn-apagar" onclick="apagarPat('${id}')">🗑</button>
             </div>`;
+        card.addEventListener('click', e => {
+            const badge = e.target.closest('.pat-dup-badge');
+            if (badge) { e.stopPropagation(); showDupPopover(badge, badge.dataset.estab); }
+        });
         el.appendChild(card);
     });
     updatePatCount();
