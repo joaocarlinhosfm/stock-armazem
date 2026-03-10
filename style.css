@@ -3804,16 +3804,26 @@ body.glass-mode .dash-refresh-btn:hover {
    PEDIDOS PAT — pesquisa e botão
    ============================================= */
 
-/* Barra de pesquisa */
-.pat-search-wrap {
-    padding: 0 16px 12px;
+/* Toolbar PAT — título + botão + pesquisa, tudo alinhado */
+.pat-toolbar {
+    padding: 20px 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.pat-toolbar-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    overflow: hidden;
 }
 .pat-search-input {
     width: 100%;
     box-sizing: border-box;
 }
 
-/* Botão Novo Pedido — não sai do ecrã */
+/* Botão Novo Pedido */
 .pat-add-btn {
     display: inline-flex;
     align-items: center;
@@ -3827,7 +3837,7 @@ body.glass-mode .dash-refresh-btn:hover {
 /* ── Card no dashboard ── */
 
 /* ── Vista pedidos ── */
-.pat-list-wrap { padding: 0 4px 100px; }
+.pat-list-wrap { padding: 0 12px 100px; }
 
 /* ── Card de PAT pendente ── */
 .pat-card {
@@ -4202,4 +4212,30 @@ body.glass-mode .pat-cliente-badge {
     background: rgba(96,165,250,0.08);
     border-bottom-color: rgba(96,165,250,0.15);
     color: #60a5fa;
+}
+
+/* ── Badge pedidos duplicados por estabelecimento ── */
+.pat-dup-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 0.70rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    background: rgba(168, 85, 247, 0.12);
+    color: #9333ea;
+    border: 1px solid rgba(168, 85, 247, 0.25);
+    white-space: nowrap;
+}
+.dark-mode .pat-dup-badge {
+    background: rgba(192, 132, 252, 0.15);
+    color: #c084fc;
+    border-color: rgba(192, 132, 252, 0.30);
+}
+body.glass-mode .pat-dup-badge {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.25);
+    color: #fff;
 }
