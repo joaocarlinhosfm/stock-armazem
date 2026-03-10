@@ -3496,7 +3496,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.45';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.46';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -3803,7 +3803,7 @@ async function renderPats() {
                 `<span class="pat-prod-chip">${escapeHtml(p.codigo || '?')} × ${p.quantidade || 1}</span>`
             ).join('')}</div>
             <div class="pat-card-actions" onclick="event.stopPropagation()">
-                <button class="pat-btn-levantado" onclick="marcarPatLevantado('${id}')">✓ Levantado</button>
+                <button class="pat-btn-levantado" onclick="marcarPatLevantado('${id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Dar como levantado</button>
                 <button class="pat-btn-apagar" onclick="apagarPat('${id}')">🗑</button>
             </div>`;
         el.appendChild(card);
@@ -4099,7 +4099,7 @@ function openPatDetail(id, pat) {
                 </div>`).join('')}
         </div>` : '<div class="pat-empty" style="margin-top:12px">Sem produtos associados.</div>'}
         <div class="pat-detail-actions">
-            <button class="pat-btn-levantado" style="flex:1" onclick="closePatDetail();marcarPatLevantado('${id}')">✓ Marcar Levantado</button>
+            <button class="pat-btn-levantado" style="flex:1" onclick="closePatDetail();marcarPatLevantado('${id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Dar como levantado</button>
             <button class="pat-btn-apagar" onclick="closePatDetail();apagarPat('${id}')">🗑</button>
         </div>`;
     document.getElementById('pat-detail-modal').classList.add('active');
