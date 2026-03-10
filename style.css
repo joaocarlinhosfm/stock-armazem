@@ -4247,3 +4247,56 @@ body.glass-mode .pat-dup-badge {
     border-color: rgba(255,255,255,0.25);
     color: #fff;
 }
+
+/* ── Popover duplicados ──────────────────────────── */
+.dup-popover {
+    position: fixed;
+    z-index: 9999;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+    min-width: 200px;
+    max-width: 260px;
+    animation: popover-in 0.12s ease;
+}
+@keyframes popover-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.dup-pop-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 7px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dup-pop-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 5px 0;
+    border-top: 1px solid var(--border);
+}
+.dup-pop-row:first-of-type { border-top: none; }
+.dup-pop-pat {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--primary);
+}
+.dup-pop-urgente { color: var(--danger); }
+.dup-pop-dias {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.dark-mode .dup-popover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
