@@ -3826,7 +3826,6 @@ async function renderPats() {
         const card = document.createElement('div');
         const separacao = !!pat.separacao;
         card.className = 'pat-card' + (separacao ? ' pat-card-separacao' : '');
-        card.onclick = () => openPatDetail(id, pat);
 
         const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
         const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
@@ -3852,10 +3851,11 @@ async function renderPats() {
                 <button class="pat-btn-levantado" onclick="marcarPatLevantado('${id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Dar como levantado</button>
                 <button class="pat-btn-apagar" onclick="apagarPat('${id}')">🗑</button>
             </div>`;
-        card.addEventListener('click', e => {
+        card.onclick = (e) => {
             const badge = e.target.closest('.pat-dup-badge');
-            if (badge) { e.stopPropagation(); showDupPopover(badge, badge.dataset.estab); }
-        });
+            if (badge) { showDupPopover(badge, badge.dataset.estab); return; }
+            openPatDetail(id, pat);
+        };
         el.appendChild(card);
     });
     updatePatCount();
