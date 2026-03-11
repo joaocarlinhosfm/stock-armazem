@@ -3655,12 +3655,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.55';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.56';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.55')
+        navigator.serviceWorker.register('sw.js?v=5.56')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -4094,8 +4094,50 @@ function _updateOcrKeyStatus() {
     }
 }
 
-// Chama no arranque para mostrar estado
-document.addEventListener('DOMContentLoaded', _updateOcrKeyStatus);
+async function testAnthropicProxy() {
+    const val = _getAnthropicKey();
+    if (!val) { showToast('Configura primeiro o URL do Worker', 'error'); return; }
+
+    const btn = document.getElementById('btn-test-ocr');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ A testar…'; }
+
+    try {
+        const isProxy = _isProxyUrl(val);
+        const endpoint = isProxy ? val : 'https://api.anthropic.com/v1/messages';
+        const headers = { 'Content-Type': 'application/json' };
+        if (!isProxy) {
+            headers['x-api-key'] = val;
+            headers['anthropic-version'] = '2023-06-01';
+            headers['anthropic-dangerous-allow-browser'] = 'true';
+        }
+
+        const resp = await fetch(endpoint, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                model: 'claude-haiku-4-5-20251001',
+                max_tokens: 10,
+                messages: [{ role: 'user', content: 'Hi' }]
+            })
+        });
+
+        const data = await resp.json();
+        if (data.content || data.id) {
+            showToast('✓ Ligação OK — Claude Vision pronto a usar!', 'ok');
+        } else if (data.error) {
+            showToast('Erro da API: ' + (data.error.message || JSON.stringify(data.error)), 'error');
+        } else {
+            showToast('Resposta inesperada: ' + JSON.stringify(data).slice(0, 80), 'error');
+        }
+    } catch(e) {
+        showToast('Falha na ligação: ' + (e.message || e), 'error');
+        console.error('[testProxy]', e);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🔗 Testar ligação'; }
+    }
+}
+
+
 
 // =============================================
 // PAT SCAN — preenchimento por fotografia (OCR via Claude Vision)
