@@ -3638,7 +3638,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.66';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.67';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
