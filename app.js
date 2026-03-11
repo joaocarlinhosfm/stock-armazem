@@ -461,7 +461,6 @@ function nav(viewId) {
     document.getElementById('bottom-nav')?.classList.remove('bnav-hidden');
 }
 
-
 // =============================================
 // DASHBOARD — resumo no topo do stock
 // =============================================
@@ -746,7 +745,6 @@ async function renderDashboard(force = false) {
 
     if (refreshBtn) refreshBtn.classList.remove('spinning');
 }
-
 
 // =============================================
 // ORDENAÇÃO DO STOCK
@@ -1403,7 +1401,6 @@ async function renderAdminTools() {
         list.appendChild(row);
     });
 }
-
 
 // =============================================
 // HISTÓRICO DAS FERRAMENTAS
@@ -2254,18 +2251,17 @@ function _setupAdminSwipe() {
 }
 
 // =============================================
-// TEMAS — claro / escuro / liquid glass
+// TEMAS — claro / escuro
 // =============================================
 function _applyTheme(theme) {
-    document.body.classList.remove('dark-mode', 'glass-mode');
+    document.body.classList.remove('dark-mode');
     if (theme === 'dark')  document.body.classList.add('dark-mode');
-    if (theme === 'glass') document.body.classList.add('glass-mode');
+    
 
     // Sync hidden legacy elements (still used by some paths)
     const t = document.getElementById('theme-toggle-admin');
     if (t) t.checked = (theme === 'dark');
-    const gBtn = document.getElementById('glass-theme-btn');
-    if (gBtn) gBtn.dataset.active = (theme === 'glass') ? '1' : '0';
+    
 
     // Sync theme dropdown UI
     _syncThemeDropdown(theme);
@@ -2274,7 +2270,7 @@ function _applyTheme(theme) {
     const themeColors = {
         light: '#2563eb',
         dark:  '#0f172a',
-        glass: '#0d0a20',   // mesma cor do fundo aurora do glass
+        
     };
     let metaTheme = document.querySelector('meta[name="theme-color"]');
     if (!metaTheme) {
@@ -2285,7 +2281,7 @@ function _applyTheme(theme) {
     metaTheme.content = themeColors[theme] || themeColors.light;
 
     // Liga/desliga o comportamento de scroll da barra de pesquisa
-    _setupSearchScrollBehaviour(theme === 'glass');
+    _setupSearchScrollBehaviour(false);
     // Scroll hide/show do pill — activo em todos os temas
     _setupBottomNavScrollBehaviour(true);
 }
@@ -2314,7 +2310,6 @@ function _setupSearchScrollBehaviour(enable) {
     }
 
     if (!enable) {
-        // Temas não-glass: repõe estado normal
         container.classList.remove('search-scrolled-away');
         peekBtn.classList.remove('visible');
         return;
@@ -2407,14 +2402,10 @@ function _setupBottomNavScrollBehaviour(enable) {
 
 function toggleTheme() {
     const current = localStorage.getItem('hiperfrio-tema') || 'light';
-    const next    = (current === 'dark' || current === 'glass') ? 'light' : 'dark';
+    const next    = current === 'dark' ? 'light' : 'dark';
     setTheme(next);
 }
 
-function toggleGlassTheme() {
-    const current = localStorage.getItem('hiperfrio-tema') || 'light';
-    setTheme(current === 'glass' ? 'light' : 'glass');
-}
 
 // Ponto de entrada único para mudança de tema
 function setTheme(theme) {
@@ -2427,8 +2418,7 @@ function setTheme(theme) {
 const _THEME_META = {
     light: { icon: '☀️', label: 'Claro' },
     dark:  { icon: '🌙', label: 'Escuro' },
-    glass: { icon: '🫧', label: 'Liquid Glass' },
-};
+    };
 function _syncThemeDropdown(theme) {
     const meta = _THEME_META[theme] || _THEME_META.light;
     const iconEl  = document.getElementById('theme-dropdown-icon');
@@ -2491,7 +2481,6 @@ function checkDuplicateCodigo(codigo, onConfirm) {
 function closeDupModal() {
     document.getElementById('dup-modal').classList.remove('active');
 }
-
 
 // =============================================
 // UNIDADE DE MEDIDA — dropdown inline no input
@@ -2574,7 +2563,6 @@ function fmtQty(quantidade, unidade) {
     return `${qty} ${UNIT_SHORT[unidade] || unidade}`;
 }
 
-
 // =============================================
 // ÍCONES DE FERRAMENTAS — picker por categoria
 // =============================================
@@ -2649,7 +2637,6 @@ function _selectIcon(icon) {
     if (btnEl) btnEl.textContent = icon;
     closeIconPicker();
 }
-
 
 // =============================================
 // INVENTÁRIO GUIADO — v2
@@ -3327,8 +3314,6 @@ function closeToolTimeline() {
     document.getElementById('timeline-modal').classList.remove('active');
 }
 
-
-
 // =============================================
 // BOTTOM NAV — botão + com mini-menu
 // =============================================
@@ -3384,9 +3369,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-
     // Tema
-    // Aplica tema guardado (claro / escuro / glass)
     const savedTheme = localStorage.getItem('hiperfrio-tema') || 'light';
     _applyTheme(savedTheme);
     // _applyTheme já chama _setupSearchScrollBehaviour e _setupBottomNavScrollBehaviour
@@ -3655,12 +3638,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.65';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.66';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.65')
+        navigator.serviceWorker.register('sw.js?v=5.66')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -3864,7 +3847,6 @@ function importClientesExcel() {
     preview.innerHTML = '<div class="clientes-preview-info">Para actualizar a lista, importa o ficheiro <strong>clientes_firebase.json</strong> na <a href="https://console.firebase.google.com" target="_blank" style="color:var(--primary)">Firebase Console</a> → Realtime Database → nó <code>/clientes</code> → ⋮ Import JSON.</div>';
 }
 
-
 // =============================================
 // PEDIDOS PAT
 // =============================================
@@ -3955,7 +3937,6 @@ function showDupPopover(badge, estabNorm) {
     setTimeout(() => document.addEventListener('click', _dupPopoverCloseHandler), 0);
 }
 
-
 async function renderPats() {
     const el = document.getElementById('pat-list');
     if (!el) return;
@@ -4040,7 +4021,6 @@ function openPatModal() {
     focusModal('pat-modal');
     setTimeout(() => document.getElementById('pat-numero').focus(), 80);
 }
-
 
 function closePatModal() {
     document.getElementById('pat-modal').classList.remove('active');
@@ -4224,7 +4204,6 @@ function patScanStopCamera() {
     }
     document.getElementById('pat-scan-video').style.display = 'none';
 }
-
 
 // =============================================
 // PAT SCAN — preenchimento por fotografia (OCR via Claude Vision)
