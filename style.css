@@ -4766,8 +4766,14 @@ body.glass-mode .dv2-progress     { background: rgba(255,255,255,0.1); }
     justify-content: space-between;
     margin-bottom: 10px;
 }
-.enc-add-btn { gap: 4px; padding: 5px 10px; font-size: 0.75rem; }
-
+.enc-add-btn {
+    gap: 4px;
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    width: auto !important;
+    align-self: flex-end;
+    flex-shrink: 0;
+}
 .enc-filter-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
 .enc-filter-btn {
     padding: 5px 12px;
