@@ -1964,6 +1964,7 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
     margin-bottom: 16px;
 }
 .tools-header h2 { margin-bottom: 0; }
@@ -2606,11 +2607,13 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     font-weight: 800;
     color: var(--text-main);
     letter-spacing: -0.5px;
-    /* título cede espaço ao botão em vez de o empurrar */
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    margin: 0;
+    line-height: 1.2;
+    align-self: center;
 }
 .dash-refresh-btn {
     display: flex;
@@ -2664,6 +2667,27 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     gap: 8px;
     overflow: hidden;
 }
+.pat-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.btn-icon-toolbar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-main);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background .15s, border-color .15s;
+}
+.btn-icon-toolbar:hover { border-color: var(--primary); color: var(--primary); }
 .pat-search-input {
     width: 100%;
     box-sizing: border-box;
@@ -3531,14 +3555,17 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
     margin-bottom: 10px;
 }
 .enc-add-btn {
+    display: inline-flex;
+    align-items: center;
     gap: 4px;
-    padding: 5px 10px;
+    padding: 7px 10px;
     font-size: 0.75rem;
+    white-space: nowrap;
     width: auto;
-    align-self: flex-end;
     flex-shrink: 0;
 }
 .enc-filter-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
