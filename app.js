@@ -3654,12 +3654,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.48';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.49';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.48')
+        navigator.serviceWorker.register('sw.js?v=5.49')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -4044,6 +4044,141 @@ function openPatModal() {
 function closePatModal() {
     document.getElementById('pat-modal').classList.remove('active');
     document.getElementById('pat-product-dropdown').innerHTML = '';
+}
+
+// =============================================
+// PAT SCAN — preenchimento por fotografia (OCR via Claude Vision)
+// =============================================
+let _patScanB64  = null;
+let _patScanMime = 'image/jpeg';
+
+function openPatScan() {
+    patScanReset();
+    document.getElementById('pat-scan-modal').classList.add('active');
+}
+
+function closePatScan() {
+    document.getElementById('pat-scan-modal').classList.remove('active');
+}
+
+function patScanFromFile(inp) {
+    const f = inp.files[0];
+    if (!f) return;
+    _patScanMime = f.type || 'image/jpeg';
+    const r = new FileReader();
+    r.onload = e => {
+        _patScanB64 = e.target.result.split(',')[1];
+        // mostra preview
+        document.getElementById('pat-scan-placeholder').style.display = 'none';
+        const prev = document.getElementById('pat-scan-preview');
+        prev.src = e.target.result;
+        prev.style.display = 'block';
+        document.getElementById('pat-scan-row-load').style.display = 'none';
+        document.getElementById('pat-scan-row-analyse').style.display = 'flex';
+        _patScanSetStatus('Imagem carregada — clica em Analisar', '');
+    };
+    r.readAsDataURL(f);
+}
+
+function patScanReset() {
+    _patScanB64 = null;
+    document.getElementById('pat-scan-preview').style.display = 'none';
+    document.getElementById('pat-scan-placeholder').style.display = 'flex';
+    document.getElementById('pat-scan-row-load').style.display = 'flex';
+    document.getElementById('pat-scan-row-analyse').style.display = 'none';
+    document.getElementById('pat-scan-result').style.display = 'none';
+    document.getElementById('pat-scan-file').value = '';
+    _patScanSetStatus('', '');
+}
+
+function _patScanSetStatus(msg, cls) {
+    const el = document.getElementById('pat-scan-status');
+    el.textContent = msg;
+    el.className   = 'pat-scan-status' + (cls ? ' ' + cls : '');
+}
+
+async function patScanAnalyse() {
+    if (!_patScanB64) return;
+    const btn = document.getElementById('pat-scan-go');
+    btn.disabled = true;
+    _patScanSetStatus('A analisar…', 'loading');
+
+    const prompt = `Analisa esta imagem de um documento de pedido de assistência técnica (PAT / ordem de serviço).
+
+Extrai os seguintes campos e responde APENAS com JSON válido, sem markdown:
+
+{
+  "pat_numero": "número da PAT ou OS (só dígitos) ou null",
+  "estabelecimento": "nome do estabelecimento em MAIÚSCULAS ou null",
+  "cliente_numero": "número de cliente 1-3 dígitos ou null",
+  "pat_confianca": 0.0,
+  "estab_confianca": 0.0
+}
+
+pat_confianca e estab_confianca são números de 0 a 1. Responde APENAS com o JSON.`;
+
+    try {
+        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 300,
+                messages: [{ role: 'user', content: [
+                    { type: 'image', source: { type: 'base64', media_type: _patScanMime, data: _patScanB64 } },
+                    { type: 'text', text: prompt }
+                ]}]
+            })
+        });
+        if (!resp.ok) {
+            const e = await resp.json().catch(() => ({}));
+            throw new Error(e?.error?.message || `HTTP ${resp.status}`);
+        }
+        const data   = await resp.json();
+        const raw    = data.content?.map(b => b.text || '').join('') || '';
+        const result = JSON.parse(raw.replace(/```json|```/gi, '').trim());
+
+        // Preenche campos do resultado
+        _patScanFill('ps-pat',   result.pat_numero,      result.pat_confianca,  'ps-pat-conf');
+        _patScanFill('ps-estab', result.estabelecimento, result.estab_confianca,'ps-estab-conf');
+        const cliEl = document.getElementById('ps-cli');
+        cliEl.value = result.cliente_numero || '';
+
+        document.getElementById('pat-scan-result').style.display = 'flex';
+        _patScanSetStatus('✓ Análise concluída — revê e confirma', 'ok');
+    } catch(e) {
+        _patScanSetStatus('Erro: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function _patScanFill(inputId, value, conf, confId) {
+    const inp  = document.getElementById(inputId);
+    const badge = document.getElementById(confId);
+    inp.value  = value || '';
+    if (badge) {
+        const pct = Math.round((conf || 0) * 100);
+        badge.textContent = pct + '%';
+        badge.className   = 'pat-scan-conf ' + (pct >= 75 ? 'high' : pct >= 50 ? 'mid' : 'low');
+        badge.style.display = value ? '' : 'none';
+    }
+}
+
+function patScanApply() {
+    const pat   = document.getElementById('ps-pat').value.trim();
+    const estab = document.getElementById('ps-estab').value.trim().toUpperCase();
+    const cli   = document.getElementById('ps-cli').value.trim();
+
+    if (pat)   document.getElementById('pat-numero').value = pat;
+    if (estab) document.getElementById('pat-estabelecimento').value = estab;
+    if (cli) {
+        document.getElementById('pat-cliente-num').value = cli;
+        patClientSearch(cli);
+    }
+
+    closePatScan();
+    showToast('Campos preenchidos — revê antes de guardar', 'info');
 }
 
 function patProductSearch(val) {
