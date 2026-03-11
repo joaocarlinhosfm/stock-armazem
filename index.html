@@ -312,11 +312,11 @@
                         <span class="settings-item-desc" id="ocr-api-status">Não configurada — usa OCR local (qualidade limitada)</span>
                     </div>
                     <div class="settings-api-key-wrap">
-                        <input type="password" id="inp-anthropic-key" class="blue-input settings-api-input"
-                            placeholder="sk-ant-..." autocomplete="off" autocorrect="off" spellcheck="false">
+                        <input type="text" id="inp-anthropic-key" class="blue-input settings-api-input"
+                            placeholder="https://...workers.dev" autocomplete="off" autocorrect="off" spellcheck="false">
                         <button class="btn-settings-action" onclick="saveAnthropicKey()">Guardar</button>
                     </div>
-                    <span class="settings-item-hint">Guardada apenas neste dispositivo (localStorage). Obtém a tua chave em <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a></span>
+                    <span class="settings-item-hint">Cola aqui o URL do teu Cloudflare Worker (https://...workers.dev). Guardado apenas neste dispositivo.</span>
                 </div>
 
                 <div class="settings-group-label">SEGURANÇA</div>
