@@ -3655,12 +3655,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.61';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.62';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.61')
+        navigator.serviceWorker.register('sw.js?v=5.62')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -4707,27 +4707,44 @@ function closePatDetail() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// ENCOMENDAS A FORNECEDOR
+// ENCOMENDAS A FORNECEDOR  (REST API — mesmo padrão do resto da app)
 // Firebase: /encomendas/{id}
 //   num, fornecedor, data, obs, estado, ts
 //   linhas: { "0": {ref, nome, qtd, recebido}, ... }
 // ══════════════════════════════════════════════════════════════════════════
 
-let _encFilter = 'all';
-let _encData   = {};           // cache local { id: encomenda }
-let _encEditId = null;         // null = nova, string = editar
-let _encEntradaId   = null;    // encomenda em edição de entrada
-let _encEntradaLIdx = null;    // índice da linha
+const ENC_URL = `${BASE_URL}/encomendas`;
 
-// ── Listener Firebase ─────────────────────────────────────────────────────
-function initEncomendas() {
-    const ref = firebase.database().ref('encomendas');
-    ref.on('value', snap => {
-        _encData = snap.val() || {};
+let _encFilter  = 'all';
+let _encData    = {};
+let _encEditId  = null;
+let _encEntradaId   = null;
+let _encEntradaLIdx = null;
+
+// ── Carregar dados ────────────────────────────────────────────────────────
+async function loadEncomendas() {
+    try {
+        const url  = await authUrl(`${ENC_URL}.json`);
+        const res  = await apiFetch(url);
+        _encData   = res || {};
         renderEncList();
-    });
+    } catch(e) {
+        console.error('[encomendas] load error', e);
+    }
 }
-document.addEventListener('DOMContentLoaded', initEncomendas);
+
+// Carrega quando navega para a view
+const _encNavOrig = window.nav;
+document.addEventListener('DOMContentLoaded', () => {
+    // hook na função nav existente
+    const _origNav = window.nav;
+    if (_origNav) {
+        window.nav = function(viewId, ...args) {
+            _origNav(viewId, ...args);
+            if (viewId === 'view-encomendas') loadEncomendas();
+        };
+    }
+});
 
 // ── Render lista ──────────────────────────────────────────────────────────
 function renderEncList() {
@@ -4737,9 +4754,8 @@ function renderEncList() {
     let entries = Object.entries(_encData)
         .sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0));
 
-    if (_encFilter !== 'all') {
+    if (_encFilter !== 'all')
         entries = entries.filter(([, e]) => e.estado === _encFilter);
-    }
 
     if (entries.length === 0) {
         wrap.innerHTML = `<div class="enc-empty">
@@ -4750,14 +4766,13 @@ function renderEncList() {
     }
 
     wrap.innerHTML = entries.map(([id, enc]) => {
-        const linhas  = Object.values(enc.linhas || {});
-        const total   = linhas.reduce((s, l) => s + (l.qtd || 0), 0);
-        const recebido= linhas.reduce((s, l) => s + Math.min(l.recebido || 0, l.qtd || 0), 0);
-        const pct     = total > 0 ? Math.round(recebido / total * 100) : 0;
-        const badgeCls= `enc-badge enc-badge-${enc.estado || 'pendente'}`;
+        const linhas   = Object.values(enc.linhas || {});
+        const total    = linhas.reduce((s, l) => s + (parseFloat(l.qtd) || 0), 0);
+        const recebido = linhas.reduce((s, l) => s + Math.min(parseFloat(l.recebido) || 0, parseFloat(l.qtd) || 0), 0);
+        const pct      = total > 0 ? Math.round(recebido / total * 100) : 0;
+        const badgeCls = `enc-badge enc-badge-${enc.estado || 'pendente'}`;
         const estadoLabel = { pendente: 'Pendente', parcial: 'Parcial', recebida: 'Recebida' }[enc.estado] || 'Pendente';
-        const dataFmt = enc.data ? enc.data.split('-').reverse().join('/') : '—';
-
+        const dataFmt  = enc.data ? enc.data.split('-').reverse().join('/') : '—';
         return `<div class="enc-card" onclick="openEncDetail('${id}')">
             <div class="enc-card-top">
                 <div>
@@ -4783,16 +4798,16 @@ function encFilterSet(btn, filter) {
     renderEncList();
 }
 
-// ── Modal criar / editar ──────────────────────────────────────────────────
+// ── Modal criar ───────────────────────────────────────────────────────────
 function openNovaEncomenda() {
     _encEditId = null;
     document.getElementById('enc-modal-title').textContent = 'Nova Encomenda';
-    document.getElementById('enc-num').value = '';
-    document.getElementById('enc-data').value = new Date().toISOString().split('T')[0];
+    document.getElementById('enc-num').value        = '';
+    document.getElementById('enc-data').value       = new Date().toISOString().split('T')[0];
     document.getElementById('enc-fornecedor').value = '';
-    document.getElementById('enc-obs').value = '';
+    document.getElementById('enc-obs').value        = '';
     document.getElementById('enc-linhas-wrap').innerHTML = '';
-    encAddLinha(); // começa com 1 linha
+    encAddLinha();
     document.getElementById('enc-modal').classList.add('active');
 }
 
@@ -4802,23 +4817,21 @@ function closeEncModal() {
 
 function encAddLinha(ref = '', nome = '', qtd = '') {
     const wrap = document.getElementById('enc-linhas-wrap');
-    const idx  = wrap.children.length;
     const div  = document.createElement('div');
     div.className = 'enc-linha';
-    div.dataset.idx = idx;
     div.innerHTML = `
-        <input class="blue-input enc-linha-ref"  type="text"   placeholder="Ref."    value="${escapeHtml(ref)}"  autocomplete="off" autocorrect="off" spellcheck="false">
-        <input class="blue-input enc-linha-nome" type="text"   placeholder="Designação" value="${escapeHtml(nome)}" autocomplete="off" autocorrect="off" spellcheck="false" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
-        <input class="blue-input enc-linha-qtd"  type="number" placeholder="Qtd."   value="${qtd}" min="0" step="0.01">
+        <input class="blue-input enc-linha-ref"  type="text"   placeholder="Ref."       value="${escapeHtml(String(ref))}"  autocomplete="off" spellcheck="false">
+        <input class="blue-input enc-linha-nome" type="text"   placeholder="Designação" value="${escapeHtml(String(nome))}" autocomplete="off" spellcheck="false" oninput="this.value=this.value.toUpperCase()">
+        <input class="blue-input enc-linha-qtd"  type="number" placeholder="Qtd."       value="${qtd}" min="0" step="0.01">
         <button class="enc-linha-del" onclick="this.closest('.enc-linha').remove()">✕</button>`;
     wrap.appendChild(div);
 }
 
 async function saveEncomenda() {
-    const num   = document.getElementById('enc-num').value.trim();
-    const data  = document.getElementById('enc-data').value;
-    const forn  = document.getElementById('enc-fornecedor').value.trim();
-    const obs   = document.getElementById('enc-obs').value.trim();
+    const num  = document.getElementById('enc-num').value.trim();
+    const data = document.getElementById('enc-data').value;
+    const forn = document.getElementById('enc-fornecedor').value.trim();
+    const obs  = document.getElementById('enc-obs').value.trim();
 
     if (!num)  { showToast('Indica o número da encomenda', 'error'); return; }
     if (!forn) { showToast('Indica o fornecedor', 'error'); return; }
@@ -4836,28 +4849,14 @@ async function saveEncomenda() {
     }
     if (i === 0) { showToast('Adiciona pelo menos um produto', 'error'); return; }
 
-    const payload = {
-        num, fornecedor: forn, data, obs,
-        estado: 'pendente', ts: Date.now(), linhas
-    };
+    const payload = { num, fornecedor: forn, data, obs, estado: 'pendente', ts: Date.now(), linhas };
 
     try {
-        if (_encEditId) {
-            // preserva quantidades já recebidas
-            const existing = _encData[_encEditId]?.linhas || {};
-            Object.keys(linhas).forEach(k => {
-                const match = Object.values(existing).find(l => l.ref && l.ref === linhas[k].ref);
-                if (match) linhas[k].recebido = match.recebido || 0;
-            });
-            payload.linhas = linhas;
-            payload.estado = _calcEstado(linhas);
-            await firebase.database().ref(`encomendas/${_encEditId}`).update(payload);
-            showToast('Encomenda actualizada ✓', 'ok');
-        } else {
-            await firebase.database().ref('encomendas').push(payload);
-            showToast('Encomenda criada ✓', 'ok');
-        }
+        const url = await authUrl(`${ENC_URL}.json`);
+        await apiFetch(url, { method: 'POST', body: JSON.stringify(payload) });
+        showToast('Encomenda criada ✓', 'ok');
         closeEncModal();
+        loadEncomendas();
     } catch(e) {
         showToast('Erro ao guardar: ' + e.message, 'error');
     }
@@ -4871,18 +4870,16 @@ function openEncDetail(id) {
 
     const dataFmt = enc.data ? enc.data.split('-').reverse().join('/') : '—';
     document.getElementById('enc-detail-title').textContent = `Encomenda Nº ${enc.num || '—'}`;
-    document.getElementById('enc-detail-sub').textContent   = `${enc.fornecedor || '—'} · ${dataFmt}${enc.obs ? ' · ' + enc.obs : ''}`;
+    document.getElementById('enc-detail-sub').textContent   =
+        `${enc.fornecedor || '—'} · ${dataFmt}${enc.obs ? ' · ' + enc.obs : ''}`;
 
     const linhas = enc.linhas || {};
-    const wrap   = document.getElementById('enc-detail-linhas');
-
-    wrap.innerHTML = Object.entries(linhas).map(([idx, l]) => {
-        const qtd      = l.qtd || 0;
-        const recebido = Math.min(l.recebido || 0, qtd);
+    document.getElementById('enc-detail-linhas').innerHTML = Object.entries(linhas).map(([idx, l]) => {
+        const qtd      = parseFloat(l.qtd) || 0;
+        const recebido = Math.min(parseFloat(l.recebido) || 0, qtd);
         const pct      = qtd > 0 ? Math.round(recebido / qtd * 100) : 0;
         const cor      = pct >= 100 ? '#16a34a' : pct > 0 ? '#f59e0b' : 'var(--primary)';
-        const done     = recebido >= qtd;
-
+        const done     = recebido >= qtd && qtd > 0;
         return `<div class="enc-detail-linha">
             <div class="enc-detail-linha-top">
                 <div style="flex:1;min-width:0">
@@ -4916,9 +4913,11 @@ async function deleteEncomenda() {
     const enc = _encData[_encEditId];
     if (!confirm(`Apagar encomenda Nº ${enc?.num}? Esta acção não pode ser desfeita.`)) return;
     try {
-        await firebase.database().ref(`encomendas/${_encEditId}`).remove();
+        const url = await authUrl(`${ENC_URL}/${_encEditId}.json`);
+        await apiFetch(url, { method: 'DELETE' });
         showToast('Encomenda apagada', 'ok');
         closeEncDetail();
+        loadEncomendas();
     } catch(e) {
         showToast('Erro: ' + e.message, 'error');
     }
@@ -4928,18 +4927,16 @@ async function deleteEncomenda() {
 function openEntradaModal(encId, lIdx) {
     _encEntradaId   = encId;
     _encEntradaLIdx = lIdx;
-    const l   = _encData[encId]?.linhas?.[lIdx];
+    const l = _encData[encId]?.linhas?.[lIdx];
     if (!l) return;
-    const falta = (l.qtd || 0) - (l.recebido || 0);
-
+    const falta = (parseFloat(l.qtd) || 0) - (parseFloat(l.recebido) || 0);
     document.getElementById('enc-entrada-desc').textContent =
         `${l.ref ? '[' + l.ref + '] ' : ''}${l.nome} — faltam ${falta} unidades`;
     const inp = document.getElementById('enc-entrada-qty');
     inp.value = falta;
     inp.max   = falta;
     document.getElementById('enc-entrada-info').textContent =
-        `Já recebido: ${l.recebido || 0} · Encomendado: ${l.qtd || 0}`;
-
+        `Já recebido: ${parseFloat(l.recebido) || 0} · Encomendado: ${parseFloat(l.qtd) || 0}`;
     document.getElementById('enc-entrada-modal').classList.add('active');
     setTimeout(() => inp.focus(), 100);
 }
@@ -4956,20 +4953,24 @@ async function confirmarEntrada() {
     const l   = enc?.linhas?.[_encEntradaLIdx];
     if (!l) return;
 
-    const novoRecebido = Math.min((l.recebido || 0) + qty, l.qtd || 0);
+    const novoRecebido = Math.min((parseFloat(l.recebido) || 0) + qty, parseFloat(l.qtd) || 0);
     const novasLinhas  = { ...(enc.linhas || {}) };
     novasLinhas[_encEntradaLIdx] = { ...l, recebido: novoRecebido };
-    const novoEstado = _calcEstado(novasLinhas);
+    const novoEstado   = _calcEstado(novasLinhas);
 
     try {
-        await firebase.database().ref(`encomendas/${_encEntradaId}`).update({
-            [`linhas/${_encEntradaLIdx}/recebido`]: novoRecebido,
-            estado: novoEstado
+        const url = await authUrl(`${ENC_URL}/${_encEntradaId}.json`);
+        await apiFetch(url, {
+            method: 'PATCH',
+            body: JSON.stringify({
+                [`linhas/${_encEntradaLIdx}/recebido`]: novoRecebido,
+                estado: novoEstado
+            })
         });
         showToast(`Entrada de ${qty} confirmada ✓`, 'ok');
         closeEntradaModal();
-        // Refresca detalhe
-        setTimeout(() => openEncDetail(_encEntradaId), 200);
+        await loadEncomendas();
+        openEncDetail(_encEntradaId);
     } catch(e) {
         showToast('Erro: ' + e.message, 'error');
     }
@@ -4977,7 +4978,7 @@ async function confirmarEntrada() {
 
 function _calcEstado(linhas) {
     const arr = Object.values(linhas);
-    if (arr.every(l => (l.recebido || 0) >= (l.qtd || 0))) return 'recebida';
-    if (arr.some(l => (l.recebido || 0) > 0)) return 'parcial';
+    if (arr.every(l => (parseFloat(l.recebido) || 0) >= (parseFloat(l.qtd) || 0))) return 'recebida';
+    if (arr.some(l => (parseFloat(l.recebido) || 0) > 0)) return 'parcial';
     return 'pendente';
 }
