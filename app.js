@@ -3655,12 +3655,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.60';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.61';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.60')
+        navigator.serviceWorker.register('sw.js?v=5.61')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -4793,11 +4793,11 @@ function openNovaEncomenda() {
     document.getElementById('enc-obs').value = '';
     document.getElementById('enc-linhas-wrap').innerHTML = '';
     encAddLinha(); // começa com 1 linha
-    document.getElementById('enc-modal').style.display = 'flex';
+    document.getElementById('enc-modal').classList.add('active');
 }
 
 function closeEncModal() {
-    document.getElementById('enc-modal').style.display = 'none';
+    document.getElementById('enc-modal').classList.remove('active');
 }
 
 function encAddLinha(ref = '', nome = '', qtd = '') {
@@ -4904,11 +4904,11 @@ function openEncDetail(id) {
         </div>`;
     }).join('');
 
-    document.getElementById('enc-detail-modal').style.display = 'flex';
+    document.getElementById('enc-detail-modal').classList.add('active');
 }
 
 function closeEncDetail() {
-    document.getElementById('enc-detail-modal').style.display = 'none';
+    document.getElementById('enc-detail-modal').classList.remove('active');
 }
 
 async function deleteEncomenda() {
@@ -4940,12 +4940,12 @@ function openEntradaModal(encId, lIdx) {
     document.getElementById('enc-entrada-info').textContent =
         `Já recebido: ${l.recebido || 0} · Encomendado: ${l.qtd || 0}`;
 
-    document.getElementById('enc-entrada-modal').style.display = 'flex';
+    document.getElementById('enc-entrada-modal').classList.add('active');
     setTimeout(() => inp.focus(), 100);
 }
 
 function closeEntradaModal() {
-    document.getElementById('enc-entrada-modal').style.display = 'none';
+    document.getElementById('enc-entrada-modal').classList.remove('active');
 }
 
 async function confirmarEntrada() {
