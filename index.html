@@ -6,7 +6,7 @@
     <title>Hiperfrio Stock</title>
     
     <link rel="manifest" href="manifest.json">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.gstatic.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' data: blob: https://*.firebasedatabase.app https://*.googleapis.com https://*.firebaseapp.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; worker-src blob: https://cdn.jsdelivr.net;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.gstatic.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' data: blob: https://*.firebasedatabase.app https://*.googleapis.com https://*.firebaseapp.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://api.anthropic.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; worker-src blob: https://cdn.jsdelivr.net;">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=5.48">
@@ -304,6 +304,20 @@
                 <button id="glass-theme-btn" style="display:none" onclick="toggleGlassTheme()">
                     <span class="glass-theme-active-dot"></span>
                 </button>
+
+                <div class="settings-group-label">OCR — LEITURA POR FOTO</div>
+                <div class="settings-item settings-item-column">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Chave API Anthropic</span>
+                        <span class="settings-item-desc" id="ocr-api-status">Não configurada — usa OCR local (qualidade limitada)</span>
+                    </div>
+                    <div class="settings-api-key-wrap">
+                        <input type="password" id="inp-anthropic-key" class="blue-input settings-api-input"
+                            placeholder="sk-ant-..." autocomplete="off" autocorrect="off" spellcheck="false">
+                        <button class="btn-settings-action" onclick="saveAnthropicKey()">Guardar</button>
+                    </div>
+                    <span class="settings-item-hint">Guardada apenas neste dispositivo (localStorage). Obtém a tua chave em <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a></span>
+                </div>
 
                 <div class="settings-group-label">SEGURANÇA</div>
                 <div class="settings-item">
