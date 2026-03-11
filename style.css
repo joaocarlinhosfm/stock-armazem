@@ -552,8 +552,6 @@ header h1 {
 .toast { background: var(--card-bg); padding: 15px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 10px; border-left: 6px solid var(--success); display: flex; align-items: center; gap: 12px; font-weight: 700; }
 
 /* THEME SWITCH */
-input:checked + .compact-slider { background: #334155; }
-input:checked + .compact-slider:before { transform: translateX(26px); }
 
 /* FORMS */
 h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 20px; color: var(--text-main); }
@@ -673,9 +671,6 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
 }
 
 /* Theme switch inside settings - needs different slider color */
-.settings-item .compact-slider {
-    background: var(--border);
-}
 
 .pro-form { display: flex; flex-direction: column; gap: 15px; }
 .pro-form-inline { display: flex; gap: 10px; margin-bottom: 15px; }
@@ -713,10 +708,8 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
     #close-menu { display: none; }
     #menu-overlay { display: none !important; }
     #bottom-nav { display: none; }
-    .header-spacer .compact-switch { display: none; }
 
     /* Show theme switch inside sidebar footer on desktop */
-    .desktop-theme-switch { display: flex; }
 
     /* Main: no bottom nav padding needed */
     #main-content {
@@ -1052,9 +1045,6 @@ body.is-offline #app-layout {
 .item-card {
     touch-action: pan-y;
 }
-.item-card.is-swiping {
-    touch-action: none;
-}
 
 /* =============================================
    MODAL — focus trap outline
@@ -1220,8 +1210,6 @@ body.worker-mode .tool-card {
     background: rgba(255,255,255,0.15);
     outline: none;
 }
-.role-badge-worker { color: white; }
-.role-badge-manager { color: rgba(255,255,255,0.9); }
 
 /* =============================================
    ADMIN LIST ROWS — substitui estilos inline
@@ -1329,20 +1317,6 @@ body.worker-mode .tool-card {
 /* =============================================
    ADMIN HISTORY BUTTON
    ============================================= */
-.admin-list-hist {
-    background: none;
-    border: none;
-    font-size: 1rem;
-    cursor: pointer;
-    padding: 4px 6px;
-    border-radius: 6px;
-    color: var(--text-muted);
-    transition: background 0.15s;
-    margin-right: 2px;
-}
-.admin-list-hist:hover {
-    background: rgba(37,99,235,0.1);
-}
 
 /* Tool card — long press hint */
 .tool-card {
@@ -1890,17 +1864,6 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
 /* =============================================
    PONTO 11 — botão editar na lista admin ferramentas
    ============================================= */
-.admin-list-edit {
-    background: transparent;
-    border: none;
-    font-size: 1.1rem;
-    cursor: pointer;
-    padding: 4px 6px;
-    border-radius: 8px;
-    transition: background 0.15s;
-    margin-right: 2px;
-}
-.admin-list-edit:hover { background: var(--primary-soft); }
 
 /* =============================================
    PONTO 13 — campo de notas nos formulários e cards
@@ -1925,13 +1888,8 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
    PONTO 17 — tendência no dashboard
    ============================================= */
 /* Para "Sem stock": subida é mau, descida é bom — inverte cores */
-.dash-card:nth-child(2) .dash-trend-down { background: rgba(34,197,94,0.12); color: #22c55e; }
 
 /* Card de alerta de ferramenta alocada há muito tempo */
-.dark-mode .dash-card-alert {
-    background: rgba(239,68,68,0.12);
-    border-color: rgba(239,68,68,0.4);
-}
 
 /* =============================================
    PONTO 20 — botão fechar lote
@@ -2635,17 +2593,6 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     grid-template-columns: 1fr 1fr;
     gap: 12px;
 }
-#view-dashboard .dash-card {
-    border-radius: 18px;
-    padding: 20px 16px;
-    min-height: 110px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-#view-dashboard .dash-icon { font-size: 1.8rem; }
-#view-dashboard .dash-value { font-size: 2rem; font-weight: 800; }
-#view-dashboard .dash-label { font-size: 0.78rem; }
 
 /* Toolbar PAT — título + botão + pesquisa, tudo alinhado */
 .pat-toolbar {
