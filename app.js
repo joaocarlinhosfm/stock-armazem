@@ -3655,12 +3655,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.57';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.58';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.57')
+        navigator.serviceWorker.register('sw.js?v=5.58')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -4704,4 +4704,280 @@ function openPatDetail(id, pat) {
 
 function closePatDetail() {
     document.getElementById('pat-detail-modal').classList.remove('active');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ENCOMENDAS A FORNECEDOR
+// Firebase: /encomendas/{id}
+//   num, fornecedor, data, obs, estado, ts
+//   linhas: { "0": {ref, nome, qtd, recebido}, ... }
+// ══════════════════════════════════════════════════════════════════════════
+
+let _encFilter = 'all';
+let _encData   = {};           // cache local { id: encomenda }
+let _encEditId = null;         // null = nova, string = editar
+let _encEntradaId   = null;    // encomenda em edição de entrada
+let _encEntradaLIdx = null;    // índice da linha
+
+// ── Listener Firebase ─────────────────────────────────────────────────────
+function initEncomendas() {
+    const ref = firebase.database().ref('encomendas');
+    ref.on('value', snap => {
+        _encData = snap.val() || {};
+        renderEncList();
+    });
+}
+document.addEventListener('DOMContentLoaded', initEncomendas);
+
+// ── Render lista ──────────────────────────────────────────────────────────
+function renderEncList() {
+    const wrap = document.getElementById('enc-list');
+    if (!wrap) return;
+
+    let entries = Object.entries(_encData)
+        .sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0));
+
+    if (_encFilter !== 'all') {
+        entries = entries.filter(([, e]) => e.estado === _encFilter);
+    }
+
+    if (entries.length === 0) {
+        wrap.innerHTML = `<div class="enc-empty">
+            <div class="enc-empty-icon">📦</div>
+            <div class="enc-empty-text">${_encFilter === 'all' ? 'Nenhuma encomenda registada' : 'Nenhuma encomenda ' + _encFilter}</div>
+        </div>`;
+        return;
+    }
+
+    wrap.innerHTML = entries.map(([id, enc]) => {
+        const linhas  = Object.values(enc.linhas || {});
+        const total   = linhas.reduce((s, l) => s + (l.qtd || 0), 0);
+        const recebido= linhas.reduce((s, l) => s + Math.min(l.recebido || 0, l.qtd || 0), 0);
+        const pct     = total > 0 ? Math.round(recebido / total * 100) : 0;
+        const badgeCls= `enc-badge enc-badge-${enc.estado || 'pendente'}`;
+        const estadoLabel = { pendente: 'Pendente', parcial: 'Parcial', recebida: 'Recebida' }[enc.estado] || 'Pendente';
+        const dataFmt = enc.data ? enc.data.split('-').reverse().join('/') : '—';
+
+        return `<div class="enc-card" onclick="openEncDetail('${id}')">
+            <div class="enc-card-top">
+                <div>
+                    <div class="enc-card-num">Encomenda Nº ${escapeHtml(enc.num || '—')}</div>
+                    <div class="enc-card-forn">${escapeHtml(enc.fornecedor || '—')}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+                    <span class="${badgeCls}">${estadoLabel}</span>
+                    <span class="enc-card-date">${dataFmt}</span>
+                </div>
+            </div>
+            <div class="enc-progress-wrap">
+                <div class="enc-progress-bar"><div class="enc-progress-fill" style="width:${pct}%"></div></div>
+                <div class="enc-progress-label">${recebido} / ${total} unidades recebidas (${pct}%)</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function encFilterSet(btn, filter) {
+    _encFilter = filter;
+    document.querySelectorAll('.enc-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderEncList();
+}
+
+// ── Modal criar / editar ──────────────────────────────────────────────────
+function openNovaEncomenda() {
+    _encEditId = null;
+    document.getElementById('enc-modal-title').textContent = 'Nova Encomenda';
+    document.getElementById('enc-num').value = '';
+    document.getElementById('enc-data').value = new Date().toISOString().split('T')[0];
+    document.getElementById('enc-fornecedor').value = '';
+    document.getElementById('enc-obs').value = '';
+    document.getElementById('enc-linhas-wrap').innerHTML = '';
+    encAddLinha(); // começa com 1 linha
+    document.getElementById('enc-modal').style.display = 'flex';
+}
+
+function closeEncModal() {
+    document.getElementById('enc-modal').style.display = 'none';
+}
+
+function encAddLinha(ref = '', nome = '', qtd = '') {
+    const wrap = document.getElementById('enc-linhas-wrap');
+    const idx  = wrap.children.length;
+    const div  = document.createElement('div');
+    div.className = 'enc-linha';
+    div.dataset.idx = idx;
+    div.innerHTML = `
+        <input class="blue-input enc-linha-ref"  type="text"   placeholder="Ref."    value="${escapeHtml(ref)}"  autocomplete="off" autocorrect="off" spellcheck="false">
+        <input class="blue-input enc-linha-nome" type="text"   placeholder="Designação" value="${escapeHtml(nome)}" autocomplete="off" autocorrect="off" spellcheck="false" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+        <input class="blue-input enc-linha-qtd"  type="number" placeholder="Qtd."   value="${qtd}" min="0" step="0.01">
+        <button class="enc-linha-del" onclick="this.closest('.enc-linha').remove()">✕</button>`;
+    wrap.appendChild(div);
+}
+
+async function saveEncomenda() {
+    const num   = document.getElementById('enc-num').value.trim();
+    const data  = document.getElementById('enc-data').value;
+    const forn  = document.getElementById('enc-fornecedor').value.trim();
+    const obs   = document.getElementById('enc-obs').value.trim();
+
+    if (!num)  { showToast('Indica o número da encomenda', 'error'); return; }
+    if (!forn) { showToast('Indica o fornecedor', 'error'); return; }
+
+    const linhasEls = document.querySelectorAll('#enc-linhas-wrap .enc-linha');
+    const linhas = {};
+    let i = 0;
+    for (const el of linhasEls) {
+        const ref  = el.querySelector('.enc-linha-ref').value.trim().toUpperCase();
+        const nome = el.querySelector('.enc-linha-nome').value.trim();
+        const qtd  = parseFloat(el.querySelector('.enc-linha-qtd').value) || 0;
+        if (!nome && !ref) continue;
+        linhas[i] = { ref, nome, qtd, recebido: 0 };
+        i++;
+    }
+    if (i === 0) { showToast('Adiciona pelo menos um produto', 'error'); return; }
+
+    const payload = {
+        num, fornecedor: forn, data, obs,
+        estado: 'pendente', ts: Date.now(), linhas
+    };
+
+    try {
+        if (_encEditId) {
+            // preserva quantidades já recebidas
+            const existing = _encData[_encEditId]?.linhas || {};
+            Object.keys(linhas).forEach(k => {
+                const match = Object.values(existing).find(l => l.ref && l.ref === linhas[k].ref);
+                if (match) linhas[k].recebido = match.recebido || 0;
+            });
+            payload.linhas = linhas;
+            payload.estado = _calcEstado(linhas);
+            await firebase.database().ref(`encomendas/${_encEditId}`).update(payload);
+            showToast('Encomenda actualizada ✓', 'ok');
+        } else {
+            await firebase.database().ref('encomendas').push(payload);
+            showToast('Encomenda criada ✓', 'ok');
+        }
+        closeEncModal();
+    } catch(e) {
+        showToast('Erro ao guardar: ' + e.message, 'error');
+    }
+}
+
+// ── Detalhe ───────────────────────────────────────────────────────────────
+function openEncDetail(id) {
+    const enc = _encData[id];
+    if (!enc) return;
+    _encEditId = id;
+
+    const dataFmt = enc.data ? enc.data.split('-').reverse().join('/') : '—';
+    document.getElementById('enc-detail-title').textContent = `Encomenda Nº ${enc.num || '—'}`;
+    document.getElementById('enc-detail-sub').textContent   = `${enc.fornecedor || '—'} · ${dataFmt}${enc.obs ? ' · ' + enc.obs : ''}`;
+
+    const linhas = enc.linhas || {};
+    const wrap   = document.getElementById('enc-detail-linhas');
+
+    wrap.innerHTML = Object.entries(linhas).map(([idx, l]) => {
+        const qtd      = l.qtd || 0;
+        const recebido = Math.min(l.recebido || 0, qtd);
+        const pct      = qtd > 0 ? Math.round(recebido / qtd * 100) : 0;
+        const cor      = pct >= 100 ? '#16a34a' : pct > 0 ? '#f59e0b' : 'var(--primary)';
+        const done     = recebido >= qtd;
+
+        return `<div class="enc-detail-linha">
+            <div class="enc-detail-linha-top">
+                <div style="flex:1;min-width:0">
+                    ${l.ref ? `<span class="enc-detail-ref">${escapeHtml(l.ref)}</span> ` : ''}
+                    <span class="enc-detail-nome">${escapeHtml(l.nome || '—')}</span>
+                </div>
+                <div class="enc-detail-qty">${recebido}/${qtd}</div>
+            </div>
+            <div class="enc-detail-prog-wrap">
+                <div class="enc-detail-prog-bar">
+                    <div class="enc-detail-prog-fill" style="width:${pct}%;background:${cor}"></div>
+                </div>
+                <div class="enc-detail-prog-label">${pct}% recebido</div>
+            </div>
+            <button class="enc-entrada-btn ${done ? 'enc-entrada-btn-done' : ''}"
+                ${done ? 'disabled' : `onclick="openEntradaModal('${id}',${idx})"`}>
+                ${done ? '✓ Totalmente recebido' : '↓ Dar entrada'}
+            </button>
+        </div>`;
+    }).join('');
+
+    document.getElementById('enc-detail-modal').style.display = 'flex';
+}
+
+function closeEncDetail() {
+    document.getElementById('enc-detail-modal').style.display = 'none';
+}
+
+async function deleteEncomenda() {
+    if (!_encEditId) return;
+    const enc = _encData[_encEditId];
+    if (!confirm(`Apagar encomenda Nº ${enc?.num}? Esta acção não pode ser desfeita.`)) return;
+    try {
+        await firebase.database().ref(`encomendas/${_encEditId}`).remove();
+        showToast('Encomenda apagada', 'ok');
+        closeEncDetail();
+    } catch(e) {
+        showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+// ── Dar entrada ───────────────────────────────────────────────────────────
+function openEntradaModal(encId, lIdx) {
+    _encEntradaId   = encId;
+    _encEntradaLIdx = lIdx;
+    const l   = _encData[encId]?.linhas?.[lIdx];
+    if (!l) return;
+    const falta = (l.qtd || 0) - (l.recebido || 0);
+
+    document.getElementById('enc-entrada-desc').textContent =
+        `${l.ref ? '[' + l.ref + '] ' : ''}${l.nome} — faltam ${falta} unidades`;
+    const inp = document.getElementById('enc-entrada-qty');
+    inp.value = falta;
+    inp.max   = falta;
+    document.getElementById('enc-entrada-info').textContent =
+        `Já recebido: ${l.recebido || 0} · Encomendado: ${l.qtd || 0}`;
+
+    document.getElementById('enc-entrada-modal').style.display = 'flex';
+    setTimeout(() => inp.focus(), 100);
+}
+
+function closeEntradaModal() {
+    document.getElementById('enc-entrada-modal').style.display = 'none';
+}
+
+async function confirmarEntrada() {
+    const qty = parseFloat(document.getElementById('enc-entrada-qty').value);
+    if (isNaN(qty) || qty <= 0) { showToast('Quantidade inválida', 'error'); return; }
+
+    const enc = _encData[_encEntradaId];
+    const l   = enc?.linhas?.[_encEntradaLIdx];
+    if (!l) return;
+
+    const novoRecebido = Math.min((l.recebido || 0) + qty, l.qtd || 0);
+    const novasLinhas  = { ...(enc.linhas || {}) };
+    novasLinhas[_encEntradaLIdx] = { ...l, recebido: novoRecebido };
+    const novoEstado = _calcEstado(novasLinhas);
+
+    try {
+        await firebase.database().ref(`encomendas/${_encEntradaId}`).update({
+            [`linhas/${_encEntradaLIdx}/recebido`]: novoRecebido,
+            estado: novoEstado
+        });
+        showToast(`Entrada de ${qty} confirmada ✓`, 'ok');
+        closeEntradaModal();
+        // Refresca detalhe
+        setTimeout(() => openEncDetail(_encEntradaId), 200);
+    } catch(e) {
+        showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+function _calcEstado(linhas) {
+    const arr = Object.values(linhas);
+    if (arr.every(l => (l.recebido || 0) >= (l.qtd || 0))) return 'recebida';
+    if (arr.some(l => (l.recebido || 0) > 0)) return 'parcial';
+    return 'pendente';
 }
