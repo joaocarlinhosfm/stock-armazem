@@ -2158,7 +2158,7 @@ function switchAdminTab(tab, animate = true) {
     );
 
     if (tab === 'clientes') renderClientesList();
-    if (tab === 'settings') _updateOcrKeyStatus();
+    if (tab === 'settings') { _updateOcrKeyStatus(); _loadOcrKeywordsInput(); }
     // Move slider (sem .active nos painéis — visibilidade é por transform)
     const slider = document.getElementById('admin-slider');
     if (slider) {
@@ -3655,12 +3655,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.56';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.57';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.56')
+        navigator.serviceWorker.register('sw.js?v=5.57')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -4050,10 +4050,25 @@ function closePatModal() {
 // =============================================
 // ANTHROPIC API KEY — gestão local
 // =============================================
-const ANTHROPIC_KEY_STORAGE = 'hiperfrio-anthropic-key';
+const ANTHROPIC_KEY_STORAGE  = 'hiperfrio-anthropic-key';
+const ESTAB_HINTS_STORAGE    = 'hiperfrio-estab-hints';
 
 function _getAnthropicKey() {
     return localStorage.getItem(ANTHROPIC_KEY_STORAGE) || '';
+}
+
+function _getEstabHints() {
+    return localStorage.getItem(ESTAB_HINTS_STORAGE) || '';
+}
+
+function saveEstabHints() {
+    const val = document.getElementById('inp-estab-hints')?.value || '';
+    localStorage.setItem(ESTAB_HINTS_STORAGE, val);
+}
+
+function _loadEstabHintsInput() {
+    const el = document.getElementById('inp-estab-hints');
+    if (el) el.value = _getEstabHints();
 }
 
 function _isProxyUrl(val) {
@@ -4137,6 +4152,78 @@ async function testAnthropicProxy() {
     }
 }
 
+// =============================================
+// OCR KEYWORDS — palavras-chave de estabelecimento
+// =============================================
+const OCR_KEYWORDS_KEY = 'hiperfrio-ocr-keywords';
+
+function saveOcrKeywords() {
+    const val = document.getElementById('inp-ocr-keywords').value.trim();
+    if (val) localStorage.setItem(OCR_KEYWORDS_KEY, val);
+    else localStorage.removeItem(OCR_KEYWORDS_KEY);
+    showToast('Palavras-chave guardadas ✓', 'ok');
+}
+
+function _getOcrKeywords() {
+    return (localStorage.getItem(OCR_KEYWORDS_KEY) || '')
+        .split('\n').map(k => k.trim()).filter(Boolean);
+}
+
+function _loadOcrKeywordsInput() {
+    const el = document.getElementById('inp-ocr-keywords');
+    if (el) el.value = _getOcrKeywords().join('\n');
+}
+
+// =============================================
+// PAT SCAN — câmara
+// =============================================
+let _patScanStream = null;
+
+async function patScanStartCamera() {
+    try {
+        _patScanStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+        });
+        const video = document.getElementById('pat-scan-video');
+        video.srcObject = _patScanStream;
+        video.style.display = 'block';
+        document.getElementById('pat-scan-placeholder').style.display = 'none';
+        document.getElementById('pat-scan-preview').style.display    = 'none';
+        document.getElementById('pat-scan-row-load').style.display    = 'none';
+        document.getElementById('pat-scan-row-capture').style.display = 'flex';
+        _patScanSetStatus('Câmara activa — aponta para o documento e captura', '');
+    } catch(e) {
+        showToast('Câmara não disponível — usa a Galeria', 'error');
+    }
+}
+
+function patScanCapture() {
+    const video  = document.getElementById('pat-scan-video');
+    const canvas = document.getElementById('pat-scan-canvas');
+    canvas.width  = video.videoWidth  || 1280;
+    canvas.height = video.videoHeight || 720;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    _patScanMime = 'image/jpeg';
+    _patScanB64  = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+
+    const prev = document.getElementById('pat-scan-preview');
+    prev.src = canvas.toDataURL('image/jpeg', 0.92);
+    prev.style.display = 'block';
+    video.style.display = 'none';
+
+    patScanStopCamera();
+    document.getElementById('pat-scan-row-capture').style.display = 'none';
+    document.getElementById('pat-scan-row-analyse').style.display = 'flex';
+    _patScanSetStatus('Foto capturada — clica em Analisar', '');
+}
+
+function patScanStopCamera() {
+    if (_patScanStream) {
+        _patScanStream.getTracks().forEach(t => t.stop());
+        _patScanStream = null;
+    }
+    document.getElementById('pat-scan-video').style.display = 'none';
+}
 
 
 // =============================================
@@ -4175,11 +4262,14 @@ function patScanFromFile(inp) {
 
 function patScanReset() {
     _patScanB64 = null;
-    document.getElementById('pat-scan-preview').style.display = 'none';
+    patScanStopCamera();
+    document.getElementById('pat-scan-video').style.display       = 'none';
+    document.getElementById('pat-scan-preview').style.display     = 'none';
     document.getElementById('pat-scan-placeholder').style.display = 'flex';
-    document.getElementById('pat-scan-row-load').style.display = 'flex';
+    document.getElementById('pat-scan-row-load').style.display    = 'flex';
+    document.getElementById('pat-scan-row-capture').style.display = 'none';
     document.getElementById('pat-scan-row-analyse').style.display = 'none';
-    document.getElementById('pat-scan-result').style.display = 'none';
+    document.getElementById('pat-scan-result').style.display      = 'none';
     document.getElementById('pat-scan-file').value = '';
     _patScanSetStatus('', '');
 }
@@ -4216,7 +4306,7 @@ Extrai os seguintes campos e responde APENAS com JSON válido, sem markdown:
   "estab_confianca": 0.0
 }
 
-pat_confianca e estab_confianca são números de 0 a 1. Responde APENAS com o JSON.`;
+pat_confianca e estab_confianca são números de 0 a 1.` + (_getOcrKeywords().length > 0 ? `\n\nPalavras-chave de estabelecimento: ${_getOcrKeywords().map(k => '"' + k + '"').join(', ')}. Usa a linha com estas palavras como estabelecimento.` : '') + ` Responde APENAS com o JSON.`;
 
             const isProxy = _isProxyUrl(apiKey);
             const endpoint = isProxy ? apiKey : 'https://api.anthropic.com/v1/messages';
