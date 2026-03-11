@@ -320,6 +320,29 @@
                     <span class="settings-item-hint">Cola aqui o URL do teu Cloudflare Worker (https://...workers.dev). Guardado apenas neste dispositivo.</span>
                 </div>
 
+                <div class="settings-item settings-item-column" style="margin-top:8px">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Padrão de Estabelecimento</span>
+                        <span class="settings-item-desc">Palavras-chave e exemplos para o Claude identificar o nome correcto</span>
+                    </div>
+                    <textarea id="inp-estab-hints" class="blue-input settings-hints-textarea"
+                        placeholder="Ex:&#10;PINGO DOCE&#10;MINI PREÇO&#10;CAFE&#10;SNACK&#10;HORECA&#10;BAR"
+                        rows="5" oninput="saveEstabHints()"></textarea>
+                    <span class="settings-item-hint">Um por linha — pode ser palavra-chave (CAFE) ou nome completo (PINGO DOCE AVEIRO). Quanto mais exemplos, mais preciso.</span>
+                </div>
+
+                <div class="settings-item settings-item-column">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Palavras-chave de estabelecimento</span>
+                        <span class="settings-item-desc">Claude procura estas palavras para identificar o nome</span>
+                    </div>
+                    <textarea id="inp-ocr-keywords" class="blue-input settings-keywords-input"
+                        placeholder="Ex: PINGO DOCE&#10;MINI PREÇO&#10;SNACK BAR&#10;CAFÉ" rows="5"
+                        autocorrect="off" spellcheck="false"></textarea>
+                    <button class="btn-settings-action" onclick="saveOcrKeywords()" style="width:100%;margin-top:4px">Guardar palavras-chave</button>
+                    <span class="settings-item-hint">Uma por linha. Claude vai procurar estes termos no documento para identificar o estabelecimento.</span>
+                </div>
+
                 <div class="settings-group-label">SEGURANÇA</div>
                 <div class="settings-item">
                     <div class="settings-item-info">
@@ -860,11 +883,12 @@
             </div>
 
             <div id="pat-scan-wrap">
-                <!-- placeholder / preview -->
+                <video id="pat-scan-video" class="pat-scan-preview" autoplay playsinline muted style="display:none"></video>
                 <div id="pat-scan-placeholder" class="pat-scan-placeholder">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                    <span>Carrega uma foto do documento PAT</span>
+                    <span>Tira uma foto ou carrega da galeria</span>
                 </div>
+                <video id="pat-scan-video" class="pat-scan-preview" autoplay playsinline muted style="display:none;width:100%;height:100%;object-fit:cover"></video>
                 <img id="pat-scan-preview" class="pat-scan-preview" alt="" style="display:none">
                 <canvas id="pat-scan-canvas" style="display:none"></canvas>
             </div>
@@ -872,11 +896,23 @@
             <div id="pat-scan-status" class="pat-scan-status"></div>
 
             <div class="pat-scan-btns" id="pat-scan-row-load">
-                <label class="btn-primary pat-scan-file-label" for="pat-scan-file">
+                <button class="btn-primary pat-scan-file-label" id="pat-scan-cam-btn" onclick="patScanStartCamera()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    Câmara
+                </button>
+                <label class="btn-cancel pat-scan-file-label" for="pat-scan-file" style="flex:0.8">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    Carregar imagem
+                    Galeria
                 </label>
                 <input type="file" id="pat-scan-file" accept="image/*" style="display:none" onchange="patScanFromFile(this)">
+            </div>
+            <!-- Botão de captura (só visível quando câmara activa) -->
+            <div class="pat-scan-btns" id="pat-scan-row-capture" style="display:none">
+                <button class="btn-primary pat-scan-file-label" onclick="patScanCapture()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/><path fill="none" stroke="currentColor" stroke-width="2" d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/></svg>
+                    Tirar Foto
+                </button>
+                <button class="btn-cancel" onclick="patScanStopCamera()">✕ Cancelar</button>
             </div>
 
             <div class="pat-scan-btns" id="pat-scan-row-analyse" style="display:none">
