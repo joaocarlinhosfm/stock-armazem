@@ -3655,12 +3655,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.54';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.55';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.54')
+        navigator.serviceWorker.register('sw.js?v=5.55')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -4056,19 +4056,24 @@ function _getAnthropicKey() {
     return localStorage.getItem(ANTHROPIC_KEY_STORAGE) || '';
 }
 
+function _isProxyUrl(val) {
+    return val.startsWith('https://') || val.startsWith('http://');
+}
+
 function saveAnthropicKey() {
     const val = document.getElementById('inp-anthropic-key').value.trim();
-    if (val && !val.startsWith('sk-ant-')) {
-        showToast('Chave inválida — deve começar com sk-ant-', 'error');
+    if (val && !_isProxyUrl(val) && !val.startsWith('sk-ant-')) {
+        showToast('Valor inválido — introduz o URL do Worker (https://...) ou uma chave sk-ant-...', 'error');
         return;
     }
     if (val) {
         localStorage.setItem(ANTHROPIC_KEY_STORAGE, val);
         document.getElementById('inp-anthropic-key').value = '';
-        showToast('Chave guardada — OCR por foto usa agora Claude Vision ✓', 'ok');
+        const tipo = _isProxyUrl(val) ? 'Proxy configurado' : 'Chave configurada';
+        showToast(`${tipo} — OCR por foto usa agora Claude Vision ✓`, 'ok');
     } else {
         localStorage.removeItem(ANTHROPIC_KEY_STORAGE);
-        showToast('Chave removida — OCR volta ao modo local', 'ok');
+        showToast('Configuração removida — OCR volta ao modo local', 'ok');
     }
     _updateOcrKeyStatus();
 }
@@ -4076,11 +4081,17 @@ function saveAnthropicKey() {
 function _updateOcrKeyStatus() {
     const el = document.getElementById('ocr-api-status');
     if (!el) return;
-    const key = _getAnthropicKey();
-    el.textContent = key
-        ? `✓ Configurada (${key.slice(0,10)}…) — Claude Vision activo`
-        : 'Não configurada — usa OCR local (qualidade limitada)';
-    el.style.color = key ? 'var(--ok, #16a34a)' : '';
+    const val = _getAnthropicKey();
+    if (!val) {
+        el.textContent = 'Não configurado — usa OCR local (qualidade limitada)';
+        el.style.color = '';
+    } else if (_isProxyUrl(val)) {
+        el.textContent = `✓ Proxy configurado (${new URL(val).hostname}) — Claude Vision activo`;
+        el.style.color = 'var(--ok, #16a34a)';
+    } else {
+        el.textContent = `✓ Chave configurada (${val.slice(0,10)}…) — Claude Vision activo`;
+        el.style.color = 'var(--ok, #16a34a)';
+    }
 }
 
 // Chama no arranque para mostrar estado
@@ -4165,16 +4176,20 @@ Extrai os seguintes campos e responde APENAS com JSON válido, sem markdown:
 
 pat_confianca e estab_confianca são números de 0 a 1. Responde APENAS com o JSON.`;
 
-            const resp = await fetch('https://api.anthropic.com/v1/messages', {
+            const isProxy = _isProxyUrl(apiKey);
+            const endpoint = isProxy ? apiKey : 'https://api.anthropic.com/v1/messages';
+            const headers = { 'Content-Type': 'application/json' };
+            if (!isProxy) {
+                headers['x-api-key'] = apiKey;
+                headers['anthropic-version'] = '2023-06-01';
+                headers['anthropic-dangerous-allow-browser'] = 'true';
+            }
+
+            const resp = await fetch(endpoint, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': apiKey,
-                    'anthropic-version': '2023-06-01',
-                    'anthropic-dangerous-allow-browser': 'true'
-                },
+                headers,
                 body: JSON.stringify({
-                    model: 'claude-opus-4-5',
+                    model: 'claude-haiku-4-5-20251001',
                     max_tokens: 300,
                     messages: [{ role: 'user', content: [
                         { type: 'image', source: { type: 'base64', media_type: _patScanMime, data: _patScanB64 } },
@@ -4185,7 +4200,6 @@ pat_confianca e estab_confianca são números de 0 a 1. Responde APENAS com o JS
 
             if (!resp.ok) {
                 const e = await resp.json().catch(() => ({}));
-                // Se a chave expirou ou é inválida, informa o utilizador
                 if (resp.status === 401) throw new Error('Chave API inválida ou expirada — actualiza em Admin → Definições');
                 throw new Error(e?.error?.message || `HTTP ${resp.status}`);
             }
@@ -4194,11 +4208,11 @@ pat_confianca e estab_confianca são números de 0 a 1. Responde APENAS com o JS
             const raw    = data.content?.map(b => b.text || '').join('') || '';
             const result = JSON.parse(raw.replace(/```json|```/gi, '').trim());
 
-            patNum   = result.pat_numero;
-            patConf  = result.pat_confianca || 0;
-            estab    = result.estabelecimento;
+            patNum    = result.pat_numero;
+            patConf   = result.pat_confianca || 0;
+            estab     = result.estabelecimento;
             estabConf = result.estab_confianca || 0;
-            cliNum   = result.cliente_numero;
+            cliNum    = result.cliente_numero;
 
         } else {
             // ── Modo Tesseract (OCR local, sem chave) ─────────────────────────
