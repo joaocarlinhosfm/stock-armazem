@@ -4726,3 +4726,30 @@ body.glass-mode .dv2-progress     { background: rgba(255,255,255,0.1); }
 
 /* Dark mode */
 .dark-mode #pat-scan-wrap { background: #0a0f1e; }
+
+/* ── API Key settings field ── */
+.settings-item-column {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+.settings-api-key-wrap {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}
+.settings-api-input {
+    flex: 1;
+    font-size: 0.82rem;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.02em;
+}
+.settings-item-hint {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+.settings-item-hint a {
+    color: var(--primary);
+    text-decoration: none;
+}
