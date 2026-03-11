@@ -3654,12 +3654,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.50';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.51';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.50')
+        navigator.serviceWorker.register('sw.js?v=5.51')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -4107,27 +4107,22 @@ async function patScanAnalyse() {
 
         _patScanSetStatus('A carregar motor OCR…', 'loading');
 
-        // Converte base64 para blob para o Tesseract
-        const byteChars = atob(_patScanB64);
-        const byteArr   = new Uint8Array(byteChars.length);
-        for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-        const blob = new Blob([byteArr], { type: _patScanMime });
+        // Converte base64 → data URL (Tesseract.recognize aceita directamente)
+        const dataUrl = `data:${_patScanMime};base64,${_patScanB64}`;
 
-        const worker = await Tesseract.createWorker('por', 1, {
-            workerPath: 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/worker.min.js',
-            corePath:   'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract-core-simd-lstm.wasm.js',
-            langPath:   'https://tessdata.projectnaptha.com/4.0.0',
+        // Tesseract.js v5 — API simplificada, sem paths manuais
+        const { data: { text } } = await Tesseract.recognize(dataUrl, 'por', {
             logger: m => {
                 if (m.status === 'recognizing text') {
                     const pct = Math.round((m.progress || 0) * 100);
                     _patScanSetStatus(`A reconhecer texto… ${pct}%`, 'loading');
+                } else if (m.status === 'loading tesseract core') {
+                    _patScanSetStatus('A carregar motor OCR…', 'loading');
+                } else if (m.status === 'loading language traineddata') {
+                    _patScanSetStatus('A carregar idioma…', 'loading');
                 }
             }
         });
-
-        _patScanSetStatus('A reconhecer texto…', 'loading');
-        const { data: { text } } = await worker.recognize(blob);
-        await worker.terminate();
 
         // ── Parser do texto extraído ──────────────────────────────────────────
         const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
@@ -4172,7 +4167,8 @@ async function patScanAnalyse() {
         _patScanSetStatus('✓ Texto reconhecido — revê e confirma', 'ok');
 
     } catch(e) {
-        _patScanSetStatus('Erro: ' + e.message, 'error');
+        const msg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e)) || 'Erro desconhecido';
+        _patScanSetStatus('Erro: ' + msg, 'error');
         console.error('[patScan]', e);
     } finally {
         btn.disabled = false;
