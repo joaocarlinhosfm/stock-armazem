@@ -3654,12 +3654,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.49';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.50';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.49')
+        navigator.serviceWorker.register('sw.js?v=5.50')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -4101,53 +4101,79 @@ async function patScanAnalyse() {
     if (!_patScanB64) return;
     const btn = document.getElementById('pat-scan-go');
     btn.disabled = true;
-    _patScanSetStatus('A analisar…', 'loading');
-
-    const prompt = `Analisa esta imagem de um documento de pedido de assistência técnica (PAT / ordem de serviço).
-
-Extrai os seguintes campos e responde APENAS com JSON válido, sem markdown:
-
-{
-  "pat_numero": "número da PAT ou OS (só dígitos) ou null",
-  "estabelecimento": "nome do estabelecimento em MAIÚSCULAS ou null",
-  "cliente_numero": "número de cliente 1-3 dígitos ou null",
-  "pat_confianca": 0.0,
-  "estab_confianca": 0.0
-}
-
-pat_confianca e estab_confianca são números de 0 a 1. Responde APENAS com o JSON.`;
 
     try {
-        const resp = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: 'claude-sonnet-4-20250514',
-                max_tokens: 300,
-                messages: [{ role: 'user', content: [
-                    { type: 'image', source: { type: 'base64', media_type: _patScanMime, data: _patScanB64 } },
-                    { type: 'text', text: prompt }
-                ]}]
-            })
-        });
-        if (!resp.ok) {
-            const e = await resp.json().catch(() => ({}));
-            throw new Error(e?.error?.message || `HTTP ${resp.status}`);
-        }
-        const data   = await resp.json();
-        const raw    = data.content?.map(b => b.text || '').join('') || '';
-        const result = JSON.parse(raw.replace(/```json|```/gi, '').trim());
+        if (typeof Tesseract === 'undefined') throw new Error('Tesseract não carregou — verifica a ligação à internet');
 
-        // Preenche campos do resultado
-        _patScanFill('ps-pat',   result.pat_numero,      result.pat_confianca,  'ps-pat-conf');
-        _patScanFill('ps-estab', result.estabelecimento, result.estab_confianca,'ps-estab-conf');
-        const cliEl = document.getElementById('ps-cli');
-        cliEl.value = result.cliente_numero || '';
+        _patScanSetStatus('A carregar motor OCR…', 'loading');
+
+        // Converte base64 para blob para o Tesseract
+        const byteChars = atob(_patScanB64);
+        const byteArr   = new Uint8Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+        const blob = new Blob([byteArr], { type: _patScanMime });
+
+        const worker = await Tesseract.createWorker('por', 1, {
+            workerPath: 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/worker.min.js',
+            corePath:   'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract-core-simd-lstm.wasm.js',
+            langPath:   'https://tessdata.projectnaptha.com/4.0.0',
+            logger: m => {
+                if (m.status === 'recognizing text') {
+                    const pct = Math.round((m.progress || 0) * 100);
+                    _patScanSetStatus(`A reconhecer texto… ${pct}%`, 'loading');
+                }
+            }
+        });
+
+        _patScanSetStatus('A reconhecer texto…', 'loading');
+        const { data: { text } } = await worker.recognize(blob);
+        await worker.terminate();
+
+        // ── Parser do texto extraído ──────────────────────────────────────────
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+        const full  = text.toUpperCase();
+
+        // Nº PAT: sequência de 4-8 dígitos precedida de PAT/OS/Nº/N°/N.º ou isolada
+        let patNum = null, patConf = 0;
+        const patPatterns = [
+            /(?:PAT|OS|N[º°.]?\s*(?:PAT|OS)?)\s*[:\-]?\s*(\d{4,8})/i,
+            /\b(\d{5,8})\b/
+        ];
+        for (const rx of patPatterns) {
+            const m = text.match(rx);
+            if (m) { patNum = m[1]; patConf = rx === patPatterns[0] ? 0.88 : 0.55; break; }
+        }
+
+        // Estabelecimento: linha que parece nome de empresa (> 4 chars, não é número puro, não é data)
+        let estab = null, estabConf = 0;
+        const skipWords = /^(PAT|OS|DATA|DATA:|TÉCNICO|TÉCNICA|SERVIÇO|TEL|NIF|FAX|MORADA|RUA|AV|DATA|HORA|\d+)$/i;
+        const nameLines = lines.filter(l =>
+            l.length > 4 && l.length < 60 &&
+            !/^\d+$/.test(l) &&
+            !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(l) &&
+            !skipWords.test(l.split(/\s/)[0])
+        );
+        // Prefere linha que contenha palavras-chave de estabelecimento
+        const estabKeyword = nameLines.find(l => /CAFÉ|SNACK|BAR|REST|HOTEL|MINI|SUPER|MERCADO|LDA|SA\b|UNIP|POSTO|ESTAÇÃO/i.test(l));
+        if (estabKeyword) { estab = estabKeyword.toUpperCase(); estabConf = 0.80; }
+        else if (nameLines.length > 0) { estab = nameLines[0].toUpperCase(); estabConf = 0.50; }
+
+        // Nº Cliente: 1-3 dígitos precedidos de "cliente" ou "nº cliente"
+        let cliNum = null;
+        const cliM = text.match(/(?:n[º°.]?\s*cliente|cliente\s*n[º°.]?)\s*[:\-]?\s*(\d{1,3})\b/i);
+        if (cliM) cliNum = cliM[1];
+
+        // ── Preenche resultado ────────────────────────────────────────────────
+        _patScanFill('ps-pat',   patNum, patConf,  'ps-pat-conf');
+        _patScanFill('ps-estab', estab,  estabConf,'ps-estab-conf');
+        document.getElementById('ps-cli').value = cliNum || '';
 
         document.getElementById('pat-scan-result').style.display = 'flex';
-        _patScanSetStatus('✓ Análise concluída — revê e confirma', 'ok');
+        _patScanSetStatus('✓ Texto reconhecido — revê e confirma', 'ok');
+
     } catch(e) {
         _patScanSetStatus('Erro: ' + e.message, 'error');
+        console.error('[patScan]', e);
     } finally {
         btn.disabled = false;
     }
