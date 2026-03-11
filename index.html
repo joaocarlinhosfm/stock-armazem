@@ -436,6 +436,10 @@
         <div class="modal-content pat-modal-content">
             <div class="modal-icon">📋</div>
             <h3 id="pat-modal-title">Novo Pedido</h3>
+            <button class="pat-scan-btn" onclick="openPatScan()" title="Preencher por fotografia">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Preencher por foto
+            </button>
 
             <div class="pat-form">
                 <!-- PAT number -->
@@ -830,5 +834,70 @@
         });
     </script>
     <script src="app.js?v=5.48"></script>
+
+    <!-- Modal: PAT Scan OCR -->
+    <div id="pat-scan-modal" class="modal-overlay" role="dialog" aria-modal="true">
+        <div class="modal-content pat-scan-content">
+            <div class="pat-scan-header">
+                <span class="pat-scan-title">📷 Preencher por foto</span>
+                <button class="modal-close-x" onclick="closePatScan()">✕</button>
+            </div>
+
+            <div id="pat-scan-wrap">
+                <!-- placeholder / preview -->
+                <div id="pat-scan-placeholder" class="pat-scan-placeholder">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    <span>Carrega uma foto do documento PAT</span>
+                </div>
+                <img id="pat-scan-preview" class="pat-scan-preview" alt="" style="display:none">
+                <canvas id="pat-scan-canvas" style="display:none"></canvas>
+            </div>
+
+            <div id="pat-scan-status" class="pat-scan-status"></div>
+
+            <div class="pat-scan-btns" id="pat-scan-row-load">
+                <label class="btn-primary pat-scan-file-label" for="pat-scan-file">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Carregar imagem
+                </label>
+                <input type="file" id="pat-scan-file" accept="image/*" style="display:none" onchange="patScanFromFile(this)">
+            </div>
+
+            <div class="pat-scan-btns" id="pat-scan-row-analyse" style="display:none">
+                <button class="btn-primary" id="pat-scan-go" onclick="patScanAnalyse()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    Analisar
+                </button>
+                <button class="btn-cancel" onclick="patScanReset()">↩ Nova foto</button>
+            </div>
+
+            <!-- Resultado -->
+            <div id="pat-scan-result" class="pat-scan-result" style="display:none">
+                <div class="pat-scan-field">
+                    <span class="pat-scan-flabel">Nº PAT</span>
+                    <div class="pat-scan-frow">
+                        <input class="blue-input pat-scan-finput" id="ps-pat" type="text" maxlength="8" placeholder="—">
+                        <span class="pat-scan-conf" id="ps-pat-conf"></span>
+                    </div>
+                </div>
+                <div class="pat-scan-field">
+                    <span class="pat-scan-flabel">Estabelecimento</span>
+                    <div class="pat-scan-frow">
+                        <input class="blue-input pat-scan-finput" id="ps-estab" type="text" placeholder="—">
+                        <span class="pat-scan-conf" id="ps-estab-conf"></span>
+                    </div>
+                </div>
+                <div class="pat-scan-field">
+                    <span class="pat-scan-flabel">Nº Cliente</span>
+                    <div class="pat-scan-frow">
+                        <input class="blue-input pat-scan-finput" id="ps-cli" type="text" maxlength="3" placeholder="—">
+                    </div>
+                </div>
+                <button class="btn-primary" style="width:100%;margin-top:8px" onclick="patScanApply()">
+                    ✓ Usar estes dados
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
