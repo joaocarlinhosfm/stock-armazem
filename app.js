@@ -3417,9 +3417,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Pesquisa de ferramentas
+    let _toolsSearchTimer;
     document.getElementById('inp-tools-search')?.addEventListener('input', e => {
-        _toolsFilter = e.target.value.trim();
-        renderTools();
+        clearTimeout(_toolsSearchTimer);
+        _toolsSearchTimer = setTimeout(() => {
+            _toolsFilter = e.target.value.trim();
+            renderTools();
+        }, 250);
     });
 
     // Escape fecha o modal ativo
@@ -3882,9 +3886,13 @@ async function updatePatCount() {
 
 var _patSearchQuery = '';
 
+let _patSearchTimer;
 function patSearchFilter(val) {
-    _patSearchQuery = (val || '').toLowerCase().trim();
-    renderPats();
+    clearTimeout(_patSearchTimer);
+    _patSearchTimer = setTimeout(() => {
+        _patSearchQuery = (val || '').toLowerCase().trim();
+        renderPats();
+    }, 250);
 }
 
 // ── Popover de pedidos duplicados por estabelecimento ──────────────
@@ -4214,9 +4222,11 @@ let _patScanMime = 'image/jpeg';
 function openPatScan() {
     patScanReset();
     document.getElementById('pat-scan-modal').classList.add('active');
+    focusModal('pat-scan-modal');
 }
 
 function closePatScan() {
+    patScanStopCamera();
     document.getElementById('pat-scan-modal').classList.remove('active');
 }
 
@@ -4696,17 +4706,23 @@ const ENC_URL = `${BASE_URL}/encomendas`;
 
 let _encFilter  = 'all';
 let _encData    = {};
+let _encDataTs  = 0;
+const ENC_TTL   = 60000;
 let _encEditId  = null;
 let _encEntradaId   = null;
 let _encEntradaLIdx = null;
 
 // ── Carregar dados ────────────────────────────────────────────────────────
-async function loadEncomendas() {
+async function loadEncomendas(force = false) {
+    if (!force && _encDataTs && (Date.now() - _encDataTs < ENC_TTL)) {
+        renderEncList();
+        return;
+    }
     try {
-        const url  = await authUrl(`${ENC_URL}.json`);
-        const res  = await apiFetch(url);
+        const res  = await apiFetch(`${ENC_URL}.json`);
         _encData   = res ? await res.json() : {};
         if (!_encData) _encData = {};
+        _encDataTs = Date.now();
         renderEncList();
     } catch(e) {
         console.error('[encomendas] load error', e);
@@ -4789,6 +4805,7 @@ function openNovaEncomenda() {
     document.getElementById('enc-linhas-wrap').innerHTML = '';
     encAddLinha();
     document.getElementById('enc-modal').classList.add('active');
+    focusModal('enc-modal');
 }
 
 function closeEncModal() {
@@ -4832,8 +4849,7 @@ async function saveEncomenda() {
     const payload = { num, fornecedor: forn, data, obs, estado: 'pendente', ts: Date.now(), linhas };
 
     try {
-        const url = await authUrl(`${ENC_URL}.json`);
-        await apiFetch(url, { method: 'POST', body: JSON.stringify(payload) });
+        await apiFetch(`${ENC_URL}.json`, { method: 'POST', body: JSON.stringify(payload) });
         showToast('Encomenda criada ✓', 'ok');
         closeEncModal();
         loadEncomendas();
@@ -4882,6 +4898,7 @@ function openEncDetail(id) {
     }).join('');
 
     document.getElementById('enc-detail-modal').classList.add('active');
+    focusModal('enc-detail-modal');
 }
 
 function closeEncDetail() {
@@ -4891,16 +4908,21 @@ function closeEncDetail() {
 async function deleteEncomenda() {
     if (!_encEditId) return;
     const enc = _encData[_encEditId];
-    if (!confirm(`Apagar encomenda Nº ${enc?.num}? Esta acção não pode ser desfeita.`)) return;
-    try {
-        const url = await authUrl(`${ENC_URL}/${_encEditId}.json`);
-        await apiFetch(url, { method: 'DELETE' });
-        showToast('Encomenda apagada', 'ok');
-        closeEncDetail();
-        loadEncomendas();
-    } catch(e) {
-        showToast('Erro: ' + e.message, 'error');
-    }
+    openConfirmModal({
+        icon: '🗑',
+        title: 'Apagar encomenda?',
+        desc: `Encomenda Nº ${enc?.num} será apagada permanentemente.`,
+        onConfirm: async () => {
+            try {
+                await apiFetch(`${ENC_URL}/${_encEditId}.json`, { method: 'DELETE' });
+                showToast('Encomenda apagada', 'ok');
+                closeEncDetail();
+                loadEncomendas(true);
+            } catch(e) {
+                showToast('Erro: ' + e.message, 'error');
+            }
+        }
+    });
 }
 
 // ── Dar entrada ───────────────────────────────────────────────────────────
@@ -4918,6 +4940,7 @@ function openEntradaModal(encId, lIdx) {
     document.getElementById('enc-entrada-info').textContent =
         `Já recebido: ${parseFloat(l.recebido) || 0} · Encomendado: ${parseFloat(l.qtd) || 0}`;
     document.getElementById('enc-entrada-modal').classList.add('active');
+    focusModal('enc-entrada-modal');
     setTimeout(() => inp.focus(), 100);
 }
 
@@ -4939,8 +4962,7 @@ async function confirmarEntrada() {
     const novoEstado   = _calcEstado(novasLinhas);
 
     try {
-        const url = await authUrl(`${ENC_URL}/${_encEntradaId}.json`);
-        await apiFetch(url, {
+        await apiFetch(`${ENC_URL}/${_encEntradaId}.json`, {
             method: 'PATCH',
             body: JSON.stringify({
                 [`linhas/${_encEntradaLIdx}/recebido`]: novoRecebido,
