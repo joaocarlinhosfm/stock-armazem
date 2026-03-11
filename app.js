@@ -3655,12 +3655,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.62';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.63';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.62')
+        navigator.serviceWorker.register('sw.js?v=5.63')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -4726,7 +4726,8 @@ async function loadEncomendas() {
     try {
         const url  = await authUrl(`${ENC_URL}.json`);
         const res  = await apiFetch(url);
-        _encData   = res || {};
+        _encData   = res ? await res.json() : {};
+        if (!_encData) _encData = {};
         renderEncList();
     } catch(e) {
         console.error('[encomendas] load error', e);
