@@ -2158,6 +2158,7 @@ function switchAdminTab(tab, animate = true) {
     );
 
     if (tab === 'clientes') renderClientesList();
+    if (tab === 'settings') _updateOcrKeyStatus();
     // Move slider (sem .active nos painéis — visibilidade é por transform)
     const slider = document.getElementById('admin-slider');
     if (slider) {
@@ -3654,12 +3655,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.53';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.54';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.53')
+        navigator.serviceWorker.register('sw.js?v=5.54')
             .then(reg => {
                 console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
@@ -4047,6 +4048,45 @@ function closePatModal() {
 }
 
 // =============================================
+// ANTHROPIC API KEY — gestão local
+// =============================================
+const ANTHROPIC_KEY_STORAGE = 'hiperfrio-anthropic-key';
+
+function _getAnthropicKey() {
+    return localStorage.getItem(ANTHROPIC_KEY_STORAGE) || '';
+}
+
+function saveAnthropicKey() {
+    const val = document.getElementById('inp-anthropic-key').value.trim();
+    if (val && !val.startsWith('sk-ant-')) {
+        showToast('Chave inválida — deve começar com sk-ant-', 'error');
+        return;
+    }
+    if (val) {
+        localStorage.setItem(ANTHROPIC_KEY_STORAGE, val);
+        document.getElementById('inp-anthropic-key').value = '';
+        showToast('Chave guardada — OCR por foto usa agora Claude Vision ✓', 'ok');
+    } else {
+        localStorage.removeItem(ANTHROPIC_KEY_STORAGE);
+        showToast('Chave removida — OCR volta ao modo local', 'ok');
+    }
+    _updateOcrKeyStatus();
+}
+
+function _updateOcrKeyStatus() {
+    const el = document.getElementById('ocr-api-status');
+    if (!el) return;
+    const key = _getAnthropicKey();
+    el.textContent = key
+        ? `✓ Configurada (${key.slice(0,10)}…) — Claude Vision activo`
+        : 'Não configurada — usa OCR local (qualidade limitada)';
+    el.style.color = key ? 'var(--ok, #16a34a)' : '';
+}
+
+// Chama no arranque para mostrar estado
+document.addEventListener('DOMContentLoaded', _updateOcrKeyStatus);
+
+// =============================================
 // PAT SCAN — preenchimento por fotografia (OCR via Claude Vision)
 // =============================================
 let _patScanB64  = null;
@@ -4102,69 +4142,110 @@ async function patScanAnalyse() {
     const btn = document.getElementById('pat-scan-go');
     btn.disabled = true;
 
+    const apiKey = _getAnthropicKey();
+
     try {
-        if (typeof Tesseract === 'undefined') throw new Error('Tesseract não carregou — verifica a ligação à internet');
+        let patNum = null, patConf = 0, estab = null, estabConf = 0, cliNum = null;
 
-        _patScanSetStatus('A carregar motor OCR…', 'loading');
+        if (apiKey) {
+            // ── Modo Claude Vision (alta qualidade) ──────────────────────────
+            _patScanSetStatus('A analisar com Claude Vision…', 'loading');
 
-        // Converte base64 → data URL (Tesseract.recognize aceita directamente)
-        const dataUrl = `data:${_patScanMime};base64,${_patScanB64}`;
+            const prompt = `Analisa esta imagem de um documento de pedido de assistência técnica (PAT / ordem de serviço).
 
-        // Tesseract.js v5 — API simplificada, sem paths manuais
-        const { data: { text } } = await Tesseract.recognize(dataUrl, 'por', {
-            logger: m => {
-                if (m.status === 'recognizing text') {
-                    const pct = Math.round((m.progress || 0) * 100);
-                    _patScanSetStatus(`A reconhecer texto… ${pct}%`, 'loading');
-                } else if (m.status === 'loading tesseract core') {
-                    _patScanSetStatus('A carregar motor OCR…', 'loading');
-                } else if (m.status === 'loading language traineddata') {
-                    _patScanSetStatus('A carregar idioma…', 'loading');
-                }
+Extrai os seguintes campos e responde APENAS com JSON válido, sem markdown:
+
+{
+  "pat_numero": "número da PAT ou OS (só dígitos) ou null",
+  "estabelecimento": "nome do estabelecimento em MAIÚSCULAS ou null",
+  "cliente_numero": "número de cliente 1-3 dígitos ou null",
+  "pat_confianca": 0.0,
+  "estab_confianca": 0.0
+}
+
+pat_confianca e estab_confianca são números de 0 a 1. Responde APENAS com o JSON.`;
+
+            const resp = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01',
+                    'anthropic-dangerous-allow-browser': 'true'
+                },
+                body: JSON.stringify({
+                    model: 'claude-opus-4-5',
+                    max_tokens: 300,
+                    messages: [{ role: 'user', content: [
+                        { type: 'image', source: { type: 'base64', media_type: _patScanMime, data: _patScanB64 } },
+                        { type: 'text', text: prompt }
+                    ]}]
+                })
+            });
+
+            if (!resp.ok) {
+                const e = await resp.json().catch(() => ({}));
+                // Se a chave expirou ou é inválida, informa o utilizador
+                if (resp.status === 401) throw new Error('Chave API inválida ou expirada — actualiza em Admin → Definições');
+                throw new Error(e?.error?.message || `HTTP ${resp.status}`);
             }
-        });
 
-        // ── Parser do texto extraído ──────────────────────────────────────────
-        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-        const full  = text.toUpperCase();
+            const data   = await resp.json();
+            const raw    = data.content?.map(b => b.text || '').join('') || '';
+            const result = JSON.parse(raw.replace(/```json|```/gi, '').trim());
 
-        // Nº PAT: sequência de 4-8 dígitos precedida de PAT/OS/Nº/N°/N.º ou isolada
-        let patNum = null, patConf = 0;
-        const patPatterns = [
-            /(?:PAT|OS|N[º°.]?\s*(?:PAT|OS)?)\s*[:\-]?\s*(\d{4,8})/i,
-            /\b(\d{5,8})\b/
-        ];
-        for (const rx of patPatterns) {
-            const m = text.match(rx);
-            if (m) { patNum = m[1]; patConf = rx === patPatterns[0] ? 0.88 : 0.55; break; }
+            patNum   = result.pat_numero;
+            patConf  = result.pat_confianca || 0;
+            estab    = result.estabelecimento;
+            estabConf = result.estab_confianca || 0;
+            cliNum   = result.cliente_numero;
+
+        } else {
+            // ── Modo Tesseract (OCR local, sem chave) ─────────────────────────
+            if (typeof Tesseract === 'undefined') throw new Error('Tesseract não carregou — verifica a ligação');
+
+            _patScanSetStatus('A carregar motor OCR…', 'loading');
+            const dataUrl = `data:${_patScanMime};base64,${_patScanB64}`;
+
+            const { data: { text } } = await Tesseract.recognize(dataUrl, 'por', {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        const pct = Math.round((m.progress || 0) * 100);
+                        _patScanSetStatus(`A reconhecer texto… ${pct}%`, 'loading');
+                    }
+                }
+            });
+
+            const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+            const patRx = [
+                /(?:PAT|OS|N[º°.]?\s*(?:PAT|OS)?)\s*[:\-]?\s*(\d{4,8})/i,
+                /\b(\d{5,8})\b/
+            ];
+            for (const rx of patRx) {
+                const m = text.match(rx);
+                if (m) { patNum = m[1]; patConf = rx === patRx[0] ? 0.75 : 0.45; break; }
+            }
+            const skipWords = /^(PAT|OS|DATA|TÉCNICO|SERVIÇO|TEL|NIF|FAX|MORADA|RUA|AV|HORA|\d+)$/i;
+            const nameLines = lines.filter(l =>
+                l.length > 4 && l.length < 60 &&
+                !/^\d+$/.test(l) &&
+                !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(l) &&
+                !skipWords.test(l.split(/\s/)[0])
+            );
+            const estabKw = nameLines.find(l => /CAFÉ|SNACK|BAR|REST|HOTEL|MINI|SUPER|MERCADO|LDA|SA\b|UNIP|POSTO/i.test(l));
+            if (estabKw) { estab = estabKw.toUpperCase(); estabConf = 0.70; }
+            else if (nameLines.length > 0) { estab = nameLines[0].toUpperCase(); estabConf = 0.40; }
+            const cliM = text.match(/(?:n[º°.]?\s*cliente|cliente\s*n[º°.]?)\s*[:\-]?\s*(\d{1,3})\b/i);
+            if (cliM) cliNum = cliM[1];
         }
 
-        // Estabelecimento: linha que parece nome de empresa (> 4 chars, não é número puro, não é data)
-        let estab = null, estabConf = 0;
-        const skipWords = /^(PAT|OS|DATA|DATA:|TÉCNICO|TÉCNICA|SERVIÇO|TEL|NIF|FAX|MORADA|RUA|AV|DATA|HORA|\d+)$/i;
-        const nameLines = lines.filter(l =>
-            l.length > 4 && l.length < 60 &&
-            !/^\d+$/.test(l) &&
-            !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(l) &&
-            !skipWords.test(l.split(/\s/)[0])
-        );
-        // Prefere linha que contenha palavras-chave de estabelecimento
-        const estabKeyword = nameLines.find(l => /CAFÉ|SNACK|BAR|REST|HOTEL|MINI|SUPER|MERCADO|LDA|SA\b|UNIP|POSTO|ESTAÇÃO/i.test(l));
-        if (estabKeyword) { estab = estabKeyword.toUpperCase(); estabConf = 0.80; }
-        else if (nameLines.length > 0) { estab = nameLines[0].toUpperCase(); estabConf = 0.50; }
-
-        // Nº Cliente: 1-3 dígitos precedidos de "cliente" ou "nº cliente"
-        let cliNum = null;
-        const cliM = text.match(/(?:n[º°.]?\s*cliente|cliente\s*n[º°.]?)\s*[:\-]?\s*(\d{1,3})\b/i);
-        if (cliM) cliNum = cliM[1];
-
         // ── Preenche resultado ────────────────────────────────────────────────
-        _patScanFill('ps-pat',   patNum, patConf,  'ps-pat-conf');
-        _patScanFill('ps-estab', estab,  estabConf,'ps-estab-conf');
+        _patScanFill('ps-pat',   patNum, patConf,   'ps-pat-conf');
+        _patScanFill('ps-estab', estab,  estabConf, 'ps-estab-conf');
         document.getElementById('ps-cli').value = cliNum || '';
-
         document.getElementById('pat-scan-result').style.display = 'flex';
-        _patScanSetStatus('✓ Texto reconhecido — revê e confirma', 'ok');
+        const mode = apiKey ? 'Claude Vision' : 'OCR local';
+        _patScanSetStatus(`✓ Análise concluída (${mode}) — revê e confirma`, 'ok');
 
     } catch(e) {
         const msg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e)) || 'Erro desconhecido';
