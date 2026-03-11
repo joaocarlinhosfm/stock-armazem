@@ -64,6 +64,7 @@
                 <li id="nav-dashboard" onclick="nav('view-dashboard')"><span>📊</span> Dashboard</li>
                 <li id="nav-pedidos" onclick="nav('view-pedidos')"><span>📋</span> Pedidos PAT</li>
                 <li id="nav-search" class="active" onclick="nav('view-search')"><span>🔍</span> Consultar Stock</li>
+                <li id="nav-encomendas" onclick="nav('view-encomendas')"><span>📦</span> Encomendas</li>
                 <li id="nav-tools" onclick="nav('view-tools')"><span>🛠️</span> Ferramentas</li>
                 <li id="nav-register" onclick="nav('view-register')" data-manager-only><span>➕</span> Novo Produto</li>
                 <li id="nav-bulk" onclick="nav('view-bulk')" data-manager-only><span>📦</span> Catalogar Lote</li>
@@ -123,6 +124,27 @@
                     oninput="patSearchFilter(this.value)" autocomplete="off">
             </div>
             <div id="pat-list" class="pat-list-wrap"></div>
+        </div>
+
+        <div id="view-encomendas" class="view">
+            <div class="enc-toolbar">
+                <div class="enc-toolbar-top">
+                    <h2 class="dash-view-title">Encomendas</h2>
+                    <button class="btn-primary enc-add-btn" onclick="openNovaEncomenda()" data-manager-only>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        Nova Encomenda
+                    </button>
+                </div>
+                <div class="enc-filter-row">
+                    <button class="enc-filter-btn active" data-filter="all" onclick="encFilterSet(this,'all')">Todas</button>
+                    <button class="enc-filter-btn" data-filter="pendente" onclick="encFilterSet(this,'pendente')">Pendentes</button>
+                    <button class="enc-filter-btn" data-filter="parcial" onclick="encFilterSet(this,'parcial')">Parciais</button>
+                    <button class="enc-filter-btn" data-filter="recebida" onclick="encFilterSet(this,'recebida')">Recebidas</button>
+                </div>
+            </div>
+            <div id="enc-list" class="enc-list-wrap"></div>
         </div>
 
                 <div id="view-tools" class="view">
@@ -456,6 +478,15 @@
                 </svg>
             </span>
             <span class="bnav-label">Pedidos</span>
+        </button>
+        <button class="bottom-nav-item" id="bnav-encomendas" onclick="nav('view-encomendas')" data-manager-only aria-label="Encomendas">
+            <span class="bnav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+            </span>
+            <span class="bnav-label">Enc.</span>
         </button>
         <button class="bottom-nav-item" id="bnav-admin" onclick="nav('view-admin')" data-manager-only aria-label="Administração">
             <span class="bnav-icon">
@@ -948,6 +979,96 @@
                 <button class="btn-primary" style="width:100%;margin-top:8px" onclick="patScanApply()">
                     ✓ Usar estes dados
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         MODAL: Nova / Editar Encomenda
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="enc-modal" class="modal-overlay" role="dialog" aria-modal="true" style="display:none">
+        <div class="modal-content enc-modal-content">
+            <div class="modal-header">
+                <span class="modal-icon">📦</span>
+                <h3 id="enc-modal-title" class="modal-title">Nova Encomenda</h3>
+                <button class="modal-close-btn" onclick="closeEncModal()">✕</button>
+            </div>
+
+            <div class="enc-form-header">
+                <div class="enc-form-row">
+                    <div class="enc-form-group" style="flex:0.45">
+                        <label class="enc-label">Nº Encomenda</label>
+                        <input id="enc-num" class="blue-input" type="text" placeholder="1072" maxlength="20">
+                    </div>
+                    <div class="enc-form-group" style="flex:0.55">
+                        <label class="enc-label">Data</label>
+                        <input id="enc-data" class="blue-input" type="date">
+                    </div>
+                </div>
+                <div class="enc-form-group">
+                    <label class="enc-label">Fornecedor</label>
+                    <input id="enc-fornecedor" class="blue-input" type="text" placeholder="Nome do fornecedor">
+                </div>
+                <div class="enc-form-group">
+                    <label class="enc-label">Observações</label>
+                    <input id="enc-obs" class="blue-input" type="text" placeholder="Opcional">
+                </div>
+            </div>
+
+            <div class="enc-linhas-header">
+                <span class="enc-section-title">Produtos</span>
+                <button class="enc-add-linha-btn" onclick="encAddLinha()">+ Linha</button>
+            </div>
+            <div id="enc-linhas-wrap" class="enc-linhas-wrap"></div>
+
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeEncModal()">Cancelar</button>
+                <button class="btn-primary" onclick="saveEncomenda()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         MODAL: Detalhe / Dar Entrada
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="enc-detail-modal" class="modal-overlay" role="dialog" aria-modal="true" style="display:none">
+        <div class="modal-content enc-detail-content">
+            <div class="modal-header">
+                <span class="modal-icon">📦</span>
+                <div>
+                    <h3 id="enc-detail-title" class="modal-title"></h3>
+                    <div id="enc-detail-sub" class="enc-detail-sub"></div>
+                </div>
+                <button class="modal-close-btn" onclick="closeEncDetail()">✕</button>
+            </div>
+            <div id="enc-detail-linhas" class="enc-detail-linhas"></div>
+            <div class="modal-footer" style="justify-content:flex-end;gap:8px">
+                <button class="btn-cancel" onclick="closeEncDetail()">Fechar</button>
+                <button class="btn-danger" id="enc-detail-delete-btn" onclick="deleteEncomenda()">🗑 Apagar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mini-modal: dar entrada quantidade ─────────────────────── -->
+    <div id="enc-entrada-modal" class="modal-overlay" role="dialog" aria-modal="true" style="display:none">
+        <div class="modal-content" style="max-width:320px">
+            <div class="modal-header">
+                <span class="modal-icon">✅</span>
+                <h3 class="modal-title">Dar Entrada</h3>
+                <button class="modal-close-btn" onclick="closeEntradaModal()">✕</button>
+            </div>
+            <div style="padding:16px 20px">
+                <div id="enc-entrada-desc" style="font-size:0.82rem;color:var(--text-muted);margin-bottom:12px"></div>
+                <label class="enc-label">Quantidade recebida agora</label>
+                <input id="enc-entrada-qty" class="blue-input" type="number" min="0" step="1" style="font-size:1.1rem;text-align:center">
+                <div id="enc-entrada-info" style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;text-align:center"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeEntradaModal()">Cancelar</button>
+                <button class="btn-primary" onclick="confirmarEntrada()">✓ Confirmar entrada</button>
             </div>
         </div>
     </div>
