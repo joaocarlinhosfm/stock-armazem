@@ -4081,19 +4081,37 @@ function saveAnthropicKey() {
 }
 
 function _updateOcrKeyStatus() {
-    const el = document.getElementById('ocr-api-status');
-    if (!el) return;
     const val = _getAnthropicKey();
+    let text, color;
     if (!val) {
-        el.textContent = 'Não configurado — usa OCR local (qualidade limitada)';
-        el.style.color = '';
+        text  = 'Não configurada — usa OCR local';
+        color = '';
     } else if (_isProxyUrl(val)) {
-        el.textContent = `✓ Proxy configurado (${new URL(val).hostname}) — Claude Vision activo`;
-        el.style.color = 'var(--ok, #16a34a)';
+        text  = `✓ Claude Vision activo (${new URL(val).hostname})`;
+        color = 'var(--ok, #16a34a)';
     } else {
-        el.textContent = `✓ Chave configurada (${val.slice(0,10)}…) — Claude Vision activo`;
-        el.style.color = 'var(--ok, #16a34a)';
+        text  = `✓ Claude Vision activo (${val.slice(0,10)}…)`;
+        color = 'var(--ok, #16a34a)';
     }
+    ['ocr-api-status', 'ocr-api-status-modal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.textContent = text; el.style.color = color; }
+    });
+}
+
+function openOcrSettings() {
+    _updateOcrKeyStatus();
+    _loadOcrKeywordsInput();
+    // Pré-preenche o campo da chave
+    const key = _getAnthropicKey();
+    const inp = document.getElementById('inp-anthropic-key');
+    if (inp && key) inp.value = key;
+    document.getElementById('ocr-settings-modal').classList.add('active');
+    focusModal('ocr-settings-modal');
+}
+
+function closeOcrSettings() {
+    document.getElementById('ocr-settings-modal').classList.remove('active');
 }
 
 async function testAnthropicProxy() {

@@ -322,41 +322,15 @@
                     </div>
                 </div>
                 <div class="settings-group-label">OCR — LEITURA POR FOTO</div>
-                <div class="settings-item settings-item-column">
+                <div class="settings-item">
                     <div class="settings-item-info">
-                        <span class="settings-item-title">Chave API Anthropic</span>
-                        <span class="settings-item-desc" id="ocr-api-status">Não configurada — usa OCR local (qualidade limitada)</span>
+                        <span class="settings-item-title">Leitura por fotografia</span>
+                        <span class="settings-item-desc" id="ocr-api-status">Não configurada — usa OCR local</span>
                     </div>
-                    <div class="settings-api-key-wrap">
-                        <input type="text" id="inp-anthropic-key" class="blue-input settings-api-input"
-                            placeholder="https://...workers.dev" autocomplete="off" autocorrect="off" spellcheck="false">
-                        <button class="btn-settings-action" onclick="saveAnthropicKey()">Guardar</button>
-                    </div>
-                    <button class="btn-settings-action" id="btn-test-ocr" onclick="testAnthropicProxy()" style="width:100%;margin-top:4px">🔗 Testar ligação</button>
-                    <span class="settings-item-hint">Cola aqui o URL do teu Cloudflare Worker (https://...workers.dev). Guardado apenas neste dispositivo.</span>
-                </div>
-
-                <div class="settings-item settings-item-column" style="margin-top:8px">
-                    <div class="settings-item-info">
-                        <span class="settings-item-title">Padrão de Estabelecimento</span>
-                        <span class="settings-item-desc">Palavras-chave e exemplos para o Claude identificar o nome correcto</span>
-                    </div>
-                    <textarea id="inp-estab-hints" class="blue-input settings-hints-textarea"
-                        placeholder="Ex:&#10;PINGO DOCE&#10;MINI PREÇO&#10;CAFE&#10;SNACK&#10;HORECA&#10;BAR"
-                        rows="5" oninput="saveEstabHints()"></textarea>
-                    <span class="settings-item-hint">Um por linha — pode ser palavra-chave (CAFE) ou nome completo (PINGO DOCE AVEIRO). Quanto mais exemplos, mais preciso.</span>
-                </div>
-
-                <div class="settings-item settings-item-column">
-                    <div class="settings-item-info">
-                        <span class="settings-item-title">Palavras-chave de estabelecimento</span>
-                        <span class="settings-item-desc">Claude procura estas palavras para identificar o nome</span>
-                    </div>
-                    <textarea id="inp-ocr-keywords" class="blue-input settings-keywords-input"
-                        placeholder="Ex: PINGO DOCE&#10;MINI PREÇO&#10;SNACK BAR&#10;CAFÉ" rows="5"
-                        autocorrect="off" spellcheck="false"></textarea>
-                    <button class="btn-settings-action" onclick="saveOcrKeywords()" style="width:100%;margin-top:4px">Guardar palavras-chave</button>
-                    <span class="settings-item-hint">Uma por linha. Claude vai procurar estes termos no documento para identificar o estabelecimento.</span>
+                    <button class="btn-settings-action" onclick="openOcrSettings()">
+                        Configurar
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
                 </div>
 
                 <div class="settings-group-label">SEGURANÇA</div>
@@ -967,6 +941,51 @@
                 <button class="btn-primary" style="width:100%;margin-top:8px" onclick="patScanApply()">
                     ✓ Usar estes dados
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         MODAL: Definições OCR — Leitura por fotografia
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="ocr-settings-modal" class="modal-overlay" role="dialog" aria-modal="true">
+        <div class="modal-content ocr-settings-content">
+            <div class="modal-header">
+                <button class="ocr-settings-back" onclick="closeOcrSettings()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <h3 class="modal-title">Leitura por fotografia</h3>
+                <button class="modal-close-x" onclick="closeOcrSettings()">✕</button>
+            </div>
+
+            <div class="ocr-settings-body">
+                <div class="settings-group-label" style="margin-top:0">API</div>
+                <div class="settings-item settings-item-column">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Chave / URL do Worker</span>
+                        <span class="settings-item-desc" id="ocr-api-status-modal">Não configurada</span>
+                    </div>
+                    <div class="settings-api-key-wrap">
+                        <input type="text" id="inp-anthropic-key" class="blue-input settings-api-input"
+                            placeholder="https://...workers.dev" autocomplete="off" autocorrect="off" spellcheck="false">
+                        <button class="btn-settings-action" onclick="saveAnthropicKey()">Guardar</button>
+                    </div>
+                    <button class="btn-settings-action" id="btn-test-ocr" onclick="testAnthropicProxy()" style="width:100%;margin-top:4px">🔗 Testar ligação</button>
+                    <span class="settings-item-hint">Cola o URL do Cloudflare Worker (https://...workers.dev). Guardado apenas neste dispositivo.</span>
+                </div>
+
+                <div class="settings-group-label">ESTABELECIMENTO</div>
+                <div class="settings-item settings-item-column">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Palavras-chave</span>
+                        <span class="settings-item-desc">Claude procura estas palavras para identificar o nome do estabelecimento</span>
+                    </div>
+                    <textarea id="inp-ocr-keywords" class="blue-input settings-keywords-input"
+                        placeholder="Ex: PINGO DOCE&#10;CONTINENTE&#10;RECHEIO" rows="5"
+                        autocorrect="off" spellcheck="false"></textarea>
+                    <button class="btn-settings-action" onclick="saveOcrKeywords()" style="width:100%;margin-top:4px">Guardar palavras-chave</button>
+                    <span class="settings-item-hint">Uma por linha.</span>
+                </div>
             </div>
         </div>
     </div>
