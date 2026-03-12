@@ -3989,7 +3989,6 @@ async function renderPats() {
             <div class="pat-card-top">
                 <div class="pat-card-top-left">
                     <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}">PAT ${escapeHtml(pat.numero || '—')}</span>
-                    ${pat.clienteNumero ? `<span class="pat-cliente-badge">${escapeHtml(pat.clienteNumero)}</span>` : ''}
                     ${separacao ? '<span class="pat-sep-tag">📄 Guia Transporte</span>' : ''}
                     ${dupCount > 1 ? `<span class="pat-dup-badge" data-estab="${nomeNorm}">⚠ ${dupCount} pedidos</span>` : ''}
                 </div>

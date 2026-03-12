@@ -2706,8 +2706,11 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     padding: 6px 10px;
     font-size: 0.75rem;
     white-space: nowrap;
-    flex-shrink: 0;
+    flex-shrink: 1;
+    min-width: 0;
+    width: fit-content;
 }
+.pat-add-btn svg { flex-shrink: 0; }
 
 /* ── Vista pedidos ── */
 .pat-list-wrap { padding: 0 12px 100px; }
