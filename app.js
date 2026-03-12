@@ -5188,10 +5188,17 @@ async function confirmarEntrada() {
                 estado: novoEstado
             })
         });
+        // Actualizar cache local imediatamente
+        if (_encData[_encEntradaId]?.linhas?.[_encEntradaLIdx]) {
+            _encData[_encEntradaId].linhas[_encEntradaLIdx].recebido = novoRecebido;
+            _encData[_encEntradaId].estado = novoEstado;
+        }
         showToast(`Entrada de ${qty} confirmada ✓`, 'ok');
         closeEntradaModal();
-        await loadEncomendas();
+        renderEncList();
         openEncDetail(_encEntradaId);
+        // Sincroniza com Firebase em background
+        loadEncomendas(true);
     } catch(e) {
         showToast('Erro: ' + e.message, 'error');
     }
