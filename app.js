@@ -4326,9 +4326,9 @@ O documento pode ter qualquer formato: folha A4 impressa, papel térmico, recibo
 Extrai os dois campos abaixo. Segue RIGOROSAMENTE estas regras:
 
 CAMPO 1 — pat_numero:
-- É um número com EXACTAMENTE 8 dígitos
+- É um número com EXACTAMENTE 6 dígitos
 - Pode aparecer sozinho sem qualquer prefixo, ou precedido de "PAT", "OS", "N.º", "Ref." ou similar
-- Ignora qualquer número que não tenha exactamente 8 dígitos
+- Ignora qualquer número que não tenha exactamente 6 dígitos
 - Pode estar em qualquer zona do documento
 - Se não encontrares, devolve null
 
@@ -4591,8 +4591,8 @@ async function savePat() {
     const separacao = document.getElementById('pat-separacao').checked;
     const hint      = document.getElementById('pat-numero-hint');
 
-    if (!/^\d{8}$/.test(numero)) {
-        hint.textContent = 'O Nº PAT deve ter exactamente 8 dígitos.';
+    if (!/^\d{6}$/.test(numero)) {
+        hint.textContent = 'O Nº PAT deve ter exactamente 6 dígitos.';
         hint.style.color = 'var(--danger)';
         document.getElementById('pat-numero').focus();
         return;
@@ -5068,10 +5068,12 @@ async function saveEncomenda() {
     const payload = { num, fornecedor: forn, data, obs, estado: 'pendente', ts: Date.now(), linhas };
 
     try {
-        await apiFetch(`${ENC_URL}.json`, { method: 'POST', body: JSON.stringify(payload) });
+        const res = await apiFetch(`${ENC_URL}.json`, { method: 'POST', body: JSON.stringify(payload) });
+        if (res) { const r = await res.json(); if (r?.name) _encData[r.name] = payload; }
         showToast('Encomenda criada ✓', 'ok');
         closeEncModal();
-        loadEncomendas();
+        renderEncList();
+        loadEncomendas(true);
     } catch(e) {
         showToast('Erro ao guardar: ' + e.message, 'error');
     }
@@ -5134,8 +5136,11 @@ async function deleteEncomenda() {
         onConfirm: async () => {
             try {
                 await apiFetch(`${ENC_URL}/${_encEditId}.json`, { method: 'DELETE' });
+                // Remover do cache local imediatamente
+                delete _encData[_encEditId];
                 showToast('Encomenda apagada', 'ok');
                 closeEncDetail();
+                renderEncList();
                 loadEncomendas(true);
             } catch(e) {
                 showToast('Erro: ' + e.message, 'error');
