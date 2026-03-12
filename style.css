@@ -51,10 +51,6 @@ body {
 }
 
 /* APP LAYOUT */
-#app-layout {
-    display: flex;
-    min-height: calc(100vh - var(--header-h));
-}
 
 /* ══════════════════════════════════════════════════════════
    2 — LAYOUT (App, Header, Main, Search, Side Menu)
@@ -3868,7 +3864,7 @@ body.is-offline #app-layout {
     .header-spacer { display: flex; }
     #close-menu { display: none; }
     #menu-overlay { display: none !important; }
-    #bottom-nav { display: none; }
+    #bottom-nav { display: none !important; }
     .header-spacer .compact-switch { display: none; }
 
     /* Show theme switch inside sidebar footer on desktop */
