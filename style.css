@@ -1969,11 +1969,11 @@ body.is-offline #app-layout {
 .dv2-card {
     background: var(--card-bg);
     border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 16px 16px 14px;
+    border-radius: 16px;
+    padding: 12px 12px 10px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     cursor: default;
     transition: transform 0.15s, box-shadow 0.15s;
     position: relative;
@@ -2007,19 +2007,19 @@ body.is-offline #app-layout {
     margin-bottom: 2px;
 }
 .dv2-card-label {
-    font-size: 0.68rem;
+    font-size: 0.63rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--text-muted);
 }
 .dv2-card-icon {
-    font-size: 1.2rem;
+    font-size: 1rem;
     line-height: 1;
     opacity: 0.85;
 }
 .dv2-card-value {
-    font-size: 2rem;
+    font-size: 1.6rem;
     font-weight: 800;
     color: var(--text-main);
     line-height: 1;
@@ -2032,10 +2032,10 @@ body.is-offline #app-layout {
 .dv2-card--alert .dv2-card-value { color: #d97706; }
 
 .dv2-card-sub {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     color: var(--text-muted);
     line-height: 1.3;
-    margin-top: 2px;
+    margin-top: 1px;
 }
 
 /* Trend badge */
@@ -2051,8 +2051,8 @@ body.is-offline #app-layout {
 
 /* Barra de progresso */
 .dv2-progress {
-    margin-top: 10px;
-    height: 4px;
+    margin-top: 6px;
+    height: 3px;
     background: var(--border);
     border-radius: 4px;
     overflow: hidden;
