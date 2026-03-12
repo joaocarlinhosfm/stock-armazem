@@ -1808,8 +1808,6 @@ body.is-offline #app-layout {
 }
 
 
-}
-
 /* =============================================
    PONTO 9 — botão "Mostrar mais"
    ============================================= */
@@ -1985,7 +1983,7 @@ body.is-offline #app-layout {
     top: 0; left: 0; right: 0;
     height: 3px;
     background: var(--card-accent, var(--primary));
-    border-radius: 20px 20px 0 0;
+    border-radius: 16px 16px 0 0;
 }
 .dv2-card[style*="cursor: pointer"]:active,
 .dv2-card[style*="cursor:pointer"]:active {
@@ -3115,6 +3113,11 @@ body.is-offline #app-layout {
 
 /* Container principal */
 .dashboard-v2 {
+    padding: 16px 12px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
 
 /* ══════════════════════════════════════════════════════════
    9 — ENCOMENDAS FORNECEDOR
