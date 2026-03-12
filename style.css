@@ -1957,10 +1957,18 @@ body.is-offline #app-layout {
     gap: 20px;
 }
 
+/* Container principal */
+.dashboard-v2 {
+    padding: 16px 12px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
 /* ── Grid 2×2 ── */
 .dv2-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
     gap: 12px;
 }
 
@@ -3109,14 +3117,6 @@ body.is-offline #app-layout {
     font-weight: 600;
     color: var(--text-muted);
     white-space: nowrap;
-}
-
-/* Container principal */
-.dashboard-v2 {
-    padding: 16px 12px 80px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
 }
 
 /* ══════════════════════════════════════════════════════════
