@@ -931,25 +931,7 @@ body.worker-mode .tool-card {
     pointer-events: none;
 }
 
-/* Badge de perfil no header — mostra modo atual */
-#role-badge {
-    font-size: 0.65rem;
-    font-weight: 800;
-    padding: 3px 8px;
-    border-radius: 20px;
-    letter-spacing: 0.5px;
-    white-space: nowrap;
-}
-.role-badge-worker {
-    background: rgba(255,255,255,0.2);
-    color: white;
-}
-.role-badge-manager {
-    background: rgba(255,255,255,0.15);
-    color: rgba(255,255,255,0.9);
-}
-
-/* Role badge — botão clicável no header */
+/* Badge de perfil no header — botão clicável */
 #role-badge {
     background: none;
     border: 1px solid rgba(255,255,255,0.35);
@@ -958,8 +940,8 @@ body.worker-mode .tool-card {
     font-size: 0.65rem;
     font-weight: 800;
     letter-spacing: 0.3px;
-    cursor: pointer;
     white-space: nowrap;
+    cursor: pointer;
     transition: background 0.15s;
 }
 #role-badge:hover,
@@ -975,8 +957,7 @@ body.worker-mode .tool-card {
    ============================================= */
 .hidden { display: none !important; }
 
-/* Sobrepõe hidden para o offline-banner que usa flex */
-#offline-banner:not(.hidden) { display: flex !important; }
+/* #offline-banner é controlado exclusivamente por body.is-offline */
 
 /* =============================================
    PONTO 12 — form-edit margin + admin-tools margin
@@ -1007,9 +988,16 @@ body.worker-mode .tool-card {
     background: var(--card-bg);
     border-radius: 16px;
     padding: 14px;
-    margin-bottom: 12px;
+    margin-bottom: 0; /* margin on .swipe-wrapper */
     border: 1px solid var(--border);
     box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    position: relative;
+    transition: transform 0.25s ease;
+    z-index: 1;
+    will-change: transform;
+    cursor: grab;
+    user-select: none;
+    touch-action: pan-y;
 }
 
 .ref-label { font-size: 0.55rem; font-weight: 800; color: var(--primary); letter-spacing: 0.5px; }
@@ -1090,15 +1078,7 @@ body.worker-mode .tool-card {
 }
 
 /* The card itself slides */
-.item-card {
-    position: relative;
-    transition: transform 0.25s ease;
-    margin-bottom: 0; /* margin now on wrapper */
-    z-index: 1;
-    will-change: transform;
-    cursor: grab;
-    user-select: none;
-}
+
 
 .item-card.is-swiping {
     transition: none; /* instant follow during drag */
@@ -1193,9 +1173,7 @@ body.worker-mode .tool-card {
    is handled by browser; we detect horizontal
    in JS and block vertical only when swiping
    ============================================= */
-.item-card {
-    touch-action: pan-y;
-}
+
 .item-card.is-swiping {
     touch-action: none;
 }
@@ -1796,7 +1774,7 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     font-size: 0.78rem;
     font-weight: 700;
     padding: 10px 16px;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
