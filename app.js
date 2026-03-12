@@ -4170,7 +4170,7 @@ let _patScanStream = null;
 async function patScanStartCamera() {
     try {
         _patScanStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
         });
         const video = document.getElementById('pat-scan-video');
         video.srcObject = _patScanStream;
@@ -4198,10 +4198,10 @@ function patScanCapture() {
     canvas.height = video.videoHeight || 720;
     canvas.getContext('2d').drawImage(video, 0, 0);
     _patScanMime = 'image/jpeg';
-    _patScanB64  = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+    _patScanB64  = canvas.toDataURL('image/jpeg', 0.80).split(',')[1];
 
     const prev = document.getElementById('pat-scan-preview');
-    prev.src = canvas.toDataURL('image/jpeg', 0.92);
+    prev.src = canvas.toDataURL('image/jpeg', 0.80);
     prev.style.display = 'block';
     video.style.display = 'none';
 
@@ -4291,7 +4291,7 @@ async function patScanAnalyse() {
     const apiKey = _getAnthropicKey();
 
     try {
-        let patNum = null, patConf = 0, estab = null, estabConf = 0, cliNum = null;
+        let patNum = null, patConf = 0, estab = null, estabConf = 0;
 
         if (apiKey) {
             // ── Modo Claude Vision (alta qualidade) ──────────────────────────
@@ -4302,36 +4302,37 @@ async function patScanAnalyse() {
                 ? `\\n\\nPALAVRAS-CHAVE DE ESTABELECIMENTO (palavras que identificam o nome do cliente neste documento): ${keywords.map(k => '"' + k + '"').join(', ')}. Se encontrares uma linha que contenha alguma destas palavras, usa essa linha como nome do estabelecimento.`
                 : '';
 
-            const prompt = `És um sistema de OCR especializado em documentos de assistência técnica portugueses (PAT / OS / Ordem de Serviço).
+            const prompt = `És um sistema de OCR especializado em documentos de assistência técnica portugueses.
 
-Analisa a imagem e extrai os campos abaixo. Segue RIGOROSAMENTE estas regras:
+O documento pode ter qualquer formato: folha A4 impressa, papel térmico, recibo manuscrito, ou até uma fita com texto escrito à mão. Adapta-te ao formato que vês.
+
+Extrai os dois campos abaixo. Segue RIGOROSAMENTE estas regras:
 
 CAMPO 1 — pat_numero:
-- Procura um número associado a: "PAT", "N.º PAT", "OS", "N.º OS", "Ordem", "Ref.", "Pedido n.º"
-- O número PAT tem SEMPRE exactamente 8 dígitos — ignora qualquer número com comprimento diferente
-- Extrai APENAS os 8 dígitos (remove prefixos como PAT, OS, etc.)
-- Se não encontrares um número de exactamente 8 dígitos, devolve null
+- É um número com EXACTAMENTE 8 dígitos
+- Pode aparecer sozinho sem qualquer prefixo, ou precedido de "PAT", "OS", "N.º", "Ref." ou similar
+- Ignora qualquer número que não tenha exactamente 8 dígitos
+- Pode estar em qualquer zona do documento
+- Se não encontrares, devolve null
 
 CAMPO 2 — estabelecimento:
-- É o nome do CLIENTE (quem pediu a assistência) — não confundir com o nome da empresa de assistência técnica
-- REGRA IMPORTANTE: o nome do estabelecimento aparece frequentemente imediatamente a seguir ao número PAT, na mesma linha ou na linha seguinte, sem qualquer prefixo ou label
-- Pode também estar nos campos: "Cliente", "Estabelecimento", "Nome", "Empresa", "Local"
-- PALAVRAS-CHAVE DE CADEIA: os estabelecimentos pertencem a uma destas cadeias — "Pingo Doce", "P D D", "Continente", "Recheio". Procura estas palavras no documento e extrai o nome completo que as acompanha (ex: "PINGO DOCE DE BRAGA", "CONTINENTE MODELO DE VIANA"). O nome completo inclui a palavra-chave da cadeia mais o nome específico da loja que aparece junto
-- Devolve o nome em MAIÚSCULAS, sem morada, sem NIF, sem telefone
-- Se não encontrares, devolve null${kwHint}
-
-CAMPO 3 — cliente_numero:
-- Número de cliente: campo curto (1 a 3 dígitos) geralmente junto da palavra "Cliente n.º" ou "Nº Cliente"
-- Não confundir com NIF, telefone, código postal ou número PAT
-- Se não existir ou não tiveres a certeza, devolve null
+- É o nome do local/cliente onde a assistência foi prestada
+- NUNCA tem prefixo ou label — aparece sozinho, sem "Cliente:", "Nome:" ou similar
+- Pode aparecer em qualquer posição relativamente ao número PAT: antes, depois, acima, abaixo
+- CADEIAS CONHECIDAS: o estabelecimento pertence quase sempre a uma destas cadeias — procura estas palavras-chave e extrai o nome completo que as acompanha:
+    • "Pingo Doce" ou "PDD" = Pingo Doce (ex: "PINGO DOCE BRAGA RETAIL", "PDD VIANA")
+    • "Continente" (ex: "CONTINENTE MODELO COIMBRA")
+    • "Recheio" (ex: "RECHEIO PORTO")
+- O nome completo inclui a palavra-chave da cadeia mais o identificador específico da loja
+- Devolve o nome em MAIÚSCULAS${kwHint}
+- Se não encontrares, devolve null
 
 CONFIANÇA:
-- pat_confianca: 0.0 a 1.0 — quão certo estás do número PAT (0.9+ = leste claramente, 0.5 = razoável, <0.4 = incerto)
-- estab_confianca: 0.0 a 1.0 — quão certo estás do nome do estabelecimento
+- pat_confianca: 0.0 a 1.0 (0.9+ = leste claramente, 0.5 = razoável, <0.4 = incerto)
+- estab_confianca: 0.0 a 1.0
 
 Responde APENAS com JSON válido, sem markdown, sem explicações:
-{"pat_numero": "...", "estabelecimento": "...", "cliente_numero": "...", "pat_confianca": 0.0, "estab_confianca": 0.0}`;
-
+{"pat_numero": "...", "estabelecimento": "...", "pat_confianca": 0.0, "estab_confianca": 0.0}`;
             const isProxy = _isProxyUrl(apiKey);
             const endpoint = isProxy ? apiKey : 'https://api.anthropic.com/v1/messages';
             const headers = { 'Content-Type': 'application/json' };
@@ -4368,7 +4369,6 @@ Responde APENAS com JSON válido, sem markdown, sem explicações:
             patConf   = result.pat_confianca || 0;
             estab     = result.estabelecimento;
             estabConf = result.estab_confianca || 0;
-            cliNum    = result.cliente_numero;
 
         } else {
             // ── Modo Tesseract (OCR local, sem chave) ─────────────────────────
@@ -4405,14 +4405,11 @@ Responde APENAS com JSON válido, sem markdown, sem explicações:
             const estabKw = nameLines.find(l => /CAFÉ|SNACK|BAR|REST|HOTEL|MINI|SUPER|MERCADO|LDA|SA\b|UNIP|POSTO/i.test(l));
             if (estabKw) { estab = estabKw.toUpperCase(); estabConf = 0.70; }
             else if (nameLines.length > 0) { estab = nameLines[0].toUpperCase(); estabConf = 0.40; }
-            const cliM = text.match(/(?:n[º°.]?\s*cliente|cliente\s*n[º°.]?)\s*[:\-]?\s*(\d{1,3})\b/i);
-            if (cliM) cliNum = cliM[1];
         }
 
         // ── Preenche resultado ────────────────────────────────────────────────
         _patScanFill('ps-pat',   patNum, patConf,   'ps-pat-conf');
         _patScanFill('ps-estab', estab,  estabConf, 'ps-estab-conf');
-        document.getElementById('ps-cli').value = cliNum || '';
         document.getElementById('pat-scan-result').style.display = 'flex';
         const mode = apiKey ? 'Claude Vision' : 'OCR local';
         _patScanSetStatus(`✓ Análise concluída (${mode}) — revê e confirma`, 'ok');
@@ -4441,14 +4438,9 @@ function _patScanFill(inputId, value, conf, confId) {
 function patScanApply() {
     const pat   = document.getElementById('ps-pat').value.trim();
     const estab = document.getElementById('ps-estab').value.trim().toUpperCase();
-    const cli   = document.getElementById('ps-cli').value.trim();
 
     if (pat)   document.getElementById('pat-numero').value = pat;
     if (estab) document.getElementById('pat-estabelecimento').value = estab;
-    if (cli) {
-        document.getElementById('pat-cliente-num').value = cli;
-        patClientSearch(cli);
-    }
 
     closePatScan();
     showToast('Campos preenchidos — revê antes de guardar', 'info');
