@@ -285,11 +285,12 @@ header h1 {
 /* MAIN CONTENT */
 #main-content { 
     flex: 1;
-    padding: 10px 16px;
+    padding: 12px 10px;
     /* pill: 62px min-height + 10px bottom gap + 10px folga */
     padding-bottom: calc(62px + 22px + env(safe-area-inset-bottom));
     width: 100%;
     min-width: 0;
+    box-sizing: border-box;
 }
 
 /* BOTTOM NAV (mobile only) */
@@ -1959,10 +1960,10 @@ body.is-offline #app-layout {
 
 /* Container principal */
 .dashboard-v2 {
-    padding: 16px 12px 80px;
+    padding: 12px 0 80px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
 }
 
 /* ── Grid 2×2 ── */
@@ -3899,7 +3900,7 @@ body.is-offline #app-layout {
     position: relative;
     overflow: hidden;
     border-radius: 16px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
 
