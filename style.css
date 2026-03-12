@@ -1,3 +1,4 @@
+
 /* ══════════════════════════════════════════════════════════
    1 — VARIÁVEIS & RESET
    ══════════════════════════════════════════════════════════ */
@@ -3847,44 +3848,44 @@ body.is-offline #app-layout {
    ============================================= */
 @media (min-width: 768px) {
 
-    /* Sidebar: fixed to left of app-layout, always visible */
+    /* App layout: row com sidebar à esquerda */
+    #app-layout {
+        flex-direction: row;
+        align-items: flex-start;
+    }
+
+    /* Sidebar: visível permanentemente à esquerda */
     #side-menu {
-        position: sticky;
+        position: relative;
+        left: 0 !important;
         top: 0;
-        left: 0;
         height: calc(100vh - var(--header-h));
         flex-shrink: 0;
         z-index: 100;
         box-shadow: none;
         transition: none;
+        overflow-y: auto;
     }
 
-    /* Hide mobile-only controls */
-    /* #menu-btn already hidden globally */
-    .header-spacer { display: flex; }
+    /* Esconder controlos mobile */
     #close-menu { display: none; }
     #menu-overlay { display: none !important; }
     #bottom-nav { display: none !important; }
     .header-spacer .compact-switch { display: none; }
+    .header-spacer { display: flex; }
 
-    /* Show theme switch inside sidebar footer on desktop */
+    /* Theme switch no footer da sidebar */
     .desktop-theme-switch { display: flex; }
 
-    /* Main: no bottom nav padding needed */
+    /* Main: sem padding de bottom nav */
     #main-content {
         padding: 20px 32px;
         padding-bottom: 40px;
     }
 
-    /* Toasts sit at bottom of screen, not above nav */
+    /* Toasts no fundo do ecrã */
     #toast-container {
         bottom: 20px;
-    }
-
-    /* App layout is a proper row */
-    #app-layout {
-        flex-direction: row;
-        align-items: flex-start;
     }
 }
 
