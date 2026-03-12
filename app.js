@@ -4591,13 +4591,23 @@ async function savePat() {
     const separacao = document.getElementById('pat-separacao').checked;
     const hint      = document.getElementById('pat-numero-hint');
 
-    if (!/^\d{6}$/.test(numero)) {
-        hint.textContent = 'O Nº PAT deve ter exactamente 6 dígitos.';
+    if (!/^\d{8}$/.test(numero)) {
+        hint.textContent = 'O Nº PAT deve ter exactamente 8 dígitos.';
         hint.style.color = 'var(--danger)';
         document.getElementById('pat-numero').focus();
         return;
     }
     hint.textContent = '';
+
+    // Verificar duplicado — não permitir registar a mesma PAT duas vezes
+    const patsExistentes = Object.values(_patCache.data || {});
+    const duplicado = patsExistentes.find(p => p.numero === numero && p.status !== 'levantado');
+    if (duplicado) {
+        hint.textContent = `PAT ${numero} já está registada (${duplicado.estabelecimento || 'sem estabelecimento'}).`;
+        hint.style.color = 'var(--danger)';
+        document.getElementById('pat-numero').focus();
+        return;
+    }
 
     const payload = {
         numero,
@@ -4836,6 +4846,63 @@ function encFilterSet(btn, filter) {
     _encFilter = filter;
     document.querySelectorAll('.enc-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
     renderEncList();
+}
+
+// ── Calculadora de Stock por Peso ─────────────────────────────────────────
+
+function openWeightCalc() {
+    weightCalcReset();
+    document.getElementById('weight-calc-modal').classList.add('active');
+    focusModal('weight-calc-modal');
+    setTimeout(() => document.getElementById('wc-sample-units')?.focus(), 120);
+}
+
+function closeWeightCalc() {
+    document.getElementById('weight-calc-modal').classList.remove('active');
+}
+
+function weightCalcReset() {
+    ['wc-sample-units','wc-sample-weight','wc-total-weight'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    document.getElementById('wc-unit-weight').textContent = '';
+    document.getElementById('wc-result').style.display = 'none';
+}
+
+function weightCalcUpdate() {
+    const sampleUnits  = parseFloat(document.getElementById('wc-sample-units').value);
+    const sampleWeight = parseFloat(document.getElementById('wc-sample-weight').value);
+    const totalWeight  = parseFloat(document.getElementById('wc-total-weight').value);
+
+    const unitWeightEl = document.getElementById('wc-unit-weight');
+    const resultEl     = document.getElementById('wc-result');
+    const resultValEl  = document.getElementById('wc-result-value');
+    const resultSubEl  = document.getElementById('wc-result-sub');
+
+    // Mostrar peso por unidade
+    if (sampleUnits > 0 && sampleWeight > 0) {
+        const unitGrams = sampleWeight / sampleUnits;
+        unitWeightEl.textContent = `≈ ${unitGrams % 1 === 0 ? unitGrams : unitGrams.toFixed(2)} g por unidade`;
+    } else {
+        unitWeightEl.textContent = '';
+    }
+
+    // Calcular resultado
+    if (sampleUnits > 0 && sampleWeight > 0 && totalWeight > 0) {
+        const unitGrams = sampleWeight / sampleUnits;
+        const units     = totalWeight / unitGrams;
+        const rounded   = Math.round(units);
+        const exact     = units % 1 === 0;
+
+        resultValEl.textContent = rounded.toLocaleString('pt-PT');
+        resultSubEl.textContent = exact
+            ? `${totalWeight}g ÷ ${unitGrams % 1 === 0 ? unitGrams : unitGrams.toFixed(2)}g = ${rounded} unidades exactas`
+            : `${totalWeight}g ÷ ${unitGrams.toFixed(2)}g = ${units.toFixed(2)} → arredondado para ${rounded}`;
+        resultEl.style.display = 'flex';
+    } else {
+        resultEl.style.display = 'none';
+    }
 }
 
 // ── Importar PDF de encomenda via Claude ───────────────────────────────────

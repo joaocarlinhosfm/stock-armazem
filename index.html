@@ -150,7 +150,6 @@
                 </div>
                 <div class="enc-filter-row">
                     <button class="enc-filter-btn active" data-filter="all" onclick="encFilterSet(this,'all')">Todas</button>
-                    <button class="enc-filter-btn" data-filter="pendente" onclick="encFilterSet(this,'pendente')">Pendentes</button>
                     <button class="enc-filter-btn" data-filter="parcial" onclick="encFilterSet(this,'parcial')">Parciais</button>
                     <button class="enc-filter-btn" data-filter="recebida" onclick="encFilterSet(this,'recebida')">Recebidas</button>
                 </div>
@@ -378,6 +377,18 @@
                         <span class="settings-item-desc">Percorre todos os produtos e confirma quantidades</span>
                     </div>
                     <button class="btn-settings-action" onclick="startInventory()">Iniciar</button>
+                </div>
+
+                <div class="settings-group-label">FERRAMENTAS</div>
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Calculadora de Stock por Peso</span>
+                        <span class="settings-item-desc">Converte gramas em unidades com base numa amostra</span>
+                    </div>
+                    <button class="btn-settings-action" onclick="openWeightCalc()">
+                        Abrir
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
                 </div>
 
             </section>
@@ -947,6 +958,58 @@
                 <button class="btn-primary" style="width:100%;margin-top:8px" onclick="patScanApply()">
                     ✓ Usar estes dados
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         MODAL: Calculadora de Stock por Peso
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="weight-calc-modal" class="modal-overlay" role="dialog" aria-modal="true">
+        <div class="modal-content weight-calc-content">
+            <div class="modal-header">
+                <button class="ocr-settings-back" onclick="closeWeightCalc()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <h3 class="modal-title">⚖️ Stock por Peso</h3>
+                <button class="modal-close-x" onclick="closeWeightCalc()">✕</button>
+            </div>
+
+            <div class="weight-calc-body">
+
+                <div class="weight-calc-section">
+                    <div class="weight-calc-section-title">1 — Amostra de referência</div>
+                    <div class="weight-calc-row">
+                        <div class="weight-calc-field">
+                            <label class="weight-calc-label">Nº de unidades</label>
+                            <input id="wc-sample-units" class="blue-input weight-calc-input" type="number" min="1" placeholder="5" oninput="weightCalcUpdate()">
+                        </div>
+                        <div class="weight-calc-equals">pesa</div>
+                        <div class="weight-calc-field">
+                            <label class="weight-calc-label">Peso total (g)</label>
+                            <input id="wc-sample-weight" class="blue-input weight-calc-input" type="number" min="0.1" step="0.1" placeholder="50" oninput="weightCalcUpdate()">
+                        </div>
+                    </div>
+                    <div class="weight-calc-unit-weight" id="wc-unit-weight"></div>
+                </div>
+
+                <div class="weight-calc-section">
+                    <div class="weight-calc-section-title">2 — Peso total a converter</div>
+                    <div class="weight-calc-row">
+                        <div class="weight-calc-field" style="flex:1">
+                            <label class="weight-calc-label">Peso medido (g)</label>
+                            <input id="wc-total-weight" class="blue-input weight-calc-input" type="number" min="0" step="0.1" placeholder="5000" oninput="weightCalcUpdate()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="weight-calc-result" id="wc-result" style="display:none">
+                    <div class="weight-calc-result-label">Unidades estimadas</div>
+                    <div class="weight-calc-result-value" id="wc-result-value">—</div>
+                    <div class="weight-calc-result-sub" id="wc-result-sub"></div>
+                </div>
+
+                <button class="btn-cancel weight-calc-reset" onclick="weightCalcReset()">↺ Limpar</button>
             </div>
         </div>
     </div>

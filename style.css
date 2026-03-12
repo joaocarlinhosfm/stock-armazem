@@ -3418,6 +3418,102 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     border-radius: 20px;
 }
 
+/* ── Modal Calculadora de Stock por Peso ── */
+.weight-calc-content {
+    max-width: 380px;
+    width: 94%;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 20px;
+}
+.weight-calc-body {
+    padding: 16px 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.weight-calc-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.weight-calc-section-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+.weight-calc-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+.weight-calc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+.weight-calc-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.weight-calc-input {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 1.05rem;
+    font-weight: 600;
+    text-align: center;
+}
+.weight-calc-equals {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    padding-bottom: 10px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+.weight-calc-unit-weight {
+    font-size: 0.78rem;
+    color: var(--primary);
+    font-weight: 600;
+    min-height: 18px;
+    text-align: center;
+}
+.weight-calc-result {
+    background: var(--primary);
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.weight-calc-result-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.75);
+}
+.weight-calc-result-value {
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.1;
+}
+.weight-calc-result-sub {
+    font-size: 0.68rem;
+    color: rgba(255,255,255,0.7);
+    text-align: center;
+    margin-top: 2px;
+}
+.weight-calc-reset {
+    width: 100%;
+    font-size: 0.78rem;
+}
+
 /* ── Modal sub-definições OCR ── */
 .ocr-settings-content {
     max-width: 400px;
