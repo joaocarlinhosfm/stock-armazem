@@ -3985,23 +3985,72 @@ async function renderPats() {
         const nomeNorm = (pat.estabelecimento || '').trim().toLowerCase();
         const dupCount = estabCount[nomeNorm] || 0;
 
-        card.innerHTML = `
-            <div class="pat-card-top">
-                <div class="pat-card-top-left">
-                    <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}">PAT ${escapeHtml(pat.numero || '—')}</span>
-                    ${separacao ? '<span class="pat-sep-tag">📄 Guia Transporte</span>' : ''}
-                    ${dupCount > 1 ? `<span class="pat-dup-badge" data-estab="${nomeNorm}">⚠ ${dupCount} pedidos</span>` : ''}
-                </div>
-                <span class="pat-dias ${urgente ? 'pat-dias-urgente' : ''}">${diasLabel}</span>
-            </div>
-            <div class="pat-card-estab">${escapeHtml(pat.estabelecimento || 'Sem estabelecimento')}</div>
-            <div class="pat-card-produtos">${(pat.produtos || []).map(p =>
-                `<span class="pat-prod-chip">${escapeHtml(p.codigo || '?')} × ${p.quantidade || 1}</span>`
-            ).join('')}</div>
-            <div class="pat-card-actions" onclick="event.stopPropagation()">
-                <button class="pat-btn-levantado" onclick="marcarPatLevantado('${id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Dar como levantado</button>
-                <button class="pat-btn-apagar" onclick="apagarPat('${id}')">🗑</button>
-            </div>`;
+        // Top row
+        const cardTop = document.createElement('div');
+        cardTop.className = 'pat-card-top';
+        const cardTopLeft = document.createElement('div');
+        cardTopLeft.className = 'pat-card-top-left';
+        const patBadge = document.createElement('span');
+        patBadge.className   = 'pat-badge' + (urgente ? ' pat-badge-urgente' : '');
+        patBadge.textContent = 'PAT ' + (pat.numero || '—');
+        cardTopLeft.appendChild(patBadge);
+        if (separacao) {
+            const sepTag = document.createElement('span');
+            sepTag.className   = 'pat-sep-tag';
+            sepTag.textContent = '📄 Guia Transporte';
+            cardTopLeft.appendChild(sepTag);
+        }
+        if (dupCount > 1) {
+            const dupBadge = document.createElement('span');
+            dupBadge.className        = 'pat-dup-badge';
+            dupBadge.dataset.estab    = nomeNorm;
+            dupBadge.textContent      = `⚠ ${dupCount} pedidos`;
+            cardTopLeft.appendChild(dupBadge);
+        }
+        const diasSpan = document.createElement('span');
+        diasSpan.className   = 'pat-dias' + (urgente ? ' pat-dias-urgente' : '');
+        diasSpan.textContent = diasLabel;
+        cardTop.appendChild(cardTopLeft);
+        cardTop.appendChild(diasSpan);
+
+        // Estabelecimento
+        const estabDiv = document.createElement('div');
+        estabDiv.className   = 'pat-card-estab';
+        estabDiv.textContent = pat.estabelecimento || 'Sem estabelecimento';
+
+        // Chips de produtos
+        const prodsDiv = document.createElement('div');
+        prodsDiv.className = 'pat-card-produtos';
+        (pat.produtos || []).forEach(p => {
+            const chip = document.createElement('span');
+            chip.className   = 'pat-prod-chip';
+            chip.textContent = (p.codigo || '?') + ' × ' + (p.quantidade || 1);
+            prodsDiv.appendChild(chip);
+        });
+
+        // Acções
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'pat-card-actions';
+        actionsDiv.onclick   = e => e.stopPropagation();
+
+        const btnLev = document.createElement('button');
+        btnLev.className = 'pat-btn-levantado';
+        btnLev.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        btnLev.appendChild(document.createTextNode('Dar como levantado'));
+        btnLev.onclick = () => marcarPatLevantado(id);
+
+        const btnDel = document.createElement('button');
+        btnDel.className   = 'pat-btn-apagar';
+        btnDel.textContent = '🗑';
+        btnDel.onclick     = () => apagarPat(id);
+
+        actionsDiv.appendChild(btnLev);
+        actionsDiv.appendChild(btnDel);
+
+        card.appendChild(cardTop);
+        card.appendChild(estabDiv);
+        card.appendChild(prodsDiv);
+        card.appendChild(actionsDiv);
         card.onclick = (e) => {
             const badge = e.target.closest('.pat-dup-badge');
             if (badge) { showDupPopover(badge, badge.dataset.estab); return; }
@@ -4456,11 +4505,18 @@ function patScanApply() {
     const pat   = document.getElementById('ps-pat').value.trim();
     const estab = document.getElementById('ps-estab').value.trim().toUpperCase();
 
-    if (pat)   document.getElementById('pat-numero').value = pat;
-    if (estab) document.getElementById('pat-estabelecimento').value = estab;
-
     closePatScan();
-    showToast('Campos preenchidos — revê antes de guardar', 'info');
+
+    // Abrir o modal (que limpa os campos) e só depois preencher
+    const patModalOpen = document.getElementById('pat-modal').classList.contains('active');
+    if (!patModalOpen) openPatModal();
+
+    // Preencher após o modal estar aberto (openPatModal tem setTimeout de 80ms para focus)
+    setTimeout(() => {
+        if (pat)   document.getElementById('pat-numero').value        = pat;
+        if (estab) document.getElementById('pat-estabelecimento').value = estab;
+        showToast('Campos preenchidos — revê antes de guardar', 'info');
+    }, 100);
 }
 
 function patProductSearch(val) {
@@ -4807,39 +4863,83 @@ function renderEncList() {
     if (_encFilter !== 'all')
         entries = entries.filter(([, e]) => e.estado === _encFilter);
 
+    wrap.innerHTML = '';
+
     if (entries.length === 0) {
-        wrap.innerHTML = `<div class="enc-empty">
-            <div class="enc-empty-icon">📦</div>
-            <div class="enc-empty-text">${_encFilter === 'all' ? 'Nenhuma encomenda registada' : 'Nenhuma encomenda ' + _encFilter}</div>
-        </div>`;
+        const empty = document.createElement('div');
+        empty.className = 'enc-empty';
+        const icon = document.createElement('div');
+        icon.className   = 'enc-empty-icon';
+        icon.textContent = '📦';
+        const txt = document.createElement('div');
+        txt.className   = 'enc-empty-text';
+        txt.textContent = _encFilter === 'all' ? 'Nenhuma encomenda registada' : 'Nenhuma encomenda ' + _encFilter;
+        empty.appendChild(icon);
+        empty.appendChild(txt);
+        wrap.appendChild(empty);
         return;
     }
 
-    wrap.innerHTML = entries.map(([id, enc]) => {
+    entries.forEach(([id, enc]) => {
         const linhas   = Object.values(enc.linhas || {});
         const total    = linhas.reduce((s, l) => s + (parseFloat(l.qtd) || 0), 0);
         const recebido = linhas.reduce((s, l) => s + Math.min(parseFloat(l.recebido) || 0, parseFloat(l.qtd) || 0), 0);
         const pct      = total > 0 ? Math.round(recebido / total * 100) : 0;
-        const badgeCls = `enc-badge enc-badge-${enc.estado || 'pendente'}`;
         const estadoLabel = { pendente: 'Pendente', parcial: 'Parcial', recebida: 'Recebida' }[enc.estado] || 'Pendente';
         const dataFmt  = enc.data ? enc.data.split('-').reverse().join('/') : '—';
-        return `<div class="enc-card" onclick="openEncDetail('${id}')">
-            <div class="enc-card-top">
-                <div>
-                    <div class="enc-card-num">Encomenda Nº ${escapeHtml(enc.num || '—')}</div>
-                    <div class="enc-card-forn">${escapeHtml(enc.fornecedor || '—')}</div>
-                </div>
-                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-                    <span class="${badgeCls}">${estadoLabel}</span>
-                    <span class="enc-card-date">${dataFmt}</span>
-                </div>
-            </div>
-            <div class="enc-progress-wrap">
-                <div class="enc-progress-bar"><div class="enc-progress-fill" style="width:${pct}%"></div></div>
-                <div class="enc-progress-label">${recebido} / ${total} unidades recebidas (${pct}%)</div>
-            </div>
-        </div>`;
-    }).join('');
+
+        // Card
+        const card = document.createElement('div');
+        card.className = 'enc-card';
+        card.onclick   = () => openEncDetail(id);
+
+        // Top row
+        const top = document.createElement('div');
+        top.className = 'enc-card-top';
+
+        const left = document.createElement('div');
+        const num  = document.createElement('div');
+        num.className   = 'enc-card-num';
+        num.textContent = 'Encomenda Nº ' + (enc.num || '—');
+        const forn = document.createElement('div');
+        forn.className   = 'enc-card-forn';
+        forn.textContent = enc.fornecedor || '—';
+        left.appendChild(num);
+        left.appendChild(forn);
+
+        const right = document.createElement('div');
+        right.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;gap:4px';
+        const badge = document.createElement('span');
+        badge.className   = 'enc-badge enc-badge-' + (enc.estado || 'pendente');
+        badge.textContent = estadoLabel;
+        const date = document.createElement('span');
+        date.className   = 'enc-card-date';
+        date.textContent = dataFmt;
+        right.appendChild(badge);
+        right.appendChild(date);
+
+        top.appendChild(left);
+        top.appendChild(right);
+
+        // Progress
+        const progWrap = document.createElement('div');
+        progWrap.className = 'enc-progress-wrap';
+        const bar = document.createElement('div');
+        bar.className = 'enc-progress-bar';
+        const fill = document.createElement('div');
+        fill.className    = 'enc-progress-fill';
+        fill.style.width  = pct + '%';
+        bar.appendChild(fill);
+        const lbl = document.createElement('div');
+        lbl.className   = 'enc-progress-label';
+        lbl.textContent = `${recebido} / ${total} unidades recebidas (${pct}%)`;
+        progWrap.appendChild(bar);
+        progWrap.appendChild(lbl);
+
+        card.appendChild(top);
+        card.appendChild(progWrap);
+        wrap.appendChild(card);
+    });
 }
 
 function encFilterSet(btn, filter) {
