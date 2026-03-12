@@ -2655,31 +2655,36 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
 
 /* Toolbar PAT — título + botão + pesquisa, tudo alinhado */
 .pat-toolbar {
-    padding: 20px 12px 10px;
+    padding: 16px 12px 8px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 .pat-toolbar-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    overflow: hidden;
+    gap: 6px;
+    min-width: 0;
+}
+.pat-toolbar-top .dash-view-title {
+    font-size: 1.1rem;
+    flex: 1;
+    min-width: 0;
 }
 .pat-toolbar-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
 }
 .btn-icon-toolbar {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
     border: 1.5px solid var(--border);
     background: var(--card-bg);
     color: var(--text-main);
@@ -2697,25 +2702,23 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
 .pat-add-btn {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 7px 10px;
-    font-size: 0.78rem;
+    gap: 4px;
+    padding: 6px 10px;
+    font-size: 0.75rem;
     white-space: nowrap;
     flex-shrink: 0;
-    max-width: 130px;
-    overflow: hidden;
 }
 
 /* ── Vista pedidos ── */
 .pat-list-wrap { padding: 0 12px 100px; }
 
-/* ── Card de PAT pendente ── */
+/* ── Card de PAT pendente — compacto ── */
 .pat-card {
     background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 14px 16px;
-    margin-bottom: 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
     cursor: pointer;
     transition: transform 0.15s;
     -webkit-tap-highlight-color: transparent;
@@ -2736,65 +2739,65 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 6px;
-    gap: 8px;
+    margin-bottom: 4px;
+    gap: 6px;
 }
-.pat-card-top-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pat-card-top-left { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .pat-badge {
     display: inline-block;
     background: var(--primary-soft);
     color: var(--primary);
-    border-radius: 8px;
-    padding: 3px 10px;
-    font-size: 0.78rem;
+    border-radius: 6px;
+    padding: 2px 7px;
+    font-size: 0.72rem;
     font-weight: 800;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
 }
 .pat-badge-urgente { background: rgba(239,68,68,0.12); color: var(--danger); }
 .pat-sep-tag {
     display: inline-block;
     background: rgba(245,158,11,0.12);
     color: #d97706;
-    border-radius: 8px;
-    padding: 3px 9px;
-    font-size: 0.73rem;
+    border-radius: 6px;
+    padding: 2px 7px;
+    font-size: 0.68rem;
     font-weight: 700;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
 }
-.pat-dias { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.pat-dias { font-size: 0.68rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
 .pat-dias-urgente { color: var(--danger); font-weight: 700; }
 .pat-card-estab {
-    font-size: 0.90rem;
+    font-size: 0.82rem;
     font-weight: 600;
     color: var(--text-main);
-    margin-bottom: 8px;
+    margin-bottom: 5px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.pat-card-produtos { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; min-height: 8px; }
+.pat-card-produtos { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; min-height: 0; }
 .pat-prod-chip {
     background: var(--input-fill);
     color: var(--text-muted);
-    border-radius: 6px;
-    padding: 2px 8px;
-    font-size: 0.70rem;
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-size: 0.66rem;
     font-weight: 700;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
 }
 .pat-card-separacao .pat-prod-chip {
     background: rgba(245,158,11,0.10);
     color: #d97706;
 }
-.pat-card-actions { display: flex; gap: 8px; }
+.pat-card-actions { display: flex; gap: 6px; }
 .pat-btn-levantado {
     flex: 1;
-    padding: 9px 12px;
+    padding: 7px 10px;
     background: #16a34a;
     color: #fff;
     border: none;
-    border-radius: 10px;
-    font-size: 0.80rem;
+    border-radius: 8px;
+    font-size: 0.74rem;
     font-weight: 700;
     cursor: pointer;
     font-family: 'Inter', sans-serif;
@@ -2802,18 +2805,18 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 5px;
     letter-spacing: 0.01em;
 }
 .pat-btn-levantado:active { background: #15803d; opacity: 0.9; }
 .dark-mode .pat-btn-levantado { background: #16a34a; color: #fff; }
 .pat-btn-apagar {
-    padding: 8px 12px;
+    padding: 6px 10px;
     background: rgba(239,68,68,0.08);
     color: var(--danger);
     border: 1px solid rgba(239,68,68,0.20);
-    border-radius: 10px;
-    font-size: 0.85rem;
+    border-radius: 8px;
+    font-size: 0.80rem;
     cursor: pointer;
     font-family: 'Inter', sans-serif;
     transition: background 0.15s;
@@ -2981,15 +2984,15 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
 .pat-cliente-badge {
     display: inline-flex;
     align-items: center;
-    padding: 3px 10px;
+    padding: 2px 7px;
     border-radius: 20px;
-    font-size: 0.72rem;
+    font-size: 0.67rem;
     font-weight: 700;
     letter-spacing: 0.05em;
     background: rgba(37,99,235,0.1);
     color: var(--primary);
     border: 1px solid rgba(37,99,235,0.22);
-    margin-left: 4px;
+    margin-left: 2px;
 }
 .dark-mode .pat-cliente-badge {
     background: rgba(96,165,250,0.14);
@@ -3060,10 +3063,10 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
 .pat-dup-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 3px 9px;
+    gap: 3px;
+    padding: 2px 7px;
     border-radius: 20px;
-    font-size: 0.70rem;
+    font-size: 0.67rem;
     font-weight: 800;
     letter-spacing: 0.03em;
     background: rgba(168, 85, 247, 0.12);
