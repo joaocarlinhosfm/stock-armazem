@@ -4850,6 +4850,49 @@ document.addEventListener('DOMContentLoaded', () => {
             if (viewId === 'view-encomendas') loadEncomendas();
         };
     }
+
+    // Desktop layout: sidebar visível, bottom nav escondido
+    function applyDesktopLayout() {
+        const isDesktop = window.innerWidth >= 768;
+        const bottomNav = document.getElementById('bottom-nav');
+        const sideMenu  = document.getElementById('side-menu');
+        const appLayout = document.getElementById('app-layout');
+
+        if (isDesktop) {
+            if (bottomNav) bottomNav.style.display = 'none';
+            if (sideMenu) {
+                sideMenu.style.position = 'relative';
+                sideMenu.style.left = '0';
+                sideMenu.style.top = '0';
+                sideMenu.style.height = 'calc(100vh - 60px)';
+                sideMenu.style.boxShadow = 'none';
+                sideMenu.style.zIndex = '100';
+                sideMenu.style.overflowY = 'auto';
+            }
+            if (appLayout) {
+                appLayout.style.flexDirection = 'row';
+                appLayout.style.alignItems = 'flex-start';
+            }
+        } else {
+            if (bottomNav) bottomNav.style.display = '';
+            if (sideMenu) {
+                sideMenu.style.position = '';
+                sideMenu.style.left = '';
+                sideMenu.style.top = '';
+                sideMenu.style.height = '';
+                sideMenu.style.boxShadow = '';
+                sideMenu.style.zIndex = '';
+                sideMenu.style.overflowY = '';
+            }
+            if (appLayout) {
+                appLayout.style.flexDirection = '';
+                appLayout.style.alignItems = '';
+            }
+        }
+    }
+
+    applyDesktopLayout();
+    window.addEventListener('resize', applyDesktopLayout);
 });
 
 // ── Render lista ──────────────────────────────────────────────────────────
