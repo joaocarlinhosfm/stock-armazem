@@ -4316,8 +4316,8 @@ CAMPO 2 — estabelecimento:
 - É o nome do CLIENTE (quem pediu a assistência) — não confundir com o nome da empresa de assistência técnica
 - REGRA IMPORTANTE: o nome do estabelecimento aparece frequentemente imediatamente a seguir ao número PAT, na mesma linha ou na linha seguinte, sem qualquer prefixo ou label
 - Pode também estar nos campos: "Cliente", "Estabelecimento", "Nome", "Empresa", "Local"
+- PALAVRAS-CHAVE DE CADEIA: os estabelecimentos pertencem a uma destas cadeias — "Pingo Doce", "P D D", "Continente", "Recheio". Procura estas palavras no documento e extrai o nome completo que as acompanha (ex: "PINGO DOCE DE BRAGA", "CONTINENTE MODELO DE VIANA"). O nome completo inclui a palavra-chave da cadeia mais o nome específico da loja que aparece junto
 - Devolve o nome em MAIÚSCULAS, sem morada, sem NIF, sem telefone
-- Se o nome tiver "Lda", "SA", "Unip" ou similar, inclui-o
 - Se não encontrares, devolve null${kwHint}
 
 CAMPO 3 — cliente_numero:
