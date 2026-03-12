@@ -915,6 +915,7 @@
 
             <div id="pat-scan-status" class="pat-scan-status"></div>
 
+            <!-- Botões: câmara e galeria -->
             <div class="pat-scan-btns" id="pat-scan-row-load">
                 <button class="btn-primary pat-scan-file-label" id="pat-scan-cam-btn" onclick="patScanStartCamera()">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -926,13 +927,17 @@
                 </label>
                 <input type="file" id="pat-scan-file" accept="image/*" style="display:none" onchange="patScanFromFile(this)">
             </div>
-            <!-- Botão de captura (só visível quando câmara activa) -->
+            <!-- Botão de captura (visível quando câmara activa) -->
             <div class="pat-scan-btns" id="pat-scan-row-capture" style="display:none">
                 <button class="btn-primary pat-scan-file-label" onclick="patScanCapture()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/><path fill="none" stroke="currentColor" stroke-width="2" d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/></svg>
                     Tirar Foto
                 </button>
-                <button class="btn-cancel" onclick="patScanStopCamera()">✕ Cancelar</button>
+                <label class="btn-cancel pat-scan-file-label" for="pat-scan-file-2" style="flex:0.6">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Galeria
+                </label>
+                <input type="file" id="pat-scan-file-2" accept="image/*" style="display:none" onchange="patScanFromFile(this)">
             </div>
 
             <div class="pat-scan-btns" id="pat-scan-row-analyse" style="display:none">

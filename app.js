@@ -3642,7 +3642,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.68';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.69';
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -4181,7 +4181,13 @@ async function patScanStartCamera() {
         document.getElementById('pat-scan-row-capture').style.display = 'flex';
         _patScanSetStatus('Câmara activa — aponta para o documento e captura', '');
     } catch(e) {
-        showToast('Câmara não disponível — usa a Galeria', 'error');
+        // Câmara não disponível — mostrar botões de fallback (Galeria)
+        document.getElementById('pat-scan-placeholder').style.display = 'flex';
+        document.getElementById('pat-scan-row-load').style.display    = 'flex';
+        // Esconder botão câmara pois não está disponível
+        const camBtn = document.getElementById('pat-scan-cam-btn');
+        if (camBtn) camBtn.style.display = 'none';
+        _patScanSetStatus('Câmara não disponível — usa a Galeria', 'error');
     }
 }
 
@@ -4202,7 +4208,12 @@ function patScanCapture() {
     patScanStopCamera();
     document.getElementById('pat-scan-row-capture').style.display = 'none';
     document.getElementById('pat-scan-row-analyse').style.display = 'flex';
-    _patScanSetStatus('Foto capturada — clica em Analisar', '');
+    // Auto-analisar se houver chave API configurada
+    if (_getAnthropicKey()) {
+        patScanAnalyse();
+    } else {
+        _patScanSetStatus('Foto capturada — clica em Analisar', '');
+    }
 }
 
 function patScanStopCamera() {
@@ -4259,7 +4270,10 @@ function patScanReset() {
     document.getElementById('pat-scan-row-capture').style.display = 'none';
     document.getElementById('pat-scan-row-analyse').style.display = 'none';
     document.getElementById('pat-scan-result').style.display      = 'none';
-    document.getElementById('pat-scan-file').value = '';
+    const f1 = document.getElementById('pat-scan-file');
+    const f2 = document.getElementById('pat-scan-file-2');
+    if (f1) f1.value = '';
+    if (f2) f2.value = '';
     _patScanSetStatus('', '');
 }
 
@@ -4283,19 +4297,40 @@ async function patScanAnalyse() {
             // ── Modo Claude Vision (alta qualidade) ──────────────────────────
             _patScanSetStatus('A analisar com Claude Vision…', 'loading');
 
-            const prompt = `Analisa esta imagem de um documento de pedido de assistência técnica (PAT / ordem de serviço).
+            const keywords = _getOcrKeywords();
+            const kwHint = keywords.length > 0
+                ? `\\n\\nPALAVRAS-CHAVE DE ESTABELECIMENTO (palavras que identificam o nome do cliente neste documento): ${keywords.map(k => '"' + k + '"').join(', ')}. Se encontrares uma linha que contenha alguma destas palavras, usa essa linha como nome do estabelecimento.`
+                : '';
 
-Extrai os seguintes campos e responde APENAS com JSON válido, sem markdown:
+            const prompt = `És um sistema de OCR especializado em documentos de assistência técnica portugueses (PAT / OS / Ordem de Serviço).
 
-{
-  "pat_numero": "número da PAT ou OS (só dígitos) ou null",
-  "estabelecimento": "nome do estabelecimento em MAIÚSCULAS ou null",
-  "cliente_numero": "número de cliente 1-3 dígitos ou null",
-  "pat_confianca": 0.0,
-  "estab_confianca": 0.0
-}
+Analisa a imagem e extrai os campos abaixo. Segue RIGOROSAMENTE estas regras:
 
-pat_confianca e estab_confianca são números de 0 a 1.` + (_getOcrKeywords().length > 0 ? `\n\nPalavras-chave de estabelecimento: ${_getOcrKeywords().map(k => '"' + k + '"').join(', ')}. Usa a linha com estas palavras como estabelecimento.` : '') + ` Responde APENAS com o JSON.`;
+CAMPO 1 — pat_numero:
+- Procura um número associado a: "PAT", "N.º PAT", "OS", "N.º OS", "Ordem", "Ref.", "Pedido n.º"
+- O número PAT tem SEMPRE exactamente 8 dígitos — ignora qualquer número com comprimento diferente
+- Extrai APENAS os 8 dígitos (remove prefixos como PAT, OS, etc.)
+- Se não encontrares um número de exactamente 8 dígitos, devolve null
+
+CAMPO 2 — estabelecimento:
+- É o nome do CLIENTE (quem pediu a assistência) — não confundir com o nome da empresa de assistência técnica
+- REGRA IMPORTANTE: o nome do estabelecimento aparece frequentemente imediatamente a seguir ao número PAT, na mesma linha ou na linha seguinte, sem qualquer prefixo ou label
+- Pode também estar nos campos: "Cliente", "Estabelecimento", "Nome", "Empresa", "Local"
+- Devolve o nome em MAIÚSCULAS, sem morada, sem NIF, sem telefone
+- Se o nome tiver "Lda", "SA", "Unip" ou similar, inclui-o
+- Se não encontrares, devolve null${kwHint}
+
+CAMPO 3 — cliente_numero:
+- Número de cliente: campo curto (1 a 3 dígitos) geralmente junto da palavra "Cliente n.º" ou "Nº Cliente"
+- Não confundir com NIF, telefone, código postal ou número PAT
+- Se não existir ou não tiveres a certeza, devolve null
+
+CONFIANÇA:
+- pat_confianca: 0.0 a 1.0 — quão certo estás do número PAT (0.9+ = leste claramente, 0.5 = razoável, <0.4 = incerto)
+- estab_confianca: 0.0 a 1.0 — quão certo estás do nome do estabelecimento
+
+Responde APENAS com JSON válido, sem markdown, sem explicações:
+{"pat_numero": "...", "estabelecimento": "...", "cliente_numero": "...", "pat_confianca": 0.0, "estab_confianca": 0.0}`;
 
             const isProxy = _isProxyUrl(apiKey);
             const endpoint = isProxy ? apiKey : 'https://api.anthropic.com/v1/messages';
