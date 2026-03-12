@@ -4838,6 +4838,114 @@ function encFilterSet(btn, filter) {
     renderEncList();
 }
 
+// ── Importar PDF de encomenda via Claude ───────────────────────────────────
+
+async function encImportPdf(inp) {
+    const file = inp.files[0];
+    if (!file) return;
+    inp.value = '';
+
+    const apiKey = _getAnthropicKey();
+    if (!apiKey) {
+        showToast('Configura o Worker em Definições → Leitura por fotografia', 'error');
+        return;
+    }
+
+    const label = document.getElementById('enc-pdf-label');
+    const originalHTML = label ? label.innerHTML : '';
+    if (label) {
+        label.innerHTML = '⏳';
+        label.style.pointerEvents = 'none';
+        label.style.opacity = '0.6';
+    }
+    showToast('A analisar PDF…', 'info');
+
+    try {
+        const b64 = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload  = e => res(e.target.result.split(',')[1]);
+            r.onerror = () => rej(new Error('Erro a ler o ficheiro'));
+            r.readAsDataURL(file);
+        });
+
+        const prompt = `Analisa este documento PDF de encomenda a fornecedor.
+
+Extrai os seguintes campos e responde APENAS com JSON válido, sem markdown:
+
+{
+  "numero": "número da encomenda (alfanumérico) ou null",
+  "fornecedor": "nome do fornecedor em MAIÚSCULAS ou null",
+  "linhas": [
+    { "ref": "referência do produto ou string vazia", "nome": "designação do produto em MAIÚSCULAS", "qtd": número }
+  ]
+}
+
+REGRAS:
+- numero: procura campos "N.º Encomenda", "Ordem de Compra", "OC", "PO", "Ref."
+- fornecedor: quem fornece os produtos — procura "Fornecedor", "Supplier", "Para", "A/C"
+- linhas: extrai TODAS as linhas de produtos com referência, designação e quantidade encomendada
+- qtd deve ser número inteiro — usa coluna "Qtd", "Quantidade", "Qty" ou similar
+- Se qtd não existir num produto, usa 1
+- Responde APENAS com o JSON`;
+
+        const isProxy  = _isProxyUrl(apiKey);
+        const endpoint = isProxy ? apiKey : 'https://api.anthropic.com/v1/messages';
+        const headers  = { 'Content-Type': 'application/json' };
+        if (!isProxy) {
+            headers['x-api-key'] = apiKey;
+            headers['anthropic-version'] = '2023-06-01';
+            headers['anthropic-dangerous-allow-browser'] = 'true';
+        }
+
+        const resp = await fetch(endpoint, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                model: 'claude-haiku-4-5-20251001',
+                max_tokens: 1500,
+                messages: [{ role: 'user', content: [
+                    { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
+                    { type: 'text', text: prompt }
+                ]}]
+            })
+        });
+
+        if (!resp.ok) {
+            const e = await resp.json().catch(() => ({}));
+            if (resp.status === 401) throw new Error('Chave API inválida — actualiza em Definições');
+            throw new Error(e?.error?.message || `HTTP ${resp.status}`);
+        }
+
+        const data   = await resp.json();
+        const raw    = data.content?.map(b => b.text || '').join('') || '';
+        const result = JSON.parse(raw.replace(/```json|```/gi, '').trim());
+
+        openNovaEncomenda();
+        if (result.numero)     document.getElementById('enc-num').value        = result.numero;
+        if (result.fornecedor) document.getElementById('enc-fornecedor').value = result.fornecedor;
+
+        if (Array.isArray(result.linhas) && result.linhas.length > 0) {
+            document.getElementById('enc-linhas-wrap').innerHTML = '';
+            for (const l of result.linhas) {
+                encAddLinha(l.ref || '', l.nome || '', l.qtd ?? 1);
+            }
+        }
+
+        const n = result.linhas?.length || 0;
+        showToast(`PDF importado — ${n} produto${n !== 1 ? 's' : ''} encontrado${n !== 1 ? 's' : ''}. Revê antes de guardar`, 'ok');
+
+    } catch(e) {
+        showToast('Erro ao importar PDF: ' + (e?.message || e), 'error');
+        console.error('[encImportPdf]', e);
+    } finally {
+        if (label) {
+            label.innerHTML = originalHTML;
+            label.style.pointerEvents = '';
+            label.style.opacity = '';
+        }
+    }
+}
+
 // ── Modal criar ───────────────────────────────────────────────────────────
 function openNovaEncomenda() {
     _encEditId = null;

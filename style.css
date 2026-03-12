@@ -3610,6 +3610,12 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     gap: 8px;
     margin-bottom: 10px;
 }
+.enc-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
 .enc-add-btn {
     display: inline-flex;
     align-items: center;
