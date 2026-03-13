@@ -771,7 +771,12 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
     text-overflow: ellipsis;
     text-align: center;
     min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
 }
+.admin-tab svg { flex-shrink: 0; }
 
 .admin-tab:hover { color: var(--primary); }
 
