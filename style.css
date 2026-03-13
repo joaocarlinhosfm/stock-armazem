@@ -3711,44 +3711,66 @@ body.is-offline #app-layout {
     flex-direction: column;
     gap: 12px;
 }
-/* Itens dentro do modal OCR — reset do layout horizontal do .settings-item */
-.ocr-settings-body .settings-item {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    justify-content: flex-start !important;
-    gap: 10px;
-    width: 100%;
-    box-sizing: border-box;
-    padding: 14px;
+/* Cards do modal OCR — classes próprias sem herança do .settings-item */
+.ocr-group-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-top: 4px;
+    margin-bottom: 6px;
+    padding-left: 2px;
 }
-.ocr-settings-body .settings-item-info {
+.ocr-field-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
 }
-.ocr-settings-body .settings-api-key-wrap {
+.ocr-field-title {
+    font-weight: 700;
+    font-size: 0.90rem;
+    color: var(--text-main);
+}
+.ocr-field-desc {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+.ocr-input-row {
     display: flex;
     gap: 8px;
     width: 100%;
 }
-.ocr-settings-body .settings-api-input {
+.ocr-text-input {
     flex: 1;
     min-width: 0;
     box-sizing: border-box;
 }
-.ocr-settings-body .settings-keywords-input {
+.ocr-btn-inline {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+.ocr-btn-full {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    justify-content: center;
+}
+.ocr-textarea {
     width: 100%;
     box-sizing: border-box;
     resize: vertical;
     min-height: 110px;
+    font-family: 'Inter', sans-serif;
 }
-.ocr-settings-body .btn-settings-action {
-    width: 100%;
-    box-sizing: border-box;
-    text-align: center;
-}
-.ocr-settings-body .settings-item-hint {
+.ocr-field-hint {
     font-size: 0.70rem;
     color: var(--text-muted);
     line-height: 1.45;
