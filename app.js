@@ -124,12 +124,20 @@ async function hashPassword(password) {
 
 // Carrega lista de utilizadores da Firebase
 async function loadUsers() {
+    // Garante que o token Firebase está obtido antes de qualquer pedido
+    try { await getAuthToken(); } catch(_e) { /* offline — usa cache */ }
+
     try {
         const res  = await fetch(await authUrl(USERS_URL));
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        return data || {};
+        if (data && !data.error) {
+            localStorage.setItem('hiperfrio-users-cache', JSON.stringify(data));
+            return data;
+        }
+        throw new Error(data?.error || 'resposta inválida');
     } catch (e) {
-        // Offline: tenta cache local
+        console.warn('loadUsers falhou, usa cache local:', e.message);
         const cached = localStorage.getItem('hiperfrio-users-cache');
         return cached ? JSON.parse(cached) : {};
     }
@@ -167,9 +175,15 @@ async function handleLogin(e) {
     spinner.classList.remove('hidden');
 
     try {
+        showError(''); // limpa erro anterior
+
+        // Carrega utilizadores (inclui obtenção do token Firebase internamente)
         const users = await loadUsers();
-        // Cache offline
-        if (Object.keys(users).length) localStorage.setItem('hiperfrio-users-cache', JSON.stringify(users));
+
+        if (!Object.keys(users).length) {
+            showError('Não foi possível contactar o servidor. Verifica a ligação.');
+            return;
+        }
 
         const userObj = users[username];
         if (!userObj) { showError('Utilizador não encontrado.'); return; }
@@ -336,12 +350,20 @@ function closeSwitchRoleModal() {
 
 // Inicializa a app após o perfil estar definido
 async function bootApp() {
-    try { await getAuthToken(); } catch(_e) { /* offline — continua com cache */ }
+    // Garante token válido antes de qualquer fetch — crítico após login
+    try {
+        await getAuthToken();
+    } catch(_e) {
+        console.warn('bootApp: sem token, continua offline');
+    }
     _scheduleTokenRenewal();
-    renderList();
-    fetchCollection('ferramentas');
-    fetchCollection('funcionarios');
-    _fetchClientes();
+    // Lança fetches em paralelo após ter token
+    await Promise.all([
+        renderList(),
+        fetchCollection('ferramentas'),
+        fetchCollection('funcionarios'),
+        _fetchClientes(),
+    ]).catch(e => console.warn('bootApp fetch error:', e));
     updatePinStatusUI();
     updateOfflineBanner();
     // Navega para o dashboard como vista inicial
