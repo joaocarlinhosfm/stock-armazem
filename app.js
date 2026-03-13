@@ -124,22 +124,37 @@ async function hashPassword(password) {
 
 // Carrega lista de utilizadores da Firebase
 async function loadUsers() {
-    // Garante que o token Firebase está obtido antes de qualquer pedido
-    try { await getAuthToken(); } catch(_e) { /* offline — usa cache */ }
-
+    // 1) Garante token Firebase
     try {
-        const res  = await fetch(await authUrl(USERS_URL));
+        await getAuthToken();
+        console.debug('[Login] token Firebase OK');
+    } catch(e) {
+        console.warn('[Login] sem token Firebase:', e.message, '— tenta cache local');
+    }
+
+    // 2) Pedido à Firebase
+    try {
+        const url = await authUrl(USERS_URL);
+        console.debug('[Login] a carregar utilizadores de:', url.replace(/auth=.*/, 'auth=***'));
+        const res  = await fetch(url);
+        console.debug('[Login] resposta HTTP:', res.status);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        console.debug('[Login] dados recebidos:', data ? Object.keys(data) : 'null');
         if (data && !data.error) {
             localStorage.setItem('hiperfrio-users-cache', JSON.stringify(data));
             return data;
         }
         throw new Error(data?.error || 'resposta inválida');
     } catch (e) {
-        console.warn('loadUsers falhou, usa cache local:', e.message);
+        console.warn('[Login] loadUsers falhou:', e.message, '— usa cache local');
         const cached = localStorage.getItem('hiperfrio-users-cache');
-        return cached ? JSON.parse(cached) : {};
+        if (cached) {
+            console.debug('[Login] cache local encontrada');
+            return JSON.parse(cached);
+        }
+        console.error('[Login] sem cache local — utilizadores não disponíveis');
+        return {};
     }
 }
 
@@ -188,11 +203,22 @@ async function handleLogin(e) {
             return;
         }
 
+        console.debug('[Login] utilizadores disponíveis:', Object.keys(users));
         const userObj = users[username];
-        if (!userObj) { showError('Utilizador não encontrado.'); return; }
+        if (!userObj) {
+            console.warn('[Login] utilizador não encontrado:', username, '— disponíveis:', Object.keys(users));
+            showError('Utilizador não encontrado.');
+            return;
+        }
 
+        console.debug('[Login] utilizador encontrado, a verificar password...');
         const pwHash = await hashPassword(password);
-        if (pwHash !== userObj.passwordHash) { showError('Password incorrecta.'); return; }
+        if (pwHash !== userObj.passwordHash) {
+            console.warn('[Login] password incorrecta para:', username);
+            showError('Password incorrecta.');
+            return;
+        }
+        console.debug('[Login] password OK, role:', userObj.role);
 
         // Login bem sucedido
         const role = userObj.role || 'worker';
