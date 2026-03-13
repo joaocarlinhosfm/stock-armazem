@@ -222,24 +222,36 @@ async function createUser() {
     const pwHash = await hashPassword(password);
     const url    = await authUrl(`${USERS_BASE_URL}/${nameRaw}.json`);
 
-    // Verifica se já existe
-    const checkRes = await fetch(url);
-    const existing = await checkRes.json();
-    if (existing) { showToast('Utilizador já existe', 'error'); return; }
+    try {
+        // Verifica se já existe — só considera existente se HTTP 200 e valor não-null
+        const checkRes = await fetch(url);
+        if (checkRes.ok) {
+            const existing = await checkRes.json();
+            if (existing !== null && !existing.error) {
+                showToast('Utilizador já existe', 'error'); return;
+            }
+        }
 
-    await fetch(url, {
-        method:  'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ role, passwordHash: pwHash, createdAt: Date.now() })
-    });
+        const saveRes = await fetch(url, {
+            method:  'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ role, passwordHash: pwHash, createdAt: Date.now() })
+        });
+        if (!saveRes.ok) {
+            const err = await saveRes.json().catch(() => ({}));
+            showToast('Erro ao guardar: ' + (err.error || saveRes.status), 'error');
+            return;
+        }
 
-    // Invalida cache
-    localStorage.removeItem('hiperfrio-users-cache');
-
-    document.getElementById('new-user-name').value = '';
-    document.getElementById('new-user-pass').value = '';
-    showToast(`Utilizador "${nameRaw}" criado`);
-    renderUsersList();
+        // Invalida cache
+        localStorage.removeItem('hiperfrio-users-cache');
+        document.getElementById('new-user-name').value = '';
+        document.getElementById('new-user-pass').value = '';
+        showToast(`Utilizador "${nameRaw}" criado`);
+        renderUsersList();
+    } catch (e) {
+        showToast('Erro de ligação: ' + (e.message || e), 'error');
+    }
 }
 
 async function renderUsersList() {
