@@ -13,28 +13,62 @@
 </head>
 <body>
 
-    <!-- Ecrã de seleção de perfil -->
+    <!-- Ecrã de login -->
     <div id="role-screen">
-        <div id="role-screen-inner">
-            <div id="role-logo">❄️</div>
-            <h1 id="role-title">HIPERFRIO STOCK</h1>
-            <p id="role-subtitle">Como queres entrar?</p>
-            <div id="role-buttons">
-                <button class="role-btn role-btn-worker" onclick="enterAsWorker()">
-                    <span class="role-btn-icon">👤</span>
-                    <div>
-                        <span class="role-btn-label">Funcionário</span>
-                        <span class="role-btn-desc">Consulta de stock e ferramentas</span>
-                    </div>
-                </button>
-                <button class="role-btn role-btn-manager" onclick="enterAsManager()">
-                    <span class="role-btn-icon">🔑</span>
-                    <div>
-                        <span class="role-btn-label">Gestor</span>
-                        <span class="role-btn-desc">Acesso completo com PIN</span>
-                    </div>
-                </button>
+        <div class="ls-bg">
+            <div class="ls-blob ls-blob-1"></div>
+            <div class="ls-blob ls-blob-2"></div>
+            <div class="ls-blob ls-blob-3"></div>
+        </div>
+        <div class="ls-card">
+            <div class="ls-logo-wrap">
+                <svg class="ls-snowflake" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <line x1="32" y1="4"  x2="32" y2="60" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+                    <line x1="4"  y1="32" x2="60" y2="32" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+                    <line x1="10.06" y1="10.06" x2="53.94" y2="53.94" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+                    <line x1="53.94" y1="10.06" x2="10.06" y2="53.94" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+                    <circle cx="32" cy="32" r="7" fill="currentColor"/>
+                    <circle cx="32" cy="4"  r="3.5" fill="currentColor" opacity="0.6"/>
+                    <circle cx="32" cy="60" r="3.5" fill="currentColor" opacity="0.6"/>
+                    <circle cx="4"  cy="32" r="3.5" fill="currentColor" opacity="0.6"/>
+                    <circle cx="60" cy="32" r="3.5" fill="currentColor" opacity="0.6"/>
+                    <circle cx="10.06" cy="10.06" r="3" fill="currentColor" opacity="0.4"/>
+                    <circle cx="53.94" cy="53.94" r="3" fill="currentColor" opacity="0.4"/>
+                    <circle cx="53.94" cy="10.06" r="3" fill="currentColor" opacity="0.4"/>
+                    <circle cx="10.06" cy="53.94" r="3" fill="currentColor" opacity="0.4"/>
+                </svg>
             </div>
+            <div class="ls-header">
+                <h1 class="ls-title">HIPERFRIO</h1>
+                <p class="ls-subtitle">Sistema de Gestão de Stock</p>
+            </div>
+
+            <form class="ls-form" onsubmit="handleLogin(event)">
+                <div class="ls-field">
+                    <label class="ls-label">Utilizador</label>
+                    <div class="ls-input-wrap">
+                        <svg class="ls-input-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+                        <input id="ls-username" type="text" class="ls-input" placeholder="Nome de utilizador"
+                            autocomplete="username" autocorrect="off" autocapitalize="none" spellcheck="false" required>
+                    </div>
+                </div>
+                <div class="ls-field">
+                    <label class="ls-label">Password</label>
+                    <div class="ls-input-wrap">
+                        <svg class="ls-input-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                        <input id="ls-password" type="password" class="ls-input" placeholder="Password"
+                            autocomplete="current-password" required>
+                        <button type="button" class="ls-eye-btn" onclick="toggleLoginPassword()" tabindex="-1" aria-label="Mostrar password">
+                            <svg id="ls-eye-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="ls-error" id="ls-error"></div>
+                <button type="submit" class="ls-btn" id="ls-submit-btn">
+                    <span id="ls-btn-text">Entrar</span>
+                    <div class="ls-btn-spinner hidden" id="ls-spinner"></div>
+                </button>
+            </form>
         </div>
     </div>
 
@@ -252,6 +286,7 @@
                 <button class="admin-tab active" id="tab-workers" onclick="switchAdminTab('workers')">👥 Funcionários</button>
                 <button class="admin-tab" id="tab-tools" onclick="switchAdminTab('tools')">🪛 Ferramentas</button>
                 <button class="admin-tab" id="tab-clientes" onclick="switchAdminTab('clientes')">🏪 Clientes</button>
+                <button class="admin-tab" id="tab-users" onclick="switchAdminTab('users')">🔐 Utilizadores</button>
                 <button class="admin-tab" id="tab-settings" onclick="switchAdminTab('settings')">⚙️ Definições</button>
             </div>
 
@@ -295,6 +330,35 @@
                     <div id="clientes-import-preview" class="clientes-preview"></div>
                 </div>
                 <div id="clientes-list" class="scroll-list"></div>
+            </section>
+
+            <!-- Tab: Utilizadores -->
+            <section class="admin-panel" id="panel-users">
+                <div class="settings-group-label" style="margin-top:0">CRIAR UTILIZADOR</div>
+                <div class="user-create-card">
+                    <div class="user-create-row">
+                        <div class="user-create-field">
+                            <label class="enc-label">Nome de utilizador</label>
+                            <input id="new-user-name" class="blue-input" type="text" placeholder="ex: joao.silva"
+                                autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+                        </div>
+                        <div class="user-create-field">
+                            <label class="enc-label">Perfil</label>
+                            <select id="new-user-role" class="blue-input">
+                                <option value="worker">Funcionário</option>
+                                <option value="manager">Gestor</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="user-create-field">
+                        <label class="enc-label">Password</label>
+                        <input id="new-user-pass" class="blue-input" type="password" placeholder="Password do utilizador">
+                    </div>
+                    <button class="btn-primary" style="margin-top:4px" onclick="createUser()">➕ Criar utilizador</button>
+                </div>
+
+                <div class="settings-group-label">UTILIZADORES ACTIVOS</div>
+                <div id="users-list"></div>
             </section>
 
             <!-- Tab: Definições -->

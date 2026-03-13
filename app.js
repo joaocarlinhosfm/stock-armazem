@@ -95,11 +95,13 @@ function applyRole(role) {
         badge.onclick = () => openSwitchRoleModal();
         document.querySelector('header')?.appendChild(badge);
     }
+    const savedUser = localStorage.getItem('hiperfrio-username') || '';
+    const displayName = savedUser || (role === 'worker' ? 'Funcionário' : 'Gestor');
     if (role === 'worker') {
-        badge.textContent = '👤 Funcionário ▾';
+        badge.textContent = `👤 ${displayName} ▾`;
         badge.className   = 'role-badge-worker';
     } else {
-        badge.textContent = '🔑 Gestor ▾';
+        badge.textContent = `🔑 ${displayName} ▾`;
         badge.className   = 'role-badge-manager';
     }
 
@@ -107,27 +109,177 @@ function applyRole(role) {
     document.getElementById('role-screen')?.classList.add('hidden');
 }
 
-// Botão "Funcionário" no ecrã de seleção
-function enterAsWorker() {
-    localStorage.setItem(ROLE_KEY, 'worker');
-    applyRole('worker');
-    bootApp();
+// ──────────────────────────────────────────────────────────
+// SISTEMA DE LOGIN POR USERNAME + PASSWORD
+// ──────────────────────────────────────────────────────────
+const USERS_URL = `${BASE_URL}/config/users.json`;
+const USER_KEY  = 'hiperfrio-username';
+
+// Hash SHA-256 da password (com salt diferente do PIN)
+async function hashPassword(password) {
+    const data    = new TextEncoder().encode(password + 'hiperfrio-pw-salt');
+    const hashBuf = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Botão "Gestor" no ecrã de seleção
-async function enterAsManager() {
-    const btn = document.querySelector('.role-btn-manager');
-    if (btn) { btn.disabled = true; btn.querySelector('.role-btn-label').textContent = 'A verificar...'; }
+// Carrega lista de utilizadores da Firebase
+async function loadUsers() {
     try {
-        const hasPin = await hasPinConfigured();
-        if (!hasPin) {
-            openPinSetupModal('first-time');
-        } else {
-            openPinModal('role');
-        }
-    } finally {
-        if (btn) { btn.disabled = false; btn.querySelector('.role-btn-label').textContent = 'Gestor'; }
+        const res  = await fetch(await authUrl(USERS_URL));
+        const data = await res.json();
+        return data || {};
+    } catch (e) {
+        // Offline: tenta cache local
+        const cached = localStorage.getItem('hiperfrio-users-cache');
+        return cached ? JSON.parse(cached) : {};
     }
+}
+
+// Toggle mostrar/esconder password
+function toggleLoginPassword() {
+    const inp  = document.getElementById('ls-password');
+    const icon = document.getElementById('ls-eye-icon');
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    icon.innerHTML = show
+        ? '<path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd"/><path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z"/>'
+        : '<path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>';
+}
+
+// Handler do formulário de login
+async function handleLogin(e) {
+    e.preventDefault();
+    const username = document.getElementById('ls-username').value.trim().toLowerCase();
+    const password = document.getElementById('ls-password').value;
+    const errEl    = document.getElementById('ls-error');
+    const btn      = document.getElementById('ls-submit-btn');
+    const btnText  = document.getElementById('ls-btn-text');
+    const spinner  = document.getElementById('ls-spinner');
+
+    const showError = (msg) => {
+        errEl.textContent = msg;
+        errEl.classList.add('visible');
+    };
+
+    errEl.classList.remove('visible');
+    btn.disabled = true;
+    btnText.textContent = 'A verificar...';
+    spinner.classList.remove('hidden');
+
+    try {
+        const users = await loadUsers();
+        // Cache offline
+        if (Object.keys(users).length) localStorage.setItem('hiperfrio-users-cache', JSON.stringify(users));
+
+        const userObj = users[username];
+        if (!userObj) { showError('Utilizador não encontrado.'); return; }
+
+        const pwHash = await hashPassword(password);
+        if (pwHash !== userObj.passwordHash) { showError('Password incorrecta.'); return; }
+
+        // Login bem sucedido
+        const role = userObj.role || 'worker'; // 'manager' | 'worker'
+        localStorage.setItem(ROLE_KEY, role);
+        localStorage.setItem(USER_KEY, username);
+
+        // Animação de saída
+        const card = document.querySelector('.ls-card');
+        if (card) { card.style.transition = 'opacity 0.3s, transform 0.3s'; card.style.opacity = '0'; card.style.transform = 'scale(0.96) translateY(-10px)'; }
+        await new Promise(r => setTimeout(r, 280));
+
+        applyRole(role);
+        bootApp();
+
+    } catch (err) {
+        showError('Erro de ligação. Tenta novamente.');
+        console.error('Login error:', err);
+    } finally {
+        btn.disabled = false;
+        btnText.textContent = 'Entrar';
+        spinner.classList.add('hidden');
+    }
+}
+
+// Compatibilidade com PIN modal (gestor criado via Admin)
+function enterAsWorker() { /* obsoleto */ }
+async function enterAsManager() { /* obsoleto */ }
+
+// ──────────────────────────────────────────────────────────
+// GESTÃO DE UTILIZADORES (Admin → tab Utilizadores)
+// ──────────────────────────────────────────────────────────
+const USERS_BASE_URL = `${BASE_URL}/config/users`;
+
+async function createUser() {
+    const nameRaw  = document.getElementById('new-user-name')?.value.trim().toLowerCase();
+    const role     = document.getElementById('new-user-role')?.value;
+    const password = document.getElementById('new-user-pass')?.value;
+
+    if (!nameRaw)    { showToast('Indica o nome de utilizador', 'error'); return; }
+    if (!password || password.length < 4) { showToast('Password deve ter pelo menos 4 caracteres', 'error'); return; }
+    // Só letras, números, ponto e underscore
+    if (!/^[a-z0-9._]+$/.test(nameRaw)) { showToast('Nome só pode ter letras, números, ponto e _', 'error'); return; }
+
+    const pwHash = await hashPassword(password);
+    const url    = await authUrl(`${USERS_BASE_URL}/${nameRaw}.json`);
+
+    // Verifica se já existe
+    const checkRes = await fetch(url);
+    const existing = await checkRes.json();
+    if (existing) { showToast('Utilizador já existe', 'error'); return; }
+
+    await fetch(url, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ role, passwordHash: pwHash, createdAt: Date.now() })
+    });
+
+    // Invalida cache
+    localStorage.removeItem('hiperfrio-users-cache');
+
+    document.getElementById('new-user-name').value = '';
+    document.getElementById('new-user-pass').value = '';
+    showToast(`Utilizador "${nameRaw}" criado`);
+    renderUsersList();
+}
+
+async function renderUsersList() {
+    const el = document.getElementById('users-list');
+    if (!el) return;
+    el.innerHTML = '<div class="empty-msg">A carregar...</div>';
+
+    try {
+        const res   = await fetch(await authUrl(USERS_URL));
+        const users = await res.json() || {};
+
+        if (!Object.keys(users).length) {
+            el.innerHTML = '<div class="empty-msg">Nenhum utilizador criado ainda.</div>';
+            return;
+        }
+
+        el.innerHTML = Object.entries(users).map(([name, u]) => `
+            <div class="admin-list-row" style="gap:10px;">
+                <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+                    <span style="font-size:1.3rem">${u.role === 'manager' ? '🔑' : '👤'}</span>
+                    <div style="min-width:0;">
+                        <div style="font-weight:700;font-size:0.9rem;color:var(--text-main)">${name}</div>
+                        <div style="font-size:0.72rem;color:var(--text-muted)">${u.role === 'manager' ? 'Gestor' : 'Funcionário'}</div>
+                    </div>
+                </div>
+                <button class="btn-danger-sm" onclick="deleteUser('${name}')">🗑</button>
+            </div>
+        `).join('');
+    } catch (e) {
+        el.innerHTML = '<div class="empty-msg">Erro ao carregar utilizadores.</div>';
+    }
+}
+
+async function deleteUser(username) {
+    if (!confirm(`Eliminar utilizador "${username}"?`)) return;
+    const url = await authUrl(`${USERS_BASE_URL}/${username}.json`);
+    await fetch(url, { method: 'DELETE' });
+    localStorage.removeItem('hiperfrio-users-cache');
+    showToast(`Utilizador "${username}" eliminado`);
+    renderUsersList();
 }
 
 // Trocar de perfil — sem reload para ser mais rápido
@@ -143,8 +295,16 @@ function switchRole() {
     Object.keys(cache).forEach(k => { cache[k].data = null; cache[k].lastFetch = 0; });
     // Para renovação de token
     clearTimeout(_tokenRenewalTimer);
-    // Mostra ecrã de seleção
-    document.getElementById('role-screen')?.classList.remove('hidden');
+    // Limpa username
+    localStorage.removeItem('hiperfrio-username');
+    localStorage.removeItem('hiperfrio-users-cache');
+    // Limpa campos do login
+    const u = document.getElementById('ls-username'); if (u) u.value = '';
+    const p = document.getElementById('ls-password'); if (p) p.value = '';
+    const e = document.getElementById('ls-error'); if (e) e.classList.remove('visible');
+    // Mostra ecrã de login
+    const rs = document.getElementById('role-screen');
+    if (rs) { rs.style.opacity='0'; rs.style.transition='opacity 0s'; rs.classList.remove('hidden'); requestAnimationFrame(() => { rs.style.transition='opacity 0.3s'; rs.style.opacity='1'; }); }
     // Esconde todas as vistas
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     // Reset nav activo
@@ -2141,7 +2301,7 @@ async function exportToolHistoryCSV() {
 // =============================================
 // ADMIN — slider com swipe entre tabs
 // =============================================
-const ADMIN_TABS  = ['workers', 'tools', 'clientes', 'settings'];
+const ADMIN_TABS  = ['workers', 'tools', 'clientes', 'users', 'settings'];
 let   _adminIdx   = 0;   // índice activo
 
 function switchAdminTab(tab, animate = true) {
@@ -2155,14 +2315,15 @@ function switchAdminTab(tab, animate = true) {
     );
 
     if (tab === 'clientes') renderClientesList();
+    if (tab === 'users')    renderUsersList();
     if (tab === 'settings') { _updateOcrKeyStatus(); _loadOcrKeywordsInput(); }
     // Move slider (sem .active nos painéis — visibilidade é por transform)
     const slider = document.getElementById('admin-slider');
     if (slider) {
         if (!animate) slider.classList.add('is-dragging');
-        // Cada painel ocupa 1/4 do slider (width:400%)
-        // translateX(-idx * 25%) move para o painel certo
-        slider.style.transform = `translateX(-${idx * 25}%)`;
+        // Cada painel ocupa 1/5 do slider (width:500%)
+        // translateX(-idx * 20%) move para o painel certo
+        slider.style.transform = `translateX(-${idx * 20}%)`;
         if (!animate) {
             // força reflow para garantir sem transição no reset
             void slider.offsetWidth;

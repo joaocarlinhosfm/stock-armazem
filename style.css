@@ -792,7 +792,7 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
 /* ── Slider — flex com 4 painéis lado a lado ── */
 .admin-slider {
     display: flex;
-    width: 400%;
+    width: 500%;
     transform: translateX(0%);
     transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
     will-change: transform;
@@ -805,8 +805,8 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
 
 /* ── Cada painel ocupa 1/4 do slider = 100% do ecrã ── */
 .admin-panel {
-    width: 25%;
-    min-width: 25%;
+    width: 20%;
+    min-width: 20%;
     flex-shrink: 0;
     /* painéis nunca ficam display:none — visibilidade por transform */
     display: block !important;
@@ -1187,96 +1187,231 @@ body.worker-mode .tool-card {
 /* =============================================
    ECRÃ DE SELEÇÃO DE PERFIL
    ============================================= */
+/* ══════════════════════════════════════════════════════════
+   LOGIN SCREEN
+   ══════════════════════════════════════════════════════════ */
 #role-screen {
     position: fixed;
     inset: 0;
-    z-index: 4999; /* abaixo dos modais (5000) para que o PIN setup apareça por cima */
-    background: var(--primary);
+    z-index: 4999;
+    background: #f0f4ff;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 24px;
+    overflow: hidden;
+}
+#role-screen.hidden { display: none; }
+
+/* Blobs de fundo */
+.ls-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.ls-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.35;
+    animation: ls-float 8s ease-in-out infinite;
+}
+.ls-blob-1 {
+    width: 480px; height: 480px;
+    background: radial-gradient(circle, #93c5fd, #2563eb);
+    top: -120px; left: -120px;
+    animation-delay: 0s;
+}
+.ls-blob-2 {
+    width: 360px; height: 360px;
+    background: radial-gradient(circle, #c7d2fe, #4f46e5);
+    bottom: -80px; right: -80px;
+    animation-delay: -3s;
+}
+.ls-blob-3 {
+    width: 260px; height: 260px;
+    background: radial-gradient(circle, #bae6fd, #0284c7);
+    bottom: 20%; left: 10%;
+    animation-delay: -5s;
+}
+@keyframes ls-float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33%  { transform: translate(16px, -20px) scale(1.04); }
+    66%  { transform: translate(-12px, 10px) scale(0.97); }
 }
 
-#role-screen.hidden {
-    display: none;
-}
-
-#role-screen-inner {
+/* Card principal */
+.ls-card {
+    position: relative;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.9);
+    border-radius: 28px;
+    padding: 40px 36px 36px;
     width: 100%;
-    max-width: 380px;
+    max-width: 400px;
+    box-shadow: 0 20px 60px rgba(37,99,235,0.12), 0 4px 16px rgba(0,0,0,0.06);
+    animation: ls-card-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes ls-card-in {
+    from { opacity: 0; transform: translateY(28px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Logo / snowflake */
+.ls-logo-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    animation: ls-logo-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+@keyframes ls-logo-in {
+    from { opacity: 0; transform: rotate(-30deg) scale(0.6); }
+    to   { opacity: 1; transform: rotate(0deg) scale(1); }
+}
+.ls-snowflake {
+    width: 52px; height: 52px;
+    color: #2563eb;
+    animation: ls-spin-slow 20s linear infinite;
+}
+@keyframes ls-spin-slow {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+/* Cabeçalho */
+.ls-header {
     text-align: center;
+    margin-bottom: 32px;
+    animation: ls-fade-up 0.5s ease 0.2s both;
 }
-
-#role-logo {
-    font-size: 4rem;
-    margin-bottom: 12px;
-    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2));
+@keyframes ls-fade-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
-
-#role-title {
-    color: white;
-    font-size: 1.4rem;
+.ls-title {
+    font-size: 1.5rem;
     font-weight: 900;
-    letter-spacing: 1px;
-    margin: 0 0 6px;
+    color: #1e3a8a;
+    letter-spacing: 2px;
+    margin: 0 0 4px;
+}
+.ls-subtitle {
+    font-size: 0.82rem;
+    color: #64748b;
+    font-weight: 500;
+    margin: 0;
 }
 
-#role-subtitle {
-    color: rgba(255,255,255,0.75);
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin: 0 0 36px;
-}
-
-#role-buttons {
+/* Formulário */
+.ls-form {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 16px;
+    animation: ls-fade-up 0.5s ease 0.3s both;
 }
-
-.role-btn {
-    width: 100%;
-    background: white;
-    border: none;
-    border-radius: 18px;
-    padding: 20px 24px;
+.ls-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.ls-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.ls-input-wrap {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 18px;
-    cursor: pointer;
-    text-align: left;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-    transition: transform 0.15s, box-shadow 0.15s;
 }
-
-.role-btn:active {
-    transform: scale(0.97);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.role-btn-icon {
-    font-size: 2rem;
+.ls-input-icon {
+    position: absolute;
+    left: 14px;
+    width: 16px; height: 16px;
+    color: #94a3b8;
+    pointer-events: none;
     flex-shrink: 0;
 }
-
-.role-btn-label {
-    display: block;
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: var(--text-main);
-    margin-bottom: 2px;
+.ls-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 13px 14px 13px 40px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 14px;
+    background: #f8fafc;
+    font-size: 0.95rem;
+    font-family: 'Inter', sans-serif;
+    color: #0f172a;
+    transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+    outline: none;
 }
+.ls-input:focus {
+    border-color: #2563eb;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+.ls-eye-btn {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+}
+.ls-eye-btn svg { width: 18px; height: 18px; }
+.ls-eye-btn:hover { color: #2563eb; }
 
-.role-btn-desc {
-    display: block;
-    font-size: 0.78rem;
+/* Erro */
+.ls-error {
+    font-size: 0.8rem;
+    color: #dc2626;
     font-weight: 600;
-    color: var(--text-muted);
+    min-height: 0;
+    text-align: center;
+    display: none;
 }
+.ls-error.visible { display: block; }
 
-.role-btn-worker .role-btn-icon { color: #2563eb; }
-.role-btn-manager .role-btn-icon { color: #d97706; }
+/* Botão */
+.ls-btn {
+    width: 100%;
+    padding: 15px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.15s, transform 0.12s, box-shadow 0.15s;
+    box-shadow: 0 4px 14px rgba(37,99,235,0.3);
+    margin-top: 4px;
+}
+.ls-btn:hover { background: #1d4ed8; box-shadow: 0 6px 20px rgba(37,99,235,0.35); }
+.ls-btn:active { transform: scale(0.98); }
+.ls-btn:disabled { background: #93c5fd; cursor: not-allowed; box-shadow: none; }
+.ls-btn-spinner {
+    width: 18px; height: 18px;
+    border: 2.5px solid rgba(255,255,255,0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: ls-spin 0.7s linear infinite;
+}
+@keyframes ls-spin { to { transform: rotate(360deg); } }
+.ls-btn-spinner.hidden { display: none; }
+
+/* Manter compatibilidade com código antigo que ainda usa estas classes */
+.role-btn { display: none; }
+.role-btn-worker { display: none; }
+.role-btn-manager { display: none; }
 
 /* =============================================
    WORKER MODE — esconde elementos de gestor
@@ -3919,6 +4054,39 @@ body.is-offline #app-layout {
     text-decoration: none;
 }
 
+
+.user-create-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.user-create-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.user-create-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.btn-danger-sm {
+    background: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fca5a5;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+.btn-danger-sm:hover { background: #fecaca; }
 
 /* ══════════════════════════════════════════════════════════
    12 — DESKTOP (≥ 768px)
