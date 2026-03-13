@@ -58,7 +58,7 @@ function _scheduleTokenRenewal() {
                 _authToken = await window._firebaseUser.getIdToken(true);
                 _authTokenExp = Date.now() + 3_500_000;
                 console.debug('[Auth] token renovado');
-            } catch(e) { console.warn('[Auth] falha na renovação:'', e.message); }
+            } catch(e) { console.warn('[Auth] falha na renovação:', e.message); }
         }
         _scheduleTokenRenewal(); // agenda próxima renovação
     }, 45 * 60 * 1000); // 45 minutos
