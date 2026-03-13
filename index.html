@@ -1016,37 +1016,39 @@
     ═══════════════════════════════════════════════════════════════ -->
     <div id="ocr-settings-modal" class="modal-overlay" role="dialog" aria-modal="true">
         <div class="modal-content ocr-settings-content">
-            <div class="modal-header">
+            <div style="display:flex;align-items:center;gap:8px;padding:14px 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0;">
                 <button class="ocr-settings-back" onclick="closeOcrSettings()">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                 </button>
-                <h3 class="modal-title">Leitura por fotografia</h3>
-                <button class="modal-close-x" onclick="closeOcrSettings()">✕</button>
+                <h3 style="flex:1;font-size:0.95rem;font-weight:700;margin:0;">Leitura por fotografia</h3>
+                <button class="modal-close-x" style="flex-shrink:0;" onclick="closeOcrSettings()">✕</button>
             </div>
 
-            <div class="ocr-settings-body">
-                <div class="ocr-group-label">API</div>
-                <div class="ocr-field-card">
-                    <span class="ocr-field-title">Chave / URL do Worker</span>
-                    <span class="ocr-field-desc" id="ocr-api-status-modal">Não configurada</span>
-                    <div class="ocr-input-row">
-                        <input type="text" id="inp-anthropic-key" class="blue-input ocr-text-input"
+            <div class="ocr-settings-body" style="overflow-y:auto;padding:14px 14px 28px;display:flex;flex-direction:column;gap:12px;">
+                <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:2px;">API</div>
+                <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;">
+                    <div style="font-weight:700;font-size:0.90rem;color:var(--text-main);">Chave / URL do Worker</div>
+                    <div id="ocr-api-status-modal" style="font-size:0.76rem;color:var(--text-muted);line-height:1.4;">Não configurada</div>
+                    <div style="display:flex;gap:8px;width:100%;">
+                        <input type="text" id="inp-anthropic-key" class="blue-input"
+                            style="flex:1;min-width:0;box-sizing:border-box;"
                             placeholder="https://...workers.dev" autocomplete="off" autocorrect="off" spellcheck="false">
-                        <button class="btn-settings-action ocr-btn-inline" onclick="saveAnthropicKey()">Guardar</button>
+                        <button class="btn-settings-action" style="flex-shrink:0;white-space:nowrap;" onclick="saveAnthropicKey()">Guardar</button>
                     </div>
-                    <button class="btn-settings-action ocr-btn-full" id="btn-test-ocr" onclick="testAnthropicProxy()">🔗 Testar ligação</button>
-                    <span class="ocr-field-hint">Cola o URL do Cloudflare Worker. Guardado apenas neste dispositivo.</span>
+                    <button class="btn-settings-action" id="btn-test-ocr" style="width:100%;box-sizing:border-box;text-align:center;" onclick="testAnthropicProxy()">🔗 Testar ligação</button>
+                    <div style="font-size:0.70rem;color:var(--text-muted);line-height:1.45;">Cola o URL do Cloudflare Worker. Guardado apenas neste dispositivo.</div>
                 </div>
 
-                <div class="ocr-group-label">ESTABELECIMENTO</div>
-                <div class="ocr-field-card">
-                    <span class="ocr-field-title">Palavras-chave</span>
-                    <span class="ocr-field-desc">Claude procura estas palavras para identificar o nome do estabelecimento</span>
-                    <textarea id="inp-ocr-keywords" class="blue-input ocr-textarea"
+                <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:2px;">ESTABELECIMENTO</div>
+                <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;">
+                    <div style="font-weight:700;font-size:0.90rem;color:var(--text-main);">Palavras-chave</div>
+                    <div style="font-size:0.76rem;color:var(--text-muted);line-height:1.4;">Claude procura estas palavras para identificar o nome do estabelecimento</div>
+                    <textarea id="inp-ocr-keywords" class="blue-input"
+                        style="width:100%;box-sizing:border-box;resize:vertical;min-height:110px;"
                         placeholder="Ex: PINGO DOCE&#10;CONTINENTE&#10;RECHEIO" rows="5"
                         autocorrect="off" spellcheck="false"></textarea>
-                    <button class="btn-settings-action ocr-btn-full" onclick="saveOcrKeywords()">Guardar palavras-chave</button>
-                    <span class="ocr-field-hint">Uma por linha.</span>
+                    <button class="btn-settings-action" style="width:100%;box-sizing:border-box;text-align:center;" onclick="saveOcrKeywords()">Guardar palavras-chave</button>
+                    <div style="font-size:0.70rem;color:var(--text-muted);line-height:1.45;">Uma por linha.</div>
                 </div>
             </div>
         </div>
