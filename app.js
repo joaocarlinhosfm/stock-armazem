@@ -156,31 +156,34 @@ function toggleLoginPassword() {
 
 // Handler do formulário de login
 async function handleLogin(e) {
-    e.preventDefault();
-    const username = document.getElementById('ls-username').value.trim().toLowerCase();
-    const password = document.getElementById('ls-password').value;
-    const errEl    = document.getElementById('ls-error');
-    const btn      = document.getElementById('ls-submit-btn');
-    const btnText  = document.getElementById('ls-btn-text');
-    const spinner  = document.getElementById('ls-spinner');
+    if (e) e.preventDefault();
+
+    const errEl  = document.getElementById('ls-error');
+    const btn    = document.getElementById('ls-submit-btn');
+    const btnText= document.getElementById('ls-btn-text');
+    const spinner= document.getElementById('ls-spinner');
 
     const showError = (msg) => {
+        if (!errEl) return;
         errEl.textContent = msg;
-        errEl.classList.add('visible');
+        if (msg) errEl.classList.add('visible');
+        else     errEl.classList.remove('visible');
     };
 
-    errEl.classList.remove('visible');
-    btn.disabled = true;
-    btnText.textContent = 'A verificar...';
-    spinner.classList.remove('hidden');
+    const username = (document.getElementById('ls-username')?.value || '').trim().toLowerCase();
+    const password =  document.getElementById('ls-password')?.value || '';
+
+    if (!username || !password) { showError('Preenche o utilizador e a password.'); return; }
+
+    showError('');
+    if (btn)     btn.disabled = true;
+    if (btnText) btnText.textContent = 'A verificar...';
+    if (spinner) spinner.classList.remove('hidden');
 
     try {
-        showError(''); // limpa erro anterior
-
-        // Carrega utilizadores (inclui obtenção do token Firebase internamente)
         const users = await loadUsers();
 
-        if (!Object.keys(users).length) {
+        if (!users || !Object.keys(users).length) {
             showError('Não foi possível contactar o servidor. Verifica a ligação.');
             return;
         }
@@ -192,13 +195,17 @@ async function handleLogin(e) {
         if (pwHash !== userObj.passwordHash) { showError('Password incorrecta.'); return; }
 
         // Login bem sucedido
-        const role = userObj.role || 'worker'; // 'manager' | 'worker'
+        const role = userObj.role || 'worker';
         localStorage.setItem(ROLE_KEY, role);
         localStorage.setItem(USER_KEY, username);
 
-        // Animação de saída
+        showError('');
         const card = document.querySelector('.ls-card');
-        if (card) { card.style.transition = 'opacity 0.3s, transform 0.3s'; card.style.opacity = '0'; card.style.transform = 'scale(0.96) translateY(-10px)'; }
+        if (card) {
+            card.style.transition = 'opacity 0.3s, transform 0.3s';
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.96) translateY(-10px)';
+        }
         await new Promise(r => setTimeout(r, 280));
 
         applyRole(role);
@@ -206,11 +213,11 @@ async function handleLogin(e) {
 
     } catch (err) {
         showError('Erro de ligação. Tenta novamente.');
-        console.error('Login error:', err);
+        console.error('[Login] erro:', err);
     } finally {
-        btn.disabled = false;
-        btnText.textContent = 'Entrar';
-        spinner.classList.add('hidden');
+        if (btn)     btn.disabled = false;
+        if (btnText) btnText.textContent = 'Entrar';
+        if (spinner) spinner.classList.add('hidden');
     }
 }
 
