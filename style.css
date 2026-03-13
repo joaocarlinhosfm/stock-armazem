@@ -978,10 +978,16 @@ body.worker-mode .tool-card {
    5 — STOCK (Cards, Swipe, Bulk, Registo)
    ══════════════════════════════════════════════════════════ */
 /* STOCK CARDS */
+.swipe-wrapper {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    margin-bottom: 8px;
+}
 .item-card {
     background: var(--card-bg);
     border-radius: 16px;
-    padding: 14px;
+    padding: 10px 12px;
     margin-bottom: 0; /* margin on .swipe-wrapper */
     border: 1px solid var(--border);
     box-shadow: 0 2px 6px rgba(0,0,0,0.02);
@@ -995,7 +1001,7 @@ body.worker-mode .tool-card {
 }
 
 .ref-label { font-size: 0.55rem; font-weight: 800; color: var(--primary); letter-spacing: 0.5px; }
-.ref-value { font-size: 1.15rem; font-weight: 900; color: var(--text-main); display: block; margin-bottom: 2px; }
+.ref-value { font-size: 1rem; font-weight: 900; color: var(--text-main); display: block; margin-bottom: 2px; }
 
 .loc-pill {
     display: inline-flex;
@@ -3967,12 +3973,7 @@ body.is-offline #app-layout {
 /* =============================================
    SWIPE GESTURES — STOCK CARDS
    ============================================= */
-.swipe-wrapper {
-    position: relative;
-    overflow: hidden;
-    border-radius: 16px;
-    margin-bottom: 10px;
-}
+/* swipe-wrapper base: see section 5 (Stock) */
 
 
 /* ══════════════════════════════════════════════════════════
