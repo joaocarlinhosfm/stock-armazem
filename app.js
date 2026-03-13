@@ -44,7 +44,7 @@ async function getAuthToken() {
     }
 
     _authTokenExp = now + 3_500_000; // ~58 min
-    console.debug('✅ Firebase Auth: token obtido com sucesso');
+    console.debug('[Auth] token obtido');
     return _authToken;
 }
 
@@ -57,8 +57,8 @@ function _scheduleTokenRenewal() {
             try {
                 _authToken = await window._firebaseUser.getIdToken(true);
                 _authTokenExp = Date.now() + 3_500_000;
-                console.debug('🔄 Token renovado proactivamente');
-            } catch(e) { console.warn('Falha na renovação do token:', e.message); }
+                console.debug('[Auth] token renovado');
+            } catch(e) { console.warn('[Auth] falha na renovação:'', e.message); }
         }
         _scheduleTokenRenewal(); // agenda próxima renovação
     }, 45 * 60 * 1000); // 45 minutos
@@ -98,10 +98,10 @@ function applyRole(role) {
     const savedUser = localStorage.getItem('hiperfrio-username') || '';
     const displayName = savedUser || (role === 'worker' ? 'Funcionário' : 'Gestor');
     if (role === 'worker') {
-        badge.textContent = `👤 ${displayName} ▾`;
+        badge.textContent = `${displayName} ▾`;
         badge.className   = 'role-badge-worker';
     } else {
-        badge.textContent = `🔑 ${displayName} ▾`;
+        badge.textContent = `${displayName} ▾`;
         badge.className   = 'role-badge-manager';
     }
 
@@ -285,7 +285,7 @@ async function renderUsersList() {
         el.innerHTML = Object.entries(users).map(([name, u]) => `
             <div class="admin-list-row" style="gap:10px;">
                 <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-                    <span style="font-size:1.3rem">${u.role === 'manager' ? '🔑' : '👤'}</span>
+                    <span style="font-size:1.3rem">${u.role === 'manager' ? 'G' : 'F'}</span>
                     <div style="min-width:0;">
                         <div style="font-weight:700;font-size:0.9rem;color:var(--text-main)">${name}</div>
                         <div style="font-size:0.72rem;color:var(--text-muted)">${u.role === 'manager' ? 'Gestor' : 'Funcionário'}</div>
@@ -526,7 +526,7 @@ async function syncQueue() {
     updateOfflineBanner();
     if (failed.length < q.length) {
         const synced = q.length - failed.length;
-        showToast(`${synced} alteração(ões) sincronizada(s)!`);
+        showToast(`${synced} alteração(ões) sincronizada(s)`);
         // Invalida cache e refresca para limpar _tmp_ IDs
         invalidateCache('stock');
         invalidateCache('ferramentas');
@@ -568,7 +568,7 @@ function showToast(msg, type = 'success') {
     t.className = 'toast';
     if (type === 'error') t.style.borderLeftColor = 'var(--danger)';
     const icon = document.createElement('span');
-    icon.textContent = type === 'success' ? '✅' : '❌';
+    icon.textContent = type === 'success' ? '✅' : '✗';
     const text = document.createElement('span');
     text.textContent = msg;
     t.appendChild(icon);
@@ -727,8 +727,15 @@ async function renderDashboard(force = false) {
         labelEl.textContent = label;
 
         const iconEl = document.createElement('span');
-        iconEl.className   = 'dv2-card-icon';
-        iconEl.textContent = icon;
+        iconEl.className = 'dv2-card-icon';
+        const _dashIcons = {
+            box:   '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z"/><path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>',
+            list:  '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>',
+            check: '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>',
+            clock: '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>',
+            doc:   '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>',
+        };
+        iconEl.innerHTML = _dashIcons[icon] || icon;
 
         top.appendChild(labelEl);
         top.appendChild(iconEl);
@@ -773,7 +780,7 @@ async function renderDashboard(force = false) {
     grid.className = 'dv2-grid';
 
     grid.appendChild(_metricCard({
-        label: 'Produtos', value: total, icon: '📦',
+        label: 'Produtos', value: total, icon: '◻',
         sub: `${comStock} com stock · ${semStock} esgotados`,
         accent: '#2563eb',
         progress: total > 0 ? comStock / total : 1,
@@ -781,7 +788,7 @@ async function renderDashboard(force = false) {
     }));
 
     grid.appendChild(_metricCard({
-        label: 'Sem stock', value: semStock, icon: semStock > 0 ? '⚠️' : '✅',
+        label: 'Sem stock', value: semStock, icon: semStock > 0 ? '' : '✅',
         sub: semStock > 0 ? `${Math.round(semStock/total*100)}% do inventário` : 'Tudo com stock',
         accent: semStock > 0 ? '#dc2626' : '#16a34a',
         warn: semStock > 0,
@@ -790,9 +797,9 @@ async function renderDashboard(force = false) {
     }));
 
     grid.appendChild(_metricCard({
-        label: 'Ferramentas', value: `${alocadas}/${totalFerr}`, icon: '🪛',
+        label: 'Ferramentas', value: `${alocadas}/${totalFerr}`, icon: '',
         sub: alocadasHaMuito.length > 0
-            ? `⚠ ${alocadasHaMuito.length} há +${ALERTA_DIAS}d`
+            ? `! ${alocadasHaMuito.length} há +${ALERTA_DIAS}d`
             : alocadas === 0 ? 'Todas em armazém' : `${totalFerr - alocadas} em armazém`,
         accent: alocadasHaMuito.length > 0 ? '#f59e0b' : '#2563eb',
         warn: alocadasHaMuito.length > 0,
@@ -801,7 +808,7 @@ async function renderDashboard(force = false) {
     }));
 
     grid.appendChild(_metricCard({
-        label: 'PATs', value: patPendentes, icon: '📋',
+        label: 'PATs', value: patPendentes, icon: '≡',
         sub: patPendentes === 0 ? 'Sem pendentes' : patPendentes === 1 ? '1 pedido pendente' : `${patPendentes} pedidos pendentes`,
         accent: patPendentes > 0 ? '#7c3aed' : '#16a34a',
         onClick: () => nav('view-pedidos'),
@@ -919,7 +926,7 @@ async function renderDashboard(force = false) {
 
             const toolNames = document.createElement('span');
             toolNames.className   = 'dv2-ferr-tools';
-            toolNames.textContent = tools.map(t => `${t.icone || '🪛'} ${t.nome}`).join(' · ');
+            toolNames.textContent = tools.map(t => `${t.icone || ''} ${t.nome}`).join(' · ');
 
             left2.appendChild(name);
             left2.appendChild(toolNames);
@@ -1069,7 +1076,7 @@ function filterZeroStock() {
         badge.id        = 'zero-filter-badge';
         badge.className = 'zero-filter-badge';
         const _badgeTxt = document.createElement('span');
-        _badgeTxt.textContent = '⚠️ A mostrar apenas produtos sem stock';
+        _badgeTxt.textContent = '! A mostrar apenas produtos sem stock';
         const _badgeBtn = document.createElement('button');
         _badgeBtn.textContent = '✕ Limpar';
         _badgeBtn.onclick = clearZeroFilter;
@@ -1103,7 +1110,7 @@ function closeBatch() {
     if (_bulkCount === 0) { nav('view-search'); return; }
     const zona = document.getElementById('bulk-loc')?.value?.trim() || '?';
     openConfirmModal({
-        icon: '📦',
+        icon: '◻',
         title: 'Fechar lote?',
         desc: `${_bulkCount} produto${_bulkCount > 1 ? 's' : ''} adicionado${_bulkCount > 1 ? 's' : ''} na zona "${zona}". Fechar e ir para o stock?`,
         onConfirm: () => {
@@ -1226,10 +1233,10 @@ async function renderList(filter = '', force = false) {
 
         // Swipe backgrounds
         const bgL = document.createElement('div'); bgL.className = 'swipe-bg swipe-bg-left';
-        const iL  = document.createElement('span'); iL.className = 'swipe-bg-icon'; iL.textContent = '🗑️';
+        const iL  = document.createElement('span'); iL.className = 'swipe-bg-icon'; iL.textContent = '';
         bgL.appendChild(iL);
         const bgR = document.createElement('div'); bgR.className = 'swipe-bg swipe-bg-right';
-        const iR  = document.createElement('span'); iR.className = 'swipe-bg-icon'; iR.textContent = '✏️';
+        const iR  = document.createElement('span'); iR.className = 'swipe-bg-icon'; iR.textContent = '';
         bgR.appendChild(iR);
         wrapper.appendChild(bgL); wrapper.appendChild(bgR);
 
@@ -1259,7 +1266,7 @@ async function renderList(filter = '', force = false) {
         pill.className = 'loc-pill';
         const pinIcon = document.createElement('span');
         pinIcon.style.fontSize = '0.85rem';
-        pinIcon.textContent    = '📍';
+        pinIcon.textContent    = '';
         pill.appendChild(pinIcon);
         pill.appendChild(document.createTextNode(' ' + (item.localizacao ? item.localizacao.toUpperCase() : 'SEM LOCAL')));
 
@@ -1507,13 +1514,13 @@ async function renderTools() {
         nome.className   = 'tool-nome';
         const toolIconSpan = document.createElement('span');
         toolIconSpan.className   = 'tool-card-icon';
-        toolIconSpan.textContent = t.icone || '🪛';
+        toolIconSpan.textContent = t.icone || '';
         nome.appendChild(toolIconSpan);
         nome.appendChild(document.createTextNode(t.nome));
         const sub = document.createElement('div');
         sub.className    = 'tool-sub';
         if (isAv) {
-            sub.textContent = '📦 EM ARMAZÉM';
+            sub.textContent = '◻ EM ARMAZÉM';
         } else {
             const w = document.createElement('span');
             w.textContent = `👤 ${(t.colaborador||'').toUpperCase()}`;
@@ -1531,14 +1538,14 @@ async function renderTools() {
             if (isOverdue) {
                 const ovd = document.createElement('div');
                 ovd.className   = 'tool-overdue-badge';
-                ovd.textContent = `⏰ Alocada há ${_days} dias — verificar!`;
+                ovd.textContent = `◷ Alocada há ${_days} dias — verificar!`;
                 sub.appendChild(ovd);
             }
         }
         info.appendChild(nome); info.appendChild(sub);
         const arrow = document.createElement('span');
         arrow.className  = 'tool-arrow';
-        arrow.textContent = isAv ? '➔' : '↩';
+        arrow.textContent = isAv ? '→' : '↩';
         div.appendChild(info); div.appendChild(arrow);
         list.appendChild(div);
     });
@@ -1562,7 +1569,7 @@ async function renderAdminTools() {
         // Nome da ferramenta
         const lbl = document.createElement('span');
         lbl.className   = 'admin-list-label';
-        lbl.textContent = `${t.icone || '🪛'}  ${t.nome}`;
+        lbl.textContent = `${t.icone || ''}  ${t.nome}`;
 
         // Barra de acções alinhada à esquerda
         const actions = document.createElement('div');
@@ -1575,14 +1582,14 @@ async function renderAdminTools() {
 
         const histBtn = document.createElement('button');
         histBtn.className   = 'admin-tool-btn admin-tool-btn-hist';
-        histBtn.innerHTML   = '📋 <span>Histórico</span>';
+        histBtn.innerHTML   = '≡ <span>Histórico</span>';
         histBtn.onclick     = () => openHistoryModal(id, t.nome);
 
         const delBtn = document.createElement('button');
         delBtn.className   = 'admin-tool-btn admin-tool-btn-del';
         delBtn.innerHTML   = '🗑️ <span>Eliminar</span>';
         delBtn.onclick     = () => openConfirmModal({
-            icon:'🗑️', title:'Apagar ferramenta?',
+            icon:'', title:'Apagar ferramenta?',
             desc:`"${escapeHtml(t.nome)}" será removida permanentemente.`,
             onConfirm: () => deleteTool(id)
         });
@@ -1657,7 +1664,7 @@ async function openHistoryModal(toolId, toolName) {
         events.forEach(ev => {
             const row  = document.createElement('div');
             row.className = `history-row ${ev.acao === 'atribuida' ? 'history-out' : 'history-in'}`;
-            const icon = ev.acao === 'atribuida' ? '➔' : '↩';
+            const icon = ev.acao === 'atribuida' ? '→' : '↩';
             const label = ev.acao === 'atribuida'
                 ? `Entregue a ${ev.colaborador || '?'}`
                 : `Devolvida${ev.colaborador ? ` por ${ev.colaborador}` : ''}`;
@@ -1732,8 +1739,8 @@ function openEditToolModal(id, tool) {
     document.getElementById('edit-tool-id').value   = id;
     document.getElementById('edit-tool-name').value = tool.nome || '';
     // Set icon
-    document.getElementById('edit-tool-icon-hidden').value = tool.icone || '🪛';
-    document.getElementById('edit-tool-icon-btn').textContent = tool.icone || '🪛';
+    document.getElementById('edit-tool-icon-hidden').value = tool.icone || '';
+    document.getElementById('edit-tool-icon-btn').textContent = tool.icone || '';
     document.getElementById('edit-tool-modal').classList.add('active');
     focusModal('edit-tool-modal');
 }
@@ -1745,7 +1752,7 @@ function closeEditToolModal() {
 async function saveEditTool() {
     const id    = document.getElementById('edit-tool-id').value;
     const nome  = document.getElementById('edit-tool-name').value.trim().toUpperCase();
-    const icone = document.getElementById('edit-tool-icon-hidden').value || '🪛';
+    const icone = document.getElementById('edit-tool-icon-hidden').value || '';
     if (!nome) { showToast('Nome obrigatório', 'error'); return; }
     if (cache.ferramentas.data?.[id]) {
         cache.ferramentas.data[id] = { ...cache.ferramentas.data[id], nome, icone };
@@ -1774,7 +1781,7 @@ async function deleteTool(id) {
     };
     if (tool?.status === 'alocada') {
         openConfirmModal({
-            icon: '⚠️',
+            icon: '',
             title: 'Ferramenta alocada!',
             desc: `"${escapeHtml(tool.nome)}" está com ${escapeHtml(tool.colaborador || '?')}. Apagar irá forçar a devolução sem registo. Confirmas?`,
             onConfirm: _doDelete
@@ -1804,7 +1811,7 @@ async function renderWorkers() {
         lbl.textContent = `👤 ${w.nome}`;
         const btn = document.createElement('button');
         btn.className = 'admin-list-delete';
-        btn.textContent = '🗑️';
+        btn.textContent = '';
         btn.onclick = () => openConfirmModal({
             icon:'👤', title:'Apagar funcionário?',
             desc:`"${escapeHtml(w.nome)}" será removido permanentemente.`,
@@ -1837,7 +1844,7 @@ async function openModal(id) {
     // Mostra o nome e ícone da ferramenta no modal
     const toolData = cache.ferramentas.data?.[id];
     const toolName = toolData?.nome || '';
-    const toolIcon = toolData?.icone || '🪛';
+    const toolIcon = toolData?.icone || '';
     const toolDesc = document.getElementById('worker-modal-tool-name');
     if (toolDesc) toolDesc.textContent = toolName ? `${toolIcon} ${toolName}` : '';
     // Actualiza também o ícone grande no topo do modal
@@ -1873,7 +1880,7 @@ function focusModal(id) {
 // =============================================
 let confirmCallback = null;
 
-function openConfirmModal({ icon='⚠️', title, desc, onConfirm }) {
+function openConfirmModal({ icon='', title, desc, onConfirm }) {
     confirmCallback = onConfirm;
     document.getElementById('confirm-modal-icon').textContent  = icon;
     document.getElementById('confirm-modal-title').textContent = title;
@@ -2219,7 +2226,7 @@ async function handlePinSetupStep() {
 function pinSetupDel() { pinSetupBuffer = pinSetupBuffer.slice(0,-1); updatePinDots('pin-setup-dots', pinSetupBuffer.length); }
 function removePin() {
     openConfirmModal({
-        icon: '⚠️',
+        icon: '',
         title: 'Remover PIN?',
         desc: 'Sem PIN, qualquer pessoa poderá aceder como Gestor. Tens a certeza?',
         onConfirm: async () => {
@@ -2303,7 +2310,7 @@ async function exportToolHistoryCSV() {
             for (const ev of Object.values(t.historico)) {
                 rows.push([
                     `"${(t.nome||'').replace(/"/g,'""')}"`,
-                    `"${t.icone || '🪛'}"`,
+                    `"${t.icone || ''}"`,
                     `"${ev.acao || ''}"`,
                     `"${(ev.colaborador||'').replace(/"/g,'""')}"`,
                     `"${ev.data ? new Date(ev.data).toLocaleString('pt-PT') : ''}"`
@@ -2496,7 +2503,7 @@ function _setupSearchScrollBehaviour(enable) {
         peekBtn = document.createElement('button');
         peekBtn.id        = 'search-peek-btn';
         peekBtn.className = 'search-peek-btn';
-        peekBtn.innerHTML = '🔍 Pesquisar';
+        peekBtn.innerHTML = ' Pesquisar';
         peekBtn.setAttribute('aria-label', 'Mostrar barra de pesquisa');
         peekBtn.onclick   = () => {
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2611,8 +2618,8 @@ function setTheme(theme) {
 
 // Sincroniza o dropdown com o tema activo
 const _THEME_META = {
-    light: { icon: '☀️', label: 'Claro' },
-    dark:  { icon: '🌙', label: 'Escuro' },
+    light: { icon: '', label: 'Claro' },
+    dark:  { icon: '', label: 'Escuro' },
     };
 function _syncThemeDropdown(theme) {
     const meta = _THEME_META[theme] || _THEME_META.light;
@@ -2762,23 +2769,23 @@ function fmtQty(quantidade, unidade) {
 // ÍCONES DE FERRAMENTAS — picker por categoria
 // =============================================
 const TOOL_ICONS = {
-    'Manuais':      ['🔧','🪛','🔩','🪚','🔨','🪝','⚙️','🗜️','📐','📏','🔑','🗝️','🪤','🪜','🪓','⚒️','🛠️','🔗','📌','🧲','🔮','🔪','🗡️','🪤'],
-    'Elétrico':     ['🔌','🔋','💡','🔦','📡','🖥️','🖨️','⚡','🔆','🎛️','📟','🔘','🖱️','⌨️','🔲','📺','📻','📱','📲','🔔','🔕','🔈','🔉','🔊','🎚️','🎙️'],
-    'Corte':        ['🔪','🪚','✂️','🗡️','🪓','⚔️','🪃','🧵','🧶','📎','🖇️','🖊️','🖋️','✒️','🗂️'],
-    'Canalização':  ['🚿','🛁','🪠','🪣','💧','🌊','⛲','🏊','🧴','🧼','🫧','🪤','🔩','🔧','🪜','🏗️','🚧'],
-    'AVAC / Frio':  ['❄️','🌡️','💨','🌬️','🏠','🌡️','♨️','🔥','💧','🌊','⛅','🌤️','🌪️','🌈'],
-    'Elev. e Carga':['🏗️','⛓️','🪝','🧲','🔗','📦','🚛','🚜','🏋️','⚓','🪜','🛗','🛞','🔩','🔧'],
-    'Medição':      ['⏱️','⏲️','🌡️','🧪','🧫','🔬','🔭','📊','📈','📉','🧮','⚖️','📏','📐','🔭','🔮','🗓️','📅','🕐','⏰'],
-    'Pintura':      ['🎨','🖌️','🖼️','🪣','🧻','🎭','🎪','🖍️','✏️','🪥','🧽','🪣','💧'],
-    'Solda':        ['🔥','⚡','💥','🛡️','🥽','🦺','🧤','🔩','⚙️','🔧','🪛','🏭','♨️','🌡️'],
-    'Transporte':   ['🚗','🚛','🚜','🏎️','🚐','🛻','🚲','🛵','🛺','⛽','🪝','🔗','🚁','🛩️','⛵','🚢','🏍️','🚑','🚒'],
-    'Segurança':    ['🦺','🧤','🥽','⛑️','🪖','🧯','🚨','⚠️','🚧','🔒','🛡️','🔐','🚫','🛑','🔴','🚒','👁️','🦯'],
-    'Limpeza':      ['🧹','🧺','🧻','🪣','🧼','🧽','🫧','🪠','🚿','💧','🧴','🗑️','♻️','🪥','🌊','💦','🫙'],
-    'Jardim / Ext.':['🌱','🌿','🌾','🪴','🌲','🌳','🍃','💐','🌻','🌺','🌸','🪻','🌵','🎋','🎍','🪸','🍄','🪨','🪵','⛏️','🌊','🏕️'],
-    'Betão / Obra': ['🧱','🪣','🏗️','⛏️','🪚','🔨','🪜','🚧','🏠','🏢','🏭','🪟','🚪','🪞','🛗','🪑','🛁'],
-    'Informática':  ['💻','🖥️','🖨️','⌨️','🖱️','📱','📲','🖲️','💾','💿','📀','📡','📟','📠','🔋','🔌','🖊️'],
-    'Documentação': ['📋','📁','📂','📄','📃','📑','🗒️','🗓️','📊','📈','📉','📌','📍','🔖','🏷️','📎','🖇️','✂️','📬','📭'],
-    'Outros':       ['📦','🗃️','🗄️','⭐','🏆','🎯','🎲','🧩','🎁','🎀','🧸','🪆','🔮','🪬','🧿','💎','🏅','🥇','🥈','🥉'],
+    'Manuais':       ['◈','◆','▲','■','●','◉','◎','⊕','⊗','⊘','≡','≈','∞','↺','↻','⇄','⇅','⊞','⊟','⊠'],
+    'Elétrico':      ['⚡','≋','∿','⊡','⊟','⊞','◫','▣','▤','▥','▦','▧','▨','▩','◰','◱','◲','◳','⊛','⊜'],
+    'Corte':         ['◈','▷','◁','▽','△','◇','◦','•','‣','⁃','⁌','⁍','⊢','⊣','⊤','⊥','⊦','⊧','⊨','⊩'],
+    'Canalização':   ['≀','∣','∥','∦','⌇','⌈','⌉','⌊','⌋','⌐','⌑','⌒','⌓','⌔','⌕','⌖','⌗','⌘','⌙','⌚'],
+    'AVAC / Frio':   ['❄','◈','⊕','⊗','⊙','⊚','⊛','⊜','⊝','⊞','⊟','⊠','⊡','⊢','⊣','⊤','⊥','⊦','⊧','⊨'],
+    'Elev. e Carga': ['↑','↓','←','→','↖','↗','↘','↙','↕','↔','⇑','⇓','⇐','⇒','⇕','⇔','⇧','⇩','⇦','⇨'],
+    'Medição':       ['▲','△','▴','▵','▶','▷','▸','▹','►','▻','▼','▽','▾','▿','◀','◁','◂','◃','◄','◅'],
+    'Pintura':       ['◐','◑','◒','◓','◔','◕','◖','◗','◘','◙','◚','◛','◜','◝','◞','◟','◠','◡','◢','◣'],
+    'Solda':         ['◤','◥','◦','◧','◨','◩','◪','◫','◬','◭','◮','◯','◰','◱','◲','◳','◴','◵','◶','◷'],
+    'Transporte':    ['→','←','↑','↓','↗','↘','↙','↖','↕','↔','⇒','⇐','⇑','⇓','⇔','⇕','⇖','⇗','⇘','⇙'],
+    'Segurança':     ['■','□','▪','▫','▬','▭','▮','▯','▰','▱','▲','△','▴','▵','▶','▷','▸','▹','►','▻'],
+    'Limpeza':       ['◆','◇','◈','◉','◊','○','◌','◍','◎','●','◐','◑','◒','◓','◔','◕','◖','◗','◘','◙'],
+    'Jardim / Ext.': ['✦','✧','✩','✪','✫','✬','✭','✮','✯','✰','✱','✲','✳','✴','✵','✶','✷','✸','✹','✺'],
+    'Betão / Obra':  ['✻','✼','✽','✾','✿','❀','❁','❂','❃','❄','❅','❆','❇','❈','❉','❊','❋','❌','❍','❎'],
+    'Informática':   ['⌀','⌁','⌂','⌃','⌄','⌅','⌆','⌇','⌈','⌉','⌊','⌋','⌌','⌍','⌎','⌏','⌐','⌑','⌒','⌓'],
+    'Documentação':  ['§','¶','©','®','™','℃','℉','№','℗','℘','ℙ','ℚ','ℛ','ℜ','ℝ','℞','℟','℠','℡','℣'],
+    'Outros':        ['◈','★','☆','◆','◇','■','□','●','○','▲','△','▼','▽','◀','▶','◐','◑','◒','◓','◔'],
 };
 
 let _iconPickerTarget = 'reg'; // 'reg' ou 'edit-tool'
@@ -2811,7 +2818,7 @@ function _renderIconPicker() {
     // Ícones da categoria activa
     const gridEl = document.getElementById('icon-picker-grid');
     gridEl.innerHTML = '';
-    const currentIcon = (document.getElementById(`${_iconPickerTarget}-tool-icon`) || document.getElementById(`${_iconPickerTarget}-icon-hidden`))?.value || '🪛';
+    const currentIcon = (document.getElementById(`${_iconPickerTarget}-tool-icon`) || document.getElementById(`${_iconPickerTarget}-icon-hidden`))?.value || '';
     TOOL_ICONS[_iconPickerCat].forEach(icon => {
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -2858,7 +2865,7 @@ async function startInventory() {
     const saved = _invLoadResume();
     if (saved) {
         openConfirmModal({
-            icon: '💾',
+            icon: '',
             title: 'Retomar inventário?',
             desc: `Tens um inventário em curso (${saved.idx + 1}/${saved.items.length} produtos). Continuar onde ficaste?`,
             onConfirm: () => _resumeInventory(saved),
@@ -3033,7 +3040,7 @@ function _renderInvStep() {
     document.getElementById('inv-progress-bar').style.width  = `${Math.round((_invIdx / total) * 100)}%`;
 
     const zona = (item.localizacao||'').trim().toUpperCase();
-    document.getElementById('inv-local').textContent = zona ? `📍 ${zona}` : '📍 SEM LOCAL';
+    document.getElementById('inv-local').textContent = zona ? ` ${zona}` : ' SEM LOCAL';
     document.getElementById('inv-ref').textContent   = item.codigo  || '';
     document.getElementById('inv-nome').textContent  = item.nome    || '';
     document.getElementById('inv-unidade').textContent =
@@ -3427,7 +3434,7 @@ async function openToolTimeline() {
         for (const [id, t] of Object.entries(ferrData)) {
             if (t.historico) {
                 for (const ev of Object.values(t.historico)) {
-                    events.push({ ...ev, toolNome: t.nome, toolIcone: t.icone || '🪛', toolId: id });
+                    events.push({ ...ev, toolNome: t.nome, toolIcone: t.icone || '', toolId: id });
                 }
             }
             // Adiciona estado actual se alocada
@@ -3438,7 +3445,7 @@ async function openToolTimeline() {
                     acao: 'alocada_agora',
                     colaborador: t.colaborador,
                     toolNome: t.nome,
-                    toolIcone: t.icone || '🪛',
+                    toolIcone: t.icone || '',
                     toolId: id,
                     _dias: days
                 });
@@ -3484,7 +3491,7 @@ async function openToolTimeline() {
                 action.textContent = `🔴 Com ${ev.colaborador || '?'} há ${ev._dias}d`;
                 action.className += ' tl-action-overdue';
             } else if (ev.acao === 'atribuida') {
-                action.textContent = `➔ Entregue a ${ev.colaborador || '?'}`;
+                action.textContent = `→ Entregue a ${ev.colaborador || '?'}`;
             } else {
                 action.textContent = `↩ Devolvida${ev.colaborador ? ' por ' + ev.colaborador : ''}`;
             }
@@ -3813,7 +3820,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('form-tool-reg')?.addEventListener('submit', async e => {
         e.preventDefault();
         const nome  = document.getElementById('reg-tool-name').value.trim().toUpperCase();
-        const icone = document.getElementById('reg-tool-icon').value || '🪛';
+        const icone = document.getElementById('reg-tool-icon').value || '';
         const payload = { nome, icone, status:'disponivel' };
         try {
             const res = await apiFetch(`${BASE_URL}/ferramentas.json`, { method:'POST', body:JSON.stringify(payload) });
@@ -3821,8 +3828,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res) { const r = await res.json(); if (r?.name) cache.ferramentas.data[r.name] = payload; }
             else { cache.ferramentas.data[`_tmp_${Date.now()}`] = payload; }
             document.getElementById('reg-tool-name').value = '';
-            document.getElementById('reg-tool-icon').value = '🪛';
-            document.getElementById('reg-tool-icon-btn').textContent = '🪛';
+            document.getElementById('reg-tool-icon').value = '';
+            document.getElementById('reg-tool-icon-btn').textContent = '';
             renderAdminTools(); showToast('Ferramenta registada');
         } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao registar ferramenta','error'); }
     });
@@ -4023,7 +4030,7 @@ async function renderClientesList() {
         del.className   = 'admin-list-delete';
         del.textContent = '🗑';
         del.onclick = () => openConfirmModal({
-            icon: '🗑️', title: 'Apagar cliente?',
+            icon: '', title: 'Apagar cliente?',
             desc: `${escapeHtml(c.numero)} — ${escapeHtml(c.nome)}`,
             onConfirm: async () => {
                 try {
@@ -4192,14 +4199,14 @@ async function renderPats() {
         if (separacao) {
             const sepTag = document.createElement('span');
             sepTag.className   = 'pat-sep-tag';
-            sepTag.textContent = '📄 Guia Transporte';
+            sepTag.textContent = ' Guia Transporte';
             cardTopLeft.appendChild(sepTag);
         }
         if (dupCount > 1) {
             const dupBadge = document.createElement('span');
             dupBadge.className        = 'pat-dup-badge';
             dupBadge.dataset.estab    = nomeNorm;
-            dupBadge.textContent      = `⚠ ${dupCount} pedidos`;
+            dupBadge.textContent      = `! ${dupCount} pedidos`;
             cardTopLeft.appendChild(dupBadge);
         }
         const diasSpan = document.createElement('span');
@@ -4363,7 +4370,7 @@ async function testAnthropicProxy() {
     if (!val) { showToast('Configura primeiro o URL do Worker', 'error'); return; }
 
     const btn = document.getElementById('btn-test-ocr');
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ A testar…'; }
+    if (btn) { btn.disabled = true; btn.textContent = '◷ A testar…'; }
 
     try {
         const isProxy = _isProxyUrl(val);
@@ -4397,7 +4404,7 @@ async function testAnthropicProxy() {
         showToast('Falha na ligação: ' + (e.message || e), 'error');
         console.error('[testProxy]', e);
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = '🔗 Testar ligação'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Testar ligação'; }
     }
 }
 
@@ -4946,7 +4953,7 @@ async function marcarPatLevantado(id) {
 
 async function apagarPat(id) {
     openConfirmModal({
-        icon: '🗑️',
+        icon: '',
         title: 'Apagar pedido?',
         desc: 'O pedido será eliminado permanentemente. O stock não é alterado.',
         onConfirm: async () => {
@@ -4971,12 +4978,12 @@ function openPatDetail(id, pat) {
         <div class="pat-detail-header">
             <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}" style="font-size:1rem;padding:6px 14px">PAT ${escapeHtml(pat.numero || '—')}</span>
             ${pat.clienteNumero ? `<span class="pat-cliente-badge" style="font-size:0.9rem;padding:5px 12px">${escapeHtml(pat.clienteNumero)}</span>` : ''}
-            ${separacao ? '<span class="pat-sep-tag" style="margin-top:8px">📄 Guia Transporte de Material</span>' : ''}
+            ${separacao ? '<span class="pat-sep-tag" style="margin-top:8px"> Guia Transporte de Material</span>' : ''}
         </div>
         ${pat.clienteNumero ? `<div class="pat-detail-row"><span class="pat-detail-lbl">Nº Cliente</span><span>${escapeHtml(pat.clienteNumero)}</span></div>` : ''}
         <div class="pat-detail-row"><span class="pat-detail-lbl">Estabelecimento</span><span>${escapeHtml(pat.estabelecimento || 'Não especificado')}</span></div>
         <div class="pat-detail-row"><span class="pat-detail-lbl">Criado em</span><span>${data}</span></div>
-        <div class="pat-detail-row"><span class="pat-detail-lbl">Desconto stock</span><span>${separacao ? '✅ Sim (ao levantar)' : '⛔ Não'}</span></div>
+        <div class="pat-detail-row"><span class="pat-detail-lbl">Desconto stock</span><span>${separacao ? '✅ Sim (ao levantar)' : '⊘ Não'}</span></div>
         <div class="pat-detail-row"><span class="pat-detail-lbl">Estado</span><span>${urgente ? '🔴 Urgente' : '🟡 Pendente'} (${dias === 0 ? 'hoje' : `${dias}d`})</span></div>
         ${pat.produtos?.length ? `
         <div class="pat-detail-lbl" style="margin-top:14px;margin-bottom:8px">Produtos reservados</div>
@@ -5108,7 +5115,7 @@ function renderEncList() {
         empty.className = 'enc-empty';
         const icon = document.createElement('div');
         icon.className   = 'enc-empty-icon';
-        icon.textContent = '📦';
+        icon.textContent = '◻';
         const txt = document.createElement('div');
         txt.className   = 'enc-empty-text';
         txt.textContent = _encFilter === 'all' ? 'Nenhuma encomenda registada' : 'Nenhuma encomenda ' + _encFilter;
@@ -5259,7 +5266,7 @@ async function encImportPdf(inp) {
     const label = document.getElementById('enc-pdf-label');
     const originalHTML = label ? label.innerHTML : '';
     if (label) {
-        label.innerHTML = '⏳';
+        label.innerHTML = '◷';
         label.style.pointerEvents = 'none';
         label.style.opacity = '0.6';
     }
