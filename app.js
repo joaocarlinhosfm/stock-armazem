@@ -626,6 +626,20 @@ function toggleMenu() {
 function nav(viewId) {
     if (viewId === 'view-admin' && !checkAdminAccess()) return;
 
+    // Actualiza título do header
+    const pageTitles = {
+        'view-dashboard': 'Dashboard',
+        'view-search':    'Stock',
+        'view-pedidos':   'Pedidos PAT',
+        'view-admin':     'Administração',
+        'view-tools':     'Ferramentas',
+        'view-register':  'Novo Artigo',
+        'view-bulk':      'Entrada de Lote',
+        'view-encomendas':'Encomendas',
+    };
+    const titleEl = document.getElementById('header-page-title');
+    if (titleEl && pageTitles[viewId]) titleEl.textContent = pageTitles[viewId];
+
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId)?.classList.add('active');
 
