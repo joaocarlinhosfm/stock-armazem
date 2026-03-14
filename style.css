@@ -1,4 +1,3 @@
-
 /* ══════════════════════════════════════════════════════════
    1 — VARIÁVEIS & RESET
    ══════════════════════════════════════════════════════════ */
@@ -4191,9 +4190,10 @@ body.is-offline #app-layout {
     }
 
     /* Esconder controlos mobile */
-    #close-menu { display: none; }
+    #close-menu { display: none !important; }
     #menu-overlay { display: none !important; }
     #bottom-nav { display: none !important; }
+    .fab-add-btn { display: none !important; }
     .header-spacer .compact-switch { display: none; }
     .header-spacer { display: none !important; }
 
