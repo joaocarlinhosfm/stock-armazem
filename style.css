@@ -4195,7 +4195,7 @@ body.is-offline #app-layout {
     #menu-overlay { display: none !important; }
     #bottom-nav { display: none !important; }
     .header-spacer .compact-switch { display: none; }
-    .header-spacer { display: flex; }
+    .header-spacer { display: none !important; }
 
     /* Theme switch no footer da sidebar */
     .desktop-theme-switch { display: flex; }

@@ -87,13 +87,13 @@ function applyRole(role) {
     currentRole = role;
     document.body.classList.toggle('worker-mode', role === 'worker');
 
-    // Badge no header — clicável para trocar de perfil
+    // Badge no header — inserido dentro de .header-titles para não quebrar o flex layout
     let badge = document.getElementById('role-badge');
     if (!badge) {
         badge = document.createElement('button');
         badge.id      = 'role-badge';
         badge.onclick = () => openSwitchRoleModal();
-        document.querySelector('header')?.appendChild(badge);
+        document.querySelector('.header-titles')?.appendChild(badge);
     }
     const savedUser = localStorage.getItem('hiperfrio-username') || '';
     const displayName = savedUser || (role === 'worker' ? 'Funcionário' : 'Gestor');
