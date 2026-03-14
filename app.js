@@ -687,8 +687,8 @@ function nav(viewId) {
     document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
     const bnavMap = {
         'view-dashboard':'bnav-dashboard',
-        'view-search':'bnav-search','view-pedidos':'bnav-pedidos',
-        'view-register':'bnav-add','view-bulk':'bnav-add',
+        'view-search':'bnav-search',
+        'view-pedidos':'bnav-pedidos',
         'view-admin':'bnav-admin'
     };
     document.getElementById(bnavMap[viewId])?.classList.add('active');
@@ -700,6 +700,7 @@ function nav(viewId) {
     if (viewId === 'view-admin') { switchAdminTab(ADMIN_TABS[_adminIdx], false); }
     // Garante que o bottom nav pill está visível ao mudar de vista
     document.getElementById('bottom-nav')?.classList.remove('bnav-hidden');
+    document.getElementById('fab-add')?.classList.remove('bnav-hidden');
 }
 
 // =============================================
@@ -2625,17 +2626,20 @@ function _setupBottomNavScrollBehaviour(enable) {
 
             if (sy <= SHOW_AT_TOP) {
                 // Sempre visível perto do topo
-                if (_hidden) { _hidden = false; nav.classList.remove('bnav-hidden'); }
+                if (_hidden) { _hidden = false; nav.classList.remove('bnav-hidden'); document.getElementById('fab-add')?.classList.remove('bnav-hidden'); }
                 return;
             }
             if (!_hidden && delta > SCROLL_SENSITIVITY) {
                 // Desceu — esconde
                 _hidden = true;
                 nav.classList.add('bnav-hidden');
+                document.getElementById('fab-add')?.classList.add('bnav-hidden');
             } else if (_hidden && delta < -SCROLL_SENSITIVITY) {
                 // Subiu — mostra
                 _hidden = false;
                 nav.classList.remove('bnav-hidden');
+        document.getElementById('fab-add')?.classList.remove('bnav-hidden');
+                document.getElementById('fab-add')?.classList.remove('bnav-hidden');
             }
         });
     };
@@ -3576,11 +3580,10 @@ function bnavAddOpen() {
     _bnavAddOpen = true;
     const menu    = document.getElementById('bnav-add-menu');
     const overlay = document.getElementById('bnav-add-overlay');
-    const btn     = document.getElementById('bnav-add');
+    const btn     = document.getElementById('fab-add');
     menu?.classList.add('open');
     overlay?.classList.add('open');
-    btn?.classList.add('add-open');
-    // fecha ao pressionar Escape
+    btn?.classList.add('fab-open');
     document.addEventListener('keydown', _bnavAddEsc, { once: true });
 }
 
@@ -3588,10 +3591,10 @@ function bnavAddClose() {
     _bnavAddOpen = false;
     const menu    = document.getElementById('bnav-add-menu');
     const overlay = document.getElementById('bnav-add-overlay');
-    const btn     = document.getElementById('bnav-add');
+    const btn     = document.getElementById('fab-add');
     menu?.classList.remove('open');
     overlay?.classList.remove('open');
-    btn?.classList.remove('add-open');
+    btn?.classList.remove('fab-open');
 }
 
 function _bnavAddEsc(e) {
