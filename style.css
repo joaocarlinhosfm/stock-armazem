@@ -2982,7 +2982,7 @@ body.is-offline #app-layout {
     font-weight: 800;
     letter-spacing: 0.4px;
 }
-.pat-badge-urgente { background: rgba(239,68,68,0.12); color: var(--danger); }
+.pat-badge-urgente { background: rgba(239,68,68,0.12); color: #b91c1c; }
 .pat-sep-tag {
     display: inline-block;
     background: rgba(245,158,11,0.12);
@@ -3279,7 +3279,7 @@ body.is-offline #app-layout {
     font-weight: 800;
     letter-spacing: 0.03em;
     background: rgba(168, 85, 247, 0.12);
-    color: #9333ea;
+    color: #6b21a8;
     border: 1px solid rgba(168, 85, 247, 0.25);
     white-space: nowrap;
 }
@@ -4190,10 +4190,9 @@ body.is-offline #app-layout {
     }
 
     /* Esconder controlos mobile */
-    #close-menu { display: none !important; }
+    #close-menu { display: none; }
     #menu-overlay { display: none !important; }
     #bottom-nav { display: none !important; }
-    .fab-add-btn { display: none !important; }
     .header-spacer .compact-switch { display: none; }
     .header-spacer { display: none !important; }
 
