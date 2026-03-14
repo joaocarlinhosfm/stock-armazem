@@ -700,7 +700,7 @@ function nav(viewId) {
     if (viewId === 'view-admin') { switchAdminTab(ADMIN_TABS[_adminIdx], false); }
     // Garante que o bottom nav pill está visível ao mudar de vista
     document.getElementById('bottom-nav')?.classList.remove('bnav-hidden');
-    document.getElementById('fab-add')?.classList.remove('bnav-hidden');
+    if (window.innerWidth < 768) document.getElementById('fab-add')?.classList.remove('bnav-hidden');
 }
 
 // =============================================
@@ -5112,6 +5112,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isDesktop) {
             if (bottomNav) bottomNav.style.display = 'none';
+            const fab = document.getElementById('fab-add');
+            if (fab) fab.style.display = 'none';
+            const closeBtn = document.getElementById('close-menu');
+            if (closeBtn) closeBtn.style.display = 'none';
             if (sideMenu) {
                 sideMenu.style.position = 'relative';
                 sideMenu.style.left = '0';
@@ -5127,6 +5131,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             if (bottomNav) bottomNav.style.display = '';
+            const fab = document.getElementById('fab-add');
+            if (fab) fab.style.display = '';
+            const closeBtn = document.getElementById('close-menu');
+            if (closeBtn) closeBtn.style.display = '';
             if (sideMenu) {
                 sideMenu.style.position = '';
                 sideMenu.style.left = '';
