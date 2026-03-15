@@ -769,7 +769,10 @@ function nav(viewId) {
     if (viewId === 'view-admin') { switchAdminTab(ADMIN_TABS[_adminIdx], false); }
     // Garante que o bottom nav pill está visível ao mudar de vista
     document.getElementById('bottom-nav')?.classList.remove('bnav-hidden');
-    if (window.innerWidth < 768) document.getElementById('fab-add')?.classList.remove('bnav-hidden');
+    if (window.innerWidth < 768) {
+        const fab = document.getElementById('fab-add');
+        if (fab) fab.style.display = viewId === 'view-search' ? '' : 'none';
+    }
 }
 
 // =============================================
@@ -2694,7 +2697,7 @@ function _setupBottomNavScrollBehaviour(enable) {
             _lastY = sy;
 
             if (sy <= SHOW_AT_TOP) {
-                if (_hidden) { _hidden = false; nav.classList.remove('bnav-hidden'); if (window.innerWidth < 768) document.getElementById('fab-add')?.classList.remove('bnav-hidden'); }
+                if (_hidden) { _hidden = false; nav.classList.remove('bnav-hidden'); if (window.innerWidth < 768 && document.getElementById('view-search')?.classList.contains('active')) document.getElementById('fab-add')?.classList.remove('bnav-hidden'); }
                 return;
             }
             if (!_hidden && delta > SCROLL_SENSITIVITY) {
@@ -2704,7 +2707,7 @@ function _setupBottomNavScrollBehaviour(enable) {
             } else if (_hidden && delta < -SCROLL_SENSITIVITY) {
                 _hidden = false;
                 nav.classList.remove('bnav-hidden');
-                if (window.innerWidth < 768) document.getElementById('fab-add')?.classList.remove('bnav-hidden');
+                if (window.innerWidth < 768 && document.getElementById('view-search')?.classList.contains('active')) document.getElementById('fab-add')?.classList.remove('bnav-hidden');
             }
         });
     };
