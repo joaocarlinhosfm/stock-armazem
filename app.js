@@ -769,7 +769,7 @@ function nav(viewId) {
     if (viewId === 'view-admin') { switchAdminTab(ADMIN_TABS[_adminIdx], false); }
     // Garante que o bottom nav pill está visível ao mudar de vista
     document.getElementById('bottom-nav')?.classList.remove('bnav-hidden');
-    document.getElementById('fab-add')?.classList.remove('bnav-hidden');
+    if (window.innerWidth < 768) document.getElementById('fab-add')?.classList.remove('bnav-hidden');
 }
 
 // =============================================
@@ -2694,21 +2694,17 @@ function _setupBottomNavScrollBehaviour(enable) {
             _lastY = sy;
 
             if (sy <= SHOW_AT_TOP) {
-                // Sempre visível perto do topo
-                if (_hidden) { _hidden = false; nav.classList.remove('bnav-hidden'); document.getElementById('fab-add')?.classList.remove('bnav-hidden'); }
+                if (_hidden) { _hidden = false; nav.classList.remove('bnav-hidden'); if (window.innerWidth < 768) document.getElementById('fab-add')?.classList.remove('bnav-hidden'); }
                 return;
             }
             if (!_hidden && delta > SCROLL_SENSITIVITY) {
-                // Desceu — esconde
                 _hidden = true;
                 nav.classList.add('bnav-hidden');
                 document.getElementById('fab-add')?.classList.add('bnav-hidden');
             } else if (_hidden && delta < -SCROLL_SENSITIVITY) {
-                // Subiu — mostra
                 _hidden = false;
                 nav.classList.remove('bnav-hidden');
-        document.getElementById('fab-add')?.classList.remove('bnav-hidden');
-                document.getElementById('fab-add')?.classList.remove('bnav-hidden');
+                if (window.innerWidth < 768) document.getElementById('fab-add')?.classList.remove('bnav-hidden');
             }
         });
     };
@@ -5193,6 +5189,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isDesktop) {
             if (bottomNav) bottomNav.style.display = 'none';
+            const fab = document.getElementById('fab-add');
+            if (fab) fab.style.display = 'none';
+            const closeBtn = document.getElementById('close-menu');
+            if (closeBtn) closeBtn.style.display = 'none';
             if (sideMenu) {
                 sideMenu.style.position = 'relative';
                 sideMenu.style.left = '0';
@@ -5208,6 +5208,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             if (bottomNav) bottomNav.style.display = '';
+            const fab = document.getElementById('fab-add');
+            if (fab) fab.style.display = '';
+            const closeBtn = document.getElementById('close-menu');
+            if (closeBtn) closeBtn.style.display = '';
             if (sideMenu) {
                 sideMenu.style.position = '';
                 sideMenu.style.left = '';
