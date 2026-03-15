@@ -617,6 +617,22 @@ function toggleMenu() {
     document.getElementById('menu-overlay')?.classList.toggle('active');
 }
 
+// ── Avatar dropdown (header) ──────────────────────────────
+function toggleAvatarMenu() {
+    const dd = document.getElementById('avatar-dropdown');
+    if (!dd) return;
+    const isOpen = dd.classList.contains('open');
+    isOpen ? closeAvatarMenu() : dd.classList.add('open');
+}
+function closeAvatarMenu() {
+    document.getElementById('avatar-dropdown')?.classList.remove('open');
+}
+// Fecha ao clicar fora
+document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('header-avatar-wrap');
+    if (wrap && !wrap.contains(e.target)) closeAvatarMenu();
+});
+
 // =============================================
 // NAVEGAÇÃO
 // FIX: active state só actualizado após acesso confirmado
@@ -689,7 +705,7 @@ function nav(viewId) {
         'view-dashboard':'bnav-dashboard',
         'view-search':'bnav-search',
         'view-pedidos':'bnav-pedidos',
-        'view-admin':'bnav-admin'
+        'view-encomendas':'bnav-encomendas'
     };
     document.getElementById(bnavMap[viewId])?.classList.add('active');
 
@@ -700,7 +716,7 @@ function nav(viewId) {
     if (viewId === 'view-admin') { switchAdminTab(ADMIN_TABS[_adminIdx], false); }
     // Garante que o bottom nav pill está visível ao mudar de vista
     document.getElementById('bottom-nav')?.classList.remove('bnav-hidden');
-    if (window.innerWidth < 768) document.getElementById('fab-add')?.classList.remove('bnav-hidden');
+    document.getElementById('fab-add')?.classList.remove('bnav-hidden');
 }
 
 // =============================================
@@ -5112,10 +5128,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isDesktop) {
             if (bottomNav) bottomNav.style.display = 'none';
-            const fab = document.getElementById('fab-add');
-            if (fab) fab.style.display = 'none';
-            const closeBtn = document.getElementById('close-menu');
-            if (closeBtn) closeBtn.style.display = 'none';
             if (sideMenu) {
                 sideMenu.style.position = 'relative';
                 sideMenu.style.left = '0';
@@ -5131,10 +5143,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             if (bottomNav) bottomNav.style.display = '';
-            const fab = document.getElementById('fab-add');
-            if (fab) fab.style.display = '';
-            const closeBtn = document.getElementById('close-menu');
-            if (closeBtn) closeBtn.style.display = '';
             if (sideMenu) {
                 sideMenu.style.position = '';
                 sideMenu.style.left = '';
