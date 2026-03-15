@@ -927,12 +927,10 @@
 
     <div id="toast-container"></div>
     <!-- Firebase SDK (Auth anónima — token para REST API) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
+    <!-- Tesseract e XLSX carregados sob pedido via loadTesseract() / loadXlsx() em app.js -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script>
-        // Cria Promise global ANTES de qualquer async — app.js vai aguardá-la
         window._firebaseTokenPromise = new Promise((resolve, reject) => {
             firebase.initializeApp({
                 apiKey:      "AIzaSyCJS8Ev4EZcUbIO0AA4ckw10w8lvkZ3U_8",
@@ -940,7 +938,6 @@
                 databaseURL: "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app",
                 projectId:   "stock-f477e",
             });
-
             firebase.auth().signInAnonymously()
                 .then(cred => cred.user.getIdToken())
                 .then(token => {
@@ -953,7 +950,7 @@
                 });
         });
     </script>
-    <script src="app.js?v=5.92"></script>
+    <script src="app.js?v=5.93"></script>
 
     <!-- Modal: PAT Scan OCR -->
     <div id="pat-scan-modal" class="modal-overlay" role="dialog" aria-modal="true">

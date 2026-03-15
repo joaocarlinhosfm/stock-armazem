@@ -361,19 +361,6 @@ header h1 {
 /* ══════════════════════════════════════════════════════════
    3 — NAVEGAÇÃO (Bottom Nav, Menu Add)
    ══════════════════════════════════════════════════════════ */
-/* MENU OVERLAY (mobile only) */
-#menu-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 1999;
-}
-#menu-overlay.active { display: block; }
-
-/* MAIN CONTENT */
-
-/* BOTTOM NAV (mobile only) */
 /* ── FAB flutuante — fora da nav ── */
 .fab-add-btn {
     position: fixed;

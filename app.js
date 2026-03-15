@@ -3,6 +3,29 @@
 // Confirmar que as rules não permitem leitura/escrita sem token válido.
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
+// ── Lazy loading de bibliotecas pesadas ──────────────────────────────────────
+// Tesseract (~2.5 MB) e XLSX (~1 MB) só são carregados quando realmente usados,
+// evitando atrasar o arranque da app em Android com rede lenta.
+function _loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src; s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+    });
+}
+let _tesseractLoading = null;
+async function loadTesseract() {
+    if (typeof Tesseract !== 'undefined') return;
+    if (!_tesseractLoading) _tesseractLoading = _loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js');
+    await _tesseractLoading;
+}
+let _xlsxLoading = null;
+async function loadXlsx() {
+    if (typeof XLSX !== 'undefined') return;
+    if (!_xlsxLoading) _xlsxLoading = _loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    await _xlsxLoading;
+}
+
 // =============================================
 // XSS — escapar sempre dados do utilizador
 // =============================================
@@ -116,8 +139,12 @@ const USERS_URL = `${BASE_URL}/config/users.json`;
 const USER_KEY  = 'hiperfrio-username';
 
 // Hash SHA-256 da password (com salt diferente do PIN)
-async function hashPassword(password) {
-    const data    = new TextEncoder().encode(password + 'hiperfrio-pw-salt');
+// hashPassword — salt inclui o username para que o mesmo password gere hashes
+// diferentes por utilizador, dificultando rainbow table attacks em massa.
+// O salt fixo mantém-se por retrocompatibilidade com hashes já criados.
+async function hashPassword(password, username = '') {
+    const saltedInput = password + 'hiperfrio-pw-salt' + username.toLowerCase();
+    const data    = new TextEncoder().encode(saltedInput);
     const hashBuf = await crypto.subtle.digest('SHA-256', data);
     return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
@@ -142,7 +169,7 @@ async function loadUsers() {
         const data = await res.json();
         console.debug('[Login] dados recebidos:', data ? Object.keys(data) : 'null');
         if (data && !data.error) {
-            localStorage.setItem('hiperfrio-users-cache', JSON.stringify(data));
+            localStorage.setItem('hiperfrio-users-cache', JSON.stringify({ data, ts: Date.now() }));
             return data;
         }
         throw new Error(data?.error || 'resposta inválida');
@@ -150,8 +177,19 @@ async function loadUsers() {
         console.warn('[Login] loadUsers falhou:', e.message, '— usa cache local');
         const cached = localStorage.getItem('hiperfrio-users-cache');
         if (cached) {
-            console.debug('[Login] cache local encontrada');
-            return JSON.parse(cached);
+            try {
+                const parsed = JSON.parse(cached);
+                const TTL_24H = 24 * 60 * 60 * 1000;
+                // Suporta cache antigo (sem timestamp) e novo (com ts)
+                const ts   = parsed.ts || 0;
+                const data = parsed.data || parsed;
+                if (Date.now() - ts < TTL_24H) {
+                    console.debug('[Login] cache local válida');
+                    return data;
+                }
+                console.warn('[Login] cache local expirada (>24h) — requer ligação online');
+                return {};
+            } catch (_e) { return {}; }
         }
         console.error('[Login] sem cache local — utilizadores não disponíveis');
         return {};
@@ -212,11 +250,19 @@ async function handleLogin(e) {
         }
 
         console.debug('[Login] utilizador encontrado, a verificar password...');
-        const pwHash = await hashPassword(password);
-        if (pwHash !== userObj.passwordHash) {
+        const pwHash = await hashPassword(password, username);
+        // Retrocompatibilidade: testa também o hash antigo (sem username no salt)
+        const pwHashLegacy = await hashPassword(password);
+        if (pwHash !== userObj.passwordHash && pwHashLegacy !== userObj.passwordHash) {
             console.warn('[Login] password incorrecta para:', username);
             showError('Password incorrecta.');
             return;
+        }
+        // Se autenticou com hash legacy, migrar silenciosamente para o novo hash
+        if (pwHashLegacy === userObj.passwordHash && pwHash !== userObj.passwordHash) {
+            const migrUrl = await authUrl(`${USERS_BASE_URL}/${username}.json`);
+            fetch(migrUrl, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ passwordHash: pwHash }) }).catch(() => {});
         }
         console.debug('[Login] password OK, role:', userObj.role);
 
@@ -266,7 +312,7 @@ async function createUser() {
     // Só letras, números, ponto e underscore
     if (!/^[a-z0-9._]+$/.test(nameRaw)) { showToast('Nome só pode ter letras, números, ponto e _', 'error'); return; }
 
-    const pwHash = await hashPassword(password);
+    const pwHash = await hashPassword(password, nameRaw);
     const url    = await authUrl(`${USERS_BASE_URL}/${nameRaw}.json`);
 
     try {
@@ -315,24 +361,31 @@ async function renderUsersList() {
             return;
         }
 
-        el.innerHTML = Object.entries(users).map(([name, u]) => `
+        el.innerHTML = Object.entries(users).map(([name, u]) => {
+            const safeName = escapeHtml(name);
+            return `
             <div class="admin-list-row" style="gap:10px;">
                 <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
                     <span style="font-size:1.3rem">${u.role === 'manager' ? 'G' : 'F'}</span>
                     <div style="min-width:0;">
-                        <div style="font-weight:700;font-size:0.9rem;color:var(--text-main)">${name}</div>
+                        <div style="font-weight:700;font-size:0.9rem;color:var(--text-main)">${safeName}</div>
                         <div style="font-size:0.72rem;color:var(--text-muted)">${u.role === 'manager' ? 'Gestor' : 'Funcionário'}</div>
                     </div>
                 </div>
-                <button class="btn-danger-sm" onclick="deleteUser('${name}')">🗑</button>
+                <button class="btn-danger-sm" onclick="deleteUser('${safeName}')">🗑</button>
             </div>
-        `).join('');
+        `}).join('');
     } catch (e) {
         el.innerHTML = '<div class="empty-msg">Erro ao carregar utilizadores.</div>';
     }
 }
 
 async function deleteUser(username) {
+    const currentUser = localStorage.getItem('hiperfrio-username') || '';
+    if (username === currentUser) {
+        showToast('Não podes eliminar a tua própria conta', 'error');
+        return;
+    }
     if (!confirm(`Eliminar utilizador "${username}"?`)) return;
     const url = await authUrl(`${USERS_BASE_URL}/${username}.json`);
     await fetch(url, { method: 'DELETE' });
@@ -3341,7 +3394,8 @@ function closeInvResult() {
     document.getElementById('inv-result-modal').classList.remove('active');
 }
 
-function exportInventoryExcel() {
+async function exportInventoryExcel() {
+    await loadXlsx();
     const wb       = _buildInventoryWorkbook();
     const filename = `inventario-hiperfrio-${new Date().toISOString().slice(0,10)}.xlsx`;
     XLSX.writeFile(wb, filename);
@@ -3349,6 +3403,7 @@ function exportInventoryExcel() {
 }
 
 async function exportInventoryEmail() {
+    await loadXlsx();
     const now     = new Date();
     const dateStr = now.toLocaleDateString('pt-PT');
     const data    = _invLastData || cache.stock.data || {};
@@ -4357,9 +4412,19 @@ function closePatModal() {
 const ANTHROPIC_KEY_STORAGE  = 'hiperfrio-anthropic-key';
 const ESTAB_HINTS_STORAGE    = 'hiperfrio-estab-hints';
 
+// Chave Anthropic em sessionStorage (não persiste entre sessões nem é acessível
+// por outras abas — reduz exposição vs localStorage)
 function _getAnthropicKey() {
-    return localStorage.getItem(ANTHROPIC_KEY_STORAGE) || '';
+    return sessionStorage.getItem(ANTHROPIC_KEY_STORAGE) || '';
 }
+// Migração única: mover chave antiga de localStorage para sessionStorage e limpar
+(function _migrateAnthropicKey() {
+    const old = localStorage.getItem(ANTHROPIC_KEY_STORAGE);
+    if (old) {
+        sessionStorage.setItem(ANTHROPIC_KEY_STORAGE, old);
+        localStorage.removeItem(ANTHROPIC_KEY_STORAGE);
+    }
+})();
 
 function _getEstabHints() {
     return localStorage.getItem(ESTAB_HINTS_STORAGE) || '';
@@ -4386,12 +4451,12 @@ function saveAnthropicKey() {
         return;
     }
     if (val) {
-        localStorage.setItem(ANTHROPIC_KEY_STORAGE, val);
+        sessionStorage.setItem(ANTHROPIC_KEY_STORAGE, val);
         document.getElementById('inp-anthropic-key').value = '';
         const tipo = _isProxyUrl(val) ? 'Proxy configurado' : 'Chave configurada';
         showToast(`${tipo} — OCR por foto usa agora Claude Vision ✓`, 'ok');
     } else {
-        localStorage.removeItem(ANTHROPIC_KEY_STORAGE);
+        sessionStorage.removeItem(ANTHROPIC_KEY_STORAGE);
         showToast('Configuração removida — OCR volta ao modo local', 'ok');
     }
     _updateOcrKeyStatus();
@@ -4706,9 +4771,9 @@ Responde APENAS com JSON válido, sem markdown, sem explicações:
 
         } else {
             // ── Modo Tesseract (OCR local, sem chave) ─────────────────────────
-            if (typeof Tesseract === 'undefined') throw new Error('Tesseract não carregou — verifica a ligação');
-
             _patScanSetStatus('A carregar motor OCR…', 'loading');
+            await loadTesseract();
+
             const dataUrl = `data:${_patScanMime};base64,${_patScanB64}`;
 
             const { data: { text } } = await Tesseract.recognize(dataUrl, 'por', {
