@@ -748,14 +748,12 @@ function nav(viewId) {
     if (viewId === 'view-encomendas') { loadEncomendas(); }
     if (viewId === 'view-admin') {
         if (window.innerWidth < 768) {
-            // Mobile: mostrar menu, esconder detalhe
-            document.getElementById('admin-mobile-menu')?.classList.remove('admin-mobile-hidden');
-            document.getElementById('admin-mobile-detail')?.classList.add('admin-mobile-hidden');
-            _adminMobileActive = null;
+            _buildAdminMobileMenu();
+            document.querySelector('.admin-tabs')?.style && (document.querySelector('.admin-tabs').style.display = 'none');
+            document.getElementById('admin-slider-wrap') && (document.getElementById('admin-slider-wrap').style.display = 'none');
         } else {
-            // Desktop: garantir que elementos mobile não têm style inline
-            document.getElementById('admin-mobile-menu')?.classList.add('admin-mobile-hidden');
-            document.getElementById('admin-mobile-detail')?.classList.add('admin-mobile-hidden');
+            document.getElementById('admin-mobile-menu')?.remove();
+            document.getElementById('admin-mobile-detail')?.remove();
             renderWorkers(); renderAdminTools();
         }
     }
@@ -2580,66 +2578,126 @@ const _adminMobileTitles = {
 };
 let _adminMobileActive = null;
 
-function adminMobileOpen(tab) {
-    if (window.innerWidth >= 768) return; // só mobile
-    _adminMobileActive = tab;
+function _buildAdminMobileMenu() {
+    const viewAdmin = document.getElementById('view-admin');
+    if (!viewAdmin) return;
+    // Remover se já existir
+    document.getElementById('admin-mobile-menu')?.remove();
+    document.getElementById('admin-mobile-detail')?.remove();
 
+    const items = [
+        { tab:'workers',  bg:'#eff6ff', color:'#2563eb', label:'Funcionários', sub:'Gerir técnicos e colaboradores',
+          svg:'<path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>', vb:'0 0 20 20', fill:true },
+        { tab:'tools',    bg:'#dcfce7', color:'#16a34a', label:'Ferramentas',  sub:'Registar e gerir ferramentas',
+          svg:'<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>', vb:'0 0 24 24', fill:false },
+        { tab:'clientes', bg:'#fef3c7', color:'#d97706', label:'Clientes',     sub:'Importar e consultar clientes',
+          svg:'<path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/>', vb:'0 0 20 20', fill:true },
+        { tab:'users',    bg:'#ede9fe', color:'#7c3aed', label:'Utilizadores', sub:'Gerir contas e permissões',
+          svg:'<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>', vb:'0 0 20 20', fill:true },
+        { tab:'settings', bg:'#f1f5f9', color:'#64748b', label:'Definições',   sub:'OCR, tema, versão da app',
+          svg:'<path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>', vb:'0 0 20 20', fill:true },
+    ];
+
+    // Construir menu
+    const menu = document.createElement('div');
+    menu.id = 'admin-mobile-menu';
+    const chevronSvg = `<svg class="admin-mobile-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>`;
+    const groups = [
+        { label: 'Gestão', tabs: items.slice(0,3) },
+        { label: 'Sistema', tabs: items.slice(3) },
+    ];
+    groups.forEach(g => {
+        const lbl = document.createElement('div');
+        lbl.className = 'admin-mobile-section-label';
+        lbl.textContent = g.label;
+        menu.appendChild(lbl);
+        const grp = document.createElement('div');
+        grp.className = 'admin-mobile-group';
+        g.tabs.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'admin-mobile-item';
+            row.onclick = () => adminMobileOpen(item.tab);
+            row.innerHTML = `
+                <div class="admin-mobile-item-icon" style="background:${item.bg}">
+                    <svg width="20" height="20" viewBox="${item.vb}" ${item.fill ? `fill="${item.color}"` : `fill="none" stroke="${item.color}" stroke-width="2" stroke-linecap="round"`}>${item.svg}</svg>
+                </div>
+                <div class="admin-mobile-item-text">
+                    <div class="admin-mobile-item-label">${escapeHtml(item.label)}</div>
+                    <div class="admin-mobile-item-sub">${escapeHtml(item.sub)}</div>
+                </div>
+                ${chevronSvg}`;
+            grp.appendChild(row);
+        });
+        menu.appendChild(grp);
+    });
+
+    // Construir detalhe
+    const detail = document.createElement('div');
+    detail.id = 'admin-mobile-detail';
+    detail.style.display = 'none';
+    detail.innerHTML = `
+        <div class="admin-mobile-detail-header">
+            <button class="admin-mobile-back-btn" onclick="adminMobileBack()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+                Administração
+            </button>
+            <div class="admin-mobile-detail-title" id="admin-mobile-detail-title"></div>
+        </div>
+        <div id="admin-mobile-detail-content"></div>`;
+
+    // Inserir antes do slider-wrap
+    const sliderWrap = document.getElementById('admin-slider-wrap');
+    viewAdmin.insertBefore(detail, sliderWrap);
+    viewAdmin.insertBefore(menu, sliderWrap);
+}
+
+function adminMobileOpen(tab) {
+    _adminMobileActive = tab;
     const menu   = document.getElementById('admin-mobile-menu');
     const detail = document.getElementById('admin-mobile-detail');
     const title  = document.getElementById('admin-mobile-detail-title');
     const content = document.getElementById('admin-mobile-detail-content');
     if (!menu || !detail || !title || !content) return;
 
-    // Título do ecrã de detalhe
     title.textContent = _adminMobileTitles[tab] || tab;
 
-    // Mover o painel correcto para dentro do content
     const panel = document.getElementById(`panel-${tab}`);
     if (panel) content.appendChild(panel);
 
-    // Disparar renders específicos de cada tab
     if (tab === 'clientes')  renderClientesList();
     if (tab === 'users')     renderUsersList();
     if (tab === 'settings')  { _updateOcrKeyStatus(); _loadOcrKeywordsInput(); }
     if (tab === 'tools')     renderAdminTools();
     if (tab === 'workers')   renderWorkers();
 
-    // Animação: menu sai, detail entra
-    menu.classList.add('admin-mobile-hidden');
-    detail.classList.remove('admin-mobile-hidden');
+    menu.style.display   = 'none';
+    detail.style.display = 'block';
     detail.classList.remove('admin-mobile-detail-enter');
     void detail.offsetWidth;
     detail.classList.add('admin-mobile-detail-enter');
 
-    // Actualizar título do header
     const titleEl = document.getElementById('header-page-title');
     if (titleEl) titleEl.textContent = _adminMobileTitles[tab] || 'Administração';
-
     window.scrollTo(0, 0);
 }
 
 function adminMobileBack() {
-    if (window.innerWidth >= 768) return;
     _adminMobileActive = null;
-
-    const menu   = document.getElementById('admin-mobile-menu');
-    const detail = document.getElementById('admin-mobile-detail');
+    const menu    = document.getElementById('admin-mobile-menu');
+    const detail  = document.getElementById('admin-mobile-detail');
     const content = document.getElementById('admin-mobile-detail-content');
     if (!menu || !detail) return;
 
-    // Devolver o painel ao slider (para o desktop continuar a funcionar)
     const slider = document.getElementById('admin-slider');
     if (slider && content) {
         while (content.firstChild) slider.appendChild(content.firstChild);
     }
 
-    detail.classList.add('admin-mobile-hidden');
-    menu.classList.remove('admin-mobile-hidden');
+    detail.style.display = 'none';
+    menu.style.display   = 'block';
 
-    // Restaurar título
     const titleEl = document.getElementById('header-page-title');
     if (titleEl) titleEl.textContent = 'Administração';
-
     window.scrollTo(0, 0);
 }
 
