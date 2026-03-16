@@ -941,7 +941,6 @@ async function renderDashboard(force = false) {
         onClick: semStock > 0 ? () => { _pendingZeroFilter = true; nav('view-search'); } : null,
         stats: semStock > 0 ? [
             { label: '% inventário', value: Math.round(semStock/total*100) + '%', color: '#dc2626' },
-            { label: 'Com stock', value: comStock, color: '#16a34a' },
         ] : [
             { label: 'Total produtos', value: total, color: '#16a34a' },
         ],

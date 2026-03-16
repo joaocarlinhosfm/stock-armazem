@@ -2250,6 +2250,11 @@ body.is-offline #app-layout {
     gap: 14px;
 }
 
+/* Secções (Últimas PATs, Ferramentas em uso) têm mais espaço do grid */
+.dashboard-v2 .dv2-section {
+    margin-top: 4px;
+}
+
 /* ── Grid 2×2 ── */
 .dv2-grid {
     display: grid !important;
