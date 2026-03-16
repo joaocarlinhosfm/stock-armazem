@@ -9,7 +9,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.gstatic.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' data: blob: https://*.firebasedatabase.app https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://api.anthropic.com https://*.workers.dev; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; worker-src blob: https://cdn.jsdelivr.net;">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=6.00">
+    <link rel="stylesheet" href="style.css?v=6.01">
 </head>
 <body>
 
@@ -87,7 +87,6 @@
     <header>
         <div class="header-titles">
             <span class="header-brand">Hiperfrio</span>
-            <h1 id="header-page-title">Stock</h1>
         </div>
         <div class="header-avatar-wrap" id="header-avatar-wrap">
             <button id="header-avatar" class="header-avatar-btn" onclick="toggleAvatarMenu()" aria-label="Menu utilizador">
@@ -151,6 +150,7 @@
 
         <div id="view-dashboard" class="view">
             <div class="dash-view-header">
+                <h2 class="dash-view-title">Dashboard</h2>
                 <button id="btn-dash-refresh" class="dash-refresh-btn" onclick="renderDashboard(true)" title="Actualizar">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
                         <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
@@ -164,7 +164,8 @@
         <div id="view-pedidos" class="view">
             <div class="pat-toolbar">
                 <div class="pat-toolbar-top">
-                                        <div class="pat-toolbar-actions">
+                    <h2 class="dash-view-title">Pedidos PAT</h2>
+                    <div class="pat-toolbar-actions">
                         <button class="btn-icon-toolbar" onclick="openPatScan()" title="Preencher PAT por fotografia" data-manager-only>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                         </button>
@@ -186,7 +187,8 @@
         <div id="view-encomendas" class="view">
             <div class="enc-toolbar">
                 <div class="enc-toolbar-top">
-                                        <div class="enc-toolbar-actions">
+                    <h2 class="dash-view-title">Encomendas</h2>
+                    <div class="enc-toolbar-actions">
                         <label class="btn-icon-toolbar" for="enc-pdf-file" title="Importar PDF de encomenda" id="enc-pdf-label">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                         </label>
@@ -211,7 +213,8 @@
                 <div id="view-tools" class="view">
             <div class="tools-header">
                 <div>
-                                        <div class="tools-header-sub" id="tools-header-sub"></div>
+                    <h2>Ferramentas</h2>
+                    <div class="tools-header-sub" id="tools-header-sub"></div>
                 </div>
                 <button class="btn-timeline" onclick="openToolTimeline()" title="Ver timeline"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg> Timeline</button>
             </div>
@@ -228,7 +231,8 @@
         </div>
 
         <div id="view-register" class="view">
-                        <form id="form-add" class="pro-form">
+            <h2>Novo Produto</h2>
+            <form id="form-add" class="pro-form">
                 <div class="form-group"><label for="inp-codigo">REFERÊNCIA</label><input type="text" id="inp-codigo" class="blue-input" required oninput="this.value=this.value.toUpperCase()"></div>
                 <div class="form-group"><label for="inp-nome">NOME</label><input type="text" id="inp-nome" class="blue-input" required oninput="this.value=this.value.toUpperCase()"></div>
                 <div class="form-group">
@@ -264,6 +268,7 @@
         </div>
 
         <div id="view-bulk" class="view">
+            <h2>Catalogar Lote</h2>
                         <div id="bulk-counter" class="bulk-counter hidden"></div>
             <form id="form-bulk" class="pro-form">
                 <div class="form-group"><label for="bulk-loc">ZONA</label>
@@ -301,6 +306,7 @@
         </div>
 
         <div id="view-admin" class="view">
+            <h2>Administração</h2>
             
             <!-- Tab buttons (desktop) -->
             <div class="admin-tabs">
@@ -947,7 +953,7 @@
                 });
         });
     </script>
-    <script src="app.js?v=6.00"></script>
+    <script src="app.js?v=6.01"></script>
 
     <!-- Modal: PAT Scan OCR -->
     <div id="pat-scan-modal" class="modal-overlay" role="dialog" aria-modal="true">
