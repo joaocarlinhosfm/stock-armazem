@@ -971,10 +971,10 @@ async function renderDashboard(force = false) {
         stats: (() => {
             try {
                 const pats     = Object.values(_patCache.data || {});
-                const urgentes = pats.filter(p => p.status !== 'levantado' && p.criadoEm && (Date.now() - p.criadoEm) > 3 * 86400000).length;
+                const urgentes = pats.filter(p => p.status !== 'levantado' && p.criadoEm && (Date.now() - p.criadoEm) > 15 * 86400000).length;
                 const hoje     = pats.filter(p => p.status !== 'levantado' && p.criadoEm && (Date.now() - p.criadoEm) < 86400000).length;
                 const result   = [{ label: 'Pendentes', value: patPendentes, color: patPendentes > 0 ? '#7c3aed' : '#64748b' }];
-                if (urgentes > 0) result.push({ label: '+3 dias', value: urgentes, color: '#dc2626' });
+                if (urgentes > 0) result.push({ label: '+15 dias', value: urgentes, color: '#dc2626' });
                 if (hoje > 0)     result.push({ label: 'Hoje', value: hoje, color: '#16a34a' });
                 return result;
             } catch(_e) {
@@ -1012,7 +1012,7 @@ async function renderDashboard(force = false) {
 
         patEntries.forEach(([id, pat]) => {
             const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
-            const urgente = dias >= 3;
+            const urgente = dias >= 15;
             const row = document.createElement('div');
             row.className = 'dv2-pat-row' + (urgente ? ' dv2-pat-row--urgente' : '');
             row.onclick = () => openPatDetail(id, pat);
@@ -4287,7 +4287,7 @@ function showDupPopover(badge, estabNorm) {
         ${pats.map(([, p]) => {
             const dias = Math.floor((Date.now() - (p.criadoEm || Date.now())) / 86400000);
             const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
-            const urgente = dias >= 3;
+            const urgente = dias >= 15;
             return `<div class="dup-pop-row">
                 <span class="dup-pop-pat ${urgente ? 'dup-pop-urgente' : ''}">PAT ${escapeHtml(p.numero || '—')}</span>
                 <span class="dup-pop-dias">${diasLabel}</span>
@@ -4352,7 +4352,7 @@ async function renderPats() {
 
         const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
         const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
-        const urgente = dias >= 3;
+        const urgente = dias >= 15;
         const nomeNorm = (pat.estabelecimento || '').trim().toLowerCase();
         const dupCount = estabCount[nomeNorm] || 0;
 
@@ -5150,7 +5150,7 @@ async function apagarPat(id) {
 function openPatDetail(id, pat) {
     const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
     const data = pat.criadoEm ? new Date(pat.criadoEm).toLocaleDateString('pt-PT') : '—';
-    const urgente = dias >= 3;
+    const urgente = dias >= 15;
     const separacao = !!pat.separacao;
 
     document.getElementById('pat-detail-body').innerHTML = `
