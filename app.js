@@ -844,7 +844,7 @@ async function renderDashboard(force = false) {
     _saveDashSnapshot(total, semStock, alocadas);
 
     // ── helper: cria um metric card ──────────────────────────────────────────
-    function _metricCard({ label, value, sub, accent, icon, warn, alert, onClick, progress }) {
+    function _metricCard({ label, value, sub, accent, icon, warn, alert, onClick, progress, stats }) {
         const card = document.createElement('div');
         card.className = 'dv2-card' + (warn ? ' dv2-card--warn' : '') + (alert ? ' dv2-card--alert' : '');
         card.style.setProperty('--card-accent', accent || 'var(--primary)');
@@ -875,22 +875,19 @@ async function renderDashboard(force = false) {
         valEl.className   = 'dv2-card-value';
         valEl.textContent = value;
 
-        // trend
+        // trend dia anterior
         const trend = _getDashTrend(label === 'Produtos' ? 'total' : label === 'Sem stock' ? 'semStock' : label === 'Ferramentas' ? 'alocadas' : null, typeof value === 'number' ? value : null);
         if (trend !== null && trend !== undefined) {
             const tr = document.createElement('span');
-            tr.className   = 'dv2-trend ' + (trend > 0 ? 'dv2-trend--up' : 'dv2-trend--down');
-            tr.textContent = (trend > 0 ? '↑' : '↓') + Math.abs(trend);
+            // Para stock: mais produtos = bom (verde); para sem-stock: mais = mau (vermelho)
+            const isGood = label === 'Sem stock' ? trend < 0 : trend > 0;
+            tr.className   = 'dv2-trend ' + (isGood ? 'dv2-trend--good' : 'dv2-trend--bad');
+            tr.textContent = (trend > 0 ? '+' : '') + trend;
             valEl.appendChild(tr);
         }
 
-        const subEl = document.createElement('div');
-        subEl.className   = 'dv2-card-sub';
-        subEl.textContent = sub || '';
-
         card.appendChild(top);
         card.appendChild(valEl);
-        card.appendChild(subEl);
 
         // barra de progresso opcional
         if (progress !== undefined && progress !== null) {
@@ -901,6 +898,19 @@ async function renderDashboard(force = false) {
             barFill.style.width = Math.min(100, Math.round(progress * 100)) + '%';
             barWrap.appendChild(barFill);
             card.appendChild(barWrap);
+        }
+
+        // stats individuais
+        if (stats && stats.length > 0) {
+            const statsEl = document.createElement('div');
+            statsEl.className = 'dv2-stats';
+            stats.forEach(s => {
+                const pill = document.createElement('span');
+                pill.className = 'dv2-stat-pill';
+                pill.innerHTML = `<span class="dv2-stat-val" style="color:${s.color}">${escapeHtml(String(s.value))}</span><span class="dv2-stat-lbl">${escapeHtml(s.label)}</span>`;
+                statsEl.appendChild(pill);
+            });
+            card.appendChild(statsEl);
         }
 
         return card;
@@ -916,6 +926,10 @@ async function renderDashboard(force = false) {
         accent: '#2563eb',
         progress: total > 0 ? comStock / total : 1,
         onClick: () => nav('view-search'),
+        stats: [
+            { label: 'Com stock', value: comStock, color: '#16a34a' },
+            { label: 'Esgotados', value: semStock, color: semStock > 0 ? '#dc2626' : '#16a34a' },
+        ],
     }));
 
     grid.appendChild(_metricCard({
@@ -925,6 +939,12 @@ async function renderDashboard(force = false) {
         warn: semStock > 0,
         progress: total > 0 ? semStock / total : 0,
         onClick: semStock > 0 ? () => { _pendingZeroFilter = true; nav('view-search'); } : null,
+        stats: semStock > 0 ? [
+            { label: '% inventário', value: Math.round(semStock/total*100) + '%', color: '#dc2626' },
+            { label: 'Com stock', value: comStock, color: '#16a34a' },
+        ] : [
+            { label: 'Total produtos', value: total, color: '#16a34a' },
+        ],
     }));
 
     grid.appendChild(_metricCard({
@@ -936,6 +956,11 @@ async function renderDashboard(force = false) {
         warn: alocadasHaMuito.length > 0,
         progress: totalFerr > 0 ? alocadas / totalFerr : 0,
         onClick: () => nav('view-tools'),
+        stats: [
+            { label: 'Em armazém', value: totalFerr - alocadas, color: '#16a34a' },
+            { label: 'Alocadas', value: alocadas, color: alocadas > 0 ? '#f59e0b' : '#64748b' },
+            ...(alocadasHaMuito.length > 0 ? [{ label: `+${ALERTA_DIAS}d fora`, value: alocadasHaMuito.length, color: '#dc2626' }] : []),
+        ],
     }));
 
     grid.appendChild(_metricCard({
@@ -943,6 +968,16 @@ async function renderDashboard(force = false) {
         sub: patPendentes === 0 ? 'Sem pendentes' : patPendentes === 1 ? '1 pedido pendente' : `${patPendentes} pedidos pendentes`,
         accent: patPendentes > 0 ? '#7c3aed' : '#16a34a',
         onClick: () => nav('view-pedidos'),
+        stats: (() => {
+            const pats = Object.values(_patCache.data || {});
+            const urgentes = pats.filter(p => p.status !== 'levantado' && p.criadoEm && (Date.now() - p.criadoEm) > 3 * 86400000).length;
+            const hoje     = pats.filter(p => p.status !== 'levantado' && p.criadoEm && (Date.now() - p.criadoEm) < 86400000).length;
+            return [
+                { label: 'Pendentes', value: patPendentes, color: patPendentes > 0 ? '#7c3aed' : '#64748b' },
+                ...(urgentes > 0 ? [{ label: '+3 dias', value: urgentes, color: '#dc2626' }] : []),
+                ...(hoje > 0     ? [{ label: 'Hoje', value: hoje, color: '#16a34a' }] : []),
+            ];
+        })(),
     }));
 
     el.appendChild(grid);

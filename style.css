@@ -2261,7 +2261,7 @@ body.is-offline #app-layout {
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 12px 12px 10px;
+    padding: 12px 12px 12px;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -2333,12 +2333,42 @@ body.is-offline #app-layout {
 .dv2-trend {
     font-size: 0.65rem;
     font-weight: 700;
-    padding: 1px 5px;
+    padding: 2px 6px;
     border-radius: 6px;
     vertical-align: middle;
+    margin-left: 5px;
+    letter-spacing: 0.02em;
 }
-.dv2-trend--up   { background: rgba(220,38,38,0.12);  color: #dc2626; }
-.dv2-trend--down { background: rgba(22,163,74,0.12);  color: #16a34a; }
+.dv2-trend--good { background: rgba(22,163,74,0.12);  color: #16a34a; }
+.dv2-trend--bad  { background: rgba(220,38,38,0.12);  color: #dc2626; }
+
+/* Stats individuais por card */
+.dv2-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 10px;
+}
+.dv2-stat-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 3px 7px;
+}
+.dv2-stat-val {
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1;
+}
+.dv2-stat-lbl {
+    font-size: 0.63rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    line-height: 1;
+}
 
 /* Barra de progresso */
 .dv2-progress {
@@ -2899,7 +2929,6 @@ body.is-offline #app-layout {
     justify-content: space-between;
     gap: 8px;
     padding: 20px 16px 12px;
-    /* impede scroll lateral no Android quando botão é largo */
     overflow: hidden;
 }
 .dash-view-title {
@@ -2908,12 +2937,12 @@ body.is-offline #app-layout {
     color: var(--text-main);
     letter-spacing: -0.5px;
     min-width: 0;
+    flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     margin: 0;
     line-height: 1.2;
-    align-self: center;
 }
 .dash-refresh-btn {
     display: flex;
@@ -2921,12 +2950,14 @@ body.is-offline #app-layout {
     justify-content: center;
     width: 36px;
     height: 36px;
+    flex-shrink: 0;
     border-radius: 50%;
     border: none;
     background: var(--input-fill);
     color: var(--text-muted);
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
+    margin-left: auto;
 }
 .dash-refresh-btn:hover { background: var(--primary-soft); color: var(--primary); }
 .dash-refresh-btn svg { display: block; }
