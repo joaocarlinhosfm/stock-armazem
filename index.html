@@ -213,12 +213,20 @@
 
                 <div id="view-tools" class="view">
             <div class="tools-header">
-                <h2>Painel de Ferramentas</h2>
-                <button class="btn-timeline" onclick="openToolTimeline()" title="Ver timeline"><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg> Timeline</button>
+                <div>
+                    <h2>Ferramentas</h2>
+                    <div class="tools-header-sub" id="tools-header-sub"></div>
+                </div>
+                <button class="btn-timeline" onclick="openToolTimeline()" title="Ver timeline"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg> Timeline</button>
             </div>
             <div class="tools-search-wrap">
                 <input type="text" id="inp-tools-search" class="blue-input tools-search-input"
                     placeholder="Pesquisar ferramenta..." autocomplete="off">
+            </div>
+            <div class="tools-filter-row">
+                <button class="tools-filter-btn active" data-filter="all" onclick="toolsFilterSet(this,'all')">Todas</button>
+                <button class="tools-filter-btn" data-filter="disponivel" onclick="toolsFilterSet(this,'disponivel')">Em armazém</button>
+                <button class="tools-filter-btn" data-filter="alocada" onclick="toolsFilterSet(this,'alocada')">Alocadas</button>
             </div>
             <div id="tools-list"></div>
         </div>
@@ -326,14 +334,10 @@
             <!-- Tab: Ferramentas -->
             <section class="admin-panel" id="panel-tools">
                 <form id="form-tool-reg" class="pro-form">
-                    <div class="form-group tool-reg-row">
-                        <label class="tool-reg-label">FERRAMENTA</label>
-                        <div class="tool-reg-inputs">
-                            <button type="button" id="reg-tool-icon-btn" class="tool-icon-pick-btn" onclick="openIconPicker();" title="Escolher ícone"><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1.414 0L3 3.586l-.707-.707a1 1 0 00-1.414 1.414l1 1a1 1 0 001.414 0L5 4.414l1 1-5.293 5.293a1 1 0 000 1.414l4 4a1 1 0 001.414 0L17 5.414a1 1 0 000-1.414l-2-2A1 1 0 0014.586 2L13 3.586l-1-1A1 1 0 0010.586 2L9 3.586 7.414 2H7a1 1 0 00-.707.293L6 2zm2 3.414l5.293 5.293-2.586 2.586L5.414 7.707 8 5.414z" clip-rule="evenodd"/></svg></button>
-                            <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required oninput="this.value=this.value.toUpperCase()">
-                        </div>
+                    <div class="form-group">
+                        <label class="tool-reg-label">NOME DA FERRAMENTA</label>
+                        <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required oninput="this.value=this.value.toUpperCase()">
                     </div>
-                    <input type="hidden" id="reg-tool-icon" value="<svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1.414 0L3 3.586l-.707-.707a1 1 0 00-1.414 1.414l1 1a1 1 0 001.414 0L5 4.414l1 1-5.293 5.293a1 1 0 000 1.414l4 4a1 1 0 001.414 0L17 5.414a1 1 0 000-1.414l-2-2A1 1 0 0014.586 2L13 3.586l-1-1A1 1 0 0010.586 2L9 3.586 7.414 2H7a1 1 0 00-.707.293L6 2zm2 3.414l5.293 5.293-2.586 2.586L5.414 7.707 8 5.414z" clip-rule="evenodd"/></svg>">
                     <button type="submit" class="btn-primary">Registar Ferramenta</button>
                 </form>
                 <div id="admin-tools-list" class="scroll-list admin-tools-list"></div>
@@ -800,14 +804,10 @@
             <h3 id="edit-tool-title"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg> Editar Ferramenta</h3>
             <form id="form-edit-tool" class="pro-form form-edit-modal">
                 <input type="hidden" id="edit-tool-id">
-                <div class="form-group tool-reg-row">
-                    <label class="tool-reg-label">FERRAMENTA</label>
-                    <div class="tool-reg-inputs">
-                        <button type="button" id="edit-tool-icon-btn" class="tool-icon-pick-btn" onclick="openIconPicker('edit-tool')" title="Escolher ícone"><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1.414 0L3 3.586l-.707-.707a1 1 0 00-1.414 1.414l1 1a1 1 0 001.414 0L5 4.414l1 1-5.293 5.293a1 1 0 000 1.414l4 4a1 1 0 001.414 0L17 5.414a1 1 0 000-1.414l-2-2A1 1 0 0014.586 2L13 3.586l-1-1A1 1 0 0010.586 2L9 3.586 7.414 2H7a1 1 0 00-.707.293L6 2zm2 3.414l5.293 5.293-2.586 2.586L5.414 7.707 8 5.414z" clip-rule="evenodd"/></svg></button>
-                        <input type="text" id="edit-tool-name" class="blue-input" placeholder="Nome da ferramenta" required oninput="this.value=this.value.toUpperCase()">
-                    </div>
+                <div class="form-group">
+                    <label class="tool-reg-label">NOME DA FERRAMENTA</label>
+                    <input type="text" id="edit-tool-name" class="blue-input" placeholder="Nome da ferramenta" required oninput="this.value=this.value.toUpperCase()">
                 </div>
-                <input type="hidden" id="edit-tool-icon-hidden" value="<svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1.414 0L3 3.586l-.707-.707a1 1 0 00-1.414 1.414l1 1a1 1 0 001.414 0L5 4.414l1 1-5.293 5.293a1 1 0 000 1.414l4 4a1 1 0 001.414 0L17 5.414a1 1 0 000-1.414l-2-2A1 1 0 0014.586 2L13 3.586l-1-1A1 1 0 0010.586 2L9 3.586 7.414 2H7a1 1 0 00-.707.293L6 2zm2 3.414l5.293 5.293-2.586 2.586L5.414 7.707 8 5.414z" clip-rule="evenodd"/></svg>">
                 <button type="submit" class="btn-primary">Guardar</button>
                 <button type="button" onclick="closeEditToolModal()" class="btn-cancel">Cancelar</button>
             </form>

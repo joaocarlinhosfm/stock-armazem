@@ -1094,7 +1094,7 @@ async function renderDashboard(force = false) {
 
             const toolNames = document.createElement('span');
             toolNames.className   = 'dv2-ferr-tools';
-            toolNames.textContent = tools.map(t => `${t.icone || ''} ${t.nome}`).join(' · ');
+            toolNames.textContent = tools.map(t => t.nome).join(' · ');
 
             left2.appendChild(name);
             left2.appendChild(toolNames);
@@ -1121,7 +1121,14 @@ async function renderDashboard(force = false) {
 let _stockSort = 'recente'; // 'recente' | 'nome' | 'qtd-asc' | 'qtd-desc' | 'local'
 let _pendingZeroFilter  = false;
 let _bulkCount = 0; // contador de produtos adicionados no lote actual
-let _toolsFilter = ''; // filtro de pesquisa de ferramentas // activa filtro zero-stock após próximo renderList
+let _toolsFilter = 'all';
+function toolsFilterSet(btn, filter) {
+    _toolsFilter = filter;
+    document.querySelectorAll('.tools-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+    const search = document.getElementById('inp-tools-search');
+    if (search) search.value = '';
+    renderTools();
+}
 let _zeroFilterActive  = false; // zero-stock filter está activo (persiste entre navegações)
 
 // Menu de ordenação — criado no body para evitar clipping por stacking contexts
@@ -1648,76 +1655,117 @@ async function renderTools() {
     const list = document.getElementById('tools-list');
     if (!list) return;
     const data = await fetchCollection('ferramentas');
+
+    // Actualizar subtítulo do header
+    const sub = document.getElementById('tools-header-sub');
+    if (sub && data) {
+        const entries = Object.values(data);
+        const total   = entries.length;
+        const aloc    = entries.filter(t => t.status === 'alocada').length;
+        sub.textContent = `${total} ferramenta${total !== 1 ? 's' : ''} · ${aloc} alocada${aloc !== 1 ? 's' : ''}`;
+    }
+
+    // Actualizar botões de filtro
+    document.querySelectorAll('.tools-filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === (_toolsFilter || 'all'));
+    });
+
     list.innerHTML = '';
     if (!data || Object.keys(data).length === 0) {
-        list.innerHTML = '<div class="empty-msg">Nenhuma ferramenta registada.</div>'; return;
+        list.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div class="empty-state-title">Sem ferramentas</div><div class="empty-state-sub">Adiciona ferramentas em Administração.</div></div>`;
+        return;
     }
-    const filterLower = _toolsFilter.toLowerCase();
-    let toolsFound = 0;
+
+    const filterLower = typeof _toolsFilter === 'string' && _toolsFilter !== 'all' && !['disponivel','alocada'].includes(_toolsFilter)
+        ? _toolsFilter.toLowerCase() : '';
+    const statusFilter = ['disponivel','alocada'].includes(_toolsFilter) ? _toolsFilter : null;
+
+    let found = 0;
     ;[...Object.entries(data)].reverse().forEach(([id, t]) => {
         if (filterLower && !t.nome?.toLowerCase().includes(filterLower)) return;
-        toolsFound++;
+        if (statusFilter && t.status !== statusFilter) return;
+        found++;
+
         const isAv = t.status === 'disponivel';
-        const div  = document.createElement('div');
-        // PONTO 27: badge de alerta se alocada há mais de ALERTA_DIAS dias
         const TOOL_ALERT_DAYS = 7;
         const isOverdue = !isAv && t.dataEntrega &&
             (Date.now() - new Date(t.dataEntrega).getTime()) > TOOL_ALERT_DAYS * 86400000;
+
+        const div = document.createElement('div');
         div.className = `tool-card ${isAv ? 'tool-available' : 'tool-allocated'}${isOverdue ? ' tool-overdue' : ''}`;
         div.onclick = () => isAv ? openModal(id) : openConfirmModal({
-            icon:'↩', title:'Confirmar devolução?',
-            desc:`"${escapeHtml(t.nome)}" será marcada como disponível.`,
+            icon: '↩', title: 'Confirmar devolução?',
+            desc: `"${escapeHtml(t.nome)}" será marcada como disponível.`,
             onConfirm: () => returnTool(id)
         });
-        // Histórico: right-click no desktop, long-press no mobile
         div.addEventListener('contextmenu', e => { e.preventDefault(); openHistoryModal(id, t.nome); });
-        // Long-press para mobile (usa variável de módulo para evitar leak ao re-render)
         div.addEventListener('touchstart', () => {
             _toolLongPressTimer = setTimeout(() => openHistoryModal(id, t.nome), 600);
         }, { passive: true });
-        div.addEventListener('touchend',   () => clearTimeout(_toolLongPressTimer), { passive: true });
-        div.addEventListener('touchmove',  () => clearTimeout(_toolLongPressTimer), { passive: true });
+        div.addEventListener('touchend',  () => clearTimeout(_toolLongPressTimer), { passive: true });
+        div.addEventListener('touchmove', () => clearTimeout(_toolLongPressTimer), { passive: true });
+
+        // Info
         const info = document.createElement('div');
+        info.className = 'tool-info';
+
         const nome = document.createElement('div');
         nome.className   = 'tool-nome';
-        const toolIconSpan = document.createElement('span');
-        toolIconSpan.className   = 'tool-card-icon';
-        toolIconSpan.textContent = t.icone || '';
-        nome.appendChild(toolIconSpan);
-        nome.appendChild(document.createTextNode(t.nome));
+        nome.textContent = t.nome;
+
         const sub = document.createElement('div');
-        sub.className    = 'tool-sub';
+        sub.className = 'tool-sub';
+
         if (isAv) {
-            sub.textContent = '◻ EM ARMAZÉM';
+            const dot = document.createElement('span');
+            dot.className = 'tool-status-dot';
+            dot.style.background = '#16a34a';
+            const lbl = document.createElement('span');
+            lbl.className   = 'tool-status-label';
+            lbl.textContent = 'Em armazém';
+            sub.appendChild(dot);
+            sub.appendChild(lbl);
         } else {
-            const w = document.createElement('span');
-            w.textContent = `👤 ${(t.colaborador||'').toUpperCase()}`;
-            const dl = document.createElement('div');
-            dl.className   = 'tool-date';
-            // Mostra sempre há quantos dias está alocada
             const _days = t.dataEntrega
                 ? Math.floor((Date.now() - new Date(t.dataEntrega).getTime()) / 86400000)
                 : null;
-            const _timeStr = _days !== null
-                ? (_days === 0 ? 'hoje' : _days === 1 ? 'há 1 dia' : `há ${_days} dias`)
-                : '';
-            dl.textContent = `📅 ${formatDate(t.dataEntrega)}${_timeStr ? ' · ' + _timeStr : ''}`;
-            sub.appendChild(w); sub.appendChild(dl);
+
+            const colabBadge = document.createElement('span');
+            colabBadge.className   = `tool-badge ${isOverdue ? 'tool-badge-overdue' : 'tool-badge-colab'}`;
+            colabBadge.textContent = (t.colaborador || '').toUpperCase();
+            sub.appendChild(colabBadge);
+
+            if (_days !== null) {
+                const daysBadge = document.createElement('span');
+                daysBadge.className   = `tool-badge ${isOverdue ? 'tool-badge-overdue' : 'tool-badge-days'}`;
+                daysBadge.textContent = _days === 0 ? 'hoje' : _days === 1 ? '1d fora' : `${_days}d fora`;
+                sub.appendChild(daysBadge);
+            }
+
             if (isOverdue) {
-                const ovd = document.createElement('div');
-                ovd.className   = 'tool-overdue-badge';
-                ovd.textContent = `◷ Alocada há ${_days} dias — verificar!`;
+                const ovd = document.createElement('span');
+                ovd.className   = 'tool-badge tool-badge-overdue';
+                ovd.textContent = '⚠ verificar';
                 sub.appendChild(ovd);
             }
         }
-        info.appendChild(nome); info.appendChild(sub);
+
+        info.appendChild(nome);
+        info.appendChild(sub);
+
+        // Seta
         const arrow = document.createElement('span');
-        arrow.className  = 'tool-arrow';
-        arrow.textContent = isAv ? '→' : '↩';
-        div.appendChild(info); div.appendChild(arrow);
+        arrow.className = 'tool-arrow';
+        arrow.innerHTML = isAv
+            ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>`
+            : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg>`;
+
+        div.appendChild(info);
+        div.appendChild(arrow);
         list.appendChild(div);
     });
-    if (filterLower && toolsFound === 0) {
+
+    if (found === 0) {
         list.innerHTML = '<div class="empty-msg">Nenhuma ferramenta encontrada.</div>';
     }
 }
@@ -1737,7 +1785,7 @@ async function renderAdminTools() {
         // Nome da ferramenta
         const lbl = document.createElement('span');
         lbl.className   = 'admin-list-label';
-        lbl.textContent = `${t.icone || ''}  ${t.nome}`;
+        lbl.textContent = t.nome;
 
         // Barra de acções alinhada à esquerda
         const actions = document.createElement('div');
@@ -1902,13 +1950,10 @@ async function returnTool(id) {
     }
 }
 
-// PONTO 11: editar ferramenta (nome + ícone)
+// PONTO 11: editar ferramenta (nome)
 function openEditToolModal(id, tool) {
     document.getElementById('edit-tool-id').value   = id;
     document.getElementById('edit-tool-name').value = tool.nome || '';
-    // Set icon
-    document.getElementById('edit-tool-icon-hidden').value = tool.icone || '';
-    document.getElementById('edit-tool-icon-btn').textContent = tool.icone || '';
     document.getElementById('edit-tool-modal').classList.add('active');
     focusModal('edit-tool-modal');
 }
@@ -1918,12 +1963,11 @@ function closeEditToolModal() {
 }
 
 async function saveEditTool() {
-    const id    = document.getElementById('edit-tool-id').value;
-    const nome  = document.getElementById('edit-tool-name').value.trim().toUpperCase();
-    const icone = document.getElementById('edit-tool-icon-hidden').value || '';
+    const id   = document.getElementById('edit-tool-id').value;
+    const nome = document.getElementById('edit-tool-name').value.trim().toUpperCase();
     if (!nome) { showToast('Nome obrigatório', 'error'); return; }
     if (cache.ferramentas.data?.[id]) {
-        cache.ferramentas.data[id] = { ...cache.ferramentas.data[id], nome, icone };
+        cache.ferramentas.data[id] = { ...cache.ferramentas.data[id], nome };
     }
     closeEditToolModal();
     renderAdminTools();
@@ -1932,7 +1976,7 @@ async function saveEditTool() {
     showToast('Ferramenta actualizada!');
     try {
         await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, {
-            method:'PATCH', body: JSON.stringify({ nome, icone })
+            method:'PATCH', body: JSON.stringify({ nome })
         });
     } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao guardar','error'); }
 }
@@ -3644,8 +3688,8 @@ async function openToolTimeline() {
             row.className = `tl-event ${isOut ? 'tl-out' : 'tl-in'}`;
 
             const icoEl = document.createElement('span');
-            icoEl.className   = 'tl-tool-icon';
-            icoEl.textContent = ev.toolIcone;
+            icoEl.className = 'tl-tool-icon';
+            icoEl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>';
 
             const info = document.createElement('div');
             info.className = 'tl-info';
@@ -3791,7 +3835,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('inp-tools-search')?.addEventListener('input', e => {
         clearTimeout(_toolsSearchTimer);
         _toolsSearchTimer = setTimeout(() => {
-            _toolsFilter = e.target.value.trim();
+            _toolsFilter = e.target.value.trim() || 'all';
             renderTools();
         }, 250);
     });
@@ -3988,16 +4032,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('form-tool-reg')?.addEventListener('submit', async e => {
         e.preventDefault();
         const nome  = document.getElementById('reg-tool-name').value.trim().toUpperCase();
-        const icone = document.getElementById('reg-tool-icon').value || '';
-        const payload = { nome, icone, status:'disponivel' };
+        const payload = { nome, status:'disponivel' };
         try {
             const res = await apiFetch(`${BASE_URL}/ferramentas.json`, { method:'POST', body:JSON.stringify(payload) });
             if (!cache.ferramentas.data) cache.ferramentas.data = {};
             if (res) { const r = await res.json(); if (r?.name) cache.ferramentas.data[r.name] = payload; }
             else { cache.ferramentas.data[`_tmp_${Date.now()}`] = payload; }
             document.getElementById('reg-tool-name').value = '';
-            document.getElementById('reg-tool-icon').value = '';
-            document.getElementById('reg-tool-icon-btn').textContent = '';
             renderAdminTools(); showToast('Ferramenta registada');
         } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao registar ferramenta','error'); }
     });

@@ -1246,26 +1246,44 @@ body.worker-mode .tool-card {
    TOOL CARDS — cores via CSS (dark mode safe)
    ============================================= */
 .tool-card {
-    padding: 14px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
     border-radius: 14px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
     cursor: pointer;
-    transition: opacity 0.15s;
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.15s, border-color 0.15s;
 }
-.tool-card:active { opacity: 0.8; }
+.tool-card:active { opacity: 0.82; }
+
+/* Barra lateral de status */
+.tool-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 14px 0 0 14px;
+}
+.tool-available::before { background: #16a34a; }
+.tool-allocated::before { background: #d97706; }
+.tool-overdue::before   { background: #dc2626; }
 
 .tool-available {
-    background: #dcfce7;
-    color: #166534;
-    border: 1px solid #22c55e;
+    border-color: var(--border);
 }
 .tool-allocated {
-    background: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #ef4444;
+    border-color: #fcd34d;
+    background: #fffbeb;
+}
+.tool-overdue {
+    border-color: #fca5a5;
+    background: #fef2f2;
+    box-shadow: 0 2px 8px rgba(220,38,38,0.08);
 }
 
 /* Dark mode overrides */
@@ -1809,24 +1827,71 @@ body.worker-mode .tool-card {
 /* =============================================
    TOOL CARD — classes (substituem inline styles)
    ============================================= */
+.tool-info { flex: 1; min-width: 0; }
 .tool-nome {
-    font-weight: 800;
-    font-size: 0.95rem;
+    font-weight: 700;
+    font-size: 0.92rem;
     color: var(--text-main);
+    margin-bottom: 4px;
+    line-height: 1.3;
 }
 .tool-sub {
-    font-size: 0.75rem;
-    margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    margin-top: 0;
     font-weight: 600;
 }
-.tool-date {
-    font-size: 0.7rem;
-    opacity: 0.85;
+.tool-status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+.tool-status-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #16a34a;
+}
+.tool-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-size: 0.70rem;
+    font-weight: 700;
+    border: 1px solid;
+}
+.tool-badge-colab {
+    background: #fffbeb;
+    color: #92400e;
+    border-color: #fcd34d;
+}
+.tool-badge-days {
+    background: var(--bg);
+    color: var(--text-muted);
+    border-color: var(--border);
+}
+.tool-badge-overdue {
+    background: #fef2f2;
+    color: #dc2626;
+    border-color: #fca5a5;
+}
+.tool-overdue-badge {
+    font-size: 0.70rem;
+    font-weight: 700;
+    color: #dc2626;
     margin-top: 2px;
 }
+.tool-date { display: none; }
 .tool-arrow {
-    font-size: 1.1rem;
     flex-shrink: 0;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
 }
 
 /* =============================================
@@ -2181,23 +2246,34 @@ body.is-offline #app-layout {
    ============================================= */
 .tools-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 8px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
-.tools-header h2 { margin-bottom: 0; }
-.btn-timeline {
-    padding: 7px 13px;
-    border-radius: 10px;
-    border: 1.5px solid var(--border);
-    background: var(--card-bg);
+.tools-header h2 {
+    margin-bottom: 2px;
+    font-size: 1.15rem;
+    letter-spacing: -0.3px;
+}
+.tools-header-sub {
+    font-size: 0.72rem;
     color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 0;
+}
+.btn-timeline {
+    padding: 7px 12px;
+    border-radius: 10px;
+    border: 1.5px solid #bfdbfe;
+    background: var(--primary-soft);
+    color: var(--primary);
     font-family: inherit;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 700;
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    transition: background 0.15s, border-color 0.15s;
+    flex-shrink: 0;
     white-space: nowrap;
 }
 .btn-timeline:hover { border-color: var(--primary); color: var(--primary); }
@@ -3738,11 +3814,39 @@ body.is-offline #app-layout {
    PONTO 17 — barra de pesquisa de ferramentas
    ============================================= */
 .tools-search-wrap {
-    margin-bottom: 14px;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
 }
 .tools-search-input {
-    width: 100%;
+    flex: 1;
     box-sizing: border-box;
+    min-width: 0;
+}
+.tools-filter-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+.tools-filter-btn {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+.tools-filter-btn.active {
+    background: var(--primary-soft);
+    color: var(--primary);
+    border-color: #bfdbfe;
 }
 
 /* =============================================
@@ -4416,16 +4520,11 @@ body.is-offline #app-layout {
 }
 .dark-mode .btn-qty { background: var(--input-fill); }
 
-.dark-mode .tool-available {
-    background: #14532d;
-    color: #86efac;
-    border-color: #16a34a;
-}
-.dark-mode .tool-allocated {
-    background: #450a0a;
-    color: #fca5a5;
-    border-color: #dc2626;
-}
+.dark-mode .tool-available { border-color: var(--border); background: var(--card-bg); }
+.dark-mode .tool-allocated { background: rgba(180,120,0,0.10); border-color: rgba(217,119,6,0.35); }
+.dark-mode .tool-overdue   { background: rgba(220,38,38,0.08); border-color: rgba(220,38,38,0.35); }
+.dark-mode .tool-badge-colab { background: rgba(180,120,0,0.15); color: #fcd34d; border-color: rgba(217,119,6,0.3); }
+.dark-mode .tool-badge-overdue { background: rgba(220,38,38,0.12); color: #fca5a5; border-color: rgba(220,38,38,0.3); }
 
 /* 6 — FERRAMENTAS (Cards, Icon Picker, Workers) */
 .dark-mode .search-clear-btn { background: rgba(255,255,255,0.2); }
