@@ -746,6 +746,18 @@ function nav(viewId) {
     if (viewId === 'view-tools')  renderTools();
     if (viewId === 'view-dashboard') { renderDashboard(true); }
     if (viewId === 'view-encomendas') { loadEncomendas(); }
+    if (viewId === 'view-admin') {
+        if (window.innerWidth < 768) {
+            // Mobile: mostrar menu, esconder detalhe
+            const menu   = document.getElementById('admin-mobile-menu');
+            const detail = document.getElementById('admin-mobile-detail');
+            if (menu)   menu.style.display   = 'block';
+            if (detail) detail.style.display = 'none';
+            _adminMobileActive = null;
+        } else {
+            renderWorkers(); renderAdminTools();
+        }
+    }
     if (viewId === 'view-pedidos') {
         // Limpa pesquisa ao entrar na vista para não confundir ao voltar
         _patSearchQuery = '';
@@ -753,7 +765,7 @@ function nav(viewId) {
         if (searchEl) searchEl.value = '';
         renderPats();
     }
-    if (viewId === 'view-admin')  { renderWorkers(); renderAdminTools(); }
+    if (viewId === 'view-admin') { switchAdminTab(ADMIN_TABS[_adminIdx], false); }
 
     document.querySelectorAll('.menu-items li').forEach(li => li.classList.remove('active'));
     const sideMap = {
@@ -2556,6 +2568,79 @@ async function exportToolHistoryCSV() {
 // =============================================
 const ADMIN_TABS  = ['workers', 'tools', 'clientes', 'users', 'settings'];
 let   _adminIdx   = 0;   // índice activo
+
+// ── Admin mobile — menu estilo Android ────────────────────────────────────────
+const _adminMobileTitles = {
+    workers:  'Funcionários',
+    tools:    'Ferramentas',
+    clientes: 'Clientes',
+    users:    'Utilizadores',
+    settings: 'Definições',
+};
+let _adminMobileActive = null;
+
+function adminMobileOpen(tab) {
+    if (window.innerWidth >= 768) return; // só mobile
+    _adminMobileActive = tab;
+
+    const menu   = document.getElementById('admin-mobile-menu');
+    const detail = document.getElementById('admin-mobile-detail');
+    const title  = document.getElementById('admin-mobile-detail-title');
+    const content = document.getElementById('admin-mobile-detail-content');
+    if (!menu || !detail || !title || !content) return;
+
+    // Título do ecrã de detalhe
+    title.textContent = _adminMobileTitles[tab] || tab;
+
+    // Mover o painel correcto para dentro do content
+    const panel = document.getElementById(`panel-${tab}`);
+    if (panel) content.appendChild(panel);
+
+    // Disparar renders específicos de cada tab
+    if (tab === 'clientes')  renderClientesList();
+    if (tab === 'users')     renderUsersList();
+    if (tab === 'settings')  { _updateOcrKeyStatus(); _loadOcrKeywordsInput(); }
+    if (tab === 'tools')     renderAdminTools();
+    if (tab === 'workers')   renderWorkers();
+
+    // Animação: menu sai, detail entra
+    menu.style.display   = 'none';
+    detail.style.display = 'block';
+    detail.classList.remove('admin-mobile-detail-enter');
+    void detail.offsetWidth;
+    detail.classList.add('admin-mobile-detail-enter');
+
+    // Actualizar título do header
+    const titleEl = document.getElementById('header-page-title');
+    if (titleEl) titleEl.textContent = _adminMobileTitles[tab] || 'Administração';
+
+    window.scrollTo(0, 0);
+}
+
+function adminMobileBack() {
+    if (window.innerWidth >= 768) return;
+    _adminMobileActive = null;
+
+    const menu   = document.getElementById('admin-mobile-menu');
+    const detail = document.getElementById('admin-mobile-detail');
+    const content = document.getElementById('admin-mobile-detail-content');
+    if (!menu || !detail) return;
+
+    // Devolver o painel ao slider (para o desktop continuar a funcionar)
+    const slider = document.getElementById('admin-slider');
+    if (slider && content) {
+        while (content.firstChild) slider.appendChild(content.firstChild);
+    }
+
+    detail.style.display = 'none';
+    menu.style.display   = 'block';
+
+    // Restaurar título
+    const titleEl = document.getElementById('header-page-title');
+    if (titleEl) titleEl.textContent = 'Administração';
+
+    window.scrollTo(0, 0);
+}
 
 function switchAdminTab(tab, animate = true) {
     const idx = ADMIN_TABS.indexOf(tab);

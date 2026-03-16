@@ -4444,9 +4444,121 @@ body.is-offline #app-layout {
    DESKTOP LAYOUT (>= 768px)
    Sidebar becomes permanent, bottom nav hides
    ============================================= */
-@media (min-width: 768px) {
+/* ══════════════════════════════════════════════════════════
+   ADMIN MOBILE — menu de definições estilo Android
+   Apenas activo em mobile (< 768px)
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+    /* Esconder tabs e slider — substituídos pelo menu */
+    .admin-tabs { display: none !important; }
+    .admin-slider-wrap { display: none !important; }
 
-    /* App layout: row com sidebar à esquerda */
+    /* Mostrar menu mobile */
+    #admin-mobile-menu { display: block !important; }
+
+    /* Mostrar painel de detalhe quando activo */
+    #admin-mobile-detail { display: block !important; }
+}
+
+/* Menu mobile — escondido por defeito (desktop não o usa) */
+#admin-mobile-menu  { display: none; }
+#admin-mobile-detail { display: none; }
+
+/* Lista de secções */
+.admin-mobile-section-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 14px 4px 6px;
+}
+.admin-mobile-group {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 14px;
+}
+.admin-mobile-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
+    -webkit-tap-highlight-color: transparent;
+}
+.admin-mobile-item:last-child { border-bottom: none; }
+.admin-mobile-item:active { background: var(--input-fill); }
+.admin-mobile-item-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.admin-mobile-item-icon svg { width: 20px; height: 20px; }
+.admin-mobile-item-text { flex: 1; min-width: 0; }
+.admin-mobile-item-label {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.2;
+}
+.admin-mobile-item-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+.admin-mobile-chevron { color: var(--text-muted); flex-shrink: 0; }
+
+/* Painel de detalhe — slide in/out */
+.admin-mobile-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0 16px;
+}
+.admin-mobile-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 6px 0;
+    -webkit-tap-highlight-color: transparent;
+}
+.admin-mobile-detail-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--text-main);
+    flex: 1;
+    text-align: center;
+    margin-right: 60px;
+    letter-spacing: -0.3px;
+}
+
+/* Animações de transição */
+@keyframes adminSlideIn {
+    from { transform: translateX(32px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes adminSlideOut {
+    from { transform: translateX(0);     opacity: 1; }
+    to   { transform: translateX(-20px); opacity: 0; }
+}
+.admin-mobile-detail-enter { animation: adminSlideIn 0.22s cubic-bezier(0.2, 0, 0, 1) both; }
+.admin-mobile-menu-exit    { animation: adminSlideOut 0.18s ease both; }
+
+@media (min-width: 768px) {
     #app-layout {
         flex-direction: row;
         align-items: flex-start;
