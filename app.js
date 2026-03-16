@@ -744,8 +744,8 @@ function nav(viewId) {
         if (bulkLoc && !bulkLoc.value.trim()) bulkLoc.value = '';
     }
     if (viewId === 'view-tools')  renderTools();
-
     if (viewId === 'view-dashboard') { renderDashboard(true); }
+    if (viewId === 'view-encomendas') { loadEncomendas(); }
     if (viewId === 'view-pedidos') {
         // Limpa pesquisa ao entrar na vista para não confundir ao voltar
         _patSearchQuery = '';
@@ -969,14 +969,17 @@ async function renderDashboard(force = false) {
         accent: patPendentes > 0 ? '#7c3aed' : '#16a34a',
         onClick: () => nav('view-pedidos'),
         stats: (() => {
-            const pats = Object.values(_patCache.data || {});
-            const urgentes = pats.filter(p => p.status !== 'levantado' && p.criadoEm && (Date.now() - p.criadoEm) > 3 * 86400000).length;
-            const hoje     = pats.filter(p => p.status !== 'levantado' && p.criadoEm && (Date.now() - p.criadoEm) < 86400000).length;
-            return [
-                { label: 'Pendentes', value: patPendentes, color: patPendentes > 0 ? '#7c3aed' : '#64748b' },
-                ...(urgentes > 0 ? [{ label: '+3 dias', value: urgentes, color: '#dc2626' }] : []),
-                ...(hoje > 0     ? [{ label: 'Hoje', value: hoje, color: '#16a34a' }] : []),
-            ];
+            try {
+                const pats     = Object.values(_patCache.data || {});
+                const urgentes = pats.filter(p => p.status !== 'levantado' && p.criadoEm && (Date.now() - p.criadoEm) > 3 * 86400000).length;
+                const hoje     = pats.filter(p => p.status !== 'levantado' && p.criadoEm && (Date.now() - p.criadoEm) < 86400000).length;
+                const result   = [{ label: 'Pendentes', value: patPendentes, color: patPendentes > 0 ? '#7c3aed' : '#64748b' }];
+                if (urgentes > 0) result.push({ label: '+3 dias', value: urgentes, color: '#dc2626' });
+                if (hoje > 0)     result.push({ label: 'Hoje', value: hoje, color: '#16a34a' });
+                return result;
+            } catch(_e) {
+                return [{ label: 'Pendentes', value: patPendentes, color: patPendentes > 0 ? '#7c3aed' : '#64748b' }];
+            }
         })(),
     }));
 
@@ -5220,14 +5223,6 @@ async function loadEncomendas(force = false) {
 // Carrega quando navega para a view
 const _encNavOrig = window.nav;
 document.addEventListener('DOMContentLoaded', () => {
-    // hook na função nav existente
-    const _origNav = window.nav;
-    if (_origNav) {
-        window.nav = function(viewId, ...args) {
-            _origNav(viewId, ...args);
-            if (viewId === 'view-encomendas') loadEncomendas();
-        };
-    }
 
     // Desktop layout: sidebar visível, bottom nav escondido
     function applyDesktopLayout() {
