@@ -749,12 +749,13 @@ function nav(viewId) {
     if (viewId === 'view-admin') {
         if (window.innerWidth < 768) {
             // Mobile: mostrar menu, esconder detalhe
-            const menu   = document.getElementById('admin-mobile-menu');
-            const detail = document.getElementById('admin-mobile-detail');
-            if (menu)   menu.style.display   = 'block';
-            if (detail) detail.style.display = 'none';
+            document.getElementById('admin-mobile-menu')?.classList.remove('admin-mobile-hidden');
+            document.getElementById('admin-mobile-detail')?.classList.add('admin-mobile-hidden');
             _adminMobileActive = null;
         } else {
+            // Desktop: garantir que elementos mobile não têm style inline
+            document.getElementById('admin-mobile-menu')?.classList.add('admin-mobile-hidden');
+            document.getElementById('admin-mobile-detail')?.classList.add('admin-mobile-hidden');
             renderWorkers(); renderAdminTools();
         }
     }
@@ -2604,8 +2605,8 @@ function adminMobileOpen(tab) {
     if (tab === 'workers')   renderWorkers();
 
     // Animação: menu sai, detail entra
-    menu.style.display   = 'none';
-    detail.style.display = 'block';
+    menu.classList.add('admin-mobile-hidden');
+    detail.classList.remove('admin-mobile-hidden');
     detail.classList.remove('admin-mobile-detail-enter');
     void detail.offsetWidth;
     detail.classList.add('admin-mobile-detail-enter');
@@ -2632,8 +2633,8 @@ function adminMobileBack() {
         while (content.firstChild) slider.appendChild(content.firstChild);
     }
 
-    detail.style.display = 'none';
-    menu.style.display   = 'block';
+    detail.classList.add('admin-mobile-hidden');
+    menu.classList.remove('admin-mobile-hidden');
 
     // Restaurar título
     const titleEl = document.getElementById('header-page-title');

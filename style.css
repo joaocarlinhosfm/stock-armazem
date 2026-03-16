@@ -4450,14 +4450,16 @@ body.is-offline #app-layout {
    ══════════════════════════════════════════════════════════ */
 
 /* Por defeito (desktop): menu mobile escondido */
-#admin-mobile-menu   { display: none; }
-#admin-mobile-detail { display: none; }
+#admin-mobile-menu,
+#admin-mobile-detail,
+.admin-mobile-hidden { display: none !important; }
 
 /* Mobile: esconder tabs/slider, mostrar menu */
 @media (max-width: 767px) {
     .admin-tabs          { display: none !important; }
     .admin-slider-wrap   { display: none !important; }
-    #admin-mobile-menu   { display: block; }
+    #admin-mobile-menu:not(.admin-mobile-hidden) { display: block !important; }
+    #admin-mobile-detail:not(.admin-mobile-hidden) { display: block !important; }
 }
 
 /* Lista de secções */
