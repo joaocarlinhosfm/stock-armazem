@@ -2581,7 +2581,6 @@ let _adminMobileActive = null;
 function _buildAdminMobileMenu() {
     const viewAdmin = document.getElementById('view-admin');
     if (!viewAdmin) return;
-    // Remover se já existir
     document.getElementById('admin-mobile-menu')?.remove();
     document.getElementById('admin-mobile-detail')?.remove();
 
@@ -2598,36 +2597,80 @@ function _buildAdminMobileMenu() {
           svg:'<path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>', vb:'0 0 20 20', fill:true },
     ];
 
-    // Construir menu
     const menu = document.createElement('div');
     menu.id = 'admin-mobile-menu';
-    const chevronSvg = `<svg class="admin-mobile-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>`;
+
     const groups = [
-        { label: 'Gestão', tabs: items.slice(0,3) },
-        { label: 'Sistema', tabs: items.slice(3) },
+        { label:'Gestão',  tabs: items.slice(0,3) },
+        { label:'Sistema', tabs: items.slice(3) },
     ];
+
     groups.forEach(g => {
+        // Label de secção
         const lbl = document.createElement('div');
         lbl.className = 'admin-mobile-section-label';
         lbl.textContent = g.label;
         menu.appendChild(lbl);
+
+        // Grupo de cards
         const grp = document.createElement('div');
         grp.className = 'admin-mobile-group';
+
         g.tabs.forEach(item => {
             const row = document.createElement('div');
             row.className = 'admin-mobile-item';
-            row.onclick = () => adminMobileOpen(item.tab);
-            row.innerHTML = `
-                <div class="admin-mobile-item-icon" style="background:${item.bg}">
-                    <svg width="20" height="20" viewBox="${item.vb}" ${item.fill ? `fill="${item.color}"` : `fill="none" stroke="${item.color}" stroke-width="2" stroke-linecap="round"`}>${item.svg}</svg>
-                </div>
-                <div class="admin-mobile-item-text">
-                    <div class="admin-mobile-item-label">${escapeHtml(item.label)}</div>
-                    <div class="admin-mobile-item-sub">${escapeHtml(item.sub)}</div>
-                </div>
-                ${chevronSvg}`;
+            row.style.cssText = 'display:flex;align-items:center;gap:14px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--border);background:var(--card-bg);-webkit-tap-highlight-color:transparent';
+            row.addEventListener('click', () => adminMobileOpen(item.tab));
+
+            // Ícone
+            const iconWrap = document.createElement('div');
+            iconWrap.className = 'admin-mobile-item-icon';
+            iconWrap.style.cssText = `background:${item.bg};width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0`;
+            const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svgEl.setAttribute('width', '22');
+            svgEl.setAttribute('height', '22');
+            svgEl.setAttribute('viewBox', item.vb);
+            if (item.fill) {
+                svgEl.setAttribute('fill', item.color);
+            } else {
+                svgEl.setAttribute('fill', 'none');
+                svgEl.setAttribute('stroke', item.color);
+                svgEl.setAttribute('stroke-width', '2');
+                svgEl.setAttribute('stroke-linecap', 'round');
+            }
+            svgEl.innerHTML = item.svg;
+            iconWrap.appendChild(svgEl);
+
+            // Texto
+            const textWrap = document.createElement('div');
+            textWrap.style.cssText = 'flex:1;min-width:0';
+            const labelEl = document.createElement('div');
+            labelEl.className = 'admin-mobile-item-label';
+            labelEl.textContent = item.label;
+            const subEl = document.createElement('div');
+            subEl.className = 'admin-mobile-item-sub';
+            subEl.textContent = item.sub;
+            textWrap.appendChild(labelEl);
+            textWrap.appendChild(subEl);
+
+            // Chevron
+            const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            chevron.setAttribute('width', '16');
+            chevron.setAttribute('height', '16');
+            chevron.setAttribute('viewBox', '0 0 24 24');
+            chevron.setAttribute('fill', 'none');
+            chevron.setAttribute('stroke', '#94a3b8');
+            chevron.setAttribute('stroke-width', '2.5');
+            chevron.setAttribute('stroke-linecap', 'round');
+            chevron.style.flexShrink = '0';
+            chevron.innerHTML = '<path d="M9 18l6-6-6-6"/>';
+
+            row.appendChild(iconWrap);
+            row.appendChild(textWrap);
+            row.appendChild(chevron);
             grp.appendChild(row);
         });
+
         menu.appendChild(grp);
     });
 
@@ -2635,15 +2678,27 @@ function _buildAdminMobileMenu() {
     const detail = document.createElement('div');
     detail.id = 'admin-mobile-detail';
     detail.style.display = 'none';
-    detail.innerHTML = `
-        <div class="admin-mobile-detail-header">
-            <button class="admin-mobile-back-btn" onclick="adminMobileBack()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-                Administração
-            </button>
-            <div class="admin-mobile-detail-title" id="admin-mobile-detail-title"></div>
-        </div>
-        <div id="admin-mobile-detail-content"></div>`;
+
+    const hdr = document.createElement('div');
+    hdr.className = 'admin-mobile-detail-header';
+
+    const backBtn = document.createElement('button');
+    backBtn.className = 'admin-mobile-back-btn';
+    backBtn.addEventListener('click', adminMobileBack);
+    backBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg> Administração';
+
+    const detailTitle = document.createElement('div');
+    detailTitle.className = 'admin-mobile-detail-title';
+    detailTitle.id = 'admin-mobile-detail-title';
+
+    hdr.appendChild(backBtn);
+    hdr.appendChild(detailTitle);
+
+    const content = document.createElement('div');
+    content.id = 'admin-mobile-detail-content';
+
+    detail.appendChild(hdr);
+    detail.appendChild(content);
 
     // Inserir antes do slider-wrap
     const sliderWrap = document.getElementById('admin-slider-wrap');

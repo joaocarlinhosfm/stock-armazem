@@ -4464,8 +4464,14 @@ body.is-offline #app-layout {
 @media (max-width: 767px) {
     #view-admin .admin-tabs        { display: none !important; }
     #view-admin .admin-slider-wrap { display: none !important; }
+    #view-admin > h2               { display: none !important; }
     #view-admin #admin-mobile-menu:not(.admin-mobile-hidden)   { display: block !important; }
     #view-admin #admin-mobile-detail:not(.admin-mobile-hidden) { display: block !important; }
+}
+
+/* Wrapper do menu mobile */
+#admin-mobile-menu {
+    padding: 4px 0 80px;
 }
 
 /* Classe utilitária de esconder */
