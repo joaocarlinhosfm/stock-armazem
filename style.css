@@ -4448,21 +4448,17 @@ body.is-offline #app-layout {
    ADMIN MOBILE — menu de definições estilo Android
    Apenas activo em mobile (< 768px)
    ══════════════════════════════════════════════════════════ */
-@media (max-width: 767px) {
-    /* Esconder tabs e slider — substituídos pelo menu */
-    .admin-tabs { display: none !important; }
-    .admin-slider-wrap { display: none !important; }
 
-    /* Mostrar menu mobile */
-    #admin-mobile-menu { display: block !important; }
-
-    /* Mostrar painel de detalhe quando activo */
-    #admin-mobile-detail { display: block !important; }
-}
-
-/* Menu mobile — escondido por defeito (desktop não o usa) */
-#admin-mobile-menu  { display: none; }
+/* Por defeito (desktop): menu mobile escondido */
+#admin-mobile-menu   { display: none; }
 #admin-mobile-detail { display: none; }
+
+/* Mobile: esconder tabs/slider, mostrar menu */
+@media (max-width: 767px) {
+    .admin-tabs          { display: none !important; }
+    .admin-slider-wrap   { display: none !important; }
+    #admin-mobile-menu   { display: block; }
+}
 
 /* Lista de secções */
 .admin-mobile-section-label {
