@@ -4474,6 +4474,34 @@ body.is-offline #app-layout {
     padding: 4px 0 80px;
 }
 
+/* Detalhe mobile — padding e scroll-list sem altura fixa */
+#admin-mobile-detail {
+    padding-bottom: 80px;
+}
+#admin-mobile-detail-content {
+    padding: 0;
+}
+#admin-mobile-detail .admin-panel {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 0;
+}
+#admin-mobile-detail .scroll-list {
+    max-height: none !important;
+    overflow-y: visible !important;
+}
+#admin-mobile-detail .pro-form-inline {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+#admin-mobile-detail .pro-form-inline .blue-input {
+    flex: 1;
+}
+#admin-mobile-detail .pro-form {
+    margin-bottom: 14px;
+}
+
 /* Classe utilitária de esconder */
 #view-admin .admin-mobile-hidden { display: none !important; }
 
