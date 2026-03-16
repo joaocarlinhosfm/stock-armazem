@@ -196,6 +196,17 @@ async function loadUsers() {
     }
 }
 
+// Floating label — adiciona/remove classe has-value consoante o input tem conteúdo
+function lsFieldUpdate(input, fieldId) {
+    const field = document.getElementById(fieldId);
+    if (!field) return;
+    if (input.value.length > 0) {
+        field.classList.add('has-value');
+    } else {
+        field.classList.remove('has-value');
+    }
+}
+
 // Toggle mostrar/esconder password
 function toggleLoginPassword() {
     const inp  = document.getElementById('ls-password');
@@ -5249,17 +5260,20 @@ function renderEncList() {
     wrap.innerHTML = '';
 
     if (entries.length === 0) {
-        const empty = document.createElement('div');
-        empty.className = 'enc-empty';
-        const icon = document.createElement('div');
-        icon.className   = 'enc-empty-icon';
-        icon.textContent = '◻';
-        const txt = document.createElement('div');
-        txt.className   = 'enc-empty-text';
-        txt.textContent = _encFilter === 'all' ? 'Nenhuma encomenda registada' : 'Nenhuma encomenda ' + _encFilter;
-        empty.appendChild(icon);
-        empty.appendChild(txt);
-        wrap.appendChild(empty);
+        const label = _encFilter === 'all' ? 'Nenhuma encomenda registada' : 'Nenhuma encomenda ' + _encFilter;
+        const sub   = _encFilter === 'all' ? 'Cria a primeira encomenda com o bot\u00e3o acima.' : 'N\u00e3o existem encomendas com este estado.';
+        wrap.innerHTML = `
+            <div class="enc-empty">
+                <div class="enc-empty-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                        <line x1="12" y1="22.08" x2="12" y2="12"/>
+                    </svg>
+                </div>
+                <div class="enc-empty-title">${escapeHtml(label)}</div>
+                <div class="enc-empty-text">${escapeHtml(sub)}</div>
+            </div>`;
         return;
     }
 

@@ -22,42 +22,47 @@
         </div>
         <div class="ls-card">
             <div class="ls-logo-wrap">
-                <svg class="ls-snowflake" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <line x1="32" y1="4"  x2="32" y2="60" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
-                    <line x1="4"  y1="32" x2="60" y2="32" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
-                    <line x1="10.06" y1="10.06" x2="53.94" y2="53.94" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
-                    <line x1="53.94" y1="10.06" x2="10.06" y2="53.94" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
-                    <circle cx="32" cy="32" r="7" fill="currentColor"/>
-                    <circle cx="32" cy="4"  r="3.5" fill="currentColor" opacity="0.6"/>
-                    <circle cx="32" cy="60" r="3.5" fill="currentColor" opacity="0.6"/>
-                    <circle cx="4"  cy="32" r="3.5" fill="currentColor" opacity="0.6"/>
-                    <circle cx="60" cy="32" r="3.5" fill="currentColor" opacity="0.6"/>
-                    <circle cx="10.06" cy="10.06" r="3" fill="currentColor" opacity="0.4"/>
-                    <circle cx="53.94" cy="53.94" r="3" fill="currentColor" opacity="0.4"/>
-                    <circle cx="53.94" cy="10.06" r="3" fill="currentColor" opacity="0.4"/>
-                    <circle cx="10.06" cy="53.94" r="3" fill="currentColor" opacity="0.4"/>
-                </svg>
+                <div class="ls-logo-box">
+                    <svg class="ls-snowflake" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <line x1="32" y1="4"  x2="32" y2="60" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+                        <line x1="4"  y1="32" x2="60" y2="32" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+                        <line x1="10.06" y1="10.06" x2="53.94" y2="53.94" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+                        <line x1="53.94" y1="10.06" x2="10.06" y2="53.94" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+                        <circle cx="32" cy="32" r="7" fill="currentColor"/>
+                        <circle cx="32" cy="4"  r="3.5" fill="currentColor" opacity="0.6"/>
+                        <circle cx="32" cy="60" r="3.5" fill="currentColor" opacity="0.6"/>
+                        <circle cx="4"  cy="32" r="3.5" fill="currentColor" opacity="0.6"/>
+                        <circle cx="60" cy="32" r="3.5" fill="currentColor" opacity="0.6"/>
+                        <circle cx="10.06" cy="10.06" r="3" fill="currentColor" opacity="0.4"/>
+                        <circle cx="53.94" cy="53.94" r="3" fill="currentColor" opacity="0.4"/>
+                        <circle cx="53.94" cy="10.06" r="3" fill="currentColor" opacity="0.4"/>
+                        <circle cx="10.06" cy="53.94" r="3" fill="currentColor" opacity="0.4"/>
+                    </svg>
+                </div>
             </div>
             <div class="ls-header">
                 <h1 class="ls-title">HIPERFRIO</h1>
-                <p class="ls-subtitle">Sistema de Gestão de Stock</p>
+                <p class="ls-subtitle">Gestão de Stock &amp; Operações</p>
             </div>
+            <div class="ls-divider"></div>
 
             <form class="ls-form" onsubmit="handleLogin(event)">
-                <div class="ls-field">
-                    <label class="ls-label">Utilizador</label>
+                <div class="ls-field" id="ls-field-user">
+                    <label class="ls-label" for="ls-username">Utilizador</label>
                     <div class="ls-input-wrap">
                         <svg class="ls-input-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
-                        <input id="ls-username" type="text" class="ls-input" placeholder="Nome de utilizador"
-                            autocomplete="username" autocorrect="off" autocapitalize="none" spellcheck="false" required>
+                        <input id="ls-username" type="text" class="ls-input" placeholder=""
+                            autocomplete="username" autocorrect="off" autocapitalize="none" spellcheck="false" required
+                            oninput="lsFieldUpdate(this,'ls-field-user')" onfocus="lsFieldUpdate(this,'ls-field-user')" onblur="lsFieldUpdate(this,'ls-field-user')">
                     </div>
                 </div>
-                <div class="ls-field">
-                    <label class="ls-label">Password</label>
+                <div class="ls-field" id="ls-field-pass">
+                    <label class="ls-label" for="ls-password">Password</label>
                     <div class="ls-input-wrap">
                         <svg class="ls-input-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
-                        <input id="ls-password" type="password" class="ls-input" placeholder="Password"
-                            autocomplete="current-password" required>
+                        <input id="ls-password" type="password" class="ls-input" placeholder=""
+                            autocomplete="current-password" required
+                            oninput="lsFieldUpdate(this,'ls-field-pass')" onfocus="lsFieldUpdate(this,'ls-field-pass')" onblur="lsFieldUpdate(this,'ls-field-pass')">
                         <button type="button" class="ls-eye-btn" onclick="toggleLoginPassword()" tabindex="-1" aria-label="Mostrar password">
                             <svg id="ls-eye-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/></svg>
                         </button>
@@ -69,6 +74,7 @@
                     <div class="ls-btn-spinner hidden" id="ls-spinner"></div>
                 </button>
             </form>
+            <div class="ls-version">v5.93 · Hiperfrio</div>
         </div>
     </div>
 
