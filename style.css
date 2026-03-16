@@ -4453,23 +4453,23 @@ body.is-offline #app-layout {
    ADMIN MOBILE — menu de definições estilo Android
    ══════════════════════════════════════════════════════════ */
 
-/* DESKTOP (≥768px): menu mobile NUNCA aparece — regra de alta especificidade */
+/* DESKTOP (≥768px): menu mobile NUNCA aparece.
+   Usando #view-admin para superar a especificidade de .view.active */
 @media (min-width: 768px) {
-    #admin-mobile-menu,
-    #admin-mobile-detail { display: none !important; }
+    #view-admin #admin-mobile-menu,
+    #view-admin #admin-mobile-detail { display: none !important; }
 }
 
 /* MOBILE (<768px): tabs e slider desaparecem, menu aparece */
 @media (max-width: 767px) {
-    .admin-tabs        { display: none !important; }
-    .admin-slider-wrap { display: none !important; }
-    /* Menu visível por defeito em mobile, detalhe só quando JS remove a classe */
-    #admin-mobile-menu:not(.admin-mobile-hidden)   { display: block; }
-    #admin-mobile-detail:not(.admin-mobile-hidden) { display: block; }
+    #view-admin .admin-tabs        { display: none !important; }
+    #view-admin .admin-slider-wrap { display: none !important; }
+    #view-admin #admin-mobile-menu:not(.admin-mobile-hidden)   { display: block !important; }
+    #view-admin #admin-mobile-detail:not(.admin-mobile-hidden) { display: block !important; }
 }
 
-/* Classe utilitária de esconder — usada pelo JS */
-.admin-mobile-hidden { display: none !important; }
+/* Classe utilitária de esconder */
+#view-admin .admin-mobile-hidden { display: none !important; }
 
 /* Lista de secções */
 .admin-mobile-section-label {
