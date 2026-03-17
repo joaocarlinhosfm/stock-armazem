@@ -764,38 +764,6 @@ header h1 { display: none; }
     stroke-width: 2;
 }
 
-/* Botão + central — destaque com cor primária */
-.bnav-add-btn {
-    color: var(--primary);
-}
-.bnav-add-icon {
-    width: 42px;
-    height: 42px;
-    background: var(--primary);
-    border-radius: 14px;
-    color: white;
-    box-shadow: 0 4px 14px rgba(37,99,235,0.40);
-    transition:
-        transform  0.32s cubic-bezier(0.34, 1.56, 0.64, 1),
-        box-shadow 0.22s ease,
-        border-radius 0.22s ease;
-}
-.bnav-add-icon svg {
-    width: 22px;
-    height: 22px;
-    stroke: white;
-    transition: transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-/* Estado aberto — X rotacionado */
-.bnav-add-btn.add-open .bnav-add-icon {
-    border-radius: 50%;
-    box-shadow: 0 4px 20px rgba(37,99,235,0.55);
-}
-.bnav-add-btn.add-open .bnav-plus-svg {
-    transform: rotate(45deg);
-}
-
 /* Dark mode */
 /* =============================================
 
@@ -1906,14 +1874,7 @@ body.worker-mode .tool-card {
     background: #fef2f2;
     color: #dc2626;
     border-color: #fca5a5;
-}
-.tool-overdue-badge {
-    font-size: 0.70rem;
-    font-weight: 700;
-    color: #dc2626;
-    margin-top: 2px;
-}
-.tool-date { display: none; }
+}.tool-date { display: none; }
 .tool-arrow {
     flex-shrink: 0;
     color: var(--text-muted);
@@ -2349,13 +2310,6 @@ body.is-offline #app-layout {
 .dv2-card--warn  .dv2-card-value { color: #dc2626; }
 .dv2-card--alert .dv2-card-value { color: #d97706; }
 
-.dv2-card-sub {
-    font-size: 0.68rem;
-    color: var(--text-muted);
-    line-height: 1.3;
-    margin-top: 1px;
-}
-
 /* Trend badge */
 .dv2-trend {
     font-size: 0.65rem;
@@ -2674,13 +2628,6 @@ body.is-offline #app-layout {
 .tool-overdue {
     border-left: 4px solid #ef4444;
 }
-.tool-overdue-badge {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: #ef4444;
-    margin-top: 3px;
-}
-
 /* ── Badge animação entrada ── */
 @keyframes badge-pulse-in {
     0%   { transform: scaleX(0.95); opacity: 0.6; }
@@ -3520,12 +3467,6 @@ body.is-offline #app-layout {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .04em;
-    white-space: nowrap;
-}
-.enc-badge-pendente  { background: rgba(239,68,68,.12);  color: #ef4444; }
-.enc-badge-parcial   { background: rgba(245,158,11,.12); color: #f59e0b; }
-.enc-badge-recebida  { background: rgba(22,163,74,.12);  color: #16a34a; }
-
 /* Barra progresso geral */
 .enc-progress-wrap { margin-top: 8px; }
 .enc-progress-bar {
@@ -4008,19 +3949,7 @@ body.is-offline #app-layout {
     margin-top: 4px;
     margin-bottom: 6px;
     padding-left: 2px;
-}
-.ocr-field-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 100%;
-    box-sizing: border-box;
-}
-.ocr-field-title {
+}.ocr-field-title {
     font-weight: 700;
     font-size: 0.90rem;
     color: var(--text-main);
@@ -4043,14 +3972,7 @@ body.is-offline #app-layout {
 .ocr-btn-inline {
     flex-shrink: 0;
     white-space: nowrap;
-}
-.ocr-btn-full {
-    width: 100%;
-    box-sizing: border-box;
-    text-align: center;
-    justify-content: center;
-}
-.ocr-textarea {
+}.ocr-textarea {
     width: 100%;
     box-sizing: border-box;
     resize: vertical;
@@ -4182,24 +4104,6 @@ body.is-offline #app-layout {
 .settings-api-key-wrap {
     display: flex;
     gap: 8px;
-    width: 100%;
-}
-.settings-api-input {
-    flex: 1;
-    font-size: 0.82rem;
-    font-family: 'Courier New', monospace;
-    letter-spacing: 0.02em;
-}
-.settings-item-hint {
-    font-size: 0.68rem;
-    color: var(--text-muted);
-    line-height: 1.4;
-}
-.settings-item-hint a {
-    color: var(--primary);
-    text-decoration: none;
-}
-
 
 .user-create-card {
     background: var(--card-bg);
@@ -4299,8 +4203,6 @@ body.is-offline #app-layout {
     margin-bottom: 14px;
 }
 
-/* Classe utilitária de esconder */
-#view-admin .admin-mobile-hidden { display: none !important; }
 
 /* Lista de secções */
 .admin-mobile-section-label {
@@ -4421,7 +4323,6 @@ body.is-offline #app-layout {
     #bottom-nav { display: none !important; }
 
     /* Theme switch no footer da sidebar */
-    .desktop-theme-switch { display: flex; }
 
     /* Main: sem padding de bottom nav */
     #main-content {

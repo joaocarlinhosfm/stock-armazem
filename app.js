@@ -2720,11 +2720,6 @@ function _setupBottomNavScrollBehaviour(enable) {
     };
 }
 
-function toggleTheme() {
-    const current = localStorage.getItem('hiperfrio-tema') || 'light';
-    const next    = current === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-}
 
 
 // Ponto de entrada único para mudança de tema
