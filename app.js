@@ -2435,7 +2435,11 @@ function adminMobileOpen(tab) {
     title.textContent = _adminMobileTitles[tab] || tab;
 
     const panel = document.getElementById(`panel-${tab}`);
-    if (panel) content.appendChild(panel);
+    if (panel) {
+        // Forçar dimensões — o .admin-panel tem width/min-width:20% do slider desktop
+        panel.style.cssText = 'width:100% !important; min-width:100% !important; flex-shrink:0; box-sizing:border-box; padding:0;';
+        content.appendChild(panel);
+    }
 
     if (tab === 'clientes')  renderClientesList();
     if (tab === 'users')     renderUsersList();
@@ -2463,7 +2467,12 @@ function adminMobileBack() {
 
     const slider = document.getElementById('admin-slider');
     if (slider && content) {
-        while (content.firstChild) slider.appendChild(content.firstChild);
+        while (content.firstChild) {
+            const child = content.firstChild;
+            // Limpar estilos inline forçados — o slider desktop usa CSS próprio
+            if (child.style) child.style.cssText = '';
+            slider.appendChild(child);
+        }
     }
 
     detail.style.display = 'none';
