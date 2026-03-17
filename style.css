@@ -2916,7 +2916,9 @@ body.is-offline #app-layout {
     text-overflow: ellipsis;
     white-space: nowrap;
     margin: 0;
-    line-height: 1.2;
+    line-height: 1;
+    display: block;
+    align-self: center;
 }
 .dash-refresh-btn {
     display: flex;
@@ -2931,7 +2933,6 @@ body.is-offline #app-layout {
     color: var(--text-muted);
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
-    margin-left: auto;
 }
 .dash-refresh-btn:hover { background: var(--primary-soft); color: var(--primary); }
 .dash-refresh-btn svg { display: block; }

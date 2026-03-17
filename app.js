@@ -881,7 +881,7 @@ async function renderDashboard(force = false) {
     grid.className = 'dv2-grid';
 
     grid.appendChild(_metricCard({
-        label: 'Produtos', value: total, icon: '◻',
+        label: 'Produtos', value: total, icon: 'box',
         sub: `${comStock} com stock · ${semStock} esgotados`,
         accent: '#2563eb',
         progress: total > 0 ? comStock / total : 1,
@@ -1245,7 +1245,7 @@ function closeBatch() {
     if (_bulkCount === 0) { nav('view-search'); return; }
     const zona = document.getElementById('bulk-loc')?.value?.trim() || '?';
     openConfirmModal({
-        icon: '◻',
+        icon: '📦',
         title: 'Fechar lote?',
         desc: `${_bulkCount} produto${_bulkCount > 1 ? 's' : ''} adicionado${_bulkCount > 1 ? 's' : ''} na zona "${zona}". Fechar e ir para o stock?`,
         onConfirm: () => {
