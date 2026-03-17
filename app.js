@@ -2397,28 +2397,31 @@ function _buildAdminMobileMenu() {
     detail.id = 'admin-mobile-detail';
     detail.style.display = 'none';
 
+    // Linha do back btn
     const hdr = document.createElement('div');
     hdr.className = 'admin-mobile-detail-header';
-    hdr.style.cssText = 'display:flex;align-items:center;gap:8px;padding:12px 0 16px;';
+    hdr.style.cssText = 'display:flex;align-items:center;padding:10px 0 4px;';
 
     const backBtn = document.createElement('button');
     backBtn.className = 'admin-mobile-back-btn';
     backBtn.type = 'button';
-    backBtn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:transparent;border:none;outline:none;color:var(--primary);font-family:Inter,sans-serif;font-size:0.88rem;font-weight:700;cursor:pointer;padding:6px 0;margin:0;-webkit-appearance:none;appearance:none;';
+    backBtn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:transparent;border:none;outline:none;color:var(--primary);font-family:Inter,sans-serif;font-size:0.85rem;font-weight:600;cursor:pointer;padding:6px 0;margin:0;-webkit-appearance:none;appearance:none;letter-spacing:0.01em;';
     backBtn.addEventListener('click', adminMobileBack);
-    backBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg> Administração';
+    backBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg> Administração';
 
-    const detailTitle = document.createElement('div');
+    // Título da secção como h2
+    const detailTitle = document.createElement('h2');
     detailTitle.className = 'admin-mobile-detail-title';
     detailTitle.id = 'admin-mobile-detail-title';
+    detailTitle.style.cssText = 'font-size:1.35rem;font-weight:800;color:var(--text-main);letter-spacing:-0.4px;margin:4px 0 16px;padding:0;line-height:1.2;';
 
     hdr.appendChild(backBtn);
-    hdr.appendChild(detailTitle);
 
     const content = document.createElement('div');
     content.id = 'admin-mobile-detail-content';
 
     detail.appendChild(hdr);
+    detail.appendChild(detailTitle);
     detail.appendChild(content);
 
     // Inserir antes do slider-wrap

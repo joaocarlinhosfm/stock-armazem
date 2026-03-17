@@ -2992,6 +2992,9 @@ body.is-offline #app-layout {
     cursor: pointer;
     transition: transform 0.15s;
     -webkit-tap-highlight-color: transparent;
+    width: 100%;
+    box-sizing: border-box;
+    display: block;
 }
 .pat-card:active { transform: scale(0.985); }
 
@@ -3426,6 +3429,9 @@ body.is-offline #app-layout {
     padding: 14px 16px;
     cursor: pointer;
     transition: box-shadow .18s, transform .12s;
+    width: 100%;
+    box-sizing: border-box;
+    display: block;
 }
 .enc-card:active { transform: scale(0.985); }
 .enc-card-top {
