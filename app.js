@@ -2399,9 +2399,12 @@ function _buildAdminMobileMenu() {
 
     const hdr = document.createElement('div');
     hdr.className = 'admin-mobile-detail-header';
+    hdr.style.cssText = 'display:flex;align-items:center;gap:8px;padding:12px 0 16px;';
 
     const backBtn = document.createElement('button');
     backBtn.className = 'admin-mobile-back-btn';
+    backBtn.type = 'button';
+    backBtn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:transparent;border:none;outline:none;color:var(--primary);font-family:Inter,sans-serif;font-size:0.88rem;font-weight:700;cursor:pointer;padding:6px 0;margin:0;-webkit-appearance:none;appearance:none;';
     backBtn.addEventListener('click', adminMobileBack);
     backBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg> Administração';
 

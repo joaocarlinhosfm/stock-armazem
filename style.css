@@ -847,7 +847,7 @@ header h1 { display: none; }
 h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 20px; color: var(--text-main); }
 h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
 
-.scroll-list { max-height: 300px; overflow-y: auto; }
+.scroll-list { overflow-y: auto; }
 
 /* Admin tabs */
 /* ── Admin tabs — pill compacto sem overflow ── */
