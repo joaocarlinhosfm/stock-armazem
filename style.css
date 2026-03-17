@@ -2898,35 +2898,14 @@ body.is-offline #app-layout {
    VIEW DASHBOARD — vista dedicada
    ============================================= */
 .dash-view-header {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 20px 16px 12px;
-}
-.dash-view-header > * {
-    display: flex;
-    align-items: center;
-}
-.dash-view-title {
-    font-size: 1.4rem;
-    font-weight: 800;
-    color: var(--text-main);
-    letter-spacing: -0.5px;
-    flex: 1;
-    margin: 0;
-    line-height: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: none;
 }
 .dash-refresh-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     flex-shrink: 0;
     border-radius: 50%;
     border: none;
