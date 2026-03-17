@@ -63,7 +63,7 @@ body {
 }
 
 
-/* HEADER */
+/* HEADER — Proposta C */
 header {
     background: #ffffff;
     border-bottom: 1px solid var(--border);
@@ -75,29 +75,92 @@ header {
     top: 0; left: 0; right: 0;
     z-index: 1000;
     height: var(--header-h);
-    box-shadow: 0 1px 12px rgba(0,0,0,0.06);
+    box-shadow: 0 1px 12px rgba(37,99,235,0.07);
 }
 
-.header-titles {
+/* Logo mark — esquerda */
+.header-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+.header-logo-mark {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.32);
+    flex-shrink: 0;
+}
+.header-logo-mark svg {
+    width: 24px;
+    height: 24px;
+    animation: header-snow-spin 18s cubic-bezier(0.45,0.05,0.55,0.95) infinite;
+    transform-origin: center center;
+}
+@keyframes header-snow-spin {
+    0%   { transform: rotate(0deg);   }
+    22%  { transform: rotate(78deg);  }
+    38%  { transform: rotate(142deg); }
+    61%  { transform: rotate(218deg); }
+    80%  { transform: rotate(290deg); }
+    100% { transform: rotate(360deg); }
+}
+.header-logo-text {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    flex: 1;
-    min-width: 0;
+    gap: 1px;
 }
-
 .header-brand {
-    font-size: 1.05rem;
-    font-weight: 800;
-    letter-spacing: -0.3px;
+    font-size: 0.95rem;
+    font-weight: 900;
     color: var(--text-main);
+    letter-spacing: -0.35px;
+    line-height: 1;
+}
+.header-tagline {
+    font-size: 0.60rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.01em;
     line-height: 1;
 }
 
-header h1 {
-    display: none;
+/* Direita — badge de vista + avatar */
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
 }
+.header-view-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+}
+
+/* Esconder no desktop — não precisa do badge quando há sidebar */
+@media (min-width: 768px) {
+    .header-view-badge { display: none; }
+    .header-tagline    { display: block; }
+}
+
+header h1 { display: none; }
+.header-titles { display: none; }
 
 .header-avatar-wrap {
     position: relative;
@@ -1378,11 +1441,16 @@ body.worker-mode .tool-card {
 .ls-snowflake {
     width: 38px; height: 38px;
     color: #2563eb;
-    animation: ls-spin-slow 20s linear infinite;
+    animation: ls-spin-organic 18s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+    transform-origin: center center;
 }
-@keyframes ls-spin-slow {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
+@keyframes ls-spin-organic {
+    0%   { transform: rotate(0deg);   }
+    22%  { transform: rotate(78deg);  }
+    38%  { transform: rotate(142deg); }
+    61%  { transform: rotate(218deg); }
+    80%  { transform: rotate(290deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* Cabeçalho */
