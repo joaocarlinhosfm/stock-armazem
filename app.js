@@ -2449,6 +2449,7 @@ function adminMobileOpen(tab) {
 
     menu.style.display   = 'none';
     detail.style.display = 'block';
+    detail.style.padding = '0 16px 80px';
     detail.classList.remove('admin-mobile-detail-enter');
     void detail.offsetWidth;
     detail.classList.add('admin-mobile-detail-enter');

@@ -4163,10 +4163,10 @@ body.is-offline #app-layout {
 
 /* Detalhe mobile — padding e scroll-list sem altura fixa */
 #admin-mobile-detail {
-    padding-bottom: 80px;
+    padding: 0 16px 80px;
 }
 #admin-mobile-detail-content {
-    padding: 0 16px;
+    padding: 0;
 }
 #admin-mobile-detail .admin-panel {
     width: 100% !important;
@@ -4177,6 +4177,7 @@ body.is-offline #app-layout {
 }
 #admin-mobile-detail .scroll-list {
     max-height: none !important;
+    height: auto !important;
     overflow-y: visible !important;
 }
 #admin-mobile-detail .pro-form-inline {
@@ -4255,17 +4256,22 @@ body.is-offline #app-layout {
     padding: 12px 0 16px;
 }
 .admin-mobile-back-btn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 4px;
-    background: none;
+    background: transparent;
     border: none;
+    outline: none;
     color: var(--primary);
     font-family: 'Inter', sans-serif;
     font-size: 0.88rem;
     font-weight: 700;
     cursor: pointer;
     padding: 6px 0;
+    margin: 0;
+    text-decoration: none;
+    -webkit-appearance: none;
+    appearance: none;
     -webkit-tap-highlight-color: transparent;
 }
 .admin-mobile-detail-title {
