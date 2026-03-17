@@ -9,7 +9,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.gstatic.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' data: blob: https://*.firebasedatabase.app https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://api.anthropic.com https://*.workers.dev; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; worker-src blob: https://cdn.jsdelivr.net;">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=6.03">
+    <link rel="stylesheet" href="style.css?v=6.05">
 </head>
 <body>
 
@@ -497,15 +497,6 @@
                     </button>
                 </div>
 
-                <div class="settings-group-label">SEGURANÇA</div>
-                <div class="settings-item">
-                    <div class="settings-item-info">
-                        <span class="settings-item-title">PIN de Administração</span>
-                        <span class="settings-item-desc" id="pin-status-desc">Protege o acesso à área de administração</span>
-                    </div>
-                    <button class="btn-settings-action" id="pin-action-btn" onclick="openPinSetupModal()">Definir</button>
-                </div>
-
                 <div class="settings-group-label">PERFIL</div>
                 <div class="settings-item">
                     <div class="settings-item-info">
@@ -719,61 +710,6 @@
         </div>
     </div>
 
-    <!-- Modal: PIN de entrada na Administração -->
-    <div id="pin-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pin-modal-title">
-        <div class="modal-content">
-            <div class="modal-icon"><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg></div>
-            <h3 id="pin-modal-title">Área Restrita</h3>
-            <p class="modal-desc" id="pin-modal-desc">Introduz o PIN de Gestor</p>
-            <div class="pin-dots" id="pin-dots">
-                <span></span><span></span><span></span><span></span>
-            </div>
-            <div class="pin-error" id="pin-error"></div>
-            <div class="pin-keypad">
-                <button class="pin-key" onclick="pinKey('1')">1</button>
-                <button class="pin-key" onclick="pinKey('2')">2</button>
-                <button class="pin-key" onclick="pinKey('3')">3</button>
-                <button class="pin-key" onclick="pinKey('4')">4</button>
-                <button class="pin-key" onclick="pinKey('5')">5</button>
-                <button class="pin-key" onclick="pinKey('6')">6</button>
-                <button class="pin-key" onclick="pinKey('7')">7</button>
-                <button class="pin-key" onclick="pinKey('8')">8</button>
-                <button class="pin-key" onclick="pinKey('9')">9</button>
-                <button class="pin-key pin-key-cancel" onclick="closePinModal()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="2" y1="2" x2="14" y2="14"/><line x1="14" y1="2" x2="2" y2="14"/></svg></button>
-                <button class="pin-key" onclick="pinKey('0')">0</button>
-                <button class="pin-key pin-key-del" onclick="pinDel()"><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6.707 4.879A3 3 0 018.828 4H15a3 3 0 013 3v6a3 3 0 01-3 3H8.828a3 3 0 01-2.12-.879l-4.415-4.414a1 1 0 010-1.414l4.414-4.414zm4-1.707l4.414 4.414a1 1 0 010 1.414L10.707 13.12A1 1 0 0110 13H4.414l4-4-4-4H10a1 1 0 01.707.293z" clip-rule="evenodd"/></svg></button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal: Configurar PIN -->
-    <div id="pin-setup-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pin-setup-title">
-        <div class="modal-content">
-            <div class="modal-icon" id="pin-setup-icon"><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg></div>
-            <h3 id="pin-setup-title">Definir PIN</h3>
-            <p class="modal-desc" id="pin-setup-desc">Escolhe um PIN de 4 dígitos para proteger a Administração</p>
-            <div class="pin-dots" id="pin-setup-dots">
-                <span></span><span></span><span></span><span></span>
-            </div>
-            <div class="pin-error" id="pin-setup-error"></div>
-            <div class="pin-keypad">
-                <button class="pin-key" onclick="pinSetupKey('1')">1</button>
-                <button class="pin-key" onclick="pinSetupKey('2')">2</button>
-                <button class="pin-key" onclick="pinSetupKey('3')">3</button>
-                <button class="pin-key" onclick="pinSetupKey('4')">4</button>
-                <button class="pin-key" onclick="pinSetupKey('5')">5</button>
-                <button class="pin-key" onclick="pinSetupKey('6')">6</button>
-                <button class="pin-key" onclick="pinSetupKey('7')">7</button>
-                <button class="pin-key" onclick="pinSetupKey('8')">8</button>
-                <button class="pin-key" onclick="pinSetupKey('9')">9</button>
-                <button class="pin-key pin-key-cancel" onclick="closePinSetupModal()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="2" y1="2" x2="14" y2="14"/><line x1="14" y1="2" x2="2" y2="14"/></svg></button>
-                <button class="pin-key" onclick="pinSetupKey('0')">0</button>
-                <button class="pin-key pin-key-del" onclick="pinSetupDel()"><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6.707 4.879A3 3 0 018.828 4H15a3 3 0 013 3v6a3 3 0 01-3 3H8.828a3 3 0 01-2.12-.879l-4.415-4.414a1 1 0 010-1.414l4.414-4.414zm4-1.707l4.414 4.414a1 1 0 010 1.414L10.707 13.12A1 1 0 0110 13H4.414l4-4-4-4H10a1 1 0 01.707.293z" clip-rule="evenodd"/></svg></button>
-            </div>
-            <button class="btn-cancel hidden" id="pin-remove-btn" onclick="removePin()">Remover PIN</button>
-        </div>
-    </div>
-
     <!-- Modal: Confirmar apagar produto -->
     <div id="delete-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
         <div class="modal-content">
@@ -980,14 +916,6 @@
             <button onclick="closeToolTimeline()" class="btn-cancel">Fechar</button>
         </div>
     </div>
-    <div id="icon-picker-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="icon-picker-title">
-        <div class="modal-content modal-content-wide icon-picker-modal-content">
-            <h3 id="icon-picker-title" class="icon-picker-title">Escolher Ícone</h3>
-            <div class="icon-picker-cats" id="icon-picker-cats"></div>
-            <div class="icon-picker-grid" id="icon-picker-grid"></div>
-        </div>
-    </div>
-
 
     <!-- Modal: Trocar de perfil -->
     <div id="switch-role-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="switch-role-title">
@@ -1025,7 +953,7 @@
                 });
         });
     </script>
-    <script src="app.js?v=6.03"></script>
+    <script src="app.js?v=6.05"></script>
 
     <!-- Modal: PAT Scan OCR -->
     <div id="pat-scan-modal" class="modal-overlay" role="dialog" aria-modal="true">

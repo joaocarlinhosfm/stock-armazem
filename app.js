@@ -304,10 +304,6 @@ async function handleLogin(e) {
     }
 }
 
-// Compatibilidade com PIN modal (gestor criado via Admin)
-function enterAsWorker() { /* obsoleto */ }
-async function enterAsManager() { /* obsoleto */ }
-
 // ──────────────────────────────────────────────────────────
 // GESTÃO DE UTILIZADORES (Admin → tab Utilizadores)
 // ──────────────────────────────────────────────────────────
@@ -461,65 +457,12 @@ async function bootApp() {
         fetchCollection('funcionarios'),
         _fetchClientes(),
     ]).catch(e => console.warn('bootApp fetch error:', e));
-    updatePinStatusUI();
     updateOfflineBanner();
     // Navega para o dashboard como vista inicial
     nav('view-dashboard');
 }
 
 // =============================================
-// PIN — hash SHA-256
-// =============================================
-async function hashPin(pin) {
-    const data    = new TextEncoder().encode(pin + 'hiperfrio-salt');
-    const hashBuf = await crypto.subtle.digest('SHA-256', data);
-    return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-// PIN guardado na Firebase — partilhado entre dispositivos
-const PIN_URL = `${BASE_URL}/config/pinHash.json`;
-let   _cachedPinHash = undefined; // undefined = ainda não carregado; null = carregado, sem PIN
-
-async function getPinHash() {
-    if (_cachedPinHash !== undefined) return _cachedPinHash; // cache hit (mesmo que null = sem PIN)
-    // Tenta Firebase primeiro; fallback para localStorage (offline)
-    try {
-        const res  = await fetch(await authUrl(PIN_URL));
-        const data = await res.json();
-        _cachedPinHash = data || null;
-        if (_cachedPinHash) localStorage.setItem('hiperfrio-pin-hash-cache', _cachedPinHash);
-        else                 localStorage.removeItem('hiperfrio-pin-hash-cache');
-    } catch (e) {
-        console.warn('getPinHash offline, usando cache local:', e?.message || e);
-        _cachedPinHash = localStorage.getItem('hiperfrio-pin-hash-cache') || null;
-    }
-    return _cachedPinHash;
-}
-
-async function setPinHash(hash) {
-    _cachedPinHash = hash;
-    // Guarda sempre localmente como fallback offline
-    if (hash) localStorage.setItem('hiperfrio-pin-hash-cache', hash);
-    else       localStorage.removeItem('hiperfrio-pin-hash-cache');
-    // Envia para Firebase
-    await fetch(await authUrl(PIN_URL), {
-        method:  'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(hash)
-    });
-}
-
-async function deletePinHash() {
-    _cachedPinHash = null;
-    localStorage.removeItem('hiperfrio-pin-hash-cache');
-    await fetch(await authUrl(PIN_URL), { method: 'DELETE' });
-}
-
-async function hasPinConfigured() {
-    const hash = await getPinHash();
-    return !!hash;
-}
-
 // =============================================
 // CACHE EM MEMÓRIA — TTL 60s
 // =============================================
@@ -2244,241 +2187,6 @@ function snapBack(card) {
     card.addEventListener('transitionend', () => card.classList.remove('snap-back'), { once:true });
 }
 
-// =============================================
-// PIN — SHA-256
-// =============================================
-let pinBuffer = '';
-// Variáveis de tentativas removidas (sistema antigo)
-
-// Bloqueio de PIN por tentativas excessivas
-const PIN_MAX_ATTEMPTS  = 5;
-const PIN_LOCKOUT_MS    = 5 * 60 * 1000; // 5 minutos
-const PIN_ATTEMPTS_KEY  = 'hiperfrio-pin-attempts';
-const PIN_LOCKOUT_KEY   = 'hiperfrio-pin-lockout';
-
-// PONTO 12: lockout armazenado na Firebase — bypass-proof mesmo se localStorage for limpo
-const PIN_LOCKOUT_FB_URL = `${BASE_URL}/config/pinLockout.json`;
-
-function isPinLocked() {
-    // Verificação local rápida (fallback)
-    const lockUntil = parseInt(localStorage.getItem(PIN_LOCKOUT_KEY) || '0');
-    if (Date.now() < lockUntil) return lockUntil;
-    return false;
-}
-
-async function isPinLockedRemote() {
-    try {
-        const url = await authUrl(PIN_LOCKOUT_FB_URL);
-        const res = await fetch(url);
-        if (!res.ok) return false;
-        const data = await res.json();
-        if (!data) return false;
-        if (Date.now() < (data.until || 0)) return data.until;
-        return false;
-    } catch(_e) { return false; } // offline — usa local
-}
-
-function recordPinFailure() {
-    const attempts = parseInt(localStorage.getItem(PIN_ATTEMPTS_KEY) || '0') + 1;
-    if (attempts >= PIN_MAX_ATTEMPTS) {
-        const until = Date.now() + PIN_LOCKOUT_MS;
-        localStorage.setItem(PIN_LOCKOUT_KEY,  String(until));
-        localStorage.setItem(PIN_ATTEMPTS_KEY, '0');
-        // Persiste também na Firebase (async — best-effort)
-        authUrl(PIN_LOCKOUT_FB_URL).then(url =>
-            fetch(url, { method:'PUT', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ until, attempts: 0 }) })
-        ).catch(() => {});
-        return until;
-    }
-    localStorage.setItem(PIN_ATTEMPTS_KEY, String(attempts));
-    // Actualiza contagem na Firebase
-    authUrl(PIN_LOCKOUT_FB_URL).then(url =>
-        fetch(url, { method:'PATCH', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ attempts }) })
-    ).catch(() => {});
-    return false;
-}
-
-function resetPinAttempts() {
-    localStorage.removeItem(PIN_ATTEMPTS_KEY);
-    localStorage.removeItem(PIN_LOCKOUT_KEY);
-    // Limpa também na Firebase
-    authUrl(PIN_LOCKOUT_FB_URL).then(url =>
-        fetch(url, { method:'DELETE' })
-    ).catch(() => {});
-}
-
-function checkAdminAccess() {
-    // Só gestores têm acesso — qualquer outro perfil é bloqueado
-    if (currentRole === 'manager') return true;
-    showToast('Acesso reservado a gestores', 'error');
-    return false;
-}
-
-let pinMode = 'admin'; // 'admin' | 'role'
-
-function openPinModal(mode = 'admin') {
-    pinMode   = mode;
-    pinBuffer = '';
-    updatePinDots('pin-dots', 0);
-    const desc = document.getElementById('pin-modal-desc');
-    if (desc) desc.textContent = mode === 'role'
-        ? 'Introduz o PIN para entrar como Gestor'
-        : 'Introduz o PIN de Gestor';
-    document.getElementById('pin-error').textContent = '';
-    document.getElementById('pin-modal').classList.add('active');
-    focusModal('pin-modal');
-}
-function closePinModal() {
-    pinBuffer = '';
-    document.getElementById('pin-modal').classList.remove('active');
-}
-// SEGURANÇA (#25): PIN de 4 dígitos (10 000 combinações + lockout de 5 tentativas).
-// Para maior segurança considera alterar para 6 dígitos: mudar >= 4 para >= 6
-// e === 4 para === 6 aqui e em pinSetupKey.
-function pinKey(digit) {
-    if (pinBuffer.length >= 4) return;
-    pinBuffer += digit;
-    updatePinDots('pin-dots', pinBuffer.length);
-    if (pinBuffer.length === 4) setTimeout(validatePin, 150);
-}
-function pinDel() { pinBuffer = pinBuffer.slice(0,-1); updatePinDots('pin-dots', pinBuffer.length); }
-
-async function validatePin() {
-    // PONTO 12: verifica lockout remoto antes de validar
-    const remoteLock = await isPinLockedRemote();
-    if (remoteLock) {
-        const remaining = Math.ceil((remoteLock - Date.now()) / 60000);
-        showPinError('pin-dots', 'pin-error', `Bloqueado por ${remaining} min`);
-        return;
-    }
-    // Verifica bloqueio antes de qualquer comparação
-    const locked = isPinLocked();
-    if (locked) {
-        const mins = Math.ceil((locked - Date.now()) / 60000);
-        showPinError('pin-dots','pin-error',`Bloqueado. Tenta em ${mins} min.`);
-        pinBuffer = '';
-        return;
-    }
-
-    const savedHash = await getPinHash();
-    const entered   = await hashPin(pinBuffer);
-    if (entered === savedHash) {
-        resetPinAttempts();
-        document.getElementById('pin-modal').classList.remove('active');
-        if (pinMode === 'role') {
-            localStorage.setItem(ROLE_KEY, 'manager');
-            applyRole('manager');
-            bootApp();
-        }
-    } else {
-        const lockedUntil = recordPinFailure();
-        const remaining   = parseInt(localStorage.getItem(PIN_ATTEMPTS_KEY) || '0');
-        const attemptsLeft = PIN_MAX_ATTEMPTS - remaining;
-        if (lockedUntil) {
-            showPinError('pin-dots','pin-error','Demasiadas tentativas. Bloqueado 5 min.');
-        } else {
-            showPinError('pin-dots','pin-error',`PIN incorreto (${attemptsLeft} tentativa${attemptsLeft !== 1 ? 's' : ''} restante${attemptsLeft !== 1 ? 's' : ''})`);
-        }
-        pinBuffer = '';
-    }
-}
-
-let pinSetupBuffer = '', pinSetupFirstEntry = '', pinSetupStep = 'first';
-
-let pinSetupMode = 'change'; // 'change' | 'first-time'
-
-function openPinSetupModal(mode = 'change') {
-    pinSetupMode   = mode;
-    const hasPin   = !!_cachedPinHash;
-    const isFirst  = mode === 'first-time';
-    pinSetupBuffer = ''; pinSetupFirstEntry = ''; pinSetupStep = 'first';
-    updatePinDots('pin-setup-dots', 0);
-    document.getElementById('pin-setup-error').textContent = '';
-    document.getElementById('pin-setup-title').textContent = isFirst ? 'Criar PIN de Gestor' : (hasPin ? 'Alterar PIN' : 'Definir PIN');
-    document.getElementById('pin-setup-desc').textContent  = isFirst
-        ? 'Define um PIN de 4 dígitos para proteger o acesso de Gestor'
-        : 'Escolhe um PIN de 4 dígitos';
-    document.getElementById('pin-setup-icon').textContent  = isFirst ? '🔑' : '🔐';
-    document.getElementById('pin-remove-btn')?.classList.toggle('hidden', !(hasPin && !isFirst));
-    document.getElementById('pin-setup-modal').classList.add('active');
-    focusModal('pin-setup-modal');
-}
-function closePinSetupModal() {
-    document.getElementById('pin-setup-modal').classList.remove('active');
-    // Se cancelou na primeira configuração, volta ao ecrã de seleção de perfil
-    if (pinSetupMode === 'first-time') {
-        pinSetupMode = 'change';
-        document.getElementById('role-screen')?.classList.remove('hidden');
-    }
-}
-
-function pinSetupKey(digit) {
-    if (pinSetupBuffer.length >= 4) return;
-    pinSetupBuffer += digit;
-    updatePinDots('pin-setup-dots', pinSetupBuffer.length);
-    if (pinSetupBuffer.length === 4) setTimeout(handlePinSetupStep, 150);
-}
-async function handlePinSetupStep() {
-    if (pinSetupStep === 'first') {
-        pinSetupFirstEntry = pinSetupBuffer;
-        pinSetupBuffer = ''; pinSetupStep = 'confirm';
-        updatePinDots('pin-setup-dots', 0);
-        document.getElementById('pin-setup-desc').textContent = 'Repete o PIN para confirmar';
-    } else {
-        if (pinSetupBuffer === pinSetupFirstEntry) {
-            const hash         = await hashPin(pinSetupBuffer);
-            const wasFirstTime = pinSetupMode === 'first-time'; // guarda antes de closePinSetupModal resetar
-            await setPinHash(hash);
-            localStorage.removeItem('hiperfrio-pin'); // remove legado
-            closePinSetupModal(); updatePinStatusUI(); showToast('PIN definido!');
-            // Se foi a primeira configuração, entra logo como Gestor
-            if (wasFirstTime) {
-                localStorage.setItem(ROLE_KEY, 'manager');
-                applyRole('manager');
-                bootApp();
-            }
-        } else {
-            showPinError('pin-setup-dots','pin-setup-error','PINs não coincidem. Tenta novamente.');
-            pinSetupBuffer = ''; pinSetupFirstEntry = ''; pinSetupStep = 'first';
-            setTimeout(() => { document.getElementById('pin-setup-desc').textContent = 'Escolhe um PIN de 4 dígitos'; }, 1000);
-        }
-    }
-}
-function pinSetupDel() { pinSetupBuffer = pinSetupBuffer.slice(0,-1); updatePinDots('pin-setup-dots', pinSetupBuffer.length); }
-function removePin() {
-    openConfirmModal({
-        icon: '',
-        title: 'Remover PIN?',
-        desc: 'Sem PIN, qualquer pessoa poderá aceder como Gestor. Tens a certeza?',
-        onConfirm: async () => {
-            await deletePinHash();
-            localStorage.removeItem('hiperfrio-pin');
-            closePinSetupModal(); updatePinStatusUI(); showToast('PIN removido');
-        }
-    });
-}
-function updatePinDots(cId, count) {
-    document.querySelectorAll(`#${cId} span`).forEach((d,i) => {
-        d.classList.toggle('filled', i < count); d.classList.remove('error');
-    });
-}
-function showPinError(dotsId, errorId, msg) {
-    document.querySelectorAll(`#${dotsId} span`).forEach(d => { d.classList.remove('filled'); d.classList.add('error'); });
-    document.getElementById(errorId).textContent = msg;
-    setTimeout(() => {
-        document.querySelectorAll(`#${dotsId} span`).forEach(d => d.classList.remove('error'));
-        document.getElementById(errorId).textContent = '';
-    }, 1000);
-}
-function updatePinStatusUI() {
-    const hasPin = !!_cachedPinHash;
-    const desc   = document.getElementById('pin-status-desc');
-    const btn    = document.getElementById('pin-action-btn');
-    if (desc) desc.textContent = hasPin ? 'PIN ativo — partilhado entre dispositivos' : 'Protege o acesso como Gestor';
-    if (btn)  btn.textContent  = hasPin ? 'Alterar' : 'Definir';
-}
 
 // =============================================
 // EXPORTAR CSV
@@ -3173,81 +2881,6 @@ function fmtQty(quantidade, unidade) {
     const qty = quantidade ?? 0;
     if (!unidade || unidade === 'un') return String(qty);
     return `${qty} ${UNIT_SHORT[unidade] || unidade}`;
-}
-
-// =============================================
-// ÍCONES DE FERRAMENTAS — picker por categoria
-// =============================================
-const TOOL_ICONS = {
-    'Manuais':       ['◈','◆','▲','■','●','◉','◎','⊕','⊗','⊘','≡','≈','∞','↺','↻','⇄','⇅','⊞','⊟','⊠'],
-    'Elétrico':      ['⚡','≋','∿','⊡','⊟','⊞','◫','▣','▤','▥','▦','▧','▨','▩','◰','◱','◲','◳','⊛','⊜'],
-    'Corte':         ['◈','▷','◁','▽','△','◇','◦','•','‣','⁃','⁌','⁍','⊢','⊣','⊤','⊥','⊦','⊧','⊨','⊩'],
-    'Canalização':   ['≀','∣','∥','∦','⌇','⌈','⌉','⌊','⌋','⌐','⌑','⌒','⌓','⌔','⌕','⌖','⌗','⌘','⌙','⌚'],
-    'AVAC / Frio':   ['❄','◈','⊕','⊗','⊙','⊚','⊛','⊜','⊝','⊞','⊟','⊠','⊡','⊢','⊣','⊤','⊥','⊦','⊧','⊨'],
-    'Elev. e Carga': ['↑','↓','←','→','↖','↗','↘','↙','↕','↔','⇑','⇓','⇐','⇒','⇕','⇔','⇧','⇩','⇦','⇨'],
-    'Medição':       ['▲','△','▴','▵','▶','▷','▸','▹','►','▻','▼','▽','▾','▿','◀','◁','◂','◃','◄','◅'],
-    'Pintura':       ['◐','◑','◒','◓','◔','◕','◖','◗','◘','◙','◚','◛','◜','◝','◞','◟','◠','◡','◢','◣'],
-    'Solda':         ['◤','◥','◦','◧','◨','◩','◪','◫','◬','◭','◮','◯','◰','◱','◲','◳','◴','◵','◶','◷'],
-    'Transporte':    ['→','←','↑','↓','↗','↘','↙','↖','↕','↔','⇒','⇐','⇑','⇓','⇔','⇕','⇖','⇗','⇘','⇙'],
-    'Segurança':     ['■','□','▪','▫','▬','▭','▮','▯','▰','▱','▲','△','▴','▵','▶','▷','▸','▹','►','▻'],
-    'Limpeza':       ['◆','◇','◈','◉','◊','○','◌','◍','◎','●','◐','◑','◒','◓','◔','◕','◖','◗','◘','◙'],
-    'Jardim / Ext.': ['✦','✧','✩','✪','✫','✬','✭','✮','✯','✰','✱','✲','✳','✴','✵','✶','✷','✸','✹','✺'],
-    'Betão / Obra':  ['✻','✼','✽','✾','✿','❀','❁','❂','❃','❄','❅','❆','❇','❈','❉','❊','❋','❌','❍','❎'],
-    'Informática':   ['⌀','⌁','⌂','⌃','⌄','⌅','⌆','⌇','⌈','⌉','⌊','⌋','⌌','⌍','⌎','⌏','⌐','⌑','⌒','⌓'],
-    'Documentação':  ['§','¶','©','®','™','℃','℉','№','℗','℘','ℙ','ℚ','ℛ','ℜ','ℝ','℞','℟','℠','℡','℣'],
-    'Outros':        ['◈','★','☆','◆','◇','■','□','●','○','▲','△','▼','▽','◀','▶','◐','◑','◒','◓','◔'],
-};
-
-let _iconPickerTarget = 'reg'; // 'reg' ou 'edit-tool'
-let _iconPickerCat    = Object.keys(TOOL_ICONS)[0];
-
-function openIconPicker(target = 'reg') {
-    _iconPickerTarget = target;
-    _renderIconPicker();
-    document.getElementById('icon-picker-modal').classList.add('active');
-    focusModal('icon-picker-modal');
-}
-
-function closeIconPicker() {
-    document.getElementById('icon-picker-modal').classList.remove('active');
-}
-
-function _renderIconPicker() {
-    // Categorias
-    const catEl = document.getElementById('icon-picker-cats');
-    catEl.innerHTML = '';
-    Object.keys(TOOL_ICONS).forEach(cat => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'icon-cat-btn' + (cat === _iconPickerCat ? ' active' : '');
-        btn.textContent = cat;
-        btn.onclick = () => { _iconPickerCat = cat; _renderIconPicker(); };
-        catEl.appendChild(btn);
-    });
-
-    // Ícones da categoria activa
-    const gridEl = document.getElementById('icon-picker-grid');
-    gridEl.innerHTML = '';
-    const currentIcon = (document.getElementById(`${_iconPickerTarget}-tool-icon`) || document.getElementById(`${_iconPickerTarget}-icon-hidden`))?.value || '';
-    TOOL_ICONS[_iconPickerCat].forEach(icon => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'icon-grid-btn' + (icon === currentIcon ? ' active' : '');
-        btn.textContent = icon;
-        btn.onclick = () => _selectIcon(icon);
-        gridEl.appendChild(btn);
-    });
-}
-
-function _selectIcon(icon) {
-    // Suporta dois padrões de ID: '{target}-tool-icon' e '{target}-icon-hidden'
-    const hiddenEl = document.getElementById(`${_iconPickerTarget}-tool-icon`)
-                  || document.getElementById(`${_iconPickerTarget}-icon-hidden`);
-    if (hiddenEl) hiddenEl.value = icon;
-    const _iconBtnMap = { 'reg': 'reg-tool-icon-btn', 'edit-tool': 'edit-tool-icon-btn' };
-    const btnEl = document.getElementById(_iconBtnMap[_iconPickerTarget] || `${_iconPickerTarget}-tool-icon-btn`);
-    if (btnEl) btnEl.textContent = icon;
-    closeIconPicker();
 }
 
 // =============================================
@@ -3988,25 +3621,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // _applyTheme já chama _setupSearchScrollBehaviour e _setupBottomNavScrollBehaviour
     _setupAdminSwipe();
 
-    // Migração legacy PIN — só corre uma vez
-    if (!localStorage.getItem('hiperfrio-migrated')) {
-        const legacyPin = localStorage.getItem('hiperfrio-pin');
-        if (legacyPin) {
-            hashPin(legacyPin).then(h => setPinHash(h).then(() => {
-                localStorage.removeItem('hiperfrio-pin');
-                localStorage.setItem('hiperfrio-migrated', '1');
-            }));
-        } else {
-            const legacyHash = localStorage.getItem('hiperfrio-pin-hash');
-            if (legacyHash) {
-                setPinHash(legacyHash).then(() => {
-                    localStorage.removeItem('hiperfrio-pin-hash');
-                });
-            }
-            localStorage.setItem('hiperfrio-migrated', '1');
-        }
-    }
-
     // Verifica perfil guardado — se existir, arranca diretamente
     const savedRole = localStorage.getItem(ROLE_KEY);
     if (savedRole === 'worker' || savedRole === 'manager') {
@@ -4044,14 +3658,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key !== 'Escape') return;
         const modals = [
             { id: 'worker-modal',       close: closeModal },
-            { id: 'pin-modal',          close: closePinModal },
-            { id: 'pin-setup-modal',    close: closePinSetupModal },
             { id: 'delete-modal',       close: closeDeleteModal },
             { id: 'edit-modal',         close: closeEditModal },
             { id: 'confirm-modal',      close: closeConfirmModal },
             { id: 'switch-role-modal',  close: closeSwitchRoleModal },
             { id: 'history-modal',      close: closeHistoryModal },
-            { id: 'icon-picker-modal',  close: closeIconPicker },
             { id: 'dup-modal',          close: closeDupModal },
             { id: 'inv-setup-modal',    close: closeInvSetup },
             { id: 'inv-modal',          close: closeInventory },
@@ -4697,7 +4308,6 @@ function closePatModal() {
 // ANTHROPIC API KEY — gestão local
 // =============================================
 const ANTHROPIC_KEY_STORAGE  = 'hiperfrio-anthropic-key';
-const ESTAB_HINTS_STORAGE    = 'hiperfrio-estab-hints';
 
 // Chave Anthropic em sessionStorage (não persiste entre sessões nem é acessível
 // por outras abas — reduz exposição vs localStorage)
@@ -4712,20 +4322,6 @@ function _getAnthropicKey() {
         localStorage.removeItem(ANTHROPIC_KEY_STORAGE);
     }
 })();
-
-function _getEstabHints() {
-    return localStorage.getItem(ESTAB_HINTS_STORAGE) || '';
-}
-
-function saveEstabHints() {
-    const val = document.getElementById('inp-estab-hints')?.value || '';
-    localStorage.setItem(ESTAB_HINTS_STORAGE, val);
-}
-
-function _loadEstabHintsInput() {
-    const el = document.getElementById('inp-estab-hints');
-    if (el) el.value = _getEstabHints();
-}
 
 function _isProxyUrl(val) {
     return val.startsWith('https://') || val.startsWith('http://');
@@ -5460,7 +5056,6 @@ async function loadEncomendas(force = false) {
 }
 
 // Carrega quando navega para a view
-const _encNavOrig = window.nav;
 document.addEventListener('DOMContentLoaded', () => {
 
     // Desktop layout: sidebar visível, bottom nav escondido

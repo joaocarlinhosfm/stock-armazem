@@ -160,7 +160,6 @@ header {
 }
 
 header h1 { display: none; }
-.header-titles { display: none; }
 
 .header-avatar-wrap {
     position: relative;
@@ -222,7 +221,6 @@ header h1 { display: none; }
 }
 
 #menu-btn { display: none; }
-.header-spacer { display: none; }
 
 
 /* SEARCH BAR */
@@ -876,14 +874,6 @@ header h1 { display: none; }
 }
 .toast { background: var(--card-bg); padding: 15px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 10px; border-left: 6px solid var(--success); display: flex; align-items: center; gap: 12px; font-weight: 700; }
 
-/* THEME SWITCH */
-input:checked + .compact-slider { background: #334155; }
-input:checked + .compact-slider:before { transform: translateX(26px); }
-
-
-/* THEME SWITCH */
-input:checked + .compact-slider { background: #334155; }
-input:checked + .compact-slider:before { transform: translateX(26px); }
 
 /* FORMS */
 h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 20px; color: var(--text-main); }
@@ -1007,10 +997,6 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
     color: var(--text-muted);
 }
 
-/* Theme switch inside settings - needs different slider color */
-.settings-item .compact-slider {
-    background: var(--border);
-}
 
 .pro-form { display: flex; flex-direction: column; gap: 15px; }
 .pro-form-inline { display: flex; gap: 10px; margin-bottom: 15px; }
@@ -1631,9 +1617,6 @@ body.worker-mode .tool-card {
 }
 
 /* Manter compatibilidade com código antigo que ainda usa estas classes */
-.role-btn { display: none; }
-.role-btn-worker { display: none; }
-.role-btn-manager { display: none; }
 
 /* =============================================
    WORKER MODE — esconde elementos de gestor
@@ -1770,23 +1753,6 @@ body.worker-mode .tool-card {
    6 — FERRAMENTAS (Cards, Icon Picker, Workers)
    ══════════════════════════════════════════════════════════ */
 
-/* =============================================
-   ROLE BUTTON — loading state
-   ============================================= */
-.role-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-/* =============================================
-   DASHBOARD
-   ============================================= */
-.dashboard {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin: 0 0 16px 0;
-}
 /* =============================================
    HISTÓRICO MODAL
    ============================================= */
@@ -2092,80 +2058,6 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
 .btn-settings-action:active { background: #dbeafe; }
 
 /* =============================================
-   PIN KEYPAD
-   ============================================= */
-.pin-dots {
-    display: flex;
-    justify-content: center;
-    gap: 16px;
-    margin: 20px 0 8px;
-}
-
-.pin-dots span {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 2px solid var(--border);
-    background: transparent;
-    transition: background 0.15s, border-color 0.15s;
-}
-
-.pin-dots span.filled {
-    background: var(--primary);
-    border-color: var(--primary);
-}
-
-.pin-dots span.error {
-    background: var(--danger);
-    border-color: var(--danger);
-    animation: pinShake 0.4s ease;
-}
-
-@keyframes pinShake {
-    0%, 100% { transform: translateX(0); }
-    20%       { transform: translateX(-6px); }
-    60%       { transform: translateX(6px); }
-}
-
-.pin-error {
-    text-align: center;
-    color: var(--danger);
-    font-size: 0.82rem;
-    font-weight: 700;
-    min-height: 20px;
-    margin-bottom: 8px;
-}
-
-.pin-keypad {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-top: 12px;
-}
-
-.pin-key {
-    background: var(--bg);
-    border: 1.5px solid var(--border);
-    border-radius: 14px;
-    padding: 18px 10px;
-    font-size: 1.3rem;
-    font-weight: 700;
-    font-family: 'Inter', sans-serif;
-    color: var(--text-main);
-    cursor: pointer;
-    transition: background 0.1s, transform 0.1s;
-}
-
-.pin-key:active {
-    background: var(--primary-soft);
-    color: var(--primary);
-    transform: scale(0.93);
-}
-
-.pin-key-cancel { color: var(--danger); }
-.pin-key-del    { font-size: 1.1rem; }
-
-/* =============================================
    OFFLINE BANNER
    ============================================= */
 #offline-banner {
@@ -2273,13 +2165,6 @@ body.is-offline #app-layout {
     max-width: 100%;
 }
 
-/* =============================================
-   PONTO 17 — tendência no dashboard
-   ============================================= */
-/* Para "Sem stock": subida é mau, descida é bom — inverte cores */
-.dash-card:nth-child(2) .dash-trend-down { background: rgba(34,197,94,0.12); color: #22c55e; }
-
-/* Card de alerta de ferramenta alocada há muito tempo */
 
 /* =============================================
    PONTO 20 — botão fechar lote
@@ -3106,25 +2991,6 @@ body.is-offline #app-layout {
 .dash-refresh-btn.spinning svg {
     animation: spin 0.7s linear infinite;
 }
-
-/* Dashboard cards — mais espaço na vista dedicada */
-#view-dashboard .dashboard {
-    padding: 0 12px 24px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-}
-#view-dashboard .dash-card {
-    border-radius: 18px;
-    padding: 20px 16px;
-    min-height: 110px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-#view-dashboard .dash-icon { font-size: 1.8rem; }
-#view-dashboard .dash-value { font-size: 2rem; font-weight: 800; }
-#view-dashboard .dash-label { font-size: 0.78rem; }
 
 /* Toolbar PAT — título + botão + pesquisa, tudo alinhado */
 .pat-toolbar {
@@ -3971,136 +3837,6 @@ body.is-offline #app-layout {
     user-select: none;
 }
 
-/* Row do form: label em cima, inputs em baixo */
-.tool-reg-row { gap: 4px; }
-.tool-reg-label {
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-    text-transform: uppercase;
-}
-.tool-reg-inputs {
-    display: flex;
-    align-items: stretch;
-    gap: 10px;
-}
-.tool-reg-inputs .blue-input { flex: 1; min-width: 0; }
-
-/* Botão do ícone — dimensões explícitas para Windows */
-.tool-icon-pick-btn {
-    width: 52px;
-    min-width: 52px;
-    height: 52px;
-    min-height: 52px;
-    flex-shrink: 0;
-    border-radius: 12px;
-    border: 2px solid var(--border);
-    background: var(--input-fill);
-    font-size: 1.5rem;
-    line-height: 1;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: border-color 0.15s, background 0.15s;
-    -webkit-tap-highlight-color: transparent;
-    padding: 0;
-    box-sizing: border-box;
-    /* Windows: garante que o texto do emoji não é cortado */
-    overflow: visible;
-    position: relative;
-    z-index: 1;
-}
-.tool-icon-pick-btn:hover { border-color: var(--primary); background: rgba(37,99,235,0.06); }
-.tool-icon-pick-btn:active { opacity: 0.75; }
-
-/* Ícone no card de ferramenta */
-.tool-card-icon {
-    font-size: 1.2rem;
-    margin-right: 6px;
-    flex-shrink: 0;
-}
-
-/* Modal do picker */
-.icon-picker-modal-content {
-    max-height: 88vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    padding-bottom: 16px;
-}
-.icon-picker-title {
-    margin: 0 0 14px;
-    font-size: 1.05rem;
-    font-weight: 800;
-    text-align: center;
-}
-
-/* Categorias */
-.icon-picker-cats {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    padding-bottom: 10px;
-    scrollbar-width: none;
-    flex-shrink: 0;
-}
-.icon-picker-cats::-webkit-scrollbar { display: none; }
-
-.icon-cat-btn {
-    flex-shrink: 0;
-    padding: 6px 12px;
-    border-radius: 20px;
-    border: 1.5px solid var(--border);
-    background: var(--card-bg);
-    color: var(--text-muted);
-    font-size: 0.76rem;
-    font-weight: 700;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-    white-space: nowrap;
-    -webkit-tap-highlight-color: transparent;
-}
-.icon-cat-btn:hover { border-color: var(--primary); color: var(--primary); }
-.icon-cat-btn.active {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: #fff;
-}
-
-/* Grid de ícones */
-.icon-picker-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
-    gap: 8px;
-    overflow-y: auto;
-    padding: 4px 2px;
-    max-height: 52vh;
-    flex: 1;
-}
-.icon-grid-btn {
-    aspect-ratio: 1;
-    border-radius: 12px;
-    border: 2px solid transparent;
-    background: var(--input-fill);
-    font-size: 1.5rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.12s, border-color 0.12s, transform 0.1s;
-    -webkit-tap-highlight-color: transparent;
-    line-height: 1;
-}
-.icon-grid-btn:hover { background: rgba(37,99,235,0.08); border-color: var(--primary); }
-.icon-grid-btn:active { transform: scale(0.9); }
-.icon-grid-btn.active {
-    border-color: var(--primary);
-    background: rgba(37,99,235,0.12);
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.2);
-
 /* ══════════════════════════════════════════════════════════
    11 — ADMIN & DEFINIÇÕES (OCR, Calculadora, Settings)
    ══════════════════════════════════════════════════════════ */
@@ -4683,8 +4419,6 @@ body.is-offline #app-layout {
     #close-menu { display: none; }
     #menu-overlay { display: none !important; }
     #bottom-nav { display: none !important; }
-    .header-spacer .compact-switch { display: none; }
-    .header-spacer { display: none !important; }
 
     /* Theme switch no footer da sidebar */
     .desktop-theme-switch { display: flex; }
@@ -4745,10 +4479,6 @@ body.is-offline #app-layout {
 
 
 /* 7 — DASHBOARD (Cards, Filtros, Gráficos) */
-.dark-mode .dash-card-alert {
-    background: rgba(239,68,68,0.12);
-    border-color: rgba(239,68,68,0.4);
-}
 .dark-mode .tl-out { background: rgba(239,68,68,0.1); }
 .dark-mode .tl-in  { background: rgba(34,197,94,0.1); }
 .dark-mode .dv2-card--warn  { background: rgba(220,38,38,0.08); }
