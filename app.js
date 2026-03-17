@@ -714,7 +714,7 @@ function nav(viewId) {
         'view-dashboard':'nav-dashboard',
         'view-pedidos':'nav-pedidos',
         'view-search':'nav-search','view-tools':'nav-tools','view-register':'nav-register',
-        'view-bulk':'nav-bulk','view-admin':'nav-admin'
+        'view-bulk':'nav-bulk','view-admin':'nav-admin','view-encomendas':'nav-encomendas'
     };
     document.getElementById(sideMap[viewId])?.classList.add('active');
 
@@ -2807,8 +2807,7 @@ const UNITS = [
     { value: 'm',  label: 'Metros (m)',  short: 'm'       },
     { value: 'm2', label: 'Metros² (m²)',short: 'm²'      },
 ];
-// Mapas derivados (mantidos para compatibilidade interna)
-const UNIT_LABELS   = Object.fromEntries(UNITS.map(u => [u.value, u.label]));
+// Mapas derivados
 const UNIT_SHORT    = Object.fromEntries(UNITS.map(u => [u.value, u.short]));
 const UNIT_PREFIXES = ['inp', 'bulk', 'edit'];
 
@@ -4070,7 +4069,6 @@ function importClientesExcel() {
 // =============================================
 // PEDIDOS PAT
 // =============================================
-const PAT_URL = `${BASE_URL}/pedidos.json`;
 let _patProducts = []; // {id, codigo, nome, quantidade}
 let _patDropdownIdx = -1;
 
