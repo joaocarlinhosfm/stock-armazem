@@ -441,6 +441,12 @@ function closeSwitchRoleModal() {
     document.getElementById('switch-role-modal')?.classList.remove('active');
 }
 
+function checkAdminAccess() {
+    if (currentRole === 'manager') return true;
+    showToast('Acesso reservado a gestores', 'error');
+    return false;
+}
+
 // Inicializa a app após o perfil estar definido
 async function bootApp() {
     // Garante token válido antes de qualquer fetch — crítico após login

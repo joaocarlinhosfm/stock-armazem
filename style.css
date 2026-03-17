@@ -3467,6 +3467,11 @@ body.is-offline #app-layout {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .04em;
+}
+.enc-badge-pendente  { background: rgba(239,68,68,.12);  color: #ef4444; }
+.enc-badge-parcial   { background: rgba(245,158,11,.12); color: #f59e0b; }
+.enc-badge-recebida  { background: rgba(22,163,74,.12);  color: #16a34a; }
+
 /* Barra progresso geral */
 .enc-progress-wrap { margin-top: 8px; }
 .enc-progress-bar {
