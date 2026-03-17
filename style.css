@@ -2899,26 +2899,27 @@ body.is-offline #app-layout {
    ============================================= */
 .dash-view-header {
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
     padding: 20px 16px 12px;
-    overflow: hidden;
+}
+.dash-view-header > * {
+    display: flex;
+    align-items: center;
 }
 .dash-view-title {
     font-size: 1.4rem;
     font-weight: 800;
     color: var(--text-main);
     letter-spacing: -0.5px;
-    min-width: 0;
     flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     margin: 0;
     line-height: 1;
-    display: block;
-    align-self: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .dash-refresh-btn {
     display: flex;
