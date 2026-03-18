@@ -2603,12 +2603,6 @@ function _setupAdminSwipe() {
 function _applyTheme(theme) {
     document.body.classList.remove('dark-mode');
     if (theme === 'dark')  document.body.classList.add('dark-mode');
-    
-
-    // Sync hidden legacy elements (still used by some paths)
-    const t = document.getElementById('theme-toggle-admin');
-    if (t) t.checked = (theme === 'dark');
-    
 
     // Sync theme dropdown UI
     _syncThemeDropdown(theme);

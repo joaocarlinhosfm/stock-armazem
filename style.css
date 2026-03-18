@@ -65,7 +65,7 @@ body {
 
 /* HEADER — Proposta C */
 header {
-    background: #ffffff;
+    background: var(--card-bg);
     border-bottom: 1px solid var(--border);
     padding: 0 16px;
     display: flex;
@@ -142,7 +142,7 @@ header {
     padding: 4px 10px;
     background: var(--primary-soft);
     color: var(--primary);
-    border: 1px solid #bfdbfe;
+    border: 1px solid rgba(37,99,235,0.25);
     border-radius: 8px;
     font-size: 0.72rem;
     font-weight: 700;
@@ -1152,7 +1152,8 @@ body.worker-mode .tool-card {
 
 .qty-display { 
     font-weight: 900; font-size: 0.95rem;
-    min-width: 24px; text-align: center; color: var(--primary); 
+    min-width: 24px; text-align: center; color: var(--primary);
+    cursor: pointer; user-select: none;
 }
 
 
@@ -1194,8 +1195,9 @@ body.worker-mode .tool-card {
 
 
 .item-card.is-swiping {
-    transition: none; /* instant follow during drag */
+    transition: none;
     cursor: grabbing;
+    touch-action: none;
 }
 
 .item-card.snap-back {
@@ -1304,11 +1306,6 @@ body.worker-mode .tool-card {
    is handled by browser; we detect horizontal
    in JS and block vertical only when swiping
    ============================================= */
-
-.item-card.is-swiping {
-    touch-action: none;
-}
-
 
 /* =============================================
    MODAL — focus trap outline
@@ -1793,10 +1790,6 @@ body.worker-mode .tool-card {
 }
 
 /* Tool card — long press hint */
-.tool-card {
-    position: relative;
-}
-
 /* =============================================
    STOCK CARD — classes (substituem inline styles)
    ============================================= */
@@ -1829,6 +1822,14 @@ body.worker-mode .tool-card {
     color: var(--text-main);
     margin-bottom: 4px;
     line-height: 1.3;
+}
+.tool-allocated .tool-nome,
+.tool-overdue .tool-nome {
+    color: #1e293b;
+}
+.dark-mode .tool-allocated .tool-nome,
+.dark-mode .tool-overdue .tool-nome {
+    color: var(--text-main);
 }
 .tool-sub {
     display: flex;
@@ -2625,9 +2626,6 @@ body.is-offline #app-layout {
 /* =============================================
    PONTO 27 — ferramenta alocada há muito tempo
    ============================================= */
-.tool-overdue {
-    border-left: 4px solid #ef4444;
-}
 /* ── Badge animação entrada ── */
 @keyframes badge-pulse-in {
     0%   { transform: scaleX(0.95); opacity: 0.6; }
@@ -3764,12 +3762,6 @@ body.is-offline #app-layout {
 }
 .qty-inline-ok:hover { opacity: 0.85; }
 
-/* Hint visual: qty-display tem cursor pointer para sugerir interactividade */
-.qty-display {
-    cursor: pointer;
-    user-select: none;
-}
-
 /* ══════════════════════════════════════════════════════════
    11 — ADMIN & DEFINIÇÕES (OCR, Calculadora, Settings)
    ══════════════════════════════════════════════════════════ */
@@ -4351,9 +4343,12 @@ body.is-offline #app-layout {
    ══════════════════════════════════════════════════════════ */
 /* 3 — NAVEGAÇÃO (Bottom Nav, Menu Add) */
 .dark-mode header {
-    background: var(--card-bg);
-    border-bottom-color: var(--border);
     box-shadow: 0 1px 12px rgba(0,0,0,0.25);
+}
+.dark-mode .header-view-badge {
+    background: rgba(37,99,235,0.18);
+    color: #93c5fd;
+    border-color: rgba(37,99,235,0.3);
 }
 .dark-mode #bottom-nav {
     box-shadow:
