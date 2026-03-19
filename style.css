@@ -20,6 +20,203 @@
     --sidebar-w: 260px;
 }
 
+/* ══════════════════════════════════════════════════════
+   PAT — TABS, SELEÇÃO, LEVANTADAS, GUIAS
+   ══════════════════════════════════════════════════════ */
+
+/* Tabs Pendentes / Levantadas */
+.pat-tabs {
+    display: flex;
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 3px;
+    gap: 3px;
+    border: 1px solid var(--border);
+}
+.pat-tab {
+    flex: 1;
+    padding: 7px 10px;
+    border-radius: 9px;
+    border: none;
+    background: transparent;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.18s, color 0.18s;
+}
+.pat-tab.active {
+    background: var(--card-bg);
+    color: var(--primary);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+}
+
+/* Barra de seleção (modo levantar) */
+.pat-sel-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--primary-soft);
+    border: 1.5px solid var(--primary);
+    border-radius: 12px;
+    padding: 10px 12px;
+    animation: fadeSlideIn 0.2s ease;
+}
+.pat-sel-label {
+    font-size: 0.82rem;
+    color: var(--primary);
+    font-weight: 600;
+}
+.pat-sel-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.pat-sel-all-btn {
+    flex: 1;
+    padding: 7px 10px;
+    border-radius: 9px;
+    border: 1.5px solid var(--primary);
+    background: transparent;
+    color: var(--primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.pat-levantar-btn {
+    flex: 2;
+    font-size: 0.82rem !important;
+    padding: 8px 12px !important;
+}
+.pat-levantar-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.pat-sel-cancel {
+    width: 32px !important;
+    height: 32px;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 9px !important;
+    font-size: 0.8rem !important;
+}
+
+/* Checkbox circular nas PAT cards no modo seleção */
+.pat-sel-cb {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--card-bg);
+    flex-shrink: 0;
+    transition: all 0.18s ease;
+}
+.pat-sel-cb.checked {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+.pat-card-selected {
+    border-color: var(--primary) !important;
+    background: var(--primary-soft) !important;
+}
+.pat-card-selected .pat-badge { background: rgba(37,99,235,0.15); }
+
+/* PAT levantada — estilo diferente */
+.pat-card-levantada {
+    opacity: 0.88;
+    border-left: 3px solid #22c55e;
+}
+.pat-func-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    border-radius: 20px;
+    background: rgba(34,197,94,0.12);
+    color: #16a34a;
+    font-size: 0.68rem;
+    font-weight: 700;
+    border: 1px solid rgba(34,197,94,0.25);
+}
+
+/* Tag Guia pendente / Guia feita */
+.pat-sep-tag-done {
+    background: rgba(34,197,94,0.12) !important;
+    color: #16a34a !important;
+    border-color: rgba(34,197,94,0.3) !important;
+}
+
+/* Botão Guia feita */
+.pat-btn-guia {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 6px 10px;
+    border-radius: 9px;
+    border: none;
+    background: #2563eb;
+    color: white;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.pat-btn-guia:active { background: #1d4ed8; }
+
+/* Sub-filtro guias */
+.pat-guia-filter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 0;
+}
+.pat-guia-toggle {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.80rem;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+}
+.pat-guia-toggle input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+.pat-guia-limpar-btn {
+    padding: 5px 10px;
+    border-radius: 9px;
+    border: 1.5px solid var(--danger);
+    background: transparent;
+    color: var(--danger);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.74rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+.pat-guia-limpar-btn:active { background: rgba(239,68,68,0.10); }
+
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
 .dark-mode {
     --bg: #0f172a; 
     --card-bg: #1e293b; 

@@ -4118,7 +4118,11 @@ async function updatePatCount() {
     await _fetchPats();
 }
 
-var _patSearchQuery = '';
+var _patSearchQuery  = '';
+var _patTab          = 'pendentes'; // 'pendentes' | 'levantadas'
+var _patSelMode      = false;       // modo seleção para levantar
+var _patSelWorker    = '';          // funcionário escolhido
+var _patSelIds       = new Set();   // IDs seleccionados
 
 let _patSearchTimer;
 function patSearchFilter(val) {
@@ -4184,9 +4188,24 @@ async function renderPats() {
     if (!el) return;
     el.innerHTML = '<div class="pat-loading">A carregar...</div>';
 
+    // Sync tab UI
+    document.getElementById('pat-tab-pendentes')?.classList.toggle('active', _patTab === 'pendentes');
+    document.getElementById('pat-tab-levantadas')?.classList.toggle('active', _patTab === 'levantadas');
+    const guiaFilter = document.getElementById('pat-guia-filter');
+    if (guiaFilter) guiaFilter.style.display = _patTab === 'levantadas' ? 'flex' : 'none';
+    const soGuias = _patTab === 'levantadas' && document.getElementById('pat-guia-only')?.checked;
+
     const pats = await _fetchPats();
     const entries = Object.entries(pats || {})
-        .filter(([, p]) => p.status !== 'levantado')
+        .filter(([, p]) => {
+            if (_patTab === 'pendentes') return p.status !== 'levantado';
+            if (_patTab === 'levantadas') {
+                if (p.status !== 'levantado') return false;
+                if (soGuias) return !!p.separacao && !p.guiaFeita;
+                return true;
+            }
+            return false;
+        })
         .filter(([, p]) => {
             if (!_patSearchQuery) return true;
             return (p.numero || '').toLowerCase().includes(_patSearchQuery) ||
@@ -4195,27 +4214,39 @@ async function renderPats() {
         .sort((a, b) => (b[1].criadoEm || 0) - (a[1].criadoEm || 0));
 
     if (entries.length === 0) {
-        el.innerHTML = '<div class="pat-empty">Nenhum pedido pendente.</div>';
+        const msg = _patTab === 'levantadas'
+            ? (soGuias ? 'Nenhuma guia pendente.' : 'Nenhum pedido levantado.')
+            : 'Nenhum pedido pendente.';
+        el.innerHTML = `<div class="pat-empty">${msg}</div>`;
         updatePatCount();
         return;
     }
 
-    // Conta pedidos por nome de estabelecimento (nome, não NR — NRs podem repetir)
+    // Conta duplicados por estabelecimento (só pendentes)
     const estabCount = {};
-    entries.forEach(([, p]) => {
-        const nome = (p.estabelecimento || '').trim().toLowerCase();
-        if (nome) estabCount[nome] = (estabCount[nome] || 0) + 1;
-    });
+    if (_patTab === 'pendentes') {
+        entries.forEach(([, p]) => {
+            const nome = (p.estabelecimento || '').trim().toLowerCase();
+            if (nome) estabCount[nome] = (estabCount[nome] || 0) + 1;
+        });
+    }
 
     el.innerHTML = '';
     entries.forEach(([id, pat]) => {
         const card = document.createElement('div');
         const separacao = !!pat.separacao;
-        card.className = 'pat-card' + (separacao ? ' pat-card-separacao' : '');
+        const isLev = _patTab === 'levantadas';
+
+        // Modo seleção: highlight se selecionado
+        const isSelected = _patSelMode && _patSelIds.has(id);
+        card.className = 'pat-card'
+            + (separacao ? ' pat-card-separacao' : '')
+            + (isLev ? ' pat-card-levantada' : '')
+            + (isSelected ? ' pat-card-selected' : '');
 
         const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
         const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
-        const urgente = dias >= 15;
+        const urgente = !isLev && dias >= 15;
         const nomeNorm = (pat.estabelecimento || '').trim().toLowerCase();
         const dupCount = estabCount[nomeNorm] || 0;
 
@@ -4224,35 +4255,59 @@ async function renderPats() {
         cardTop.className = 'pat-card-top';
         const cardTopLeft = document.createElement('div');
         cardTopLeft.className = 'pat-card-top-left';
+
+        // Checkbox no modo seleção
+        if (_patSelMode) {
+            const cb = document.createElement('span');
+            cb.className = 'pat-sel-cb' + (isSelected ? ' checked' : '');
+            cb.innerHTML = isSelected
+                ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+                : '';
+            cardTopLeft.appendChild(cb);
+        }
+
         const patBadge = document.createElement('span');
         patBadge.className   = 'pat-badge' + (urgente ? ' pat-badge-urgente' : '');
         patBadge.textContent = 'PAT ' + (pat.numero || '—');
         cardTopLeft.appendChild(patBadge);
+
         if (separacao) {
             const sepTag = document.createElement('span');
-            sepTag.className   = 'pat-sep-tag';
-            sepTag.textContent = ' Guia Transporte';
+            sepTag.className = 'pat-sep-tag' + (isLev && pat.guiaFeita ? ' pat-sep-tag-done' : '');
+            sepTag.textContent = isLev
+                ? (pat.guiaFeita ? '✓ Guia feita' : ' Guia pendente')
+                : ' Guia Transporte';
             cardTopLeft.appendChild(sepTag);
         }
-        if (dupCount > 1) {
+
+        // Badge funcionário nas levantadas
+        if (isLev && pat.funcionario) {
+            const fBadge = document.createElement('span');
+            fBadge.className   = 'pat-func-badge';
+            fBadge.textContent = pat.funcionario;
+            cardTopLeft.appendChild(fBadge);
+        }
+
+        if (!isLev && dupCount > 1) {
             const dupBadge = document.createElement('span');
             dupBadge.className        = 'pat-dup-badge';
             dupBadge.dataset.estab    = nomeNorm;
             dupBadge.textContent      = `! ${dupCount} pedidos`;
             cardTopLeft.appendChild(dupBadge);
         }
+
         const diasSpan = document.createElement('span');
         diasSpan.className   = 'pat-dias' + (urgente ? ' pat-dias-urgente' : '');
-        diasSpan.textContent = diasLabel;
+        diasSpan.textContent = isLev
+            ? (pat.levantadoEm ? new Date(pat.levantadoEm).toLocaleDateString('pt-PT') : diasLabel)
+            : diasLabel;
         cardTop.appendChild(cardTopLeft);
         cardTop.appendChild(diasSpan);
 
-        // Estabelecimento
         const estabDiv = document.createElement('div');
         estabDiv.className   = 'pat-card-estab';
         estabDiv.textContent = pat.estabelecimento || 'Sem estabelecimento';
 
-        // Chips de produtos
         const prodsDiv = document.createElement('div');
         prodsDiv.className = 'pat-card-produtos';
         (pat.produtos || []).forEach(p => {
@@ -4262,30 +4317,57 @@ async function renderPats() {
             prodsDiv.appendChild(chip);
         });
 
-        // Acções
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'pat-card-actions';
         actionsDiv.onclick   = e => e.stopPropagation();
 
-        const btnLev = document.createElement('button');
-        btnLev.className = 'pat-btn-levantado';
-        btnLev.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-        btnLev.appendChild(document.createTextNode('Dar como levantado'));
-        btnLev.onclick = () => marcarPatLevantado(id);
+        if (_patSelMode) {
+            // Modo seleção — sem botões, clique no card toggle
+        } else if (isLev) {
+            // Tab levantadas: botão "Guia feita" (se separacao e não feita) + apagar
+            if (separacao && !pat.guiaFeita) {
+                const btnGuia = document.createElement('button');
+                btnGuia.className = 'pat-btn-guia';
+                btnGuia.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/></svg> Guia feita';
+                btnGuia.onclick = () => marcarGuiaFeita(id);
+                actionsDiv.appendChild(btnGuia);
+            }
+            const btnDel = document.createElement('button');
+            btnDel.className   = 'pat-btn-apagar';
+            btnDel.innerHTML   = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
+            btnDel.onclick = () => apagarPat(id);
+            actionsDiv.appendChild(btnDel);
+        } else {
+            // Tab pendentes: botões normais
+            const btnLev = document.createElement('button');
+            btnLev.className = 'pat-btn-levantado';
+            btnLev.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+            btnLev.appendChild(document.createTextNode('Dar como levantado'));
+            btnLev.onclick = () => marcarPatLevantado(id);
 
-        const btnDel = document.createElement('button');
-        btnDel.className   = 'pat-btn-apagar';
-        btnDel.textContent = '🗑';
-        btnDel.onclick     = () => apagarPat(id);
+            const btnDel = document.createElement('button');
+            btnDel.className   = 'pat-btn-apagar';
+            btnDel.innerHTML   = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
+            btnDel.onclick = () => apagarPat(id);
 
-        actionsDiv.appendChild(btnLev);
-        actionsDiv.appendChild(btnDel);
+            actionsDiv.appendChild(btnLev);
+            actionsDiv.appendChild(btnDel);
+        }
 
         card.appendChild(cardTop);
         card.appendChild(estabDiv);
         card.appendChild(prodsDiv);
-        card.appendChild(actionsDiv);
+        if (actionsDiv.children.length > 0) card.appendChild(actionsDiv);
+
         card.onclick = (e) => {
+            if (_patSelMode) {
+                // Toggle seleção
+                if (_patSelIds.has(id)) _patSelIds.delete(id);
+                else _patSelIds.add(id);
+                _updateLevantarBtn();
+                renderPats();
+                return;
+            }
             const badge = e.target.closest('.pat-dup-badge');
             if (badge) { showDupPopover(badge, badge.dataset.estab); return; }
             openPatDetail(id, pat);
@@ -4293,6 +4375,184 @@ async function renderPats() {
         el.appendChild(card);
     });
     updatePatCount();
+}
+
+// ── Tab switcher ──────────────────────────────────────────
+function setPatTab(tab) {
+    _patTab = tab;
+    _patSelMode  = false;
+    _patSelIds.clear();
+    document.getElementById('pat-sel-bar').style.display  = 'none';
+    document.getElementById('pat-search').value = '';
+    _patSearchQuery = '';
+    if (tab === 'pendentes') {
+        const cbEl = document.getElementById('pat-guia-only');
+        if (cbEl) cbEl.checked = false;
+    }
+    renderPats();
+}
+
+// ── Levantar Encomenda — modal de funcionário ─────────────
+async function openLevantarModal() {
+    const modal = document.getElementById('levantar-modal');
+    const list  = document.getElementById('levantar-worker-list');
+    if (!modal || !list) return;
+
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem">A carregar...</div>';
+    modal.classList.add('active');
+
+    const data = await fetchCollection('funcionarios');
+    const workers = Object.values(data || {}).sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
+
+    list.innerHTML = '';
+    if (!workers.length) {
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem">Sem funcionários registados.</div>';
+        return;
+    }
+    workers.forEach(w => {
+        const opt = document.createElement('div');
+        opt.className   = 'worker-option';
+        opt.textContent = w.nome;
+        opt.onclick     = () => { closeLevantarModal(); startLevantarMode(w.nome); };
+        list.appendChild(opt);
+    });
+}
+function closeLevantarModal() {
+    document.getElementById('levantar-modal')?.classList.remove('active');
+}
+
+// ── Modo de seleção para levantar ─────────────────────────
+function startLevantarMode(workerNome) {
+    _patTab       = 'pendentes';
+    _patSelMode   = true;
+    _patSelWorker = workerNome;
+    _patSelIds.clear();
+    const bar = document.getElementById('pat-sel-bar');
+    if (bar) bar.style.display = 'flex';
+    const workerEl = document.getElementById('pat-sel-worker');
+    if (workerEl) workerEl.textContent = workerNome;
+    _updateLevantarBtn();
+    renderPats();
+}
+
+function cancelLevantarMode() {
+    _patSelMode   = false;
+    _patSelWorker = '';
+    _patSelIds.clear();
+    const bar = document.getElementById('pat-sel-bar');
+    if (bar) bar.style.display = 'none';
+    renderPats();
+}
+
+function patSelToggleAll() {
+    const pats = _patCache.data || {};
+    const pendentes = Object.entries(pats).filter(([, p]) => p.status !== 'levantado');
+    const allSelected = pendentes.length > 0 && pendentes.every(([id]) => _patSelIds.has(id));
+    if (allSelected) {
+        _patSelIds.clear();
+    } else {
+        pendentes.forEach(([id]) => _patSelIds.add(id));
+    }
+    _updateLevantarBtn();
+    renderPats();
+}
+
+function _updateLevantarBtn() {
+    const btn = document.getElementById('pat-levantar-btn');
+    if (!btn) return;
+    btn.textContent = `Levantar ${_patSelIds.size}`;
+    btn.disabled    = _patSelIds.size === 0;
+}
+
+async function levantarSelectedPats() {
+    if (_patSelIds.size === 0) return;
+    const ids    = [..._patSelIds];
+    const worker = _patSelWorker;
+
+    openConfirmModal({
+        icon: '✅',
+        title: `Levantar ${ids.length} PAT${ids.length > 1 ? 's' : ''}?`,
+        desc: `Serão marcadas como levantadas por ${worker}. As que têm guia de transporte descontam stock.`,
+        onConfirm: async () => {
+            try {
+                for (const id of ids) {
+                    const pat = _patCache.data?.[id];
+                    if (!pat) continue;
+                    const payload = { status: 'levantado', levantadoEm: Date.now(), funcionario: worker };
+                    await apiFetch(`${BASE_URL}/pedidos/${id}.json`, {
+                        method: 'PATCH',
+                        body: JSON.stringify(payload),
+                    });
+                    if (_patCache.data?.[id]) Object.assign(_patCache.data[id], payload);
+
+                    if (pat.separacao && pat.produtos?.length) {
+                        for (const p of pat.produtos) {
+                            if (!p.id) continue;
+                            const atual = cache.stock.data?.[p.id]?.quantidade ?? 0;
+                            const nova  = Math.max(0, atual - (p.quantidade || 1));
+                            if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = nova;
+                            const sUrl = await authUrl(`${BASE_URL}/stock/${p.id}.json`);
+                            await fetch(sUrl, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ quantidade: nova }),
+                            }).catch(() => {});
+                        }
+                    }
+                }
+                cancelLevantarMode();
+                renderList();
+                updatePatCount();
+                showToast(`${ids.length} PAT${ids.length > 1 ? 's' : ''} levantada${ids.length > 1 ? 's' : ''} por ${worker}!`);
+            } catch(_e) { showToast('Erro ao levantar pedidos', 'error'); }
+        }
+    });
+}
+
+// ── Guia feita ────────────────────────────────────────────
+async function marcarGuiaFeita(id) {
+    openConfirmModal({
+        icon: '📋',
+        title: 'Guia já foi feita?',
+        desc: 'Marca esta PAT como guia de transporte concluída.',
+        onConfirm: async () => {
+            try {
+                await apiFetch(`${BASE_URL}/pedidos/${id}.json`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ guiaFeita: true, guiaFeitaEm: Date.now() }),
+                });
+                if (_patCache.data?.[id]) {
+                    _patCache.data[id].guiaFeita   = true;
+                    _patCache.data[id].guiaFeitaEm = Date.now();
+                }
+                renderPats();
+                showToast('Guia marcada como feita!');
+            } catch(_e) { showToast('Erro ao actualizar', 'error'); }
+        }
+    });
+}
+
+async function limparGuiasFeitas() {
+    const levantadas = Object.entries(_patCache.data || {})
+        .filter(([, p]) => p.status === 'levantado' && p.guiaFeita);
+    if (!levantadas.length) { showToast('Nenhuma guia concluída para limpar.', 'info'); return; }
+
+    openConfirmModal({
+        icon: '🗑',
+        title: `Limpar ${levantadas.length} registo${levantadas.length > 1 ? 's' : ''}?`,
+        desc: 'Remove as PATs levantadas com guia já feita. Esta acção é irreversível.',
+        onConfirm: async () => {
+            try {
+                for (const [id] of levantadas) {
+                    await apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'DELETE' });
+                    delete _patCache.data[id];
+                }
+                renderPats();
+                updatePatCount();
+                showToast(`${levantadas.length} registo${levantadas.length > 1 ? 's' : ''} removido${levantadas.length > 1 ? 's' : ''}!`);
+            } catch(_e) { showToast('Erro ao limpar', 'error'); }
+        }
+    });
 }
 
 function openPatModal() {
