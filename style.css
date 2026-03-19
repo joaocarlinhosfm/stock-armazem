@@ -3152,13 +3152,17 @@ body.is-offline #app-layout {
     height: 34px;
     flex-shrink: 0;
     border-radius: 50%;
-    border: none;
-    background: var(--input-fill);
+    border: 1.5px solid var(--border);
+    background: var(--card-bg);
     color: var(--text-muted);
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.dash-refresh-btn:hover { background: var(--primary-soft); color: var(--primary); }
+.dash-refresh-btn:hover {
+    background: var(--primary-soft);
+    color: var(--primary);
+    border-color: rgba(37,99,235,0.25);
+}
 .dash-refresh-btn svg { display: block; }
 .dash-refresh-btn.spinning svg {
     animation: spin 0.7s linear infinite;

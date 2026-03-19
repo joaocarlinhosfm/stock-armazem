@@ -9,7 +9,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.gstatic.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' data: blob: https://*.firebasedatabase.app https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://api.anthropic.com https://*.workers.dev; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; worker-src blob: https://cdn.jsdelivr.net;">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=6.34">
+    <link rel="stylesheet" href="style.css?v=6.36">
 </head>
 <body>
 
@@ -996,6 +996,8 @@
     <!-- Tesseract e XLSX carregados sob pedido via loadTesseract() / loadXlsx() em app.js -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <!-- App Check: descomenta após configurar no Firebase Console -->
+    <!-- <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check-compat.js"></script> -->
     <script>
         window._firebaseTokenPromise = new Promise((resolve, reject) => {
             firebase.initializeApp({
@@ -1004,6 +1006,10 @@
                 databaseURL: "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app",
                 projectId:   "stock-f477e",
             });
+
+            // App Check — descomenta e substitui SITE_KEY após configurar no Firebase Console
+            // firebase.appCheck().activate('SITE_KEY_RECAPTCHA_V3', true);
+
             firebase.auth().signInAnonymously()
                 .then(cred => cred.user.getIdToken())
                 .then(token => {
@@ -1016,7 +1022,7 @@
                 });
         });
     </script>
-    <script src="app.js?v=6.34"></script>
+    <script src="app.js?v=6.35"></script>
 
     <!-- Modal: PAT Scan OCR -->
     <div id="pat-scan-modal" class="modal-overlay" role="dialog" aria-modal="true">
