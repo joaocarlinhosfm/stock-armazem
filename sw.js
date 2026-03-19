@@ -3,7 +3,7 @@
 // Estratégia: network-first para tudo, sem pré-cache de app assets
 // Isto garante que os deploys chegam sempre sem ciclos de cache bloqueados
 // ─────────────────────────────────────────────────────────────────────────────
-const SW_VERSION = 'hiperfrio-v6.27';
+const SW_VERSION = 'hiperfrio-v6.28';
 
 // Apenas bibliotecas externas imutáveis ficam em cache
 const IMMUTABLE_ASSETS = [

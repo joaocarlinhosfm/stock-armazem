@@ -156,12 +156,10 @@
 
 /* Botão Guia feita */
 .pat-btn-guia {
-    flex: 1;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
     gap: 5px;
-    padding: 7px 10px;
+    padding: 6px 14px;
     border-radius: 8px;
     border: none;
     background: #2563eb;
@@ -172,7 +170,6 @@
     cursor: pointer;
     transition: background 0.15s;
     white-space: nowrap;
-    min-width: 0;
 }
 .pat-btn-guia:active { background: #1d4ed8; }
 
@@ -3313,10 +3310,15 @@ body.is-offline #app-layout {
     background: rgba(245,158,11,0.10);
     color: #d97706;
 }
-.pat-card-actions { display: flex; gap: 6px; align-items: center; }
+.pat-card-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 2px;
+}
 .pat-btn-levantado {
-    flex: 1;
-    padding: 7px 10px;
+    padding: 6px 14px;
     background: #16a34a;
     color: #fff;
     border: none;
@@ -3328,11 +3330,9 @@ body.is-offline #app-layout {
     transition: background 0.15s, opacity 0.15s;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
     gap: 5px;
     letter-spacing: 0.01em;
     white-space: nowrap;
-    min-width: 0;
 }
 .pat-btn-levantado:active { background: #15803d; opacity: 0.9; }
 .pat-btn-apagar:active { background: rgba(239,68,68,0.18); }
@@ -4655,8 +4655,9 @@ body.is-offline #app-layout {
 .dark-mode .pat-btn-levantado { background: #16a34a; color: #fff; }
 .pat-btn-apagar {
     flex-shrink: 0;
-    width: 32px;
-    height: 32px;
+    margin-left: auto;
+    width: 30px;
+    height: 30px;
     padding: 0;
     display: flex;
     align-items: center;
@@ -4666,7 +4667,6 @@ body.is-offline #app-layout {
     border: 1px solid rgba(239,68,68,0.20);
     border-radius: 8px;
     cursor: pointer;
-    font-family: 'Inter', sans-serif;
     transition: background 0.15s;
 }
 .dark-mode .pat-cliente-badge {
