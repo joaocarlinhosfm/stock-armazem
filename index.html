@@ -9,7 +9,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.gstatic.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' data: blob: https://*.firebasedatabase.app https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://api.anthropic.com https://*.workers.dev; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; worker-src blob: https://cdn.jsdelivr.net;">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=6.17">
+    <link rel="stylesheet" href="style.css?v=6.18">
 </head>
 <body>
 
@@ -330,7 +330,7 @@
         </div>
 
         <div id="view-register" class="view">
-            <h2>Novo Produto</h2>
+            <div class="view-header"><h2>Novo Produto</h2></div>
             <form id="form-add" class="pro-form">
                 <div class="form-group"><label for="inp-codigo">REFERÊNCIA</label><input type="text" id="inp-codigo" class="blue-input" required oninput="this.value=this.value.toUpperCase()"></div>
                 <div class="form-group"><label for="inp-nome">NOME</label><input type="text" id="inp-nome" class="blue-input" required oninput="this.value=this.value.toUpperCase()"></div>
@@ -367,7 +367,7 @@
         </div>
 
         <div id="view-bulk" class="view">
-            <h2>Catalogar Lote</h2>
+            <div class="view-header"><h2>Catalogar Lote</h2></div>
                         <div id="bulk-counter" class="bulk-counter hidden"></div>
             <form id="form-bulk" class="pro-form">
                 <div class="form-group"><label for="bulk-loc">ZONA</label>
@@ -405,7 +405,7 @@
         </div>
 
         <div id="view-admin" class="view">
-            <h2>Administração</h2>
+            <div class="view-header"><h2>Administração</h2></div>
             
             <!-- Tab buttons (desktop) -->
             <div class="admin-tabs">

@@ -1086,7 +1086,22 @@ header h1 { display: none; }
 
 
 /* FORMS */
-h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 20px; color: var(--text-main); }
+h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 0; color: var(--text-main); }
+
+/* ── Título de vista uniforme ── */
+.view-header {
+    padding: 16px 12px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.view-header h2 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+    margin: 0;
+}
 h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
 
 .scroll-list { overflow-y: auto; }
@@ -2392,11 +2407,13 @@ body.is-offline #app-layout {
     justify-content: space-between;
     gap: 8px;
     margin-bottom: 12px;
+    padding: 16px 12px 0;
 }
 .tools-header h2 {
-    margin-bottom: 2px;
-    font-size: 1.15rem;
-    letter-spacing: -0.3px;
+    margin-bottom: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: -0.2px;
 }
 .tools-header-sub {
     font-size: 0.72rem;
@@ -3159,6 +3176,8 @@ body.is-offline #app-layout {
     flex-direction: column;
     gap: 8px;
 }
+/* Alinha título do pat-toolbar com os outros */
+.pat-toolbar-top { padding: 0; }
 .pat-toolbar-top {
     display: flex;
     align-items: center;
@@ -3168,6 +3187,8 @@ body.is-offline #app-layout {
 }
 .pat-toolbar-top .dash-view-title {
     font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: -0.2px;
     flex: 1;
     min-width: 0;
 }
@@ -3610,7 +3631,7 @@ body.is-offline #app-layout {
    9 — ENCOMENDAS FORNECEDOR
    ══════════════════════════════════════════════════════════ */
 /* Toolbar */
-.enc-toolbar { padding: 12px 16px 0; }
+.enc-toolbar { padding: 16px 12px 8px; }
 .enc-toolbar-top {
     display: flex;
     align-items: center;
