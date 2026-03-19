@@ -97,7 +97,7 @@ async function getAuthToken() {
         try {
             const forceRefreshToken = (_authToken !== null); // força renovação se já tivemos token antes
             _authToken = await window._firebaseUser.getIdToken(forceRefreshToken);
-        } catch(_e) { /* usa o token da Promise */ }
+        } catch(_e) { console.warn('[Auth] falha ao renovar token:', _e?.message); }
     }
 
     _authTokenExp = now + 3_500_000; // ~58 min
@@ -614,7 +614,7 @@ async function syncQueue() {
             const signedUrl = await authUrl(op.url);
             const res = await fetch(signedUrl, opts);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        } catch(_e) { failed.push(op); }
+        } catch(_e) { console.warn('[Queue] falha ao sincronizar op:', op?.method, _e?.message); failed.push(op); }
     }
     queueSave(failed);
     isSyncing = false;
@@ -3269,9 +3269,19 @@ function _openInvReview(changed, data) {
             const qty = document.createElement('span');
             qty.className = 'inv-review-qty';
             const sign = diff > 0 ? '+' : '';
-            qty.innerHTML = `<span class="inv-rev-old">${fmtQty(oldQty, item.unidade)}</span>`
-                + ` → <span class="inv-rev-new">${fmtQty(newQty, item.unidade)}</span>`
-                + ` <span class="inv-rev-diff ${diff > 0 ? 'inv-rev-plus' : 'inv-rev-minus'}">(${sign}${fmtQty(diff, item.unidade)})</span>`;
+            const oldSpan  = document.createElement('span');
+            oldSpan.className   = 'inv-rev-old';
+            oldSpan.textContent = fmtQty(oldQty, item.unidade);
+            const arr  = document.createTextNode(' → ');
+            const newSpan  = document.createElement('span');
+            newSpan.className   = 'inv-rev-new';
+            newSpan.textContent = fmtQty(newQty, item.unidade);
+            const sp = document.createTextNode(' ');
+            const diffSpan = document.createElement('span');
+            diffSpan.className   = 'inv-rev-diff ' + (diff > 0 ? 'inv-rev-plus' : 'inv-rev-minus');
+            diffSpan.textContent = '(' + sign + fmtQty(diff, item.unidade) + ')';
+            qty.appendChild(oldSpan); qty.appendChild(arr);
+            qty.appendChild(newSpan); qty.appendChild(sp); qty.appendChild(diffSpan);
 
             info.appendChild(nome);
             info.appendChild(qty);
@@ -3784,9 +3794,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Confirm modal OK
-    document.getElementById('confirm-modal-ok').onclick = () => {
-        const cb = confirmCallback; closeConfirmModal(); if (cb) cb();
+    // Confirm modal OK — desabilita durante operações async
+    document.getElementById('confirm-modal-ok').onclick = async () => {
+        const cb = confirmCallback;
+        if (!cb) return;
+        const btn = document.getElementById('confirm-modal-ok');
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'A processar...';
+        closeConfirmModal();
+        try { await cb(); }
+        finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
     };
 
     // Delete confirm
@@ -4176,7 +4197,7 @@ function _autoLimparHistorico() {
         .filter(([, p]) => p.status === 'historico' && p.saidaEm && _calcDias(p.saidaEm) >= 15);
     if (!expirados.length) return;
     expirados.forEach(([id]) => {
-        apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'DELETE' }).catch(() => {});
+        apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'DELETE' }).catch(e => console.warn('[Histórico] falha auto-limpeza:', id, e?.message));
         delete _patCache.data[id];
     });
 }
@@ -4700,6 +4721,7 @@ function openPatRefsModal(id, pat) {
     document.getElementById('pat-refs-dropdown').innerHTML = '';
     _renderRefsChips();
     document.getElementById('pat-refs-modal').classList.add('active');
+    focusModal('pat-refs-modal');
     setTimeout(() => document.getElementById('pat-refs-search').focus(), 80);
 }
 
@@ -4831,6 +4853,8 @@ function _renderRefsChips() {
 
 async function savePatRefs() {
     if (!_patRefsId) return;
+    const btn = document.querySelector('#pat-refs-modal .btn-primary');
+    if (btn) { btn.disabled = true; btn.textContent = 'A guardar...'; }
     const produtos = _patRefsList.map(p => ({
         id:         p.id   || null,
         codigo:     p.codigo,
@@ -4846,7 +4870,10 @@ async function savePatRefs() {
         closePatRefsModal();
         renderPats();
         showToast('Referências actualizadas!');
-    } catch(_e) { showToast('Erro ao guardar', 'error'); }
+    } catch(_e) {
+        showToast('Erro ao guardar', 'error');
+        if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    }
 }
 
 function openPatModal() {
