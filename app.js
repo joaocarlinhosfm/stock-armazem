@@ -4,26 +4,22 @@
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _calcDias(ts) — dias de calendário decorridos desde um timestamp ou string de data
-// Conta 1 dia a partir das 00:00, independentemente de terem passado 24h
+// _calcDias(tsOrStr, tsEnd?) — dias de calendário entre dois pontos
+// tsEnd opcional — se omitido usa hoje. Conta 1 dia a partir das 00:00.
 // ─────────────────────────────────────────────────────────────────────────────
-function _calcDias(tsOrStr) {
+function _calcDias(tsOrStr, tsEnd) {
     if (!tsOrStr) return 0;
-    // Normaliza para meia-noite local do dia de origem
     let origem;
     if (typeof tsOrStr === 'string') {
-        // String de data "YYYY-MM-DD" — interpreta em hora local
         const [y, m, d] = tsOrStr.split('-').map(Number);
         origem = new Date(y, m - 1, d);
     } else {
-        // Timestamp numérico (ms) — obtém meia-noite local desse dia
         const dt = new Date(tsOrStr);
         origem = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
     }
-    // Meia-noite local de hoje
-    const hoje = new Date();
-    const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-    return Math.round((hojeZero - origem) / 86400000);
+    const fim = tsEnd ? new Date(tsEnd) : new Date();
+    const fimZero = new Date(fim.getFullYear(), fim.getMonth(), fim.getDate());
+    return Math.max(0, Math.round((fimZero - origem) / 86400000));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -505,6 +501,8 @@ async function bootApp() {
         console.warn('bootApp: sem token, continua offline');
     }
     _scheduleTokenRenewal();
+    // Auto-fechar mês anterior se for dia 1
+    _autoFecharMesSeNecessario();
     // Lança fetches em paralelo após ter token
     await Promise.all([
         renderList(),
@@ -1570,11 +1568,15 @@ function openInlineQtyEdit(id, item) {
     const confirmFn = async () => {
         const newVal = parseFloat(inp.value);
         if (isNaN(newVal) || newVal < 0) { cancelFn(); return; }
+        const oldValInline = cache.stock.data?.[id]?.quantidade ?? 0;
         wrap.replaceWith(qtyEl);
         qtyEl.textContent = fmtQty(newVal, item.unidade);
         qtyEl.classList.toggle('is-zero', newVal === 0);
         document.getElementById(`btn-minus-${id}`)?.toggleAttribute('disabled', newVal === 0);
         if (cache.stock.data?.[id]) cache.stock.data[id].quantidade = newVal;
+        if (newVal < oldValInline) {
+            registarMovimento('saida_manual', id, item.codigo, item.nome, oldValInline - newVal);
+        }
         try {
             await apiFetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: newVal }) });
             renderDashboard();
@@ -1618,6 +1620,10 @@ async function changeQtd(id, delta) {
     const oldQty = stockData[id].quantidade || 0;
     const newQty = Math.max(0, oldQty + delta);
     if (newQty === oldQty) return;
+    if (delta < 0) {
+        const _itm = cache.stock.data?.[id];
+        registarMovimento('saida_manual', id, _itm?.codigo, _itm?.nome, Math.abs(delta));
+    }
 
     // Actualiza cache + DOM imediatamente (optimistic)
     stockData[id].quantidade = newQty;
@@ -2331,7 +2337,7 @@ async function exportToolHistoryCSV() {
 // =============================================
 // ADMIN — slider com swipe entre tabs
 // =============================================
-const ADMIN_TABS  = ['workers', 'tools', 'clientes', 'users', 'settings'];
+const ADMIN_TABS  = ['workers', 'tools', 'clientes', 'users', 'settings', 'relatorio'];
 let   _adminIdx   = 0;   // índice activo
 
 // ── Admin mobile — menu estilo Android ────────────────────────────────────────
@@ -2551,13 +2557,14 @@ function switchAdminTab(tab, animate = true) {
     if (tab === 'clientes') renderClientesList();
     if (tab === 'users')    renderUsersList();
     if (tab === 'settings') { _updateOcrKeyStatus(); _loadOcrKeywordsInput(); }
+    if (tab === 'relatorio') { renderRelatorio(); }
     // Move slider (sem .active nos painéis — visibilidade é por transform)
     const slider = document.getElementById('admin-slider');
     if (slider) {
         if (!animate) slider.classList.add('is-dragging');
         // Cada painel ocupa 1/5 do slider (width:500%)
         // translateX(-idx * 20%) move para o painel certo
-        slider.style.transform = `translateX(-${idx * 20}%)`;
+        slider.style.transform = `translateX(-${(idx * 100 / 6).toFixed(4)}%)`;
         if (!animate) {
             // força reflow para garantir sem transição no reset
             void slider.offsetWidth;
@@ -2618,7 +2625,7 @@ function _setupAdminSwipe() {
         }
 
         slider.classList.add('is-dragging');
-        const base = -_adminIdx * 25;
+        const base = -(_adminIdx * 100 / 6);
         slider.style.transform = `translateX(calc(${base}% + ${extra}px))`;
     }, { passive: false, signal: sig });
 
@@ -3817,6 +3824,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const item = cache.stock.data[id];
         closeDeleteModal();
         delete cache.stock.data[id];
+        if (item) registarMovimento('remocao', id, item.codigo, item.nome, item.quantidade || 0);
         renderList(window._searchInputEl?.value || '', true);
         renderDashboard();
         showToast('Produto apagado');
@@ -3910,10 +3918,14 @@ document.addEventListener('DOMContentLoaded', () => {
             unidade:     document.getElementById('edit-unidade').value || 'un',
             notas:       document.getElementById('edit-notas')?.value.trim() || '',
         };
+        const _oldQtyEdit = cache.stock.data?.[id]?.quantidade ?? 0;
         cache.stock.data[id] = { ...cache.stock.data[id], ...updated };
         btn.textContent = 'A guardar...';
         closeEditModal();
         renderList(window._searchInputEl?.value || '', true);
+        if (updated.quantidade < _oldQtyEdit) {
+            registarMovimento('saida_manual', id, updated.codigo, updated.nome, _oldQtyEdit - updated.quantidade);
+        }
         try {
             await apiFetch(`${BASE_URL}/stock/${id}.json`, { method:'PATCH', body:JSON.stringify(updated) });
             showToast('Produto atualizado!');
@@ -4192,14 +4204,15 @@ async function _fetchPats(force = false) {
     return _patCache.data;
 }
 
-function _autoLimparHistorico() {
+async function _autoLimparHistorico() {
     const expirados = Object.entries(_patCache.data || {})
         .filter(([, p]) => p.status === 'historico' && p.saidaEm && _calcDias(p.saidaEm) >= 15);
     if (!expirados.length) return;
-    expirados.forEach(([id]) => {
+    for (const [id, pat] of expirados) {
+        await _relSalvarPatAntesDeApagar(pat);
         apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'DELETE' }).catch(e => console.warn('[Histórico] falha auto-limpeza:', id, e?.message));
         delete _patCache.data[id];
-    });
+    }
 }
 
 function _getPatPendingCount() {
@@ -4636,12 +4649,15 @@ async function levantarSelectedPats() {
                     });
                 });
 
-                const stockPromises = Object.entries(stockPatches).map(([sid, qty]) =>
-                    apiFetch(`${BASE_URL}/stock/${sid}.json`, {
+                const stockPromises = Object.entries(stockPatches).map(([sid, qty]) => {
+                    const _itm = cache.stock.data?.[sid];
+                    const _saiu = (_itm?.quantidade ?? qty) - qty;
+                    if (_saiu > 0) registarMovimento('saida_pat', sid, _itm?.codigo, _itm?.nome, _saiu);
+                    return apiFetch(`${BASE_URL}/stock/${sid}.json`, {
                         method: 'PATCH',
                         body: JSON.stringify({ quantidade: qty }),
-                    }).catch(e => console.warn('[Stock] PATCH falhou:', sid, e.message))
-                );
+                    }).catch(e => console.warn('[Stock] PATCH falhou:', sid, e.message));
+                });
 
                 await Promise.allSettled([...patPromises, ...stockPromises]);
 
@@ -5538,6 +5554,7 @@ async function marcarPatLevantado(id) {
                             const atual = cache.stock.data?.[p.id]?.quantidade ?? 0;
                             const novaQty = Math.max(0, atual - (p.quantidade || 1));
                             if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = novaQty;
+                            registarMovimento('saida_pat', p.id, p.codigo, p.nome, p.quantidade || 1);
                             return apiFetch(`${BASE_URL}/stock/${p.id}.json`, {
                                 method: 'PATCH',
                                 body: JSON.stringify({ quantidade: novaQty }),
@@ -5726,6 +5743,366 @@ async function loadEncomendas(force = false) {
 }
 
 // Carrega quando navega para a view
+
+// ══════════════════════════════════════════════════════════════════════════
+// RELATÓRIO MENSAL
+// Firebase: /relatorios/{YYYY-MM} — snapshot mensal guardado automaticamente
+//           /movimentos/{id}      — log de movimentos de stock
+// ══════════════════════════════════════════════════════════════════════════
+
+const REL_URL = `${BASE_URL}/relatorios`;
+const MOV_URL = `${BASE_URL}/movimentos`;
+
+let _relMesOffset = 0; // 0 = mês actual, -1 = anterior, etc.
+
+// ── Utilitários de data ────────────────────────────────────────────────────
+function _mesKey(offset = 0) {
+    const d = new Date();
+    d.setMonth(d.getMonth() + offset);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+function _mesLabel(key) {
+    const [y, m] = key.split('-');
+    const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    return `${nomes[parseInt(m)-1]} ${y}`;
+}
+function _mesRange(key) {
+    const [y, m] = key.split('-').map(Number);
+    const ini = new Date(y, m-1, 1).getTime();
+    const fim = new Date(y, m, 1).getTime() - 1;
+    return { ini, fim };
+}
+
+// ── Registar movimento de stock ───────────────────────────────────────────
+// tipo: 'saida_pat' | 'saida_manual' | 'remocao'
+async function registarMovimento(tipo, itemId, codigo, nome, quantidade) {
+    if (!itemId && !codigo) return;
+    const mov = {
+        tipo,
+        itemId:    itemId || null,
+        codigo:    (codigo || '').toUpperCase(),
+        nome:      nome   || '',
+        quantidade: Math.abs(quantidade || 1),
+        ts:        Date.now(),
+        mes:       _mesKey(0),
+    };
+    apiFetch(`${MOV_URL}.json`, { method: 'POST', body: JSON.stringify(mov) })
+        .catch(e => console.warn('[Movimentos] falha ao registar:', e?.message));
+}
+
+// ── Snapshot mensal ────────────────────────────────────────────────────────
+async function _buildSnapshot(mesKey) {
+    const { ini, fim } = _mesRange(mesKey);
+
+    // Fetch movimentos do mês
+    const movUrl = await authUrl(`${MOV_URL}.json?orderBy="mes"&equalTo="${mesKey}"`);
+    const movRes = await fetch(movUrl);
+    const movData = movRes.ok ? (await movRes.json() || {}) : {};
+
+    // Fetch PATs (todas — pendentes, levantadas, histórico)
+    const pats = Object.values(_patCache.data || {});
+
+    // PATs criadas neste mês
+    const patsMes = pats.filter(p => p.criadoEm >= ini && p.criadoEm <= fim);
+
+    // PATs levantadas neste mês
+    const patsLevantadas = pats.filter(p =>
+        p.levantadoEm && p.levantadoEm >= ini && p.levantadoEm <= fim);
+
+    // Duração média (criação → levantamento, só levantadas com ambos os campos)
+    let duracaoMedia = null;
+    const comDuracao = patsLevantadas.filter(p => p.criadoEm && p.levantadoEm);
+    if (comDuracao.length) {
+        const totalDias = comDuracao.reduce((acc, p) =>
+            acc + _calcDias(p.criadoEm, p.levantadoEm), 0);
+        duracaoMedia = Math.round(totalDias / comDuracao.length);
+    }
+
+    // PATs pendentes incluídas na média parcial
+    const pendentes = pats.filter(p => p.status === 'pendente' && p.criadoEm >= ini);
+    const pendentesMedia = pendentes.length
+        ? pendentes.reduce((acc, p) => acc + _calcDias(p.criadoEm), 0) / pendentes.length
+        : 0;
+
+    // Duração média combinada
+    const totalN = comDuracao.length + pendentes.length;
+    const mediaGlobal = totalN > 0
+        ? Math.round((comDuracao.reduce((a,p) => a + _calcDias(p.criadoEm, p.levantadoEm),0)
+            + pendentes.reduce((a,p) => a + _calcDias(p.criadoEm), 0)) / totalN)
+        : null;
+
+    // Por funcionário
+    const porFunc = {};
+    patsLevantadas.forEach(p => {
+        const f = p.funcionario || 'Sem funcionário';
+        porFunc[f] = (porFunc[f] || 0) + 1;
+    });
+
+    // Top 5 referências saídas (movimentos)
+    const refCount = {};
+    Object.values(movData).forEach(m => {
+        if (!m.codigo) return;
+        if (!refCount[m.codigo]) refCount[m.codigo] = { codigo: m.codigo, nome: m.nome, qty: 0 };
+        refCount[m.codigo].qty += m.quantidade || 1;
+    });
+    const top5 = Object.values(refCount)
+        .sort((a, b) => b.qty - a.qty)
+        .slice(0, 5);
+
+    // Ferramentas mais requisitadas
+    const ferrData = cache.ferramentas.data || {};
+    const ferrCount = {};
+    Object.values(ferrData).forEach(t => {
+        const hist = t.historico ? Object.values(t.historico) : [];
+        hist.forEach(ev => {
+            if (ev.acao !== 'atribuida') return;
+            const evTs = ev.data ? new Date(ev.data).getTime() : 0;
+            if (evTs < ini || evTs > fim) return;
+            const nome = t.nome || '?';
+            ferrCount[nome] = (ferrCount[nome] || 0) + 1;
+        });
+    });
+    const topFerr = Object.entries(ferrCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([nome, count]) => ({ nome, count }));
+
+    return {
+        mes:           mesKey,
+        totalPats:     patsMes.length,
+        levantadas:    patsLevantadas.length,
+        pendentes:     pendentes.length,
+        duracaoMedia:  mediaGlobal,
+        porFunc,
+        top5,
+        topFerr,
+        ts:            Date.now(),
+    };
+}
+
+// _calcDias unificada — ver definição global no topo do ficheiro
+
+// ── Guardar snapshot ──────────────────────────────────────────────────────
+async function _guardarSnapshot(mesKey) {
+    try {
+        const snap = await _buildSnapshot(mesKey);
+        await apiFetch(`${REL_URL}/${mesKey}.json`, {
+            method: 'PUT',
+            body: JSON.stringify(snap),
+        });
+        console.warn(`[Relatório] snapshot guardado: ${mesKey}`);
+        return snap;
+    } catch(e) {
+        console.warn('[Relatório] falha ao guardar snapshot:', e?.message);
+        return null;
+    }
+}
+
+// ── Auto-fechar mês no dia 1 ──────────────────────────────────────────────
+const _REL_LAST_CLOSE_KEY = 'hiperfrio-rel-last-close';
+async function _autoFecharMesSeNecessario() {
+    const today = new Date();
+    if (today.getDate() !== 1) return; // só no dia 1
+    const mesAnterior = _mesKey(-1);
+    const lastClose   = localStorage.getItem(_REL_LAST_CLOSE_KEY);
+    if (lastClose === mesAnterior) return; // já fechado
+
+    // Verificar se já existe snapshot no Firebase
+    try {
+        const url = await authUrl(`${REL_URL}/${mesAnterior}.json`);
+        const res = await fetch(url);
+        const existing = res.ok ? await res.json() : null;
+        if (!existing) await _guardarSnapshot(mesAnterior);
+        localStorage.setItem(_REL_LAST_CLOSE_KEY, mesAnterior);
+    } catch(e) {
+        console.warn('[Relatório] auto-fechar falhou:', e?.message);
+    }
+}
+
+// ── Guardar antes de apagar PATs expiradas ────────────────────────────────
+async function _relSalvarPatAntesDeApagar(pat) {
+    if (!pat?.criadoEm) return;
+    const mesKey = (() => {
+        const d = new Date(pat.levantadoEm || pat.saidaEm || pat.criadoEm);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    })();
+    // Verifica se snapshot do mês já existe — se não, gera
+    try {
+        const url = await authUrl(`${REL_URL}/${mesKey}.json`);
+        const res = await fetch(url);
+        const existing = res.ok ? await res.json() : null;
+        if (!existing) await _guardarSnapshot(mesKey);
+    } catch(e) { /* silencioso — não bloquear apagar */ }
+}
+
+// ── Fechar mês manualmente ────────────────────────────────────────────────
+async function relFecharMes() {
+    const mesKey = _mesKey(_relMesOffset);
+    const btn = document.getElementById('rel-fechar-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'A guardar...'; }
+    const snap = await _guardarSnapshot(mesKey);
+    if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v14a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Fechar mês'; }
+    if (snap) { showToast(`Relatório de ${_mesLabel(mesKey)} guardado!`); renderRelatorio(); }
+    else       { showToast('Erro ao guardar relatório', 'error'); }
+}
+
+// ── Navegação de mês ──────────────────────────────────────────────────────
+function relMoveMonth(delta) {
+    _relMesOffset += delta;
+    if (_relMesOffset > 0) _relMesOffset = 0; // não ir para o futuro
+    renderRelatorio();
+}
+
+// ── Renderizar relatório ──────────────────────────────────────────────────
+async function renderRelatorio() {
+    const mesKey = _mesKey(_relMesOffset);
+    const label  = document.getElementById('rel-month-label');
+    const content = document.getElementById('rel-content');
+    if (label)  label.textContent  = _mesLabel(mesKey);
+    if (!content) return;
+
+    // Botão fechar mês — só visível no mês actual
+    const btnFechar = document.getElementById('rel-fechar-btn');
+    if (btnFechar) btnFechar.style.display = _relMesOffset === 0 ? 'inline-flex' : 'none';
+
+    content.innerHTML = '<div class="rel-loading">A carregar...</div>';
+
+    // Tentar buscar snapshot guardado
+    let snap = null;
+    try {
+        const url = await authUrl(`${REL_URL}/${mesKey}.json`);
+        const res = await fetch(url);
+        snap = res.ok ? await res.json() : null;
+    } catch(e) { /* continua */ }
+
+    // Se é o mês actual e não há snapshot, gera em tempo real
+    if (!snap && _relMesOffset === 0) {
+        snap = await _buildSnapshot(mesKey);
+    }
+
+    if (!snap) {
+        content.innerHTML = `<div class="rel-empty">Sem dados para ${_mesLabel(mesKey)}.<br>
+            <small>Volta no mês seguinte para ver o relatório gerado automaticamente.</small></div>`;
+        return;
+    }
+
+    // Buscar snap do mês anterior para comparação
+    const mesAntKey = _mesKey(_relMesOffset - 1);
+    let snapAnt = null;
+    try {
+        const url2 = await authUrl(`${REL_URL}/${mesAntKey}.json`);
+        const res2 = await fetch(url2);
+        snapAnt = res2.ok ? await res2.json() : null;
+    } catch(e) { /* sem comparação */ }
+
+    // ── Render ────────────────────────────────────────────────────────────
+    content.innerHTML = '';
+
+    function _trend(val, ant, invertido = false) {
+        if (ant == null || val == null) return '';
+        const diff = val - ant;
+        if (diff === 0) return `<span class="rel-trend rel-trend-same">= igual ao mês anterior</span>`;
+        const up = diff > 0;
+        const cls = (up !== invertido) ? 'rel-trend-up' : 'rel-trend-down';
+        const sinal = up ? '▲' : '▼';
+        return `<span class="rel-trend ${cls}">${sinal} ${Math.abs(diff)} vs mês anterior</span>`;
+    }
+
+    // 1 — Cards PATs
+    const cards = document.createElement('div');
+    cards.className = 'rel-cards';
+    cards.innerHTML = `
+        <div class="rel-card">
+            <div class="rel-card-label">PATs registadas</div>
+            <div class="rel-card-value">${snap.totalPats ?? '—'}</div>
+            <div class="rel-card-sub">${snap.levantadas ?? 0} levantadas · ${snap.pendentes ?? 0} pendentes</div>
+            ${_trend(snap.totalPats, snapAnt?.totalPats)}
+        </div>
+        <div class="rel-card">
+            <div class="rel-card-label">Duração média</div>
+            <div class="rel-card-value">${snap.duracaoMedia != null ? snap.duracaoMedia + 'd' : '—'}</div>
+            <div class="rel-card-sub">criação → levantamento</div>
+            ${_trend(snap.duracaoMedia, snapAnt?.duracaoMedia, true)}
+        </div>`;
+    content.appendChild(cards);
+
+    // 2 — Top 5 referências
+    if (snap.top5?.length) {
+        const sec = document.createElement('div');
+        sec.innerHTML = `<div class="rel-section-title">Top referências saídas</div>`;
+        const list = document.createElement('div');
+        list.className = 'rel-top-list';
+        snap.top5.forEach((item, i) => {
+            const rankCls = i < 3 ? `rel-top-rank rel-top-rank-${i+1}` : 'rel-top-rank';
+            const el = document.createElement('div');
+            el.className = 'rel-top-item';
+            el.innerHTML = `
+                <div class="${rankCls}">${i+1}</div>
+                <div class="rel-top-info">
+                    <div class="rel-top-code">${escapeHtml(item.codigo)}</div>
+                    <div class="rel-top-nome">${escapeHtml(item.nome || '—')}</div>
+                </div>
+                <div class="rel-top-qty">${item.qty} un.</div>`;
+            list.appendChild(el);
+        });
+        sec.appendChild(list);
+        content.appendChild(sec);
+    } else {
+        const sec = document.createElement('div');
+        sec.innerHTML = `<div class="rel-section-title">Top referências saídas</div>
+            <div class="rel-empty" style="padding:12px 0">Sem movimentos registados este mês</div>`;
+        content.appendChild(sec);
+    }
+
+    // 3 — Ferramentas mais requisitadas
+    if (snap.topFerr?.length) {
+        const sec = document.createElement('div');
+        sec.innerHTML = `<div class="rel-section-title">Ferramentas mais requisitadas</div>`;
+        const bars = document.createElement('div');
+        bars.className = 'rel-tool-bars';
+        const max = snap.topFerr[0]?.count || 1;
+        snap.topFerr.forEach(t => {
+            const pct = Math.round((t.count / max) * 100);
+            const el = document.createElement('div');
+            el.className = 'rel-tool-item';
+            el.innerHTML = `
+                <div class="rel-tool-row">
+                    <span class="rel-tool-name">${escapeHtml(t.nome)}</span>
+                    <span class="rel-tool-count">${t.count}×</span>
+                </div>
+                <div class="rel-bar-track">
+                    <div class="rel-bar-fill" style="width:${pct}%"></div>
+                </div>`;
+            bars.appendChild(el);
+        });
+        sec.appendChild(bars);
+        content.appendChild(sec);
+    }
+
+    // 4 — PATs por funcionário
+    if (snap.porFunc && Object.keys(snap.porFunc).length) {
+        const sec = document.createElement('div');
+        sec.innerHTML = `<div class="rel-section-title">PATs por funcionário</div>`;
+        const list = document.createElement('div');
+        list.className = 'rel-func-list';
+        Object.entries(snap.porFunc)
+            .sort((a,b) => b[1]-a[1])
+            .forEach(([nome, val]) => {
+                const el = document.createElement('div');
+                el.className = 'rel-func-item';
+                const n = document.createElement('span');
+                n.className = 'rel-func-name'; n.textContent = nome;
+                const v = document.createElement('span');
+                v.className = 'rel-func-val'; v.textContent = val + ' PATs';
+                el.appendChild(n); el.appendChild(v);
+                list.appendChild(el);
+            });
+        sec.appendChild(list);
+        content.appendChild(sec);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // Desktop layout: sidebar visível, bottom nav escondido
