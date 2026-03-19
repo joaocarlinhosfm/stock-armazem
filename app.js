@@ -3,6 +3,29 @@
 // Confirmar que as rules não permitem leitura/escrita sem token válido.
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// _calcDias(ts) — dias de calendário decorridos desde um timestamp ou string de data
+// Conta 1 dia a partir das 00:00, independentemente de terem passado 24h
+// ─────────────────────────────────────────────────────────────────────────────
+function _calcDias(tsOrStr) {
+    if (!tsOrStr) return 0;
+    // Normaliza para meia-noite local do dia de origem
+    let origem;
+    if (typeof tsOrStr === 'string') {
+        // String de data "YYYY-MM-DD" — interpreta em hora local
+        const [y, m, d] = tsOrStr.split('-').map(Number);
+        origem = new Date(y, m - 1, d);
+    } else {
+        // Timestamp numérico (ms) — obtém meia-noite local desse dia
+        const dt = new Date(tsOrStr);
+        origem = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    }
+    // Meia-noite local de hoje
+    const hoje = new Date();
+    const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    return Math.round((hojeZero - origem) / 86400000);
+}
+
 // ── Lazy loading de bibliotecas pesadas ──────────────────────────────────────
 // Tesseract (~2.5 MB) e XLSX (~1 MB) só são carregados quando realmente usados,
 // evitando atrasar o arranque da app em Android com rede lenta.
@@ -803,7 +826,7 @@ async function renderDashboard(force = false) {
     const ALERTA_DIAS     = 7;
     const alocadasHaMuito = ferraEntries.filter(t =>
         t.status === 'alocada' && t.dataEntrega &&
-        (Date.now() - new Date(t.dataEntrega).getTime()) > ALERTA_DIAS * 86400000
+        _calcDias(t.dataEntrega) > ALERTA_DIAS
     );
     _saveDashSnapshot(total, semStock, alocadas);
 
@@ -934,8 +957,8 @@ async function renderDashboard(force = false) {
         stats: (() => {
             try {
                 const pats     = Object.values(_patCache.data || {});
-                const urgentes = pats.filter(p => p.status !== 'levantado' && p.criadoEm && (Date.now() - p.criadoEm) > 15 * 86400000).length;
-                const hoje     = pats.filter(p => p.status !== 'levantado' && p.criadoEm && (Date.now() - p.criadoEm) < 86400000).length;
+                const urgentes = pats.filter(p => p.status !== 'levantado' && p.criadoEm && _calcDias(p.criadoEm) > 15).length;
+                const hoje     = pats.filter(p => p.status !== 'levantado' && p.criadoEm && _calcDias(p.criadoEm) === 0).length;
                 const result   = [{ label: 'Pendentes', value: patPendentes, color: patPendentes > 0 ? '#7c3aed' : '#64748b' }];
                 if (urgentes > 0) result.push({ label: '+15 dias', value: urgentes, color: '#dc2626' });
                 if (hoje > 0)     result.push({ label: 'Hoje', value: hoje, color: '#16a34a' });
@@ -974,7 +997,7 @@ async function renderDashboard(force = false) {
         list.className = 'dv2-pat-list';
 
         patEntries.forEach(([id, pat]) => {
-            const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
+            const dias = _calcDias(pat.criadoEm);
             const urgente = dias >= 15;
             const row = document.createElement('div');
             row.className = 'dv2-pat-row' + (urgente ? ' dv2-pat-row--urgente' : '');
@@ -1041,7 +1064,7 @@ async function renderDashboard(force = false) {
 
         Object.entries(porColab).forEach(([colab, tools]) => {
             const dias_max = Math.max(...tools.map(t =>
-                t.dataEntrega ? Math.floor((Date.now() - new Date(t.dataEntrega).getTime()) / 86400000) : 0
+                t.dataEntrega ? _calcDias(t.dataEntrega) : 0
             ));
             const overdue = dias_max >= ALERTA_DIAS;
 
@@ -1653,7 +1676,7 @@ async function renderTools() {
         const isAv = t.status === 'disponivel';
         const TOOL_ALERT_DAYS = 7;
         const isOverdue = !isAv && t.dataEntrega &&
-            (Date.now() - new Date(t.dataEntrega).getTime()) > TOOL_ALERT_DAYS * 86400000;
+            _calcDias(t.dataEntrega) > TOOL_ALERT_DAYS;
 
         const div = document.createElement('div');
         div.className = `tool-card ${isAv ? 'tool-available' : 'tool-allocated'}${isOverdue ? ' tool-overdue' : ''}`;
@@ -1691,7 +1714,7 @@ async function renderTools() {
             sub.appendChild(lbl);
         } else {
             const _days = t.dataEntrega
-                ? Math.floor((Date.now() - new Date(t.dataEntrega).getTime()) / 86400000)
+                ? _calcDias(t.dataEntrega)
                 : null;
 
             const colabBadge = document.createElement('span');
@@ -3498,7 +3521,7 @@ async function openToolTimeline() {
             }
             // Adiciona estado actual se alocada
             if (t.status === 'alocada' && t.dataEntrega) {
-                const days = Math.floor((Date.now() - new Date(t.dataEntrega).getTime()) / 86400000);
+                const days = _calcDias(t.dataEntrega);
                 events.push({
                     data: t.dataEntrega,
                     acao: 'alocada_agora',
@@ -4110,9 +4133,8 @@ async function _fetchPats(force = false) {
 }
 
 function _autoLimparHistorico() {
-    const QUINZE_DIAS = 15 * 86400000;
     const expirados = Object.entries(_patCache.data || {})
-        .filter(([, p]) => p.status === 'historico' && p.saidaEm && (Date.now() - p.saidaEm) > QUINZE_DIAS);
+        .filter(([, p]) => p.status === 'historico' && p.saidaEm && _calcDias(p.saidaEm) >= 15);
     if (!expirados.length) return;
     expirados.forEach(([id]) => {
         apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'DELETE' }).catch(() => {});
@@ -4165,7 +4187,7 @@ function showDupPopover(badge, estabNorm) {
     pop.innerHTML = `
         <div class="dup-pop-title">PATs — ${escapeHtml(pats[0]?.[1]?.estabelecimento || estabNorm)}</div>
         ${pats.map(([, p]) => {
-            const dias = Math.floor((Date.now() - (p.criadoEm || Date.now())) / 86400000);
+            const dias = _calcDias(p.criadoEm);
             const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
             const urgente = dias >= 15;
             return `<div class="dup-pop-row">
@@ -4289,7 +4311,7 @@ function _buildPatCard(id, pat, tab, estabCount) {
         + (isHist ? ' pat-card-historico'  : '')
         + (isSelected ? ' pat-card-selected' : '');
 
-    const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
+    const dias = _calcDias(pat.criadoEm);
     const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
     const urgente = tab === 'pendentes' && dias >= 15;
     const nomeNorm = (pat.estabelecimento || '').trim().toLowerCase();
@@ -4337,7 +4359,7 @@ function _buildPatCard(id, pat, tab, estabCount) {
         const d = new Date(pat.saidaEm);
         diasSpan.textContent = d.toLocaleDateString('pt-PT', { day:'2-digit', month:'2-digit' });
         // Indicador de expiração: dias restantes no histórico
-        const diasRestantes = 15 - Math.floor((Date.now() - pat.saidaEm) / 86400000);
+        const diasRestantes = 15 - _calcDias(pat.saidaEm);
         if (diasRestantes <= 3) {
             diasSpan.title = `Apagado em ${diasRestantes}d`;
             diasSpan.style.color = 'var(--text-muted)';
@@ -5304,7 +5326,7 @@ async function apagarPat(id) {
 }
 
 function openPatDetail(id, pat) {
-    const dias = Math.floor((Date.now() - (pat.criadoEm || Date.now())) / 86400000);
+    const dias = _calcDias(pat.criadoEm);
     const data = pat.criadoEm ? new Date(pat.criadoEm).toLocaleDateString('pt-PT') : '—';
     const urgente = dias >= 15;
     const separacao = !!pat.separacao;
