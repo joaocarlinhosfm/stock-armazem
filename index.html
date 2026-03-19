@@ -9,7 +9,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.gstatic.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' data: blob: https://*.firebasedatabase.app https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://api.anthropic.com https://*.workers.dev; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; worker-src blob: https://cdn.jsdelivr.net;">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=6.39">
+    <link rel="stylesheet" href="style.css?v=6.41">
 </head>
 <body>
 
@@ -573,20 +573,37 @@
 
 
             <section class="admin-panel" id="panel-relatorio">
-                <div class="rel-header">
-                    <div class="rel-month-picker">
-                        <button class="rel-month-btn" onclick="relMoveMonth(-1)" aria-label="Mês anterior">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-                        </button>
-                        <span class="rel-month-label" id="rel-month-label">—</span>
-                        <button class="rel-month-btn" onclick="relMoveMonth(1)" aria-label="Próximo mês">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                <div class="rel-hero">
+                    <div class="rel-hero-top">
+                        <span class="rel-hero-label">Relatório mensal</span>
+                        <button class="rel-fechar-btn" id="rel-fechar-btn" onclick="relFecharMes()" aria-label="Fechar mês">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v14a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            Fechar mês
                         </button>
                     </div>
-                    <button class="rel-fechar-btn" id="rel-fechar-btn" onclick="relFecharMes()" title="Guardar snapshot do mês actual" aria-label="Fechar mês">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v14a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                        Fechar mês
-                    </button>
+                    <div class="rel-month-nav">
+                        <button class="rel-month-arr" onclick="relMoveMonth(-1)" aria-label="Mês anterior">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+                        </button>
+                        <span class="rel-month-label" id="rel-month-label">—</span>
+                        <button class="rel-month-arr" onclick="relMoveMonth(1)" aria-label="Próximo mês">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
+                    </div>
+                    <div class="rel-summary-strip" id="rel-summary-strip">
+                        <div class="rel-sum-item">
+                            <span class="rel-sum-val" id="rel-sum-pats">—</span>
+                            <span class="rel-sum-lbl">PATs</span>
+                        </div>
+                        <div class="rel-sum-item">
+                            <span class="rel-sum-val" id="rel-sum-dur">—</span>
+                            <span class="rel-sum-lbl">Avg dias</span>
+                        </div>
+                        <div class="rel-sum-item">
+                            <span class="rel-sum-val" id="rel-sum-saidas">—</span>
+                            <span class="rel-sum-lbl">Saídas</span>
+                        </div>
+                    </div>
                 </div>
                 <div id="rel-content" class="rel-content">
                     <div class="rel-loading">A carregar relatório...</div>
@@ -1045,7 +1062,8 @@
                 });
         });
     </script>
-    <script src="app.js?v=6.39"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="app.js?v=6.41"></script>
 
     <!-- Modal: PAT Scan OCR -->
     <div id="pat-scan-modal" class="modal-overlay" role="dialog" aria-modal="true">
