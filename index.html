@@ -9,7 +9,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.gstatic.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' data: blob: https://*.firebasedatabase.app https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://api.anthropic.com https://*.workers.dev; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; worker-src blob: https://cdn.jsdelivr.net;">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=6.14">
+    <link rel="stylesheet" href="style.css?v=6.16">
 </head>
 <body>
 
@@ -255,8 +255,9 @@
                 </div>
                 <!-- Tabs Pendentes / Levantadas -->
                 <div class="pat-tabs" id="pat-tabs">
-                    <button class="pat-tab active" id="pat-tab-pendentes" onclick="setPatTab('pendentes')">Pendentes</button>
+                    <button class="pat-tab active" id="pat-tab-pendentes"  onclick="setPatTab('pendentes')">Pendentes</button>
                     <button class="pat-tab" id="pat-tab-levantadas" onclick="setPatTab('levantadas')">Levantadas</button>
+                    <button class="pat-tab" id="pat-tab-historico"  onclick="setPatTab('historico')">Histórico</button>
                 </div>
                 <!-- Barra de seleção (modo levantar) -->
                 <div class="pat-sel-bar" id="pat-sel-bar" style="display:none">
@@ -267,13 +268,13 @@
                         <button class="btn-cancel pat-sel-cancel" onclick="cancelLevantarMode()">✕</button>
                     </div>
                 </div>
-                <!-- Sub-filtro guias (só no tab levantadas) -->
+                <!-- Sub-filtro guias (levantadas e histórico) -->
                 <div class="pat-guia-filter" id="pat-guia-filter" style="display:none">
                     <label class="pat-guia-toggle">
                         <input type="checkbox" id="pat-guia-only" onchange="renderPats()">
-                        <span>Só guias por fazer</span>
+                        <span>Só com guia de transporte</span>
                     </label>
-                    <button class="pat-guia-limpar-btn" id="pat-guia-limpar-btn" onclick="limparGuiasFeitas()">Limpar concluídas</button>
+                    <button class="pat-guia-limpar-btn" id="pat-guia-limpar-btn" onclick="limparTabActual()">Limpar</button>
                 </div>
                 <input type="text" id="pat-search" class="blue-input pat-search-input"
                     placeholder="Pesquisar por PAT ou estabelecimento..."
@@ -993,7 +994,7 @@
                 });
         });
     </script>
-    <script src="app.js?v=6.14"></script>
+    <script src="app.js?v=6.16"></script>
 
     <!-- Modal: PAT Scan OCR -->
     <div id="pat-scan-modal" class="modal-overlay" role="dialog" aria-modal="true">
