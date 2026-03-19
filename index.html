@@ -9,7 +9,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.gstatic.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' data: blob: https://*.firebasedatabase.app https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://api.anthropic.com https://*.workers.dev; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; worker-src blob: https://cdn.jsdelivr.net;">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=6.20">
+    <link rel="stylesheet" href="style.css?v=6.21">
 </head>
 <body>
 
@@ -662,6 +662,28 @@
             <p class="modal-desc">Quem vai levantar?</p>
             <div id="levantar-worker-list" class="worker-select-list"></div>
             <button onclick="closeLevantarModal()" class="btn-cancel" style="margin-top:8px">Cancelar</button>
+        </div>
+    </div>
+
+
+    <!-- Modal: Editar referências de uma PAT (modo levantar) -->
+    <div id="pat-refs-modal" class="modal-overlay" role="dialog" aria-modal="true">
+        <div class="modal-content" style="text-align:left">
+            <h3 style="margin-bottom:4px;font-size:1rem" id="pat-refs-title">Referências</h3>
+            <p class="modal-desc" style="text-align:left;margin-bottom:12px" id="pat-refs-estab"></p>
+            <div class="pat-field">
+                <div class="pat-product-input-wrap">
+                    <input type="text" id="pat-refs-search" class="blue-input pat-input"
+                        placeholder="Código ou nome... (Enter para adicionar manual)"
+                        autocomplete="off"
+                        oninput="patRefsSearch(this.value)"
+                        onkeydown="patRefsKeydown(event)">
+                    <div id="pat-refs-dropdown" class="pat-product-dropdown"></div>
+                </div>
+                <div id="pat-refs-chips" class="pat-product-chips" style="margin-top:8px"></div>
+            </div>
+            <button class="btn-primary" style="width:100%;margin-top:8px" onclick="savePatRefs()">Guardar</button>
+            <button class="btn-cancel" style="width:100%;margin-top:6px" onclick="closePatRefsModal()">Cancelar</button>
         </div>
     </div>
 

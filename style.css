@@ -3334,7 +3334,42 @@ body.is-offline #app-layout {
     letter-spacing: 0.01em;
     white-space: nowrap;
 }
+.pat-btn-refs {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    border: 1.5px solid rgba(37,99,235,0.25);
+    border-radius: 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+.pat-btn-refs:active { background: rgba(37,99,235,0.18); }
+.pat-dd-manual { border-top: 1px dashed var(--border); }
 .pat-btn-levantado:active { background: #15803d; opacity: 0.9; }
+.pat-btn-apagar {
+    flex-shrink: 0;
+    margin-left: auto;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(239,68,68,0.08);
+    color: var(--danger);
+    border: 1px solid rgba(239,68,68,0.20);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
 .pat-btn-apagar:active { background: rgba(239,68,68,0.18); }
 .pat-loading, .pat-empty { text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 32px 0; }
 
@@ -4653,22 +4688,6 @@ body.is-offline #app-layout {
     border-color: rgba(245, 158, 11, 0.40);
 }
 .dark-mode .pat-btn-levantado { background: #16a34a; color: #fff; }
-.pat-btn-apagar {
-    flex-shrink: 0;
-    margin-left: auto;
-    width: 30px;
-    height: 30px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(239,68,68,0.08);
-    color: var(--danger);
-    border: 1px solid rgba(239,68,68,0.20);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.15s;
-}
 .dark-mode .pat-cliente-badge {
     background: rgba(96,165,250,0.14);
     color: #60a5fa;

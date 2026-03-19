@@ -4390,7 +4390,12 @@ function _buildPatCard(id, pat, tab, estabCount) {
     actionsDiv.onclick   = e => e.stopPropagation();
 
     if (_patSelMode) {
-        // sem botões — clique no card faz toggle
+        // Botão de editar referências (não faz toggle, abre modal)
+        const btnRefs = document.createElement('button');
+        btnRefs.className = 'pat-btn-refs';
+        btnRefs.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Refs';
+        btnRefs.onclick = (e) => { e.stopPropagation(); openPatRefsModal(id, pat); };
+        actionsDiv.appendChild(btnRefs);
     } else if (tab === 'pendentes') {
         const btnLev = document.createElement('button');
         btnLev.className = 'pat-btn-levantado';
@@ -4623,6 +4628,169 @@ async function limparTabActual() {
             } catch(_e) { showToast('Erro ao limpar', 'error'); }
         }
     });
+}
+
+// ── Editar referências de uma PAT (modo levantar) ────────────────────────
+let _patRefsId  = null;
+let _patRefsList = []; // {id|null, codigo, nome, quantidade}
+let _patRefsDDIdx = -1;
+
+function openPatRefsModal(id, pat) {
+    _patRefsId   = id;
+    _patRefsList = (pat.produtos || []).map(p => ({ ...p }));
+    document.getElementById('pat-refs-title').textContent  = 'PAT ' + (pat.numero || '');
+    document.getElementById('pat-refs-estab').textContent  = pat.estabelecimento || '';
+    document.getElementById('pat-refs-search').value       = '';
+    document.getElementById('pat-refs-dropdown').innerHTML = '';
+    _renderRefsChips();
+    document.getElementById('pat-refs-modal').classList.add('active');
+    setTimeout(() => document.getElementById('pat-refs-search').focus(), 80);
+}
+
+function closePatRefsModal() {
+    document.getElementById('pat-refs-modal').classList.remove('active');
+    _patRefsId = null;
+}
+
+function patRefsSearch(val) {
+    _patRefsDDIdx = -1;
+    const dd = document.getElementById('pat-refs-dropdown');
+    const q  = val.trim().toLowerCase();
+    if (!q) { dd.innerHTML = ''; return; }
+
+    const stock = cache.stock.data || {};
+    const matches = Object.entries(stock)
+        .filter(([id, item]) => {
+            if (_patRefsList.some(p => p.id === id)) return false;
+            const codigo = (item.codigo || '').toLowerCase();
+            const nome   = (item.nome   || '').toLowerCase();
+            return codigo.startsWith(q) || nome.includes(q);
+        })
+        .slice(0, 8);
+
+    dd.innerHTML = '';
+
+    // Opção de adicionar manualmente se não há resultado exacto
+    const exactMatch = Object.values(stock).some(i => (i.codigo||'').toLowerCase() === q);
+    if (!exactMatch) {
+        const manual = document.createElement('div');
+        manual.className = 'pat-dd-option pat-dd-manual';
+        manual.innerHTML = `<span class="pat-dd-code">${escapeHtml(val.trim().toUpperCase())}</span><span class="pat-dd-name" style="color:var(--text-muted)">→ Adicionar manual</span>`;
+        manual.onmousedown = (e) => { e.preventDefault(); patRefsAddManual(val.trim()); };
+        dd.appendChild(manual);
+    }
+
+    matches.forEach(([id, item], i) => {
+        const opt = document.createElement('div');
+        opt.className = 'pat-dd-option';
+        opt.dataset.idx = i;
+        opt.innerHTML = `
+            <span class="pat-dd-code">${escapeHtml((item.codigo||'SEMREF').toUpperCase())}</span>
+            <span class="pat-dd-name">${escapeHtml(item.nome||'')}</span>
+            <span class="pat-dd-stock">Stock: ${item.quantidade||0}</span>`;
+        opt.onmousedown = (e) => { e.preventDefault(); patRefsAddFromStock(id, item); };
+        dd.appendChild(opt);
+    });
+
+    if (!matches.length && exactMatch) {
+        dd.innerHTML = '<div class="pat-dd-empty">Já adicionado</div>';
+    }
+}
+
+function patRefsKeydown(e) {
+    const dd   = document.getElementById('pat-refs-dropdown');
+    const opts = dd.querySelectorAll('.pat-dd-option');
+    const val  = document.getElementById('pat-refs-search').value.trim();
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        if (_patRefsDDIdx >= 0 && opts[_patRefsDDIdx]) {
+            opts[_patRefsDDIdx].dispatchEvent(new MouseEvent('mousedown'));
+        } else if (val) {
+            patRefsAddManual(val);
+        }
+        return;
+    }
+    if (!opts.length) return;
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        _patRefsDDIdx = Math.min(_patRefsDDIdx + 1, opts.length - 1);
+        opts.forEach((o, i) => o.classList.toggle('focused', i === _patRefsDDIdx));
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        _patRefsDDIdx = Math.max(_patRefsDDIdx - 1, 0);
+        opts.forEach((o, i) => o.classList.toggle('focused', i === _patRefsDDIdx));
+    } else if (e.key === 'Escape') {
+        dd.innerHTML = '';
+    }
+}
+
+function patRefsAddFromStock(id, item) {
+    if (_patRefsList.some(p => p.id === id)) return;
+    _patRefsList.push({ id, codigo: (item.codigo||'SEMREF').toUpperCase(), nome: item.nome||'', quantidade: 1 });
+    document.getElementById('pat-refs-search').value = '';
+    document.getElementById('pat-refs-dropdown').innerHTML = '';
+    document.getElementById('pat-refs-search').focus();
+    _renderRefsChips();
+}
+
+function patRefsAddManual(raw) {
+    const codigo = raw.toUpperCase().trim();
+    if (!codigo) return;
+    if (_patRefsList.some(p => p.codigo === codigo && !p.id)) return;
+    _patRefsList.push({ id: null, codigo, nome: '', quantidade: 1 });
+    document.getElementById('pat-refs-search').value = '';
+    document.getElementById('pat-refs-dropdown').innerHTML = '';
+    document.getElementById('pat-refs-search').focus();
+    _renderRefsChips();
+}
+
+function patRefsRemove(codigo) {
+    _patRefsList = _patRefsList.filter(p => p.codigo !== codigo);
+    _renderRefsChips();
+}
+
+function patRefsSetQty(codigo, val) {
+    const p = _patRefsList.find(x => x.codigo === codigo);
+    if (p) p.quantidade = Math.max(1, parseInt(val) || 1);
+}
+
+function _renderRefsChips() {
+    const el = document.getElementById('pat-refs-chips');
+    el.innerHTML = '';
+    _patRefsList.forEach(p => {
+        const chip = document.createElement('div');
+        chip.className = 'pat-chip';
+        chip.innerHTML = `
+            <div class="pat-chip-info">
+                <span class="pat-chip-code">${escapeHtml(p.codigo)}</span>
+                ${p.nome ? `<span class="pat-chip-name">${escapeHtml(p.nome)}</span>` : '<span class="pat-chip-name" style="color:var(--text-muted);font-style:italic">manual</span>'}
+            </div>
+            <input type="number" class="pat-chip-qty" value="${p.quantidade||1}" min="1"
+                onchange="patRefsSetQty('${escapeHtml(p.codigo)}', this.value)"
+                oninput="patRefsSetQty('${escapeHtml(p.codigo)}', this.value)">
+            <button class="pat-chip-remove" onclick="patRefsRemove('${escapeHtml(p.codigo)}')">✕</button>`;
+        el.appendChild(chip);
+    });
+}
+
+async function savePatRefs() {
+    if (!_patRefsId) return;
+    const produtos = _patRefsList.map(p => ({
+        id:         p.id   || null,
+        codigo:     p.codigo,
+        nome:       p.nome || '',
+        quantidade: p.quantidade || 1
+    }));
+    try {
+        await apiFetch(`${BASE_URL}/pedidos/${_patRefsId}.json`, {
+            method: 'PATCH',
+            body: JSON.stringify({ produtos }),
+        });
+        if (_patCache.data?.[_patRefsId]) _patCache.data[_patRefsId].produtos = produtos;
+        closePatRefsModal();
+        renderPats();
+        showToast('Referências actualizadas!');
+    } catch(_e) { showToast('Erro ao guardar', 'error'); }
 }
 
 function openPatModal() {
