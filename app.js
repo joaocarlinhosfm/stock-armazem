@@ -90,7 +90,6 @@ async function getAuthToken() {
     }
 
     _authTokenExp = now + 3_500_000; // ~58 min
-    console.debug('[Auth] token obtido');
     return _authToken;
 }
 
@@ -103,7 +102,6 @@ function _scheduleTokenRenewal() {
             try {
                 _authToken = await window._firebaseUser.getIdToken(true);
                 _authTokenExp = Date.now() + 3_500_000;
-                console.debug('[Auth] token renovado');
             } catch(e) { console.warn('[Auth] falha na renovação:', e.message); }
         }
         _scheduleTokenRenewal(); // agenda próxima renovação
@@ -173,49 +171,38 @@ async function hashPassword(password, username = '') {
 }
 
 // Carrega lista de utilizadores da Firebase
+// Gera um verificador offline derivado da password — nunca guarda dados Firebase localmente.
+// salt diferente do Firebase para que compromisso local não dê acesso ao servidor.
+const _OFFLINE_SALT = 'hiperfrio-offline-v2';
+async function _offlineVerifier(username, password) {
+    const raw = new TextEncoder().encode(username + ':' + password + ':' + _OFFLINE_SALT);
+    const buf = await crypto.subtle.digest('SHA-256', raw);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 async function loadUsers() {
     // 1) Garante token Firebase
     try {
         await getAuthToken();
-        console.debug('[Login] token Firebase OK');
     } catch(e) {
-        console.warn('[Login] sem token Firebase:', e.message, '— tenta cache local');
+        console.warn('[Login] sem token Firebase:', e.message);
     }
 
     // 2) Pedido à Firebase
     try {
         const url = await authUrl(USERS_URL);
-        console.debug('[Login] a carregar utilizadores de:', url.replace(/auth=.*/, 'auth=***'));
         const res  = await fetch(url);
-        console.debug('[Login] resposta HTTP:', res.status);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        console.debug('[Login] dados recebidos:', data ? Object.keys(data) : 'null');
         if (data && !data.error) {
-            localStorage.setItem('hiperfrio-users-cache', JSON.stringify({ data, ts: Date.now() }));
+            // Não guardar dados Firebase localmente — apenas marca timestamp de sucesso
+            localStorage.setItem('hiperfrio-last-online', Date.now().toString());
             return data;
         }
         throw new Error(data?.error || 'resposta inválida');
     } catch (e) {
-        console.warn('[Login] loadUsers falhou:', e.message, '— usa cache local');
-        const cached = localStorage.getItem('hiperfrio-users-cache');
-        if (cached) {
-            try {
-                const parsed = JSON.parse(cached);
-                const TTL_24H = 24 * 60 * 60 * 1000;
-                // Suporta cache antigo (sem timestamp) e novo (com ts)
-                const ts   = parsed.ts || 0;
-                const data = parsed.data || parsed;
-                if (Date.now() - ts < TTL_24H) {
-                    console.debug('[Login] cache local válida');
-                    return data;
-                }
-                console.warn('[Login] cache local expirada (>24h) — requer ligação online');
-                return {};
-            } catch (_e) { return {}; }
-        }
-        console.error('[Login] sem cache local — utilizadores não disponíveis');
-        return {};
+        console.warn('[Login] servidor inacessível — tenta sessão offline');
+        return null; // null = offline, {} = sem utilizadores
     }
 }
 
@@ -270,25 +257,47 @@ async function handleLogin(e) {
     try {
         const users = await loadUsers();
 
+        if (users === null) {
+            // Offline — tentar autenticação com sessão local guardada de forma segura
+            const sessionRaw = localStorage.getItem('hiperfrio-session');
+            if (!sessionRaw) {
+                showError('Sem ligação ao servidor. Liga-te à internet para autenticares pela primeira vez.');
+                return;
+            }
+            try {
+                const session  = JSON.parse(sessionRaw);
+                const TTL_24H  = 24 * 60 * 60 * 1000;
+                const verifier = await _offlineVerifier(username, password);
+                if (session.username === username && session.verifier === verifier
+                    && Date.now() - session.ts < TTL_24H) {
+                    // Sessão offline válida
+                    const role = session.role || 'worker';
+                    localStorage.setItem(ROLE_KEY, role);
+                    localStorage.setItem(USER_KEY, username);
+                    applyRole(role);
+                    bootApp();
+                    return;
+                }
+            } catch (_e) { /* sessão corrompida */ }
+            showError('Sem ligação. Só o último utilizador autenticado pode entrar offline.');
+            return;
+        }
+
         if (!users || !Object.keys(users).length) {
             showError('Não foi possível contactar o servidor. Verifica a ligação.');
             return;
         }
 
-        console.debug('[Login] utilizadores disponíveis:', Object.keys(users));
         const userObj = users[username];
         if (!userObj) {
-            console.warn('[Login] utilizador não encontrado:', username, '— disponíveis:', Object.keys(users));
             showError('Utilizador não encontrado.');
             return;
         }
 
-        console.debug('[Login] utilizador encontrado, a verificar password...');
         const pwHash = await hashPassword(password, username);
         // Retrocompatibilidade: testa também o hash antigo (sem username no salt)
         const pwHashLegacy = await hashPassword(password);
         if (pwHash !== userObj.passwordHash && pwHashLegacy !== userObj.passwordHash) {
-            console.warn('[Login] password incorrecta para:', username);
             showError('Password incorrecta.');
             return;
         }
@@ -298,10 +307,13 @@ async function handleLogin(e) {
             fetch(migrUrl, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ passwordHash: pwHash }) }).catch(() => {});
         }
-        console.debug('[Login] password OK, role:', userObj.role);
 
-        // Login bem sucedido
+        // Login bem sucedido — guardar sessão offline segura (só verifier, nunca dados Firebase)
         const role = userObj.role || 'worker';
+        const verifier = await _offlineVerifier(username, password);
+        localStorage.setItem('hiperfrio-session', JSON.stringify({ username, role, verifier, ts: Date.now() }));
+        // Limpar qualquer cache antiga com dados sensíveis
+        localStorage.removeItem('hiperfrio-users-cache');
         localStorage.setItem(ROLE_KEY, role);
         localStorage.setItem(USER_KEY, username);
 
@@ -368,6 +380,7 @@ async function createUser() {
 
         // Invalida cache
         localStorage.removeItem('hiperfrio-users-cache');
+    localStorage.removeItem('hiperfrio-session');
         document.getElementById('new-user-name').value = '';
         document.getElementById('new-user-pass').value = '';
         showToast(`Utilizador "${nameRaw}" criado`);
@@ -420,6 +433,7 @@ async function deleteUser(username) {
     const url = await authUrl(`${USERS_BASE_URL}/${username}.json`);
     await fetch(url, { method: 'DELETE' });
     localStorage.removeItem('hiperfrio-users-cache');
+    localStorage.removeItem('hiperfrio-session');
     showToast(`Utilizador "${username}" eliminado`);
     renderUsersList();
 }
@@ -440,6 +454,7 @@ function switchRole() {
     // Limpa username
     localStorage.removeItem('hiperfrio-username');
     localStorage.removeItem('hiperfrio-users-cache');
+    localStorage.removeItem('hiperfrio-session');
     // Limpa campos do login
     const u = document.getElementById('ls-username'); if (u) u.value = '';
     const p = document.getElementById('ls-password'); if (p) p.value = '';
@@ -3907,7 +3922,6 @@ if ('serviceWorker' in navigator) {
         // 1 — Regista o SW novo
         navigator.serviceWorker.register('sw.js?v=5.66')
             .then(reg => {
-                console.debug('PWA SW registado:', reg.scope);
                 // 2 — Verifica se o SW activo é a versão correcta
                 // Se for uma versão antiga (cache-first), força update imediato
                 if (reg.active) {
@@ -4106,7 +4120,7 @@ async function renderClientesList() {
 // ── Importar Excel de clientes ─────────────────────────────────────────────
 function importClientesExcel() {
     const preview = document.getElementById('clientes-import-preview');
-    preview.innerHTML = '<div class="clientes-preview-info">Para actualizar a lista, importa o ficheiro <strong>clientes_firebase.json</strong> na <a href="https://console.firebase.google.com" target="_blank" style="color:var(--primary)">Firebase Console</a> → Realtime Database → nó <code>/clientes</code> → ⋮ Import JSON.</div>';
+    preview.innerHTML = '<div class="clientes-preview-info">Para actualizar a lista, importa o ficheiro <strong>clientes_firebase.json</strong> na <a href="https://console.warn.google.com" target="_blank" style="color:var(--primary)">Firebase Console</a> → Realtime Database → nó <code>/clientes</code> → ⋮ Import JSON.</div>';
 }
 
 // =============================================
