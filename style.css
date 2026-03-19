@@ -2354,7 +2354,6 @@ body.is-offline #app-layout {
     transition: background 0.15s;
     margin-right: 2px;
 }
-.admin-list-edit:hover { background: var(--primary-soft); }
 
 /* =============================================
    PONTO 13 — campo de notas nos formulários e cards
@@ -3145,9 +3144,6 @@ body.is-offline #app-layout {
 
    VIEW DASHBOARD — vista dedicada
    ============================================= */
-.dash-view-header {
-    display: none;
-}
 .dash-refresh-btn {
     display: flex;
     align-items: center;
@@ -3566,14 +3562,6 @@ body.is-offline #app-layout {
 }
 .clientes-preview {
     margin-top: 14px;
-}
-.clientes-preview-info {
-    background: rgba(34,197,94,0.09);
-    border: 1px solid rgba(34,197,94,0.28);
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 0.84rem;
-    margin-bottom: 8px;
 }
 .clientes-total {
     font-size: 0.78rem;

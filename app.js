@@ -26,6 +26,17 @@ function _calcDias(tsOrStr) {
     return Math.round((hojeZero - origem) / 86400000);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// _debounce(fn, ms) — função utilitária centralizada para debounce de pesquisa
+// ─────────────────────────────────────────────────────────────────────────────
+function _debounce(fn, ms = 300) {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), ms);
+    };
+}
+
 // ── Lazy loading de bibliotecas pesadas ──────────────────────────────────────
 // Tesseract (~2.5 MB) e XLSX (~1 MB) só são carregados quando realmente usados,
 // evitando atrasar o arranque da app em Android com rede lenta.
@@ -1651,7 +1662,6 @@ function formatDate(iso) {
     return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-let _toolLongPressTimer = null; // módulo-level para evitar memory leak ao re-render
 
 async function renderTools() {
     const list = document.getElementById('tools-list');
@@ -3695,15 +3705,30 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Pesquisa de ferramentas
-    let _toolsSearchTimer;
-    document.getElementById('inp-tools-search')?.addEventListener('input', e => {
-        clearTimeout(_toolsSearchTimer);
-        _toolsSearchTimer = setTimeout(() => {
-            _toolsFilter = e.target.value.trim() || 'all';
-            renderTools();
-        }, 250);
-    });
+    // Delegação de eventos nas ferramentas — um único listener no container
+    const toolsListEl = document.getElementById('tools-list');
+    if (toolsListEl) {
+        toolsListEl.addEventListener('contextmenu', e => {
+            const div = e.target.closest('[data-tool-id]');
+            if (!div) return;
+            e.preventDefault();
+            openHistoryModal(div.dataset.toolId, div.dataset.toolNome);
+        });
+        let _lpTimer = null;
+        toolsListEl.addEventListener('touchstart', e => {
+            const div = e.target.closest('[data-tool-id]');
+            if (!div) return;
+            _lpTimer = setTimeout(() => openHistoryModal(div.dataset.toolId, div.dataset.toolNome), 600);
+        }, { passive: true });
+        toolsListEl.addEventListener('touchend',  () => clearTimeout(_lpTimer), { passive: true });
+        toolsListEl.addEventListener('touchmove', () => clearTimeout(_lpTimer), { passive: true });
+    }
+
+    // Pesquisa de ferramentas (usa _debounce centralizado)
+    document.getElementById('inp-tools-search')?.addEventListener('input', _debounce(e => {
+        _toolsFilter = e.target.value.trim() || 'all';
+        renderTools();
+    }, 250));
 
     // Escape fecha o modal ativo
     document.addEventListener('keydown', e => {
@@ -4167,20 +4192,16 @@ async function updatePatCount() {
     await _fetchPats();
 }
 
-var _patSearchQuery  = '';
-var _patTab          = 'pendentes'; // 'pendentes' | 'levantadas' | 'historico'
-var _patSelMode      = false;       // modo seleção para levantar
-var _patSelWorker    = '';          // funcionário escolhido
-var _patSelIds       = new Set();   // IDs seleccionados
+let _patSearchQuery  = '';
+let _patTab          = 'pendentes'; // 'pendentes' | 'levantadas' | 'historico'
+let _patSelMode      = false;       // modo seleção para levantar
+let _patSelWorker    = '';          // funcionário escolhido
+let _patSelIds       = new Set();   // IDs seleccionados
 
-let _patSearchTimer;
-function patSearchFilter(val) {
-    clearTimeout(_patSearchTimer);
-    _patSearchTimer = setTimeout(() => {
-        _patSearchQuery = (val || '').toLowerCase().trim();
-        renderPats();
-    }, 250);
-}
+const _debouncedPatSearch = _debounce(val => {
+    _patSearchQuery = (val || '').toLowerCase().trim();
+    renderPats();
+}, 300);
 
 // ── Popover de pedidos duplicados por estabelecimento ──────────────
 let _dupPopoverEl = null;
@@ -4559,37 +4580,59 @@ async function levantarSelectedPats() {
         title: `Levantar ${ids.length} PAT${ids.length > 1 ? 's' : ''}?`,
         desc: `Serão marcadas como levantadas por ${worker}. As que têm guia de transporte descontam stock.`,
         onConfirm: async () => {
+            // Mostrar feedback imediato
+            const levBtn = document.getElementById('pat-levantar-btn');
+            if (levBtn) { levBtn.disabled = true; levBtn.textContent = 'A processar...'; }
             try {
+                const ts = Date.now();
+                // Calcula novas quantidades de stock antes de lançar os pedidos
+                // agrupa por id de produto para evitar PATCHes duplicados
+                const stockPatches = {}; // { stockId: novaQtd }
                 for (const id of ids) {
                     const pat = _patCache.data?.[id];
-                    if (!pat) continue;
-                    const payload = { status: 'levantado', levantadoEm: Date.now(), funcionario: worker };
-                    await apiFetch(`${BASE_URL}/pedidos/${id}.json`, {
+                    if (!pat || !pat.separacao) continue;
+                    for (const p of (pat.produtos || [])) {
+                        if (!p.id) continue;
+                        const base = stockPatches[p.id] ?? (cache.stock.data?.[p.id]?.quantidade ?? 0);
+                        stockPatches[p.id] = Math.max(0, base - (p.quantidade || 1));
+                    }
+                }
+
+                // Aplica ao cache local imediatamente
+                Object.entries(stockPatches).forEach(([sid, qty]) => {
+                    if (cache.stock.data?.[sid]) cache.stock.data[sid].quantidade = qty;
+                });
+
+                // Lança todos os PATCHes em paralelo
+                const patPromises = ids.map(id => {
+                    const pat = _patCache.data?.[id];
+                    if (!pat) return Promise.resolve();
+                    const payload = { status: 'levantado', levantadoEm: ts, funcionario: worker };
+                    Object.assign(_patCache.data[id], payload);
+                    return apiFetch(`${BASE_URL}/pedidos/${id}.json`, {
                         method: 'PATCH',
                         body: JSON.stringify(payload),
                     });
-                    if (_patCache.data?.[id]) Object.assign(_patCache.data[id], payload);
+                });
 
-                    if (pat.separacao && pat.produtos?.length) {
-                        for (const p of pat.produtos) {
-                            if (!p.id) continue;
-                            const atual = cache.stock.data?.[p.id]?.quantidade ?? 0;
-                            const nova  = Math.max(0, atual - (p.quantidade || 1));
-                            if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = nova;
-                            const sUrl = await authUrl(`${BASE_URL}/stock/${p.id}.json`);
-                            await fetch(sUrl, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ quantidade: nova }),
-                            }).catch(() => {});
-                        }
-                    }
-                }
+                const stockPromises = Object.entries(stockPatches).map(([sid, qty]) =>
+                    apiFetch(`${BASE_URL}/stock/${sid}.json`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ quantidade: qty }),
+                    }).catch(e => console.warn('[Stock] PATCH falhou:', sid, e.message))
+                );
+
+                await Promise.allSettled([...patPromises, ...stockPromises]);
+
                 cancelLevantarMode();
                 renderList();
                 updatePatCount();
                 showToast(`${ids.length} PAT${ids.length > 1 ? 's' : ''} levantada${ids.length > 1 ? 's' : ''} por ${worker}!`);
-            } catch(_e) { showToast('Erro ao levantar pedidos', 'error'); }
+            } catch(_e) {
+                showToast('Erro ao levantar pedidos', 'error');
+                const levBtn = document.getElementById('pat-levantar-btn');
+                if (levBtn) { levBtn.disabled = false; levBtn.textContent = `Levantar ${_patSelIds.size}`; }
+            }
         }
     });
 }
@@ -4637,7 +4680,6 @@ async function limparTabActual() {
                     delete _patCache.data[id];
                 }
                 renderPats();
-                updatePatCount();
                 showToast(`${alvo.length} registo${alvo.length > 1 ? 's' : ''} removido${alvo.length > 1 ? 's' : ''}!`);
             } catch(_e) { showToast('Erro ao limpar', 'error'); }
         }
@@ -5461,29 +5503,25 @@ async function marcarPatLevantado(id) {
                 });
                 if (_patCache.data?.[id]) _patCache.data[id].status = 'levantado';
 
-                // 2 — Se separação: desconta stock de cada produto
+                // 2 — Se separação: desconta stock em paralelo via apiFetch (suporta offline)
                 if (separacao && pat.produtos?.length) {
-                    const patches = pat.produtos.map(async (p) => {
-                        if (!p.id) return;
-                        const stockItem = cache.stock.data?.[p.id];
-                        const atual = stockItem?.quantidade ?? 0;
-                        const novaQty = Math.max(0, atual - (p.quantidade || 1));
-                        // Actualiza cache local
-                        if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = novaQty;
-                        // PATCH na Firebase
-                        const sUrl = await authUrl(`${BASE_URL}/stock/${p.id}.json`);
-                        return fetch(sUrl, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ quantidade: novaQty }),
+                    const patches = pat.produtos
+                        .filter(p => p.id)
+                        .map(p => {
+                            const atual = cache.stock.data?.[p.id]?.quantidade ?? 0;
+                            const novaQty = Math.max(0, atual - (p.quantidade || 1));
+                            if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = novaQty;
+                            return apiFetch(`${BASE_URL}/stock/${p.id}.json`, {
+                                method: 'PATCH',
+                                body: JSON.stringify({ quantidade: novaQty }),
+                            }).catch(e => console.warn('[Stock] PATCH falhou:', p.id, e.message));
                         });
-                    });
                     await Promise.allSettled(patches);
-                    renderList(); // actualiza lista de stock
+                    renderList();
                 }
 
+                // updatePatCount já faz fetch — evitar chamada dupla após renderPats
                 renderPats();
-                updatePatCount();
                 showToast(separacao ? 'Levantado — stock descontado!' : 'Pedido marcado como levantado!');
             } catch(_e) { showToast('Erro ao actualizar pedido', 'error'); }
         }
@@ -5508,36 +5546,116 @@ async function apagarPat(id) {
 }
 
 function openPatDetail(id, pat) {
-    const dias = _calcDias(pat.criadoEm);
-    const data = pat.criadoEm ? new Date(pat.criadoEm).toLocaleDateString('pt-PT') : '—';
-    const urgente = dias >= 15;
+    const dias      = _calcDias(pat.criadoEm);
+    const dataStr   = pat.criadoEm ? new Date(pat.criadoEm).toLocaleDateString('pt-PT') : '—';
+    const urgente   = dias >= 15;
     const separacao = !!pat.separacao;
+    const body      = document.getElementById('pat-detail-body');
+    body.innerHTML  = '';
 
-    document.getElementById('pat-detail-body').innerHTML = `
-        <div class="pat-detail-header">
-            <span class="pat-badge ${urgente ? 'pat-badge-urgente' : ''}" style="font-size:1rem;padding:6px 14px">PAT ${escapeHtml(pat.numero || '—')}</span>
-            ${pat.clienteNumero ? `<span class="pat-cliente-badge" style="font-size:0.9rem;padding:5px 12px">${escapeHtml(pat.clienteNumero)}</span>` : ''}
-            ${separacao ? '<span class="pat-sep-tag" style="margin-top:8px"> Guia Transporte de Material</span>' : ''}
-        </div>
-        ${pat.clienteNumero ? `<div class="pat-detail-row"><span class="pat-detail-lbl">Nº Cliente</span><span>${escapeHtml(pat.clienteNumero)}</span></div>` : ''}
-        <div class="pat-detail-row"><span class="pat-detail-lbl">Estabelecimento</span><span>${escapeHtml(pat.estabelecimento || 'Não especificado')}</span></div>
-        <div class="pat-detail-row"><span class="pat-detail-lbl">Criado em</span><span>${data}</span></div>
-        <div class="pat-detail-row"><span class="pat-detail-lbl">Desconto stock</span><span>${separacao ? '✅ Sim (ao levantar)' : '⊘ Não'}</span></div>
-        <div class="pat-detail-row"><span class="pat-detail-lbl">Estado</span><span>${urgente ? '🔴 Urgente' : '🟡 Pendente'} (${dias === 0 ? 'hoje' : `${dias}d`})</span></div>
-        ${pat.produtos?.length ? `
-        <div class="pat-detail-lbl" style="margin-top:14px;margin-bottom:8px">Produtos reservados</div>
-        <div class="pat-detail-produtos">
-            ${pat.produtos.map(p => `
-                <div class="pat-detail-prod">
-                    <span class="pat-dd-code">${escapeHtml(p.codigo || '?')}</span>
-                    <span class="pat-dd-name">${escapeHtml(p.nome || '')}</span>
-                    <span class="pat-detail-qty">× ${p.quantidade || 1}</span>
-                </div>`).join('')}
-        </div>` : '<div class="pat-empty" style="margin-top:12px">Sem produtos associados.</div>'}
-        <div class="pat-detail-actions">
-            <button class="pat-btn-levantado" style="flex:1" onclick="closePatDetail();marcarPatLevantado('${id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Dar como levantado</button>
-            <button class="pat-btn-apagar" onclick="closePatDetail();apagarPat('${id}')">🗑</button>
-        </div>`;
+    // ── Helper: criar linha de detalhe ──────────────────────────────────
+    function _row(lbl, val) {
+        const d = document.createElement('div');
+        d.className = 'pat-detail-row';
+        const l = document.createElement('span');
+        l.className   = 'pat-detail-lbl';
+        l.textContent = lbl;
+        const v = document.createElement('span');
+        v.textContent = val;
+        d.appendChild(l); d.appendChild(v);
+        return d;
+    }
+
+    // ── Header badges ────────────────────────────────────────────────────
+    const hdr = document.createElement('div');
+    hdr.className = 'pat-detail-header';
+
+    const badge = document.createElement('span');
+    badge.className   = 'pat-badge' + (urgente ? ' pat-badge-urgente' : '');
+    badge.style.cssText = 'font-size:1rem;padding:6px 14px';
+    badge.textContent = 'PAT ' + (pat.numero || '—');
+    hdr.appendChild(badge);
+
+    if (pat.clienteNumero) {
+        const cb = document.createElement('span');
+        cb.className   = 'pat-cliente-badge';
+        cb.style.cssText = 'font-size:0.9rem;padding:5px 12px';
+        cb.textContent = pat.clienteNumero;
+        hdr.appendChild(cb);
+    }
+    if (separacao) {
+        const st = document.createElement('span');
+        st.className   = 'pat-sep-tag';
+        st.style.marginTop = '8px';
+        st.textContent = ' Guia Transporte de Material';
+        hdr.appendChild(st);
+    }
+    body.appendChild(hdr);
+
+    // ── Linhas de informação ─────────────────────────────────────────────
+    if (pat.clienteNumero) body.appendChild(_row('Nº Cliente', pat.clienteNumero));
+    body.appendChild(_row('Estabelecimento', pat.estabelecimento || 'Não especificado'));
+    body.appendChild(_row('Criado em', dataStr));
+    body.appendChild(_row('Desconto stock', separacao ? '✅ Sim (ao levantar)' : '⊘ Não'));
+    body.appendChild(_row('Estado', (urgente ? '🔴 Urgente' : '🟡 Pendente') + ' (' + (dias === 0 ? 'hoje' : `${dias}d`) + ')'));
+    if (pat.funcionario) body.appendChild(_row('Levantado por', pat.funcionario));
+
+    // ── Produtos ─────────────────────────────────────────────────────────
+    if (pat.produtos?.length) {
+        const lbl = document.createElement('div');
+        lbl.className   = 'pat-detail-lbl';
+        lbl.style.cssText = 'margin-top:14px;margin-bottom:8px';
+        lbl.textContent = 'Produtos reservados';
+        body.appendChild(lbl);
+        const prodsDiv = document.createElement('div');
+        prodsDiv.className = 'pat-detail-produtos';
+        pat.produtos.forEach(p => {
+            const row = document.createElement('div');
+            row.className = 'pat-detail-prod';
+            const code = document.createElement('span');
+            code.className   = 'pat-dd-code';
+            code.textContent = p.codigo || '?';
+            const name = document.createElement('span');
+            name.className   = 'pat-dd-name';
+            name.textContent = p.nome || '';
+            const qty = document.createElement('span');
+            qty.className   = 'pat-detail-qty';
+            qty.textContent = '× ' + (p.quantidade || 1);
+            row.appendChild(code); row.appendChild(name); row.appendChild(qty);
+            prodsDiv.appendChild(row);
+        });
+        body.appendChild(prodsDiv);
+    } else {
+        const empty = document.createElement('div');
+        empty.className   = 'pat-empty';
+        empty.style.marginTop = '12px';
+        empty.textContent = 'Sem produtos associados.';
+        body.appendChild(empty);
+    }
+
+    // ── Acções ───────────────────────────────────────────────────────────
+    const actions = document.createElement('div');
+    actions.className = 'pat-detail-actions';
+
+    if (pat.status !== 'levantado' && pat.status !== 'historico') {
+        const btnLev = document.createElement('button');
+        btnLev.className   = 'pat-btn-levantado';
+        btnLev.style.flex  = '1';
+        btnLev.innerHTML   = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        btnLev.appendChild(document.createTextNode('Dar como levantado'));
+        btnLev.onclick     = () => { closePatDetail(); marcarPatLevantado(id); };
+        actions.appendChild(btnLev);
+    }
+
+    const btnDel = document.createElement('button');
+    btnDel.className = 'pat-btn-apagar';
+    btnDel.setAttribute('aria-label', 'Apagar PAT');
+    btnDel.innerHTML = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
+    btnDel.onclick   = () => { closePatDetail(); apagarPat(id); };
+    actions.appendChild(btnDel);
+
+    body.appendChild(actions);
+
     document.getElementById('pat-detail-modal').classList.add('active');
     focusModal('pat-detail-modal');
 }
