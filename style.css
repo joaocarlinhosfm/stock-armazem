@@ -161,16 +161,18 @@
     align-items: center;
     justify-content: center;
     gap: 5px;
-    padding: 6px 10px;
-    border-radius: 9px;
+    padding: 7px 10px;
+    border-radius: 8px;
     border: none;
     background: #2563eb;
     color: white;
     font-family: 'Inter', sans-serif;
-    font-size: 0.75rem;
+    font-size: 0.74rem;
     font-weight: 700;
     cursor: pointer;
     transition: background 0.15s;
+    white-space: nowrap;
+    min-width: 0;
 }
 .pat-btn-guia:active { background: #1d4ed8; }
 
@@ -3311,7 +3313,7 @@ body.is-offline #app-layout {
     background: rgba(245,158,11,0.10);
     color: #d97706;
 }
-.pat-card-actions { display: flex; gap: 6px; }
+.pat-card-actions { display: flex; gap: 6px; align-items: center; }
 .pat-btn-levantado {
     flex: 1;
     padding: 7px 10px;
@@ -3324,11 +3326,13 @@ body.is-offline #app-layout {
     cursor: pointer;
     font-family: 'Inter', sans-serif;
     transition: background 0.15s, opacity 0.15s;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 5px;
     letter-spacing: 0.01em;
+    white-space: nowrap;
+    min-width: 0;
 }
 .pat-btn-levantado:active { background: #15803d; opacity: 0.9; }
 .pat-btn-apagar:active { background: rgba(239,68,68,0.18); }
@@ -4650,12 +4654,17 @@ body.is-offline #app-layout {
 }
 .dark-mode .pat-btn-levantado { background: #16a34a; color: #fff; }
 .pat-btn-apagar {
-    padding: 6px 10px;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: rgba(239,68,68,0.08);
     color: var(--danger);
     border: 1px solid rgba(239,68,68,0.20);
     border-radius: 8px;
-    font-size: 0.80rem;
     cursor: pointer;
     font-family: 'Inter', sans-serif;
     transition: background 0.15s;
