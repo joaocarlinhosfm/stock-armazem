@@ -1025,11 +1025,12 @@ header h1 { display: none; }
 /* Icon picker sobrepõe outros modais */
 #icon-picker-modal { z-index: 6000; }
 
-.modal-content { background: var(--card-bg); width: 90%; max-width: 400px; padding: 25px; border-radius: 24px; }
+.modal-content { background: var(--card-bg); width: 90%; max-width: 400px; padding: 25px; border-radius: 24px; text-align: center; }
 .worker-select-list {
     max-height: 45vh;
     overflow-y: auto;
     margin-bottom: 4px;
+    text-align: left;
     -webkit-overflow-scrolling: touch;
     /* Fade out ao fundo para indicar que há mais itens */
     mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
