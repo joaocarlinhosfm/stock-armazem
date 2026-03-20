@@ -2050,6 +2050,11 @@ async function renderWorkers() {
     const workers = data ? Object.entries(data).map(([id,v]) => ({id, nome:v.nome})) : [];
     const list    = document.getElementById('workers-list');
     if (!list) return;
+
+    // Badge de contagem no card header
+    const badge = document.getElementById('workers-count-badge');
+    if (badge) badge.textContent = workers.length ? `${workers.length} registados` : '';
+
     list.innerHTML = '';
     if (workers.length === 0) {
         list.innerHTML = '<div class="empty-msg">Nenhum funcionário adicionado.</div>'; return;
@@ -2058,7 +2063,6 @@ async function renderWorkers() {
         const row = document.createElement('div');
         row.className = 'admin-list-row';
 
-        // Avatar de iniciais (desktop)
         const avatar = document.createElement('div');
         avatar.className = 'admin-list-avatar';
         const initials = w.nome.trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase();
@@ -2567,6 +2571,14 @@ function adminMobileBack() {
         }
     }
 
+    // Re-aplicar ws-active no painel correcto (para desktop)
+    if (window.innerWidth >= 768) {
+        ADMIN_TABS.forEach((t, i) => {
+            const p = document.getElementById(`panel-${t}`);
+            if (p) p.classList.toggle('ws-active', i === _adminIdx);
+        });
+    }
+
     detail.style.display = 'none';
     menu.style.display   = 'block';
 
@@ -2585,11 +2597,12 @@ function switchAdminTab(tab, animate = true) {
         t.classList.toggle('active', i === idx)
     );
 
-    // Desktop (≥768px): mostra/esconde painéis com classe em vez de slider transform
+    // Desktop ≥768px: mostra/esconde painéis via classe (sem transform)
+    // transform num elemento pai quebra position:fixed dos modais
     if (window.innerWidth >= 768) {
         ADMIN_TABS.forEach((t, i) => {
-            const panel = document.getElementById(`panel-${t}`);
-            if (panel) panel.classList.toggle('admin-panel-active', i === idx);
+            const p = document.getElementById(`panel-${t}`);
+            if (p) p.classList.toggle('ws-active', i === idx);
         });
     }
 
@@ -2597,17 +2610,19 @@ function switchAdminTab(tab, animate = true) {
     if (tab === 'users')    renderUsersList();
     if (tab === 'settings') { _updateOcrKeyStatus(); _loadOcrKeywordsInput(); }
     if (tab === 'relatorio') { renderRelatorio(); }
-    // Move slider (sem .active nos painéis — visibilidade é por transform)
-    const slider = document.getElementById('admin-slider');
-    if (slider) {
-        if (!animate) slider.classList.add('is-dragging');
-        // Cada painel ocupa 1/5 do slider (width:500%)
-        // translateX(-idx * 20%) move para o painel certo
-        slider.style.transform = `translateX(-${(idx * 100 / 6).toFixed(4)}%)`;
-        if (!animate) {
-            // força reflow para garantir sem transição no reset
-            void slider.offsetWidth;
-            slider.classList.remove('is-dragging');
+    if (tab === 'workers')  renderWorkers();
+    if (tab === 'tools')    renderAdminTools();
+    // Move slider apenas em mobile — no desktop usamos display:none/block
+    // (transform num pai quebra position:fixed dos modais no desktop)
+    if (window.innerWidth < 768) {
+        const slider = document.getElementById('admin-slider');
+        if (slider) {
+            if (!animate) slider.classList.add('is-dragging');
+            slider.style.transform = `translateX(-${(idx * 100 / 6).toFixed(4)}%)`;
+            if (!animate) {
+                void slider.offsetWidth;
+                slider.classList.remove('is-dragging');
+            }
         }
     }
 }
