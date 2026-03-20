@@ -822,61 +822,15 @@ function _getDashTrend(field, currentVal) {
     } catch(_e) { return null; }
 }
 
-async function renderDashboard(force = false, animated = false) {
+async function renderDashboard(force = false) {
     const el = document.getElementById('dashboard');
     if (!el) return;
 
     const refreshBtn = document.getElementById('btn-dash-refresh');
+    if (refreshBtn) refreshBtn.classList.add('spinning');
 
-    // ── Animação: só quando chamado pelo botão (animated=true) ──────────────
-    let progBar = null;
-    if (animated) {
-        if (refreshBtn) refreshBtn.classList.add('spinning');
-
-        progBar = document.getElementById('dash-progress-bar');
-        if (!progBar) {
-            progBar = document.createElement('div');
-            progBar.id = 'dash-progress-bar';
-            document.body.appendChild(progBar);
-        }
-        progBar.style.transition = 'none';
-        progBar.style.width = '0%';
-        progBar.classList.add('active');
-        requestAnimationFrame(() => {
-            progBar.style.transition = 'width 0.57s ease, opacity 0.33s ease';
-            progBar.style.width = '35%';
-        });
-        const _progTo = (w) => { progBar.style.width = w + '%'; };
-        setTimeout(() => _progTo(60), 572);
-        setTimeout(() => _progTo(80), 1300);
-
-        el.style.transition = 'opacity 0.36s ease';
-        el.style.opacity = '0';
-        await new Promise(r => setTimeout(r, 352));
-        el.className = 'dashboard-v2';
-        el.innerHTML = `
-            <div class="dash-skel-grid">
-                <div class="dash-skel-card"><div class="skel-line skel-label"></div><div class="skel-line skel-value"></div><div class="skel-line skel-sub"></div></div>
-                <div class="dash-skel-card"><div class="skel-line skel-label"></div><div class="skel-line skel-value"></div><div class="skel-line skel-sub"></div></div>
-                <div class="dash-skel-card"><div class="skel-line skel-label"></div><div class="skel-line skel-value"></div><div class="skel-line skel-sub"></div></div>
-                <div class="dash-skel-card"><div class="skel-line skel-label"></div><div class="skel-line skel-value"></div><div class="skel-line skel-sub"></div></div>
-            </div>
-            <div class="dash-skel-section">
-                <div class="skel-line skel-row" style="width:35%;margin-bottom:14px"></div>
-                <div class="skel-line skel-row"></div>
-                <div class="skel-line skel-row"></div>
-                <div class="skel-line skel-row"></div>
-            </div>
-            <div class="dash-skel-section">
-                <div class="skel-line skel-row" style="width:40%;margin-bottom:14px"></div>
-                <div class="skel-line skel-row"></div>
-                <div class="skel-line skel-row"></div>
-            </div>`;
-        el.style.opacity = '1';
-    } else {
-        el.className = 'dashboard-v2';
-        el.innerHTML = '';
-    }
+    el.innerHTML = '';
+    el.className = 'dashboard-v2';
 
     const ts = Date.now();
     const [stockData, ferrData] = await Promise.all([
@@ -1039,9 +993,6 @@ async function renderDashboard(force = false, animated = false) {
         })(),
     }));
 
-    // Limpar skeleton antes de inserir conteúdo real
-    el.innerHTML = '';
-
     el.appendChild(grid);
 
     // ── SECÇÃO: Últimas PATs ─────────────────────────────────────────────────
@@ -1172,26 +1123,7 @@ async function renderDashboard(force = false, animated = false) {
         el.appendChild(sec2);
     }
 
-    // ── Revelar conteúdo real com fade + completar progress bar ────────────
-    if (animated) {
-        el.style.opacity = '0';
-        el.style.transition = 'opacity 0.43s ease';
-        await new Promise(r => setTimeout(r, 98));
-        el.style.opacity = '1';
-
-        if (progBar) {
-            progBar.style.width = '100%';
-            setTimeout(() => {
-                progBar.style.opacity = '0';
-                setTimeout(() => {
-                    progBar.classList.remove('active');
-                    progBar.style.width = '0%';
-                    progBar.style.opacity = '';
-                }, 430);
-            }, 546);
-        }
-        if (refreshBtn) refreshBtn.classList.remove('spinning');
-    }
+    if (refreshBtn) refreshBtn.classList.remove('spinning');
 }
 
 // =============================================
@@ -3028,7 +2960,7 @@ function fmtQty(quantidade, unidade) {
 // Pontos: filtro por zona, revisão, retoma, stats, Excel, email
 // =============================================
 
-const INV_RESUME_KEY = 'hiperfrio-inv-resume';
+// INV_RESUME_KEY removida — resume migrado para Firebase /inv-resume/{user}
 
 // Estado da sessão de inventário
 let _invItems     = [];        // produtos a percorrer
@@ -3044,13 +2976,15 @@ async function startInventory() {
         showToast('Sem produtos para inventariar', 'error'); return;
     }
 
-    // Verifica se existe sessão guardada para retomar
-    const saved = _invLoadResume();
+    // Verifica se existe sessão guardada para retomar (Firebase — funciona entre dispositivos)
+    const saved = await _invLoadResume();
     if (saved) {
+        const hoursAgo = Math.round((Date.now() - (saved.ts || 0)) / 3600000);
+        const timeLabel = hoursAgo < 1 ? 'há menos de 1h' : `há ${hoursAgo}h`;
         openConfirmModal({
             icon: '',
             title: 'Retomar inventário?',
-            desc: `Tens um inventário em curso (${saved.idx + 1}/${saved.items.length} produtos). Continuar onde ficaste?`,
+            desc: `Tens um inventário em curso (${saved.idx + 1}/${saved.items.length} produtos, guardado ${timeLabel}). Continuar onde ficaste?`,
             onConfirm: () => _resumeInventory(saved),
         });
         // Adiciona botão "Começar novo" ao modal confirm
@@ -3149,25 +3083,25 @@ function closeInvSetup() {
 
 async function invSetupStart() {
     const chips = document.querySelectorAll('.inv-zone-chip');
-    const activeZones = chips.length === 0
+    const totalChips = chips.length;
+    const activeZones = totalChips === 0
         ? null
         : [...chips].filter(c => c.classList.contains('active')).map(c => c.dataset.zone);
 
     if (activeZones && activeZones.length === 0) return;
 
     const skipZeros = document.getElementById('inv-skip-zeros').checked;
+    const allZones  = totalChips === 0 || activeZones === null || activeZones.length === totalChips;
     closeInvSetup();
-    await _startInvWithOptions(activeZones, skipZeros);
+    await _startInvWithOptions(activeZones, skipZeros, allZones);
 }
 
-async function _startInvWithOptions(zones, skipZeros) {
+async function _startInvWithOptions(zones, skipZeros, allZones = true) {
     const data = cache.stock.data;
     if (!data) return;
-    _invLastData = data;
+    _invLastData = { ...data };
 
     const allChips  = document.querySelectorAll('.inv-zone-chip');
-    const allZones  = allChips.length === 0 || zones === null
-        || zones.length === document.querySelectorAll('.inv-zone-chip').length;
 
     _invOptions = { zones, skipZeros, allZones };
 
@@ -3246,6 +3180,16 @@ function _renderInvStep() {
     qtyInput.value   = currentVal;
     qtyInput.focus();
     qtyInput.select();
+
+    // Enter = Confirmar (fix bug UX mobile — substitui listener anterior para evitar duplicados)
+    const newInput = qtyInput.cloneNode(true);
+    qtyInput.parentNode.replaceChild(newInput, qtyInput);
+    newInput.value = currentVal;
+    newInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); invConfirm(); }
+    });
+    newInput.focus();
+    newInput.select();
 
     // Mostra a quantidade original do sistema como referência
     const origEl = document.getElementById('inv-orig-qty');
@@ -3578,33 +3522,51 @@ function _buildInventoryWorkbook() {
     return wb;
 }
 
-function _invSaveResume() {
+// ── Inventário Resume — Firebase /inv-resume/{user} (72h TTL) ──────────────
+const INV_RESUME_FIREBASE_TTL = 72 * 60 * 60 * 1000; // 72 horas em ms
+
+function _invResumeUrl() {
+    const user = (localStorage.getItem('hiperfrio-username') || 'default')
+        .replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `${BASE_URL}/inv-resume/${user}.json`;
+}
+
+async function _invSaveResume() {
     try {
-        localStorage.setItem(INV_RESUME_KEY, JSON.stringify({
+        const payload = JSON.stringify({
             idx:     _invIdx,
             items:   _invItems,
             changes: _invChanges,
             skipped: [..._invSkipped],
             options: _invOptions,
             ts:      Date.now(),
-        }));
+        });
+        const url = await authUrl(_invResumeUrl());
+        fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: payload })
+            .catch(e => console.warn('invSaveResume (Firebase):', e));
     } catch (e) { console.warn('invSaveResume:', e); }
 }
 
-function _invLoadResume() {
+async function _invLoadResume() {
     try {
-        const raw = localStorage.getItem(INV_RESUME_KEY);
-        if (!raw) return null;
-        const saved = JSON.parse(raw);
-        // Ignora sessões com mais de 24 horas
-        if (!saved || Date.now() - (saved.ts||0) > 86400000) { _invClearResume(); return null; }
-        if (!saved.items || saved.items.length === 0) { _invClearResume(); return null; }
+        const url = await authUrl(_invResumeUrl());
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const saved = await res.json();
+        if (!saved || !saved.items || saved.items.length === 0) return null;
+        if (Date.now() - (saved.ts || 0) > INV_RESUME_FIREBASE_TTL) {
+            _invClearResume();
+            return null;
+        }
         return saved;
-    } catch(_e) { return null; }
+    } catch (_e) { return null; }
 }
 
-function _invClearResume() {
-    localStorage.removeItem(INV_RESUME_KEY);
+async function _invClearResume() {
+    try {
+        const url = await authUrl(_invResumeUrl());
+        fetch(url, { method: 'DELETE' }).catch(() => {});
+    } catch (_e) {}
 }
 
 // =============================================
