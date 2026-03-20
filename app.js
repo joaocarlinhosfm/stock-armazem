@@ -1039,6 +1039,9 @@ async function renderDashboard(force = false, animated = false) {
         })(),
     }));
 
+    // Limpar skeleton antes de inserir conteúdo real
+    el.innerHTML = '';
+
     el.appendChild(grid);
 
     // ── SECÇÃO: Últimas PATs ─────────────────────────────────────────────────
