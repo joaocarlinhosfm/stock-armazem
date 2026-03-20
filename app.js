@@ -4240,6 +4240,8 @@ const _debouncedPatSearch = _debounce(val => {
     renderPats();
 }, 300);
 
+function patSearchFilter(val) { _debouncedPatSearch(val); }
+
 // ── Popover de pedidos duplicados por estabelecimento ──────────────
 let _dupPopoverEl = null;
 let _dupPopoverCloseHandler = null;
@@ -4589,7 +4591,8 @@ function cancelLevantarMode() {
 
 function patSelToggleAll() {
     const pats = _patCache.data || {};
-    const pendentes = Object.entries(pats).filter(([, p]) => p.status !== 'levantado');
+    // Só selecciona PATs pendentes (tab activo no modo levantar)
+    const pendentes = Object.entries(pats).filter(([, p]) => p.status === 'pendente');
     const allSelected = pendentes.length > 0 && pendentes.every(([id]) => _patSelIds.has(id));
     if (allSelected) {
         _patSelIds.clear();
