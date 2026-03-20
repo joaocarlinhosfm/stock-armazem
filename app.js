@@ -850,9 +850,9 @@ async function renderDashboard(force = false, animated = false) {
         setTimeout(() => _progTo(60), 572);
         setTimeout(() => _progTo(80), 1300);
 
-        el.style.transition = 'opacity 0.30s ease';
+        el.style.transition = 'opacity 0.36s ease';
         el.style.opacity = '0';
-        await new Promise(r => setTimeout(r, 293));
+        await new Promise(r => setTimeout(r, 352));
         el.className = 'dashboard-v2';
         el.innerHTML = `
             <div class="dash-skel-grid">
@@ -1187,8 +1187,8 @@ async function renderDashboard(force = false, animated = false) {
                     progBar.classList.remove('active');
                     progBar.style.width = '0%';
                     progBar.style.opacity = '';
-                }, 358);
-            }, 455);
+                }, 430);
+            }, 546);
         }
         if (refreshBtn) refreshBtn.classList.remove('spinning');
     }
