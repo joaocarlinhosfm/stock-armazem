@@ -859,6 +859,13 @@ async function renderDashboard(force = false) {
     );
     _saveDashSnapshot(total, semStock, alocadas);
 
+    // Subtítulo com hora de actualização
+    const subEl = document.getElementById('dash-subtitle');
+    if (subEl) {
+        const now = new Date();
+        subEl.textContent = `Actualizado às ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+    }
+
     // ── helper: cria um metric card ──────────────────────────────────────────
     function _metricCard({ label, value, sub, accent, icon, warn, alert, onClick, progress, stats }) {
         const card = document.createElement('div');
@@ -1032,8 +1039,15 @@ async function renderDashboard(force = false) {
             row.className = 'dv2-pat-row' + (urgente ? ' dv2-pat-row--urgente' : '');
             row.onclick = () => openPatDetail(id, pat);
 
+            // Barra lateral colorida
+            const bar = document.createElement('div');
+            bar.className = 'dv2-pat-bar';
+
             const left = document.createElement('div');
             left.className = 'dv2-pat-left';
+
+            const info = document.createElement('div');
+            info.className = 'dv2-pat-info';
 
             const num = document.createElement('span');
             num.className   = 'dv2-pat-num';
@@ -1043,8 +1057,10 @@ async function renderDashboard(force = false) {
             estab.className   = 'dv2-pat-estab';
             estab.textContent = pat.estabelecimento || 'Sem estabelecimento';
 
-            left.appendChild(num);
-            left.appendChild(estab);
+            info.appendChild(num);
+            info.appendChild(estab);
+            left.appendChild(bar);
+            left.appendChild(info);
 
             const right = document.createElement('span');
             right.className   = 'dv2-pat-age' + (urgente ? ' dv2-pat-age--urgente' : '');

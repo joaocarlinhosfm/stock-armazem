@@ -2983,29 +2983,49 @@ body.is-offline #app-layout {
 
 /* Container principal */
 .dashboard-v2 {
-    padding: 12px 0 80px;
+    padding: 0 0 80px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
 }
 
-/* Secções (Últimas PATs, Ferramentas em uso) têm mais espaço do grid */
-.dashboard-v2 .dv2-section {
-    margin-top: 4px;
+.dashboard-v2 .dv2-section { margin-top: 4px; }
+
+/* ── Header da vista dashboard ── */
+.dash-view-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 0 4px;
+}
+.dash-view-title {
+    line-height: 1;
+}
+.dash-view-title h2 {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.3px;
+    margin: 0 0 3px;
+}
+.dash-view-subtitle {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: 400;
 }
 
 /* ── Grid 2×2 ── */
 .dv2-grid {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
-    gap: 12px;
+    gap: 10px;
 }
 
 .dv2-card {
     background: var(--card-bg);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 12px 12px 12px;
+    border-radius: 14px;
+    padding: 13px 13px 12px;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -3018,43 +3038,60 @@ body.is-offline #app-layout {
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0;
-    height: 3px;
+    height: 2px;
     background: var(--card-accent, var(--primary));
-    border-radius: 16px 16px 0 0;
+    border-radius: 14px 14px 0 0;
+    opacity: 0.9;
+}
+.dv2-card[style*="cursor: pointer"]:hover,
+.dv2-card[style*="cursor:pointer"]:hover {
+    box-shadow: 0 4px 16px rgba(37,99,235,0.08);
 }
 .dv2-card[style*="cursor: pointer"]:active,
 .dv2-card[style*="cursor:pointer"]:active {
     transform: scale(0.97);
 }
 .dv2-card--warn {
-    background: rgba(220,38,38,0.05);
-    border-color: rgba(220,38,38,0.2);
+    background: linear-gradient(145deg, #fff5f5, var(--card-bg));
+    border-color: rgba(220,38,38,0.15);
 }
 .dv2-card--alert {
-    background: rgba(245,158,11,0.07);
-    border-color: rgba(245,158,11,0.25);
+    background: linear-gradient(145deg, #fffbeb, var(--card-bg));
+    border-color: rgba(245,158,11,0.2);
 }
 
 .dv2-card-top {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    margin-bottom: 2px;
+    margin-bottom: 6px;
 }
 .dv2-card-label {
-    font-size: 0.63rem;
+    font-size: 0.62rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     color: var(--text-muted);
+    padding-top: 2px;
 }
 .dv2-card-icon {
-    font-size: 1rem;
-    line-height: 1;
-    opacity: 0.85;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-soft);
+    flex-shrink: 0;
 }
+.dv2-card-icon svg {
+    width: 14px;
+    height: 14px;
+    color: var(--primary);
+}
+
 .dv2-card-value {
-    font-size: 1.6rem;
+    font-size: 1.75rem;
     font-weight: 800;
     color: var(--text-main);
     line-height: 1;
@@ -3062,46 +3099,47 @@ body.is-offline #app-layout {
     display: flex;
     align-items: baseline;
     gap: 6px;
+    margin-bottom: 2px;
 }
 .dv2-card--warn  .dv2-card-value { color: #dc2626; }
 .dv2-card--alert .dv2-card-value { color: #d97706; }
 
 /* Trend badge */
 .dv2-trend {
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     font-weight: 700;
     padding: 2px 6px;
     border-radius: 6px;
     vertical-align: middle;
-    margin-left: 5px;
+    margin-left: 4px;
     letter-spacing: 0.02em;
 }
-.dv2-trend--good { background: rgba(22,163,74,0.12);  color: #16a34a; }
-.dv2-trend--bad  { background: rgba(220,38,38,0.12);  color: #dc2626; }
+.dv2-trend--good { background: rgba(22,163,74,0.10); color: #16a34a; }
+.dv2-trend--bad  { background: rgba(220,38,38,0.10); color: #dc2626; }
 
-/* Stats individuais por card */
+/* Stats pills */
 .dv2-stats {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
-    margin-top: 10px;
+    gap: 4px;
+    margin-top: 9px;
 }
 .dv2-stat-pill {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
-    border-radius: 7px;
-    padding: 3px 7px;
+    border-radius: 6px;
+    padding: 2px 7px;
 }
 .dv2-stat-val {
-    font-size: 0.72rem;
+    font-size: 0.70rem;
     font-weight: 800;
     line-height: 1;
 }
 .dv2-stat-lbl {
-    font-size: 0.63rem;
+    font-size: 0.62rem;
     font-weight: 500;
     color: var(--text-muted);
     line-height: 1;
@@ -3109,8 +3147,8 @@ body.is-offline #app-layout {
 
 /* Barra de progresso */
 .dv2-progress {
-    margin-top: 6px;
-    height: 3px;
+    margin-top: 8px;
+    height: 4px;
     background: var(--border);
     border-radius: 4px;
     overflow: hidden;
@@ -3119,28 +3157,26 @@ body.is-offline #app-layout {
     height: 100%;
     background: var(--card-accent, var(--primary));
     border-radius: 4px;
-    transition: width 0.5s ease;
+    transition: width 0.55s cubic-bezier(0.4,0,0.2,1);
 }
-.dv2-card--warn  .dv2-progress-fill { background: #dc2626; }
+.dv2-card--warn  .dv2-progress-fill { background: #ef4444; }
 .dv2-card--alert .dv2-progress-fill { background: #f59e0b; }
 
 /* ── Secções (PATs + Ferramentas) ── */
 .dv2-section {
     background: var(--card-bg);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: 14px;
     overflow: hidden;
 }
 .dv2-section-hdr {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 16px 10px;
-    font-size: 0.8rem;
+    padding: 13px 14px 11px;
+    font-size: 0.85rem;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
+    color: var(--text-main);
     border-bottom: 1px solid var(--border);
 }
 .dv2-section-link {
@@ -3152,78 +3188,93 @@ body.is-offline #app-layout {
     cursor: pointer;
     padding: 0;
     letter-spacing: 0;
-    text-transform: none;
+    font-family: inherit;
 }
+.dv2-section-link:hover { text-decoration: underline; }
 
 /* ── Mini-lista PATs ── */
-.dv2-pat-list {
-    display: flex;
-    flex-direction: column;
-}
+.dv2-pat-list { display: flex; flex-direction: column; }
 .dv2-pat-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 11px 16px;
+    padding: 10px 14px;
     border-bottom: 1px solid var(--border);
     cursor: pointer;
     transition: background 0.12s;
-    gap: 12px;
+    gap: 10px;
 }
 .dv2-pat-row:last-child { border-bottom: none; }
 .dv2-pat-row:active { background: var(--input-fill); }
-.dv2-pat-row--urgente { background: rgba(220,38,38,0.04); }
+.dv2-pat-row--urgente { background: rgba(220,38,38,0.03); }
+
+/* Barra lateral colorida por PAT row */
+.dv2-pat-bar {
+    width: 2px;
+    height: 30px;
+    border-radius: 2px;
+    background: var(--primary);
+    flex-shrink: 0;
+    opacity: 0.45;
+}
 
 .dv2-pat-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+.dv2-pat-info {
     display: flex;
     flex-direction: column;
     gap: 2px;
     min-width: 0;
 }
 .dv2-pat-num {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 700;
     color: var(--primary);
 }
 .dv2-pat-estab {
-    font-size: 0.78rem;
+    font-size: 0.77rem;
     color: var(--text-main);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 .dv2-pat-age {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-weight: 600;
     color: var(--text-muted);
     white-space: nowrap;
-    padding: 2px 7px;
-    border-radius: 8px;
-    background: var(--input-fill);
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    flex-shrink: 0;
 }
 .dv2-pat-age--urgente {
-    background: rgba(220,38,38,0.1);
+    background: rgba(220,38,38,0.08);
     color: #dc2626;
+    border-color: rgba(220,38,38,0.15);
 }
 
-/* ── Lista ferramentas por colaborador ── */
-.dv2-ferr-list {
-    display: flex;
-    flex-direction: column;
-}
+/* ── Lista ferramentas ── */
+.dv2-ferr-list { display: flex; flex-direction: column; }
 .dv2-ferr-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 11px 16px;
+    padding: 10px 14px;
     border-bottom: 1px solid var(--border);
     cursor: pointer;
     transition: background 0.12s;
-    gap: 12px;
+    gap: 10px;
 }
 .dv2-ferr-row:last-child { border-bottom: none; }
 .dv2-ferr-row:active { background: var(--input-fill); }
-.dv2-ferr-row--overdue { background: rgba(245,158,11,0.05); }
+.dv2-ferr-row--overdue { background: rgba(245,158,11,0.04); }
 
 .dv2-ferr-left {
     display: flex;
@@ -3237,7 +3288,7 @@ body.is-offline #app-layout {
     color: var(--text-main);
 }
 .dv2-ferr-tools {
-    font-size: 0.73rem;
+    font-size: 0.72rem;
     color: var(--text-muted);
     white-space: nowrap;
     overflow: hidden;
@@ -3247,14 +3298,16 @@ body.is-offline #app-layout {
     font-size: 0.68rem;
     font-weight: 700;
     padding: 3px 8px;
-    border-radius: 10px;
+    border-radius: 20px;
     background: var(--primary-soft);
     color: var(--primary);
+    border: 1px solid rgba(37,99,235,0.15);
     white-space: nowrap;
 }
 .dv2-ferr-badge--overdue {
-    background: rgba(245,158,11,0.15);
+    background: rgba(245,158,11,0.12);
     color: #d97706;
+    border-color: rgba(245,158,11,0.2);
 }
 
 /* ── Dark mode ── */
