@@ -3616,6 +3616,19 @@ body.is-offline #app-layout {
 
    VIEW DASHBOARD — vista dedicada
    ============================================= */
+/* ── Header da vista Dashboard (título + refresh) ─────────────────────── */
+.dash-view-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 20px 12px;
+}
+.dash-view-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.3px;
+}
 .dash-refresh-btn {
     display: flex;
     align-items: center;
@@ -3624,16 +3637,19 @@ body.is-offline #app-layout {
     height: 36px;
     flex-shrink: 0;
     border-radius: 50%;
-    border: 1.5px solid #cbd5e1;
-    background: #f1f5f9;
-    color: #64748b;
+    border: 1.5px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-muted);
     cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
 }
 .dash-refresh-btn:hover {
-    background: #e2e8f0;
-    color: #475569;
-    border-color: #94a3b8;
+    background: var(--primary-soft);
+    color: var(--primary);
+    border-color: rgba(37,99,235,0.3);
+}
+.dash-refresh-btn:active {
+    transform: scale(0.92);
 }
 .dark-mode .dash-refresh-btn {
     background: var(--card-bg);
@@ -3647,7 +3663,17 @@ body.is-offline #app-layout {
 }
 .dash-refresh-btn svg { display: block; }
 .dash-refresh-btn.spinning svg {
-    animation: spin 0.7s linear infinite;
+    animation: spin 1.14s linear infinite;
+}
+
+/* Desktop: header inline com mais espaço */
+@media (min-width: 768px) {
+    .dash-view-header {
+        padding: 24px 32px 16px;
+    }
+    .dash-view-title {
+        font-size: 1.5rem;
+    }
 }
 
 /* Toolbar PAT — título + botão + pesquisa, tudo alinhado */

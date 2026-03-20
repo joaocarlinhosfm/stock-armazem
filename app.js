@@ -745,9 +745,6 @@ function nav(viewId) {
     if (viewId === 'view-dashboard') { renderDashboard(true); }
     if (viewId === 'view-encomendas') { loadEncomendas(); }
 
-    // Botão refresh — só visível no dashboard
-    const refreshBtn = document.getElementById('btn-dash-refresh');
-    if (refreshBtn) refreshBtn.style.display = viewId === 'view-dashboard' ? 'flex' : 'none';
     if (viewId === 'view-admin') {
         if (window.innerWidth < 768) {
             _buildAdminMobileMenu();
