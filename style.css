@@ -1673,7 +1673,7 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
     }
     #view-admin > .view-header { display: none; }
 
-    /* Sidebar — nav vertical fixa, participa no fluxo flex normal */
+    /* Sidebar — nav vertical, fluxo flex normal (sem z-index para não criar stacking context) */
     .admin-tabs {
         flex-direction: column !important;
         flex-shrink: 0 !important;
@@ -1683,7 +1683,6 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
         border-right: 1px solid var(--border) !important;
         border-radius: 0 !important;
         padding: 14px 8px 20px !important;
-        /* position: relative — fica no fluxo, não sobrepõe o conteúdo */
         position: relative !important;
         height: auto !important;
         min-height: 100% !important;
@@ -1692,8 +1691,9 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
         gap: 1px !important;
         margin-bottom: 0 !important;
         scrollbar-width: none !important;
-        z-index: 5 !important;
+        /* SEM z-index — evita stacking context que empurra modais para baixo */
         box-sizing: border-box !important;
+        align-self: flex-start !important;
     }
 
     /* Título da sidebar */
@@ -1778,6 +1778,7 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
         transform: none !important;
         transition: none !important;
         will-change: auto !important;
+        contain: none !important;
     }
 
     /* Painéis: escondidos por defeito, só o activo visível */

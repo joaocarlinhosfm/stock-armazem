@@ -2614,15 +2614,19 @@ function switchAdminTab(tab, animate = true) {
     if (tab === 'tools')    renderAdminTools();
     // Move slider apenas em mobile — no desktop usamos display:none/block
     // (transform num pai quebra position:fixed dos modais no desktop)
-    if (window.innerWidth < 768) {
-        const slider = document.getElementById('admin-slider');
-        if (slider) {
+    const slider = document.getElementById('admin-slider');
+    if (slider) {
+        if (window.innerWidth < 768) {
             if (!animate) slider.classList.add('is-dragging');
             slider.style.transform = `translateX(-${(idx * 100 / 6).toFixed(4)}%)`;
             if (!animate) {
                 void slider.offsetWidth;
                 slider.classList.remove('is-dragging');
             }
+        } else {
+            // Garantir que não fica transform inline residual
+            slider.style.transform = '';
+            slider.style.transition = '';
         }
     }
 }
