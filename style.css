@@ -898,6 +898,31 @@ header h1 { display: none; }
     box-shadow: 0 2px 6px rgba(37,99,235,0.25);
 }
 
+/* Botão refresh dashboard — junto ao header para garantir especificidade */
+.dash-refresh-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1.5px solid #94a3b8;
+    background: #e8edf2;
+    color: #475569;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
+}
+.dash-refresh-btn:hover {
+    background: #dde4ec;
+    color: #334155;
+    border-color: #64748b;
+}
+.dash-refresh-btn:active {
+    transform: scale(0.92);
+}
+.dash-refresh-btn svg { display: block; }
+
 #menu-btn { display: none; }
 
 
@@ -3582,36 +3607,6 @@ body.is-offline #app-layout {
 
    VIEW DASHBOARD — vista dedicada
    ============================================= */
-.dash-refresh-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    flex-shrink: 0;
-    border-radius: 50%;
-    border: 1.5px solid #cbd5e1;
-    background: #f1f5f9;
-    color: #64748b;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.dash-refresh-btn:hover {
-    background: #e2e8f0;
-    color: #475569;
-    border-color: #94a3b8;
-}
-.dark-mode .dash-refresh-btn {
-    background: var(--card-bg);
-    border-color: var(--border);
-    color: var(--text-muted);
-}
-.dark-mode .dash-refresh-btn:hover {
-    background: var(--primary-soft);
-    color: var(--primary);
-    border-color: rgba(37,99,235,0.25);
-}
-.dash-refresh-btn svg { display: block; }
 .dash-refresh-btn.spinning svg {
     animation: spin 0.7s linear infinite;
 }
@@ -5083,6 +5078,16 @@ body.is-offline #app-layout {
     background: rgba(37,99,235,0.18);
     color: #93c5fd;
     border-color: rgba(37,99,235,0.3);
+}
+.dark-mode .dash-refresh-btn {
+    background: #1e293b;
+    border-color: #334155;
+    color: #94a3b8;
+}
+.dark-mode .dash-refresh-btn:hover {
+    background: rgba(37,99,235,0.15);
+    color: #93c5fd;
+    border-color: rgba(37,99,235,0.35);
 }
 .dark-mode #bottom-nav {
     box-shadow:
