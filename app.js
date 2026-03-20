@@ -843,16 +843,16 @@ async function renderDashboard(force = false, animated = false) {
         progBar.style.width = '0%';
         progBar.classList.add('active');
         requestAnimationFrame(() => {
-            progBar.style.transition = 'width 0.35s ease, opacity 0.2s ease';
+            progBar.style.transition = 'width 0.44s ease, opacity 0.25s ease';
             progBar.style.width = '35%';
         });
         const _progTo = (w) => { progBar.style.width = w + '%'; };
-        setTimeout(() => _progTo(60), 350);
-        setTimeout(() => _progTo(80), 800);
+        setTimeout(() => _progTo(60), 440);
+        setTimeout(() => _progTo(80), 1000);
 
-        el.style.transition = 'opacity 0.18s ease';
+        el.style.transition = 'opacity 0.23s ease';
         el.style.opacity = '0';
-        await new Promise(r => setTimeout(r, 180));
+        await new Promise(r => setTimeout(r, 225));
         el.className = 'dashboard-v2';
         el.innerHTML = `
             <div class="dash-skel-grid">
@@ -1175,8 +1175,8 @@ async function renderDashboard(force = false, animated = false) {
     // ── Revelar conteúdo real com fade + completar progress bar ────────────
     if (animated) {
         el.style.opacity = '0';
-        el.style.transition = 'opacity 0.22s ease';
-        await new Promise(r => setTimeout(r, 50));
+        el.style.transition = 'opacity 0.28s ease';
+        await new Promise(r => setTimeout(r, 63));
         el.style.opacity = '1';
 
         if (progBar) {
@@ -1187,8 +1187,8 @@ async function renderDashboard(force = false, animated = false) {
                     progBar.classList.remove('active');
                     progBar.style.width = '0%';
                     progBar.style.opacity = '';
-                }, 220);
-            }, 280);
+                }, 275);
+            }, 350);
         }
         if (refreshBtn) refreshBtn.classList.remove('spinning');
     }
