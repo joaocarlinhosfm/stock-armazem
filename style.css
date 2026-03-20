@@ -3586,17 +3586,27 @@ body.is-offline #app-layout {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     flex-shrink: 0;
     border-radius: 50%;
-    border: 1.5px solid var(--border);
-    background: var(--card-bg);
-    color: var(--text-muted);
+    border: 1.5px solid #cbd5e1;
+    background: #f1f5f9;
+    color: #64748b;
     cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 .dash-refresh-btn:hover {
+    background: #e2e8f0;
+    color: #475569;
+    border-color: #94a3b8;
+}
+.dark-mode .dash-refresh-btn {
+    background: var(--card-bg);
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+.dark-mode .dash-refresh-btn:hover {
     background: var(--primary-soft);
     color: var(--primary);
     border-color: rgba(37,99,235,0.25);
