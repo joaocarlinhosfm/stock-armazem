@@ -503,6 +503,8 @@ async function bootApp() {
     _scheduleTokenRenewal();
     // Auto-fechar mês anterior se for dia 1
     _autoFecharMesSeNecessario();
+    // Pré-preencher campo de email do inventário nas Definições
+    setTimeout(_invLoadEmailField, 400);
     // Lança fetches em paralelo após ter token
     await Promise.all([
         renderList(),
@@ -2961,6 +2963,17 @@ function fmtQty(quantidade, unidade) {
 // =============================================
 
 // INV_RESUME_KEY removida — resume migrado para Firebase /inv-resume/{user}
+const INV_EMAIL_KEY = 'hiperfrio-inv-email';
+
+function _invGetEmail() {
+    return localStorage.getItem(INV_EMAIL_KEY) || '';
+}
+
+// Carrega o email guardado no campo das Definições ao arrancar
+function _invLoadEmailField() {
+    const el = document.getElementById('inv-email-input');
+    if (el) el.value = _invGetEmail();
+}
 
 // Estado da sessão de inventário
 let _invItems     = [];        // produtos a percorrer
@@ -2975,41 +2988,26 @@ async function startInventory() {
     if (!data || Object.keys(data).length === 0) {
         showToast('Sem produtos para inventariar', 'error'); return;
     }
-
-    // Verifica se existe sessão guardada para retomar (Firebase — funciona entre dispositivos)
-    const saved = await _invLoadResume();
-    if (saved) {
+    // Abre o setup imediatamente — banner de retoma aparece assim que Firebase responde
+    _openInvSetup(data);
+    _invLoadResume().then(saved => {
+        const banner = document.getElementById('inv-resume-banner');
+        if (!banner) return;
+        if (!saved) { banner.style.display = 'none'; return; }
         const hoursAgo = Math.round((Date.now() - (saved.ts || 0)) / 3600000);
         const timeLabel = hoursAgo < 1 ? 'há menos de 1h' : `há ${hoursAgo}h`;
-        openConfirmModal({
-            icon: '',
-            title: 'Retomar inventário?',
-            desc: `Tens um inventário em curso (${saved.idx + 1}/${saved.items.length} produtos, guardado ${timeLabel}). Continuar onde ficaste?`,
-            onConfirm: () => _resumeInventory(saved),
-        });
-        // Adiciona botão "Começar novo" ao modal confirm
-        setTimeout(() => {
-            const okBtn = document.getElementById('confirm-modal-ok');
-            if (!okBtn) return;
-            let newBtn = document.getElementById('inv-resume-new-btn');
-            if (!newBtn) {
-                newBtn = document.createElement('button');
-                newBtn.id        = 'inv-resume-new-btn';
-                newBtn.className = 'btn-cancel';
-                newBtn.style.cssText = 'width:100%;margin-top:6px;color:var(--text-muted)';
-                newBtn.textContent = 'Começar novo inventário';
-                newBtn.onclick = () => {
-                    closeConfirmModal();
-                    _invClearResume();
-                    _openInvSetup(data);
-                };
-                okBtn.parentNode.insertBefore(newBtn, okBtn.nextSibling);
-            }
-        }, 60);
-        return;
-    }
-
-    _openInvSetup(data);
+        document.getElementById('inv-resume-banner-text').textContent =
+            `Inventário em curso · ${saved.idx + 1}/${saved.items.length} · guardado ${timeLabel}`;
+        banner.style.display = 'flex';
+        document.getElementById('inv-resume-btn-retomar').onclick = () => {
+            closeInvSetup();
+            _resumeInventory(saved);
+        };
+        document.getElementById('inv-resume-btn-novo').onclick = () => {
+            banner.style.display = 'none';
+            _invClearResume();
+        };
+    });
 }
 
 function _openInvSetup(data) {
@@ -3156,12 +3154,24 @@ function _renderInvStep() {
     document.getElementById('inv-progress-text').textContent = `${_invIdx + 1} / ${total}`;
     document.getElementById('inv-progress-bar').style.width  = `${Math.round((_invIdx / total) * 100)}%`;
 
+    // Zone progress: "Zona 201-001A — 4 de 12"
+    const zonaEl = document.getElementById('inv-zone-progress');
+    if (zonaEl) {
+        const zona = (item.localizacao||'').trim().toUpperCase() || 'SEM LOCAL';
+        const zonaItems = _invItems.filter(([,p]) => (p.localizacao||'').trim().toUpperCase() === zona || (zona === 'SEM LOCAL' && !(p.localizacao||'').trim()));
+        const zonaIdx   = zonaItems.findIndex(([i]) => i === id);
+        zonaEl.innerHTML = `<strong>${zona}</strong> — ${zonaIdx + 1} de ${zonaItems.length}`;
+    }
+
     const zona = (item.localizacao||'').trim().toUpperCase();
     document.getElementById('inv-local').textContent = zona ? ` ${zona}` : ' SEM LOCAL';
     document.getElementById('inv-ref').textContent   = item.codigo  || '';
     document.getElementById('inv-nome').textContent  = item.nome    || '';
     document.getElementById('inv-unidade').textContent =
         item.unidade && item.unidade !== 'un' ? item.unidade : '';
+
+    // Limpar search ao navegar
+    invSearchClear();
 
     // Badge de zona filtrada
     const badge = document.getElementById('inv-zone-badge');
@@ -3235,7 +3245,193 @@ function invPrev() {
 
 function closeInventory() {
     document.getElementById('inv-modal').classList.remove('active');
+    invSearchClear();
     // Progresso guardado — não apaga para possível retoma
+}
+
+// ── Pesquisa inline no inventário ────────────────────────────────────────────
+function invSearchInput(q) {
+    const clearBtn = document.getElementById('inv-search-clear');
+    const results  = document.getElementById('inv-search-results');
+    if (!q.trim()) { invSearchClear(); return; }
+    if (clearBtn) clearBtn.style.display = 'flex';
+    results.style.display = 'flex';
+    results.innerHTML = '';
+
+    const term = q.trim().toLowerCase();
+    // Produto actual para referência de zona
+    const [curId, curItem] = _invItems[_invIdx] || [];
+    const curZona = (curItem?.localizacao||'').trim().toUpperCase();
+
+    // Encontrar matches (ref ou nome)
+    const matches = _invItems
+        .map(([id, item], idx) => ({ id, item, idx }))
+        .filter(({ item }) =>
+            (item.codigo||'').toLowerCase().includes(term) ||
+            (item.nome||'').toLowerCase().includes(term)
+        )
+        .slice(0, 6);
+
+    if (matches.length === 0) {
+        results.innerHTML = '<div style="font-size:0.82rem;color:var(--text-muted);padding:8px 0;text-align:center">Sem resultados</div>';
+        return;
+    }
+
+    matches.forEach(({ id, item, idx }) => {
+        const zona      = (item.localizacao||'').trim().toUpperCase() || 'SEM LOCAL';
+        const isCurrent = idx === _invIdx;
+        const isConfirmed = _invChanges[id] !== undefined;
+
+        const card = document.createElement('div');
+        card.className = 'inv-search-result' + (isCurrent ? ' inv-search-current' : '');
+
+        // Header: ref + zona
+        const hdr = document.createElement('div');
+        hdr.className = 'inv-search-result-header';
+        const ref = document.createElement('span');
+        ref.className = 'inv-search-result-ref';
+        ref.textContent = item.codigo || '—';
+        const zonaBadge = document.createElement('span');
+        zonaBadge.className = 'inv-search-result-zona';
+        zonaBadge.textContent = zona;
+        hdr.appendChild(ref); hdr.appendChild(zonaBadge);
+
+        // Nome
+        const nome = document.createElement('div');
+        nome.className = 'inv-search-result-nome';
+        nome.textContent = item.nome || id;
+
+        // Acções
+        const acts = document.createElement('div');
+        acts.className = 'inv-search-result-actions';
+
+        if (!isCurrent) {
+            const btnGoto = document.createElement('button');
+            btnGoto.className = 'inv-search-btn-goto';
+            btnGoto.textContent = 'Ir para →';
+            btnGoto.onclick = () => _invSearchJumpTo(idx);
+
+            const btnOnly = document.createElement('button');
+            btnOnly.className = 'inv-search-btn-only';
+            btnOnly.textContent = 'Confirmar só este';
+            btnOnly.onclick = () => _invSearchConfirmOnly(id, item);
+
+            acts.appendChild(btnGoto); acts.appendChild(btnOnly);
+        } else {
+            const lbl = document.createElement('span');
+            lbl.style.cssText = 'font-size:0.75rem;color:var(--primary);font-weight:700;padding:4px 0';
+            lbl.textContent = '← Produto actual';
+            acts.appendChild(lbl);
+        }
+
+        // Contexto: outros produtos da mesma zona (até 3)
+        const zonaNeighbours = _invItems
+            .map(([i, p], ni) => ({ i, p, ni }))
+            .filter(({ i, p }) => i !== id && (p.localizacao||'').trim().toUpperCase() === zona)
+            .slice(0, 3);
+
+        if (zonaNeighbours.length > 0) {
+            const ctx = document.createElement('div');
+            ctx.className = 'inv-search-result-ctx';
+            zonaNeighbours.forEach(({ i, p, ni }) => {
+                const row = document.createElement('div');
+                row.className = 'inv-search-ctx-row' + (ni === _invIdx ? ' ctx-current' : '');
+                const confirmed = _invChanges[i] !== undefined;
+                row.innerHTML = `<span>${p.codigo || '—'} · ${(p.nome||'').slice(0,22)}</span>`
+                    + `<span style="color:${confirmed?'var(--success)':'var(--text-muted)'}">${confirmed ? '✓' : '–'}</span>`;
+                ctx.appendChild(row);
+            });
+            card.appendChild(hdr); card.appendChild(nome); card.appendChild(acts); card.appendChild(ctx);
+        } else {
+            card.appendChild(hdr); card.appendChild(nome); card.appendChild(acts);
+        }
+
+        results.appendChild(card);
+    });
+}
+
+function invSearchClear() {
+    const inp      = document.getElementById('inv-search-input');
+    const clearBtn = document.getElementById('inv-search-clear');
+    const results  = document.getElementById('inv-search-results');
+    if (inp)      inp.value = '';
+    if (clearBtn) clearBtn.style.display = 'none';
+    if (results)  { results.style.display = 'none'; results.innerHTML = ''; }
+}
+
+function _invSearchJumpTo(idx) {
+    _invIdx = idx;
+    invSearchClear();
+    _renderInvStep();
+}
+
+function _invSearchConfirmOnly(id, item) {
+    const inp = document.getElementById('inv-search-input');
+    // Abre modal rápido de confirmação para este produto
+    openConfirmModal({
+        icon: '📦',
+        title: `Confirmar ${item.codigo || id}`,
+        desc: `Qual a quantidade actual de "${item.nome || id}"? (Sistema: ${item.quantidade || 0})`,
+        onConfirm: () => {
+            const val = parseFloat(document.getElementById('inv-qtd')?.value);
+            if (!isNaN(val) && val >= 0) {
+                _invChanges[id] = val;
+                _invSkipped.delete(id);
+                _invSaveResume();
+                showToast(`${item.codigo || id} confirmado`);
+                invSearchClear();
+            }
+        },
+    });
+    // Injecto um input de quantidade no modal
+    setTimeout(() => {
+        const desc = document.getElementById('confirm-modal-desc');
+        if (!desc) return;
+        const qInput = document.createElement('input');
+        qInput.type = 'number'; qInput.min = '0'; qInput.step = 'any';
+        qInput.value = _invChanges[id] !== undefined ? _invChanges[id] : (item.quantidade || 0);
+        qInput.className = 'inv-qty-input';
+        qInput.id = 'inv-qtd'; // reutiliza o mesmo id para o onConfirm ler
+        qInput.style.cssText = 'margin-top:12px;width:100%;text-align:center';
+        qInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('confirm-modal-ok')?.click(); }});
+        desc.parentNode.insertBefore(qInput, desc.nextSibling);
+        qInput.focus(); qInput.select();
+    }, 50);
+}
+
+// ── Guardar progresso parcial ─────────────────────────────────────────────────
+function _openInvSavePartial() {
+    const confirmed = Object.keys(_invChanges).length;
+    const skipped   = _invSkipped.size;
+    const remaining = _invItems.length - confirmed - skipped;
+
+    const statsEl = document.getElementById('inv-partial-stats');
+    if (statsEl) {
+        statsEl.innerHTML = `
+            <div class="inv-partial-stat">
+                <span class="inv-partial-stat-num" style="color:var(--success)">${confirmed}</span>
+                <span class="inv-partial-stat-lbl">Confirmados</span>
+            </div>
+            <div class="inv-partial-stat">
+                <span class="inv-partial-stat-num" style="color:var(--danger)">${skipped}</span>
+                <span class="inv-partial-stat-lbl">Saltados</span>
+            </div>
+            <div class="inv-partial-stat">
+                <span class="inv-partial-stat-num" style="color:var(--text-muted)">${remaining}</span>
+                <span class="inv-partial-stat-lbl">Por fazer</span>
+            </div>`;
+    }
+    document.getElementById('inv-partial-modal').classList.add('active');
+    focusModal('inv-partial-modal');
+}
+
+function closeInvPartial() {
+    document.getElementById('inv-partial-modal').classList.remove('active');
+}
+
+async function exportInventoryPartialEmail() {
+    closeInvPartial();
+    await exportInventoryEmail(true); // true = parcial
 }
 
 function _finishInventory() {
@@ -3419,7 +3615,7 @@ async function exportInventoryExcel() {
     showToast('Excel exportado com sucesso!');
 }
 
-async function exportInventoryEmail() {
+async function exportInventoryEmail(parcial = false) {
     await loadXlsx();
     const now     = new Date();
     const dateStr = now.toLocaleDateString('pt-PT');
@@ -3435,33 +3631,34 @@ async function exportInventoryEmail() {
             return `• ${item.nome||id} (${item.localizacao||'sem zona'}): ${fmtQty(oq, item.unidade)} → ${fmtQty(nq, item.unidade)}`;
         });
 
+    const parcialLabel = parcial ? ' [PARCIAL]' : '';
+    const subject = encodeURIComponent(`Inventário Hiperfrio${parcialLabel} — ${dateStr}`);
     const body = encodeURIComponent(
-        'Inventário Hiperfrio — ' + dateStr + '\n\n'
-        + 'Produtos verificados: ' + Object.keys(_invChanges).length + '/' + _invItems.length + '\n'
-        + 'Diferenças encontradas: ' + diffRows.length + '\n\n'
+        `Inventário Hiperfrio${parcialLabel} — ${dateStr}\n\n`
+        + `Produtos verificados: ${Object.keys(_invChanges).length}/${_invItems.length}\n`
+        + (parcial ? `Por verificar: ${_invItems.length - Object.keys(_invChanges).length - _invSkipped.size}\n` : '')
+        + `Diferenças encontradas: ${diffRows.length}\n\n`
         + (diffRows.length > 0 ? 'ALTERAÇÕES:\n' + diffRows.join('\n') + '\n\n' : 'Sem diferenças de stock.\n\n')
-        + '(Ficheiro Excel em anexo — exportar com o botão "Exportar para Excel")'
+        + '(Ficheiro Excel em anexo)'
     );
 
-        const subject = encodeURIComponent(`Inventário Hiperfrio — ${dateStr}`);
+    const destEmail = _invGetEmail();
 
-    // Tenta Web Share API (Android partilha nativa com ficheiro)
+    // Tenta Web Share API com ficheiro (Android)
     if (navigator.canShare) {
         try {
-            // Gera o ficheiro para partilhar
             const wb   = _buildInventoryWorkbook();
             const blob = new Blob(
                 [XLSX.write(wb, { bookType: 'xlsx', type: 'array' })],
                 { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
             );
-            const file = new File([blob], `inventario-hiperfrio-${now.toISOString().slice(0,10)}.xlsx`,
-                { type: blob.type });
-
+            const filename = `inventario-hiperfrio${parcial ? '-parcial' : ''}-${now.toISOString().slice(0,10)}.xlsx`;
+            const file = new File([blob], filename, { type: blob.type });
             if (navigator.canShare({ files: [file] })) {
                 await navigator.share({
-                    title:   `Inventário Hiperfrio — ${dateStr}`,
-                    text:    `Relatório de inventário de ${dateStr}`,
-                    files:   [file],
+                    title: `Inventário Hiperfrio${parcialLabel} — ${dateStr}`,
+                    text:  `Relatório de inventário de ${dateStr}`,
+                    files: [file],
                 });
                 return;
             }
@@ -3470,10 +3667,13 @@ async function exportInventoryEmail() {
         }
     }
 
-    // Fallback: download do Excel + abre cliente de email
+    // Fallback: download do Excel + mailto com destinatário pré-preenchido
     exportInventoryExcel();
     setTimeout(() => {
-        window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+        const mailto = destEmail
+            ? `mailto:${encodeURIComponent(destEmail)}?subject=${subject}&body=${body}`
+            : `mailto:?subject=${subject}&body=${body}`;
+        window.open(mailto, '_blank');
     }, 800);
 }
 
