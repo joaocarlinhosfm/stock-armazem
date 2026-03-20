@@ -822,56 +822,61 @@ function _getDashTrend(field, currentVal) {
     } catch(_e) { return null; }
 }
 
-async function renderDashboard(force = false) {
+async function renderDashboard(force = false, animated = false) {
     const el = document.getElementById('dashboard');
     if (!el) return;
 
     const refreshBtn = document.getElementById('btn-dash-refresh');
-    if (refreshBtn) refreshBtn.classList.add('spinning');
 
-    // ── Progress bar ────────────────────────────────────────────────────────
-    let progBar = document.getElementById('dash-progress-bar');
-    if (!progBar) {
-        progBar = document.createElement('div');
-        progBar.id = 'dash-progress-bar';
-        document.body.appendChild(progBar);
+    // ── Animação: só quando chamado pelo botão (animated=true) ──────────────
+    let progBar = null;
+    if (animated) {
+        if (refreshBtn) refreshBtn.classList.add('spinning');
+
+        progBar = document.getElementById('dash-progress-bar');
+        if (!progBar) {
+            progBar = document.createElement('div');
+            progBar.id = 'dash-progress-bar';
+            document.body.appendChild(progBar);
+        }
+        progBar.style.transition = 'none';
+        progBar.style.width = '0%';
+        progBar.classList.add('active');
+        requestAnimationFrame(() => {
+            progBar.style.transition = 'width 0.35s ease, opacity 0.2s ease';
+            progBar.style.width = '35%';
+        });
+        const _progTo = (w) => { progBar.style.width = w + '%'; };
+        setTimeout(() => _progTo(60), 350);
+        setTimeout(() => _progTo(80), 800);
+
+        el.style.transition = 'opacity 0.18s ease';
+        el.style.opacity = '0';
+        await new Promise(r => setTimeout(r, 180));
+        el.className = 'dashboard-v2';
+        el.innerHTML = `
+            <div class="dash-skel-grid">
+                <div class="dash-skel-card"><div class="skel-line skel-label"></div><div class="skel-line skel-value"></div><div class="skel-line skel-sub"></div></div>
+                <div class="dash-skel-card"><div class="skel-line skel-label"></div><div class="skel-line skel-value"></div><div class="skel-line skel-sub"></div></div>
+                <div class="dash-skel-card"><div class="skel-line skel-label"></div><div class="skel-line skel-value"></div><div class="skel-line skel-sub"></div></div>
+                <div class="dash-skel-card"><div class="skel-line skel-label"></div><div class="skel-line skel-value"></div><div class="skel-line skel-sub"></div></div>
+            </div>
+            <div class="dash-skel-section">
+                <div class="skel-line skel-row" style="width:35%;margin-bottom:14px"></div>
+                <div class="skel-line skel-row"></div>
+                <div class="skel-line skel-row"></div>
+                <div class="skel-line skel-row"></div>
+            </div>
+            <div class="dash-skel-section">
+                <div class="skel-line skel-row" style="width:40%;margin-bottom:14px"></div>
+                <div class="skel-line skel-row"></div>
+                <div class="skel-line skel-row"></div>
+            </div>`;
+        el.style.opacity = '1';
+    } else {
+        el.className = 'dashboard-v2';
+        el.innerHTML = '';
     }
-    progBar.style.transition = 'none';
-    progBar.style.width = '0%';
-    progBar.classList.add('active');
-    requestAnimationFrame(() => {
-        progBar.style.transition = 'width 0.35s ease, opacity 0.2s ease';
-        progBar.style.width = '35%';
-    });
-    const _progTo = (w) => { progBar.style.width = w + '%'; };
-    setTimeout(() => _progTo(60), 350);
-    setTimeout(() => _progTo(80), 800);
-
-    // ── Skeleton (fade-in imediato, substitui conteúdo anterior) ────────────
-    el.style.opacity = '1';
-    el.style.transition = 'opacity 0.18s ease';
-    el.style.opacity = '0';
-    await new Promise(r => setTimeout(r, 180));
-    el.className = 'dashboard-v2';
-    el.innerHTML = `
-        <div class="dash-skel-grid">
-            <div class="dash-skel-card"><div class="skel-line skel-label"></div><div class="skel-line skel-value"></div><div class="skel-line skel-sub"></div></div>
-            <div class="dash-skel-card"><div class="skel-line skel-label"></div><div class="skel-line skel-value"></div><div class="skel-line skel-sub"></div></div>
-            <div class="dash-skel-card"><div class="skel-line skel-label"></div><div class="skel-line skel-value"></div><div class="skel-line skel-sub"></div></div>
-            <div class="dash-skel-card"><div class="skel-line skel-label"></div><div class="skel-line skel-value"></div><div class="skel-line skel-sub"></div></div>
-        </div>
-        <div class="dash-skel-section">
-            <div class="skel-line skel-row" style="width:35%;margin-bottom:14px"></div>
-            <div class="skel-line skel-row"></div>
-            <div class="skel-line skel-row"></div>
-            <div class="skel-line skel-row"></div>
-        </div>
-        <div class="dash-skel-section">
-            <div class="skel-line skel-row" style="width:40%;margin-bottom:14px"></div>
-            <div class="skel-line skel-row"></div>
-            <div class="skel-line skel-row"></div>
-        </div>`;
-    el.style.opacity = '1';
 
     const ts = Date.now();
     const [stockData, ferrData] = await Promise.all([
@@ -1165,23 +1170,25 @@ async function renderDashboard(force = false) {
     }
 
     // ── Revelar conteúdo real com fade + completar progress bar ────────────
-    el.style.opacity = '0';
-    el.style.transition = 'opacity 0.22s ease';
-    await new Promise(r => setTimeout(r, 50));
-    el.style.opacity = '1';
+    if (animated) {
+        el.style.opacity = '0';
+        el.style.transition = 'opacity 0.22s ease';
+        await new Promise(r => setTimeout(r, 50));
+        el.style.opacity = '1';
 
-    if (progBar) {
-        progBar.style.width = '100%';
-        setTimeout(() => {
-            progBar.style.opacity = '0';
+        if (progBar) {
+            progBar.style.width = '100%';
             setTimeout(() => {
-                progBar.classList.remove('active');
-                progBar.style.width = '0%';
-                progBar.style.opacity = '';
-            }, 220);
-        }, 280);
+                progBar.style.opacity = '0';
+                setTimeout(() => {
+                    progBar.classList.remove('active');
+                    progBar.style.width = '0%';
+                    progBar.style.opacity = '';
+                }, 220);
+            }, 280);
+        }
+        if (refreshBtn) refreshBtn.classList.remove('spinning');
     }
-    if (refreshBtn) refreshBtn.classList.remove('spinning');
 }
 
 // =============================================
