@@ -1660,20 +1660,22 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
 /* ── DESKTOP (≥768px) — Windows Settings layout ── */
 @media (min-width: 768px) {
     /* Layout: sidebar esquerda + conteúdo direita */
-    /* Escape do padding 20px 32px do #main-content */
+    /* main-content sem padding quando admin está activo */
+    #main-content.admin-view-active {
+        padding: 0 !important;
+    }
+
     #view-admin {
         display: flex;
         flex-direction: row;
         align-items: stretch;
-        margin: -20px -32px -40px;
-        width: calc(100% + 64px);
+        width: 100%;
         min-height: calc(100vh - var(--header-h));
         gap: 0;
-        box-sizing: border-box;
     }
     #view-admin > .view-header { display: none; }
 
-    /* Sidebar — nav vertical, fluxo flex normal (sem z-index para não criar stacking context) */
+    /* Sidebar — nav vertical no fluxo flex */
     .admin-tabs {
         flex-direction: column !important;
         flex-shrink: 0 !important;
@@ -1691,9 +1693,7 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
         gap: 1px !important;
         margin-bottom: 0 !important;
         scrollbar-width: none !important;
-        /* SEM z-index — evita stacking context que empurra modais para baixo */
         box-sizing: border-box !important;
-        align-self: flex-start !important;
     }
 
     /* Título da sidebar */
@@ -1764,9 +1764,10 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
         overflow: visible !important;
         touch-action: auto;
         background: var(--bg);
-        padding: 24px 24px 60px !important;
+        padding: 24px 28px 60px !important;
         min-height: calc(100vh - var(--header-h));
         box-sizing: border-box;
+        align-self: stretch;
     }
 
     /* Slider: sem transform, sem flex row — comporta-se como bloco normal

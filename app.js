@@ -727,6 +727,12 @@ function nav(viewId) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId)?.classList.add('active');
 
+    // Desktop: admin precisa de padding 0 para o layout Windows Settings funcionar
+    const mainContent = document.getElementById('main-content');
+    if (mainContent) {
+        mainContent.classList.toggle('admin-view-active', viewId === 'view-admin' && window.innerWidth >= 768);
+    }
+
     if (viewId === 'view-search') {
         renderList().then(() => {
             if (_zeroFilterActive) filterZeroStock();
