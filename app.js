@@ -2585,6 +2585,14 @@ function switchAdminTab(tab, animate = true) {
         t.classList.toggle('active', i === idx)
     );
 
+    // Desktop (≥768px): mostra/esconde painéis com classe em vez de slider transform
+    if (window.innerWidth >= 768) {
+        ADMIN_TABS.forEach((t, i) => {
+            const panel = document.getElementById(`panel-${t}`);
+            if (panel) panel.classList.toggle('admin-panel-active', i === idx);
+        });
+    }
+
     if (tab === 'clientes') renderClientesList();
     if (tab === 'users')    renderUsersList();
     if (tab === 'settings') { _updateOcrKeyStatus(); _loadOcrKeywordsInput(); }

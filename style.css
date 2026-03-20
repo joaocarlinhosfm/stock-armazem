@@ -1701,11 +1701,21 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
         background: rgba(37,99,235,0.12);
     }
 
-    /* Painéis: padding generoso, cards */
+    /* Painéis: no desktop usar display em vez de transform */
+    .admin-slider {
+        width: 100% !important;
+        transform: none !important;
+        transition: none !important;
+        display: block !important;
+    }
     .admin-panel {
         width: 100% !important;
         min-width: 100% !important;
         padding: 0;
+        display: none !important;
+    }
+    .admin-panel.admin-panel-active {
+        display: block !important;
     }
 
     /* Page title dentro do painel (gerado pelo JS) */
