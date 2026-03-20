@@ -3187,7 +3187,11 @@ function _resumeInventory(saved) {
     _invChanges  = saved.changes;
     _invSkipped  = new Set(saved.skipped || []);
     _invOptions  = saved.options || { zones: null, skipZeros: false };
-    _invLastData = cache.stock.data;
+    // Bug 5: garantir que _invLastData não é null ao exportar depois de retomar
+    _invLastData = cache.stock.data ? { ...cache.stock.data } : null;
+    if (!_invLastData) {
+        fetchCollection('stock', false).then(d => { if (d) _invLastData = { ...d }; });
+    }
     document.getElementById('inv-modal').classList.add('active');
     focusModal('inv-modal');
     _renderInvStep();

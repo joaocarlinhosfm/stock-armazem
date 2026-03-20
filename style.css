@@ -3735,6 +3735,183 @@ body.is-offline #app-layout {
 .inv-email-btn {
     background: linear-gradient(135deg, #0ea5e9, #2563eb);
 }
+
+/* ── Resume banner no setup modal ── */
+.inv-resume-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: rgba(251,191,36,0.10);
+    border: 1px solid rgba(251,191,36,0.35);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+}
+.inv-resume-banner-text {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-main);
+    line-height: 1.4;
+}
+.inv-resume-banner-btns {
+    display: flex;
+    gap: 8px;
+}
+.inv-resume-btn {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 0.82rem;
+}
+
+/* ── Zone progress no inv-modal ── */
+.inv-zone-progress {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 4px 0 2px;
+    letter-spacing: 0.01em;
+}
+.inv-zone-progress strong {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+/* ── Barra de pesquisa inline ── */
+.inv-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--input-fill);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 7px 10px;
+    margin: 8px 0 4px;
+    transition: border-color 0.15s;
+}
+.inv-search-bar:focus-within {
+    border-color: var(--primary);
+    background: var(--card-bg);
+}
+.inv-search-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.88rem;
+    color: var(--text-main);
+    outline: none;
+}
+.inv-search-input::placeholder { color: var(--text-muted); }
+.inv-search-clear-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    transition: color 0.12s;
+}
+.inv-search-clear-btn:hover { color: var(--danger); }
+
+/* ── Resultados da pesquisa ── */
+.inv-search-results {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 40vh;
+    overflow-y: auto;
+    margin-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+}
+.inv-search-result {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.inv-search-result:hover { background: var(--primary-soft); }
+.inv-search-result-info { flex: 1; min-width: 0; }
+.inv-search-result-nome {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.inv-search-result-zona {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+.inv-search-result-actions {
+    display: flex;
+    gap: 5px;
+    flex-shrink: 0;
+}
+.inv-search-goto-btn {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--input-fill);
+    color: var(--primary);
+    cursor: pointer;
+    white-space: nowrap;
+}
+.inv-search-only-btn {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 7px;
+    border: none;
+    background: var(--primary);
+    color: white;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+/* ── Modal guardar parcial ── */
+.inv-partial-stats {
+    display: flex;
+    justify-content: space-around;
+    gap: 10px;
+    margin: 14px 0 6px;
+}
+.inv-partial-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    flex: 1;
+    padding: 12px 8px;
+    background: var(--input-fill);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+.inv-partial-stat-num {
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1;
+}
+.inv-partial-stat-lbl {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-align: center;
+}
+
 /* =============================================
    ADMIN TOOLS — layout vertical com acções à esquerda
    ============================================= */
