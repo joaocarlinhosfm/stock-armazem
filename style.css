@@ -935,7 +935,7 @@ header h1 { display: none; }
     pointer-events: none;
 }
 .dash-refresh-btn.spinning::before {
-    animation: dash-pulse-ring 1.63s ease-out infinite;
+    animation: dash-pulse-ring 2.12s ease-out infinite;
 }
 @keyframes dash-pulse-ring {
     0%   { opacity: 0.4; transform: scale(1); }
@@ -3627,7 +3627,7 @@ body.is-offline #app-layout {
    VIEW DASHBOARD — vista dedicada
    ============================================= */
 .dash-refresh-btn.spinning svg {
-    animation: spin 0.88s linear infinite;
+    animation: spin 1.14s linear infinite;
 }
 
 /* ── Progress bar de refresh (topo do header) ──────────────────────────── */
@@ -3672,7 +3672,7 @@ body.is-offline #app-layout {
     inset: 0;
     background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
     background-size: 200% 100%;
-    animation: skel-shimmer 1.75s ease-in-out infinite;
+    animation: skel-shimmer 2.28s ease-in-out infinite;
 }
 @keyframes skel-shimmer {
     0%   { background-position: 200% 0; }
