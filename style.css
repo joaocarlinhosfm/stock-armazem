@@ -1577,167 +1577,310 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
 
 .scroll-list { overflow-y: auto; }
 
-/* Admin tabs */
-/* ── Admin tabs — pill compacto sem overflow ── */
-.admin-tabs {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 16px;
-    background: var(--input-fill);
-    border-radius: 16px;
-    padding: 5px;
-    /* sticky por baixo do header */
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    /* evita que a própria barra cause overflow horizontal */
-    overflow: hidden;
+/* ══════════════════════════════════════════════════════════
+   ADMIN — Windows Settings Style (desktop) + Mobile groups
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Desktop: layout sidebar + conteúdo ── */
+@media (min-width: 768px) {
+    #view-admin {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        grid-template-rows: auto 1fr;
+        min-height: calc(100vh - var(--header-h));
+        background: #f3f3f3;
+        gap: 0;
+    }
+    #view-admin .view-header { display: none; }
+
+    /* Sidebar — coluna esquerda, ocupa as 2 linhas */
+    .admin-tabs {
+        grid-column: 1;
+        grid-row: 1 / 3;
+        display: flex !important;
+        flex-direction: column;
+        background: #fafafa;
+        border-right: 1px solid rgba(0,0,0,0.07);
+        padding: 16px 8px;
+        overflow-y: auto;
+        position: sticky;
+        top: 0;
+        height: calc(100vh - var(--header-h));
+        box-sizing: border-box;
+        z-index: 10;
+    }
+
+    /* Slider wrap — coluna direita */
+    .admin-slider-wrap {
+        grid-column: 2;
+        grid-row: 1 / 3;
+        background: #f3f3f3;
+        padding: 20px 24px;
+        overflow-y: auto;
+        overflow-x: clip;
+    }
+
+    /* Título da sidebar */
+    .admin-tabs-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #1a1a1a;
+        padding: 2px 12px 12px;
+        letter-spacing: -0.1px;
+    }
+
+    /* Section labels */
+    .admin-tab-section {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: #aaa;
+        padding: 10px 12px 4px;
+        display: block;
+    }
+    .admin-tab-section:first-of-type { padding-top: 0; }
+
+    /* Separador */
+    .admin-tab-sep {
+        height: 1px;
+        background: rgba(0,0,0,0.07);
+        margin: 8px 4px;
+        display: block;
+    }
+
+    /* Cada tab = item de nav */
+    .admin-tab {
+        flex: unset !important;
+        width: 100%;
+        display: flex !important;
+        align-items: center;
+        justify-content: flex-start !important;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: none;
+        background: transparent;
+        font-family: 'Inter', sans-serif;
+        font-size: 12.5px;
+        font-weight: 500;
+        color: #444;
+        cursor: pointer;
+        margin-bottom: 1px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transition: background 0.12s, color 0.12s;
+        text-align: left;
+        min-width: 0;
+        box-shadow: none !important;
+    }
+    .admin-tab:hover { background: rgba(0,0,0,0.04); color: #1a1a1a; }
+    .admin-tab.active {
+        background: rgba(37,99,235,0.09) !important;
+        color: #2563eb !important;
+        font-weight: 600;
+        box-shadow: none !important;
+    }
+    .admin-tab svg {
+        width: 16px; height: 16px;
+        flex-shrink: 0;
+        opacity: 0.7;
+    }
+    .admin-tab.active svg { opacity: 1; }
+
+    /* Ícone colorido por tab */
+    .admin-tab-icon-wrap {
+        width: 28px; height: 28px;
+        border-radius: 6px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        background: rgba(0,0,0,0.05);
+    }
+    .admin-tab.active .admin-tab-icon-wrap {
+        background: rgba(37,99,235,0.12);
+    }
+
+    /* Painéis: padding generoso, cards */
+    .admin-panel {
+        width: 100% !important;
+        min-width: 100% !important;
+        padding: 0;
+    }
+
+    /* Page title dentro do painel (gerado pelo JS) */
+    .admin-panel-header {
+        margin-bottom: 16px;
+    }
+    .admin-panel-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1a1a1a;
+        letter-spacing: -0.3px;
+        line-height: 1;
+    }
+    .admin-panel-sub {
+        font-size: 12px;
+        color: #888;
+        margin-top: 4px;
+        font-weight: 400;
+    }
+
+    /* Cards no estilo Windows */
+    .admin-card {
+        background: #fff;
+        border-radius: 8px;
+        border: 1px solid rgba(0,0,0,0.08);
+        margin-bottom: 10px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .admin-card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px 10px;
+        border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .admin-card-icon {
+        width: 28px; height: 28px;
+        border-radius: 6px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        background: #eff6ff;
+    }
+    .admin-card-icon svg { width: 15px; height: 15px; }
+    .admin-card-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #1a1a1a;
+        line-height: 1.2;
+    }
+    .admin-card-desc {
+        font-size: 11px;
+        color: #999;
+        margin-top: 1px;
+        font-weight: 400;
+    }
+    .admin-card-badge {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 20px;
+        background: #e8f0fe;
+        color: #1a56db;
+        margin-left: auto;
+        white-space: nowrap;
+    }
+
+    /* Form dentro de card */
+    .admin-card .pro-form-inline {
+        padding: 12px 16px;
+        margin-bottom: 0;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        gap: 8px;
+    }
+    .admin-card .blue-input {
+        border-radius: 5px;
+        padding: 7px 11px;
+        font-size: 12.5px;
+        background: #fafafa;
+        border-color: rgba(0,0,0,0.12);
+    }
+    .admin-card .blue-input:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 2px rgba(37,99,235,0.12);
+        background: #fff;
+    }
+    .admin-card .btn-primary {
+        padding: 7px 14px;
+        border-radius: 5px;
+        font-size: 12px;
+        width: auto;
+    }
+
+    /* Rows dentro de card */
+    .admin-list-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 16px;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        border-bottom: 1px solid rgba(0,0,0,0.04);
+        margin-bottom: 0;
+        transition: background 0.1s;
+    }
+    .admin-list-row:last-child { border-bottom: none; }
+    .admin-list-row:hover { background: #fafafa; }
+
+    /* Avatar de iniciais */
+    .admin-list-avatar {
+        width: 28px; height: 28px;
+        border-radius: 50%;
+        background: #e8f0fe;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 10px;
+        font-weight: 700;
+        color: #2563eb;
+        flex-shrink: 0;
+    }
+    .admin-list-label {
+        font-size: 12.5px;
+        font-weight: 500;
+        color: #1a1a1a;
+    }
+    .admin-list-delete {
+        color: #dc2626;
+        background: rgba(220,38,38,0.05);
+        border: 1px solid rgba(220,38,38,0.15);
+        font-size: 0.9rem;
+        cursor: pointer;
+        padding: 0;
+        border-radius: 5px;
+        width: 26px; height: 26px;
+        display: flex; align-items: center; justify-content: center;
+        transition: background 0.12s;
+        flex-shrink: 0;
+    }
+    .admin-list-delete:hover {
+        background: rgba(220,38,38,0.12);
+        border-color: rgba(220,38,38,0.25);
+    }
+
+    /* Scroll-list sem altura fixa no desktop */
+    .admin-card .scroll-list {
+        max-height: none;
+        overflow-y: visible;
+    }
 }
 
-.admin-tab {
-    flex: 1;
-    background: none;
-    border: none;
-    padding: 9px 6px;
-    font-family: 'Inter', sans-serif;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    cursor: pointer;
-    border-radius: 11px;
-    transition: color 0.18s, background 0.18s, box-shadow 0.18s;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-align: center;
-    min-width: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-}
-.admin-tab svg { flex-shrink: 0; }
-
-.admin-tab:hover { color: var(--primary); }
-
-.admin-tab.active {
-    background: var(--card-bg);
-    color: var(--primary);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06);
+/* ── Mobile: layout original ── */
+@media (max-width: 767px) {
+    .admin-tabs-title { display: none; }
+    .admin-tab-section { display: none; }
+    .admin-tab-sep { display: none; }
+    .admin-card-header { display: none; }
+    .admin-card { background: transparent; border: none; box-shadow: none; border-radius: 0; margin-bottom: 0; }
+    .admin-card .pro-form-inline { padding: 0; border-bottom: none; }
+    .admin-list-avatar { display: none; }
+    .admin-list-row { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; padding: 10px 14px; }
+    .admin-list-row:last-child { border-bottom: 1px solid var(--border); }
+    .admin-list-row:hover { background: var(--bg); }
+    .admin-list-delete { background: none; border: none; font-size: 1.1rem; width: auto; height: auto; padding: 4px 8px; border-radius: 6px; }
+    .admin-list-delete:hover { background: rgba(239,68,68,0.1); }
 }
 
-/* ── Slider wrap — corta overflow horizontal ── */
-.admin-slider-wrap {
-    overflow: hidden;
-    /* overflow-x:clip garante corte duro mesmo com stacking contexts filhos */
-    overflow-x: clip;
-    touch-action: pan-y;
-}
-
-/* ── Slider — flex com 4 painéis lado a lado ── */
-.admin-slider {
-    display: flex;
-    width: 600%;
-    transform: translateX(0%);
-    transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
-    will-change: transform;
-}
-
-/* Durante drag: sem transição (segue o dedo) */
-.admin-slider.is-dragging {
-    transition: none;
-}
-
-/* ── Cada painel ocupa 1/6 do slider = 100% do ecrã ── */
-.admin-panel {
-    width: 16.6667%;
-    min-width: 16.6667%;
-    flex-shrink: 0;
-    /* painéis nunca ficam display:none — visibilidade por transform */
-    display: block !important;
-    box-sizing: border-box;
-}
-
-/* Settings items */
-.settings-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px;
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    margin-bottom: 10px;
-    position: relative;
-    z-index: 1;
-}
-/* O settings-item com o dropdown de tema precisa de z-index superior
-   para que o menu flutue por cima dos itens abaixo */
-.settings-item-theme {
-    z-index: 10;
-}
-
-.settings-item-info {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.settings-item-title {
-    font-weight: 700;
-    font-size: 0.95rem;
-}
-
-.settings-item-desc {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-}
-
-
-.pro-form { display: flex; flex-direction: column; gap: 15px; }
-.pro-form-inline { display: flex; gap: 10px; margin-bottom: 15px; }
-.form-group { display: flex; flex-direction: column; gap: 5px; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.form-group label { font-size: 0.8rem; font-weight: 800; color: var(--text-muted); }
-.blue-input { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--input-fill); color: var(--text-main); font-size: 0.95rem; font-family: 'Inter', sans-serif; transition: border-color 0.17s, background 0.17s, box-shadow 0.17s; outline: none; box-sizing: border-box; }
-.blue-input:focus { border-color: var(--primary); background: var(--card-bg); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-.btn-primary { background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 700; width: 100%; padding: 15px; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 1rem; }
-.btn-primary:active { opacity: 0.8; transform: scale(0.98); }
-
-@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-/* =============================================
-   ADMIN LIST ROWS — substitui estilos inline
-   ============================================= */
-.admin-list-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 14px;
-    background: var(--bg);
-    border-radius: 10px;
-    margin-bottom: 8px;
-    border: 1px solid var(--border);
-    transition: background 0.15s;
-}
+/* ── Shared ── */
 .admin-list-label {
     font-weight: 600;
     font-size: 0.9rem;
     color: var(--text-main);
+    flex: 1;
 }
-.admin-list-delete {
-    color: var(--danger);
-    background: none;
-    border: none;
-    font-size: 1.1rem;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 6px;
-    transition: background 0.15s;
-}
-.admin-list-delete:hover {
-    background: rgba(239,68,68,0.1);
-}
+
+
 
    ============================================= */
 body.worker-mode [data-manager-only] {

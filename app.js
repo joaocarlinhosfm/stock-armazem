@@ -2057,18 +2057,25 @@ async function renderWorkers() {
     workers.forEach(w => {
         const row = document.createElement('div');
         row.className = 'admin-list-row';
+
+        // Avatar de iniciais (desktop)
+        const avatar = document.createElement('div');
+        avatar.className = 'admin-list-avatar';
+        const initials = w.nome.trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase();
+        avatar.textContent = initials || '?';
+
         const lbl = document.createElement('span');
         lbl.className   = 'admin-list-label';
-        lbl.textContent = `👤 ${w.nome}`;
+        lbl.textContent = w.nome;
         const btn = document.createElement('button');
         btn.className = 'admin-list-delete';
-        btn.textContent = '';
+        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>';
         btn.onclick = () => openConfirmModal({
             icon:'👤', title:'Apagar funcionário?',
             desc:`"${escapeHtml(w.nome)}" será removido permanentemente.`,
             onConfirm: () => deleteWorker(w.id)
         });
-        row.appendChild(lbl); row.appendChild(btn);
+        row.appendChild(avatar); row.appendChild(lbl); row.appendChild(btn);
         list.appendChild(row);
     });
 }
