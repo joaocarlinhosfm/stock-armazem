@@ -1175,8 +1175,8 @@ async function renderDashboard(force = false, animated = false) {
     // ── Revelar conteúdo real com fade + completar progress bar ────────────
     if (animated) {
         el.style.opacity = '0';
-        el.style.transition = 'opacity 0.36s ease';
-        await new Promise(r => setTimeout(r, 82));
+        el.style.transition = 'opacity 0.43s ease';
+        await new Promise(r => setTimeout(r, 98));
         el.style.opacity = '1';
 
         if (progBar) {
