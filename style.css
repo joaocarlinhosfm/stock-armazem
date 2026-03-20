@@ -1835,14 +1835,7 @@ body.worker-mode .tool-card {
     border: 1px solid var(--border);
 }
 
-.btn-qty {
-    width: 28px; height: 28px;
-    border-radius: 50%; border: none;
-    background: white; color: var(--primary); 
-    font-size: 1rem; font-weight: 800; 
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
+/* btn-qty moved to inventory HUD section */
 
 .qty-display { 
     font-weight: 900; font-size: 0.95rem;
@@ -2314,10 +2307,6 @@ body.worker-mode .tool-card {
 /* =============================================
    BTN-QTY DISABLED STATE
    ============================================= */
-.btn-qty:disabled {
-    opacity: 0.25;
-    cursor: not-allowed;
-}
 
 /* Row com quantidade + unidade lado a lado */
 .qty-row {
@@ -3217,98 +3206,185 @@ body.is-offline #app-layout {
 /* =============================================
    PONTO 26 — inventário guiado
    ============================================= */
+/* ── Progresso global ─────────────────────────────────────────────────────── */
 .inv-progress-wrap {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 18px;
+    padding: 12px 18px 0;
+    margin-bottom: 0;
 }
 .inv-progress-bar-bg {
     flex: 1;
-    height: 6px;
-    border-radius: 3px;
+    height: 4px;
+    border-radius: 2px;
     background: var(--border);
     overflow: hidden;
 }
 .inv-progress-bar-fill {
     height: 100%;
     background: var(--primary);
-    border-radius: 3px;
-    transition: width 0.3s ease;
+    border-radius: 2px;
+    transition: width 0.35s ease;
     width: 0%;
 }
 .inv-progress-text {
-    font-size: 0.78rem;
-    font-weight: 800;
+    font-size: 0.72rem;
+    font-weight: 700;
     color: var(--text-muted);
     white-space: nowrap;
+    min-width: 44px;
+    text-align: right;
 }
-.inv-local {
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: var(--primary);
-    letter-spacing: 0.05em;
-    margin-bottom: 4px;
-}
-.inv-ref {
+/* ── Zone progress ────────────────────────────────────────────────────────── */
+.inv-zone-progress {
     font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 6px 18px 0;
+    letter-spacing: 0.01em;
+}
+.inv-zone-progress strong {
+    color: var(--primary);
     font-weight: 800;
+}
+/* ── Product card — zona, ref, nome ──────────────────────────────────────── */
+.inv-local { display: none; }
+.inv-ref {
+    font-size: 0.68rem;
+    font-weight: 700;
     color: var(--text-muted);
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
+    padding-top: 18px;
 }
 .inv-nome {
-    font-size: 1.1rem;
+    font-size: 1.18rem;
     font-weight: 800;
     color: var(--text-main);
-    margin-bottom: 16px;
-    line-height: 1.3;
+    line-height: 1.25;
+    margin-bottom: 0;
+    text-transform: none;
 }
+/* ── Bloco de quantidade ──────────────────────────────────────────────────── */
 .inv-qty-row {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 18px;
+    gap: 0;
+    margin: 20px 0 0;
+    padding: 20px 18px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
 }
 .inv-qty-label {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 800;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     color: var(--text-muted);
     text-transform: uppercase;
+    margin-bottom: 14px;
 }
 .inv-qty-controls {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 16px;
 }
-.inv-qty-input {
-    width: 90px;
-    text-align: center;
-    font-size: 1.5rem;
-    font-weight: 800;
-    border: 2px solid var(--primary);
-    border-radius: 12px;
+.btn-qty {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
     background: var(--card-bg);
+    color: var(--primary);
+    font-size: 1.4rem;
+    font-weight: 300;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.13s, border-color 0.13s, transform 0.1s;
+    flex-shrink: 0;
+    line-height: 1;
+}
+.btn-qty:hover  { background: var(--primary-soft); border-color: var(--primary); }
+.btn-qty:active { transform: scale(0.9); }
+.btn-qty:disabled { opacity: 0.3; cursor: default; }
+.inv-qty-input {
+    width: 110px;
+    text-align: center;
+    font-size: 2.4rem;
+    font-weight: 800;
+    border: none;
+    border-bottom: 3px solid var(--primary);
+    border-radius: 0;
+    background: transparent;
     color: var(--text-main);
-    padding: 10px 8px;
+    padding: 4px 8px 8px;
     font-family: inherit;
     outline: none;
+    transition: border-color 0.15s;
 }
+.inv-qty-input:focus { border-bottom-color: #1d4ed8; }
 .inv-unidade-label {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
     font-weight: 600;
+    margin-top: 8px;
 }
+/* ── Acções ───────────────────────────────────────────────────────────────── */
 .inv-actions {
     display: flex;
     gap: 8px;
-    justify-content: center;
+    padding: 14px 18px 0;
 }
-.inv-prev, .inv-skip { flex: 1; }
-.inv-confirm { flex: 2; font-size: 1rem; }
+.inv-prev {
+    flex: 1;
+    padding: 11px 0;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: background 0.13s;
+}
+.inv-prev:hover:not(:disabled) { background: var(--bg); }
+.inv-prev:disabled { opacity: 0.35; cursor: default; }
+.inv-skip {
+    flex: 1;
+    padding: 11px 0;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: background 0.13s;
+}
+.inv-skip:hover { background: var(--bg); }
+.inv-confirm {
+    flex: 2.2;
+    padding: 11px 0;
+    border-radius: 12px;
+    border: none;
+    background: var(--primary);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 800;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: background 0.13s, transform 0.1s;
+    box-shadow: 0 3px 10px rgba(37,99,235,0.3);
+}
+.inv-confirm:hover  { background: #1d4ed8; }
+.inv-confirm:active { transform: scale(0.97); }
 
 /* ── Inventário redesenhado — Full-screen overlay ──────────────────────── */
 .inv-fs-overlay .modal-content { padding: 0; max-height: 100vh; }
@@ -3358,8 +3434,6 @@ body.is-offline #app-layout {
 .inv-fs-content .inv-local,
 .inv-fs-content .inv-ref,
 .inv-fs-content .inv-nome,
-.inv-fs-content .inv-qty-row,
-.inv-fs-content .inv-orig-qty,
 .inv-fs-content .inv-actions,
 .inv-fs-content .inv-search-bar,
 .inv-fs-content .inv-search-results,
@@ -3445,15 +3519,7 @@ body.is-offline #app-layout {
 }
 
 /* Zone progress (ex: "Zona 201-001A — 4 de 12") */
-.inv-zone-progress {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    margin-bottom: 10px;
-    margin-top: -8px;
-    letter-spacing: 0.02em;
-}
-.inv-zone-progress strong { color: var(--primary); }
+
 
 /* Search bar inline no inventário */
 .inv-search-bar {
@@ -3726,16 +3792,17 @@ body.is-offline #app-layout {
 
 /* ── Quantidade original (referência) ── */
 .inv-orig-qty {
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     color: var(--text-muted);
     text-align: center;
-    margin-top: -10px;
-    margin-bottom: 14px;
+    margin-top: 10px;
     font-weight: 600;
-    min-height: 18px;
+    min-height: 20px;
+    padding: 0 18px;
 }
 .inv-orig-qty.inv-orig-changed {
-    color: var(--danger);
+    color: #d97706;
+    font-weight: 700;
 }
 
 /* ── Modal revisão ── */
