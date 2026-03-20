@@ -2016,7 +2016,7 @@ body.worker-mode .tool-card {
     position: fixed;
     inset: 0;
     z-index: 4999;
-    background: #0a0d12;
+    background: #f0f7ff;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2025,33 +2025,31 @@ body.worker-mode .tool-card {
 }
 #role-screen.hidden { display: none; }
 
-/* Grain overlay no login */
+/* Fundo: padrão de pontos subtis */
 #role-screen::before {
     content: '';
     position: absolute;
     inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
-    opacity: 0.04;
+    background-image: radial-gradient(circle, #c7daf5 1px, transparent 1px);
+    background-size: 28px 28px;
+    opacity: 0.45;
     pointer-events: none;
     z-index: 0;
 }
 
-/* Glow radial azul — fundo */
+/* Glow central */
 #role-screen::after {
     content: '';
     position: absolute;
-    left: 50%;
-    top: 50%;
+    left: 50%; top: 40%;
     transform: translate(-50%, -50%);
-    width: 600px;
-    height: 600px;
+    width: 640px; height: 640px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(30,144,255,0.10) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(37,99,235,0.08) 0%, transparent 70%);
     pointer-events: none;
     z-index: 0;
 }
 
-/* Blobs herdados — agora são linhas decorativas, escondemos */
 .ls-bg { display: none; }
 .ls-blob { display: none; }
 
@@ -2059,16 +2057,17 @@ body.worker-mode .tool-card {
 .ls-card {
     position: relative;
     z-index: 1;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.09);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: #ffffff;
+    border: 1px solid rgba(37,99,235,0.1);
     border-radius: 24px;
     padding: 40px 36px 32px;
     width: 100%;
     max-width: 400px;
-    box-shadow: 0 32px 80px rgba(0,0,0,0.6);
-    animation: ls-card-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    box-shadow:
+        0 4px 6px rgba(37,99,235,0.04),
+        0 20px 60px rgba(37,99,235,0.10),
+        0 1px 0 rgba(255,255,255,0.9) inset;
+    animation: ls-card-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
     overflow: hidden;
 }
 /* Linha azul no topo */
@@ -2076,12 +2075,12 @@ body.worker-mode .tool-card {
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #1e90ff, transparent);
+    height: 3px;
+    background: linear-gradient(90deg, #2563eb, #4f46e5);
     border-radius: 24px 24px 0 0;
 }
 @keyframes ls-card-in {
-    from { opacity: 0; transform: translateY(28px) scale(0.97); }
+    from { opacity: 0; transform: translateY(24px) scale(0.97); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -2089,7 +2088,7 @@ body.worker-mode .tool-card {
 .ls-logo-wrap {
     display: flex;
     justify-content: center;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
     animation: ls-logo-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
 }
 @keyframes ls-logo-in {
@@ -2098,16 +2097,17 @@ body.worker-mode .tool-card {
 }
 .ls-logo-box {
     width: 60px; height: 60px;
-    border-radius: 16px;
-    background: rgba(30,144,255,0.12);
-    border: 1px solid rgba(30,144,255,0.25);
+    border-radius: 17px;
+    background: #eff6ff;
+    border: 1.5px solid rgba(37,99,235,0.12);
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 4px 16px rgba(37,99,235,0.12);
 }
 .ls-snowflake {
     width: 36px; height: 36px;
-    color: #60b4ff;
+    color: #2563eb;
     animation: ls-spin-organic 18s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
     transform-origin: center center;
 }
@@ -2123,7 +2123,7 @@ body.worker-mode .tool-card {
 /* Cabeçalho */
 .ls-header {
     text-align: center;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     animation: ls-fade-up 0.45s ease 0.15s both;
 }
 @keyframes ls-fade-up {
@@ -2134,30 +2134,30 @@ body.worker-mode .tool-card {
     font-family: 'Bebas Neue', 'Impact', sans-serif;
     font-size: 2rem;
     font-weight: 400;
-    color: #f0f8ff;
+    color: #1e3a8a;
     letter-spacing: 0.1em;
     margin: 0 0 4px;
 }
 .ls-subtitle {
     font-size: 0.75rem;
-    color: rgba(255,255,255,0.35);
+    color: #94a3b8;
     font-weight: 400;
     margin: 0;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
 }
 
 /* Divisor */
 .ls-divider {
     height: 1px;
-    background: rgba(255,255,255,0.08);
-    margin: 20px 0 22px;
+    background: #e2e8f0;
+    margin: 18px 0 20px;
 }
 
 /* Formulário */
 .ls-form {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 14px;
     animation: ls-fade-up 0.45s ease 0.22s both;
 }
 .ls-field {
@@ -2170,12 +2170,12 @@ body.worker-mode .tool-card {
 /* Floating label */
 .ls-label {
     position: absolute;
-    left: 32px;
+    left: 40px;
     top: 50%;
     transform: translateY(-50%);
     font-size: 0.88rem;
-    font-weight: 400;
-    color: rgba(255,255,255,0.3);
+    font-weight: 500;
+    color: #94a3b8;
     pointer-events: none;
     transition: top 0.17s, font-size 0.17s, color 0.17s, font-weight 0.17s,
                 transform 0.17s, letter-spacing 0.17s, text-transform 0.17s;
@@ -2183,17 +2183,15 @@ body.worker-mode .tool-card {
 }
 .ls-field:focus-within .ls-label,
 .ls-field.has-value .ls-label {
-    top: 6px;
+    top: 7px;
     transform: none;
-    font-size: 0.6rem;
+    font-size: 0.62rem;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
-    color: #60b4ff;
+    color: #2563eb;
 }
-.ls-field.has-value:not(:focus-within) .ls-label {
-    color: rgba(255,255,255,0.4);
-}
+.ls-field.has-value:not(:focus-within) .ls-label { color: #64748b; }
 
 /* Input wrap */
 .ls-input-wrap {
@@ -2203,73 +2201,65 @@ body.worker-mode .tool-card {
 }
 .ls-input-icon {
     position: absolute;
-    left: 0;
+    left: 13px;
     width: 16px; height: 16px;
-    color: rgba(255,255,255,0.2);
+    color: #94a3b8;
     pointer-events: none;
     flex-shrink: 0;
     transition: color 0.17s;
     z-index: 2;
 }
-.ls-field:focus-within .ls-input-icon { color: #60b4ff; }
+.ls-field:focus-within .ls-input-icon { color: #2563eb; }
 
 .ls-input {
     width: 100%;
     box-sizing: border-box;
-    padding: 22px 14px 6px 28px;
-    border: none;
-    border-bottom: 1.5px solid rgba(255,255,255,0.12);
-    border-radius: 0;
-    background: transparent;
-    font-size: 0.95rem;
-    font-family: 'Inter', 'DM Sans', sans-serif;
-    color: #f0f8ff;
-    transition: border-color 0.17s;
+    padding: 20px 14px 6px 40px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 13px;
+    background: #f8fafc;
+    font-size: 0.93rem;
+    font-family: 'Inter', sans-serif;
+    color: #0f172a;
+    transition: border-color 0.17s, background 0.17s, box-shadow 0.17s;
     outline: none;
-    min-height: 54px;
+    min-height: 52px;
 }
 .ls-input:focus {
-    border-bottom-color: #1e90ff;
-    box-shadow: none;
-    background: transparent;
-}
-.ls-input:-webkit-autofill,
-.ls-input:-webkit-autofill:hover,
-.ls-input:-webkit-autofill:focus {
-    -webkit-text-fill-color: #f0f8ff;
-    -webkit-box-shadow: 0 0 0px 1000px #111827 inset;
-    transition: background-color 5000s ease-in-out 0s;
+    border-color: #2563eb;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.09);
 }
 
 /* Botão olho */
 .ls-eye-btn {
     position: absolute;
-    right: 0;
+    right: 11px;
     background: none;
     border: none;
     cursor: pointer;
     padding: 4px;
-    color: rgba(255,255,255,0.25);
+    color: #94a3b8;
     display: flex;
     align-items: center;
     z-index: 2;
     transition: color 0.15s;
 }
 .ls-eye-btn svg { width: 18px; height: 18px; }
-.ls-eye-btn:hover { color: #60b4ff; }
+.ls-eye-btn:hover { color: #2563eb; }
 
 /* Erro */
 .ls-error {
-    font-size: 0.75rem;
-    color: #f87171;
+    font-size: 0.78rem;
+    color: #dc2626;
     font-weight: 600;
     min-height: 0;
     text-align: center;
     display: none;
-    background: rgba(239,68,68,0.08);
-    border: 1px solid rgba(239,68,68,0.15);
+    background: rgba(220,38,38,0.05);
+    border: 1px solid rgba(220,38,38,0.12);
     border-radius: 8px;
-    padding: 8px 12px;
+    padding: 7px 12px;
 }
 .ls-error.visible { display: block; }
 
@@ -2277,31 +2267,31 @@ body.worker-mode .tool-card {
 .ls-btn {
     width: 100%;
     padding: 14px;
-    background: #1e90ff;
+    background: linear-gradient(135deg, #2563eb, #4f46e5);
     color: white;
     border: none;
-    border-radius: 12px;
-    font-family: 'Inter', 'DM Sans', sans-serif;
-    font-size: 0.9rem;
+    border-radius: 13px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.92rem;
     font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    transition: background 0.15s, transform 0.12s, box-shadow 0.15s;
-    box-shadow: 0 4px 20px rgba(30,144,255,0.35);
-    margin-top: 8px;
-    letter-spacing: 0.04em;
+    transition: opacity 0.15s, transform 0.12s, box-shadow 0.15s;
+    box-shadow: 0 6px 20px rgba(37,99,235,0.32);
+    margin-top: 6px;
+    letter-spacing: 0.03em;
 }
-.ls-btn:hover { background: #60b4ff; box-shadow: 0 8px 28px rgba(30,144,255,0.4); }
+.ls-btn:hover { opacity: 0.92; box-shadow: 0 8px 24px rgba(37,99,235,0.4); }
 .ls-btn:active { transform: scale(0.98); }
-.ls-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+.ls-btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
 /* Spinner */
 .ls-btn-spinner {
-    width: 17px; height: 17px;
-    border: 2.5px solid rgba(255,255,255,0.3);
+    width: 18px; height: 18px;
+    border: 2.5px solid rgba(255,255,255,0.4);
     border-top-color: white;
     border-radius: 50%;
     animation: ls-spin 0.7s linear infinite;
@@ -2312,11 +2302,11 @@ body.worker-mode .tool-card {
 /* Versão */
 .ls-version {
     text-align: center;
-    margin-top: 20px;
-    font-size: 0.62rem;
-    color: rgba(255,255,255,0.15);
-    font-weight: 400;
-    letter-spacing: 0.05em;
+    margin-top: 16px;
+    font-size: 0.65rem;
+    color: #cbd5e1;
+    font-weight: 500;
+    letter-spacing: 0.03em;
 }
 
 /* Manter compatibilidade com código antigo que ainda usa estas classes */
