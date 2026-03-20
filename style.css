@@ -1577,6 +1577,16 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
 
 .scroll-list { overflow-y: auto; }
 
+.pro-form { display: flex; flex-direction: column; gap: 15px; }
+.pro-form-inline { display: flex; gap: 10px; margin-bottom: 15px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-group label { font-size: 0.8rem; font-weight: 800; color: var(--text-muted); }
+.blue-input { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--input-fill); color: var(--text-main); font-size: 0.95rem; font-family: 'Inter', sans-serif; transition: border-color 0.17s, background 0.17s, box-shadow 0.17s; outline: none; box-sizing: border-box; }
+.blue-input:focus { border-color: var(--primary); background: var(--card-bg); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.btn-primary { background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 700; width: 100%; padding: 15px; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 1rem; }
+.btn-primary:active { opacity: 0.8; transform: scale(0.98); }
+
 /* ══════════════════════════════════════════════════════════
    ADMIN — menu full-screen (igual mobile em ambas as vistas)
    ══════════════════════════════════════════════════════════ */
