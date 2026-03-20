@@ -730,7 +730,7 @@ function nav(viewId) {
     // Desktop: admin precisa de padding 0 para o layout Windows Settings funcionar
     const mainContent = document.getElementById('main-content');
     if (mainContent) {
-        mainContent.classList.toggle('admin-view-active', viewId === 'view-admin' && window.innerWidth >= 768);
+        mainContent.classList.remove('admin-view-active');
     }
 
     if (viewId === 'view-search') {
@@ -758,15 +758,8 @@ function nav(viewId) {
     if (viewId === 'view-encomendas') { loadEncomendas(); }
 
     if (viewId === 'view-admin') {
-        if (window.innerWidth < 768) {
-            _buildAdminMobileMenu();
-            document.querySelector('.admin-tabs')?.style && (document.querySelector('.admin-tabs').style.display = 'none');
-            document.getElementById('admin-slider-wrap') && (document.getElementById('admin-slider-wrap').style.display = 'none');
-        } else {
-            document.getElementById('admin-mobile-menu')?.remove();
-            document.getElementById('admin-mobile-detail')?.remove();
-            renderWorkers(); renderAdminTools();
-        }
+        // Mesmo comportamento em mobile e desktop — menu full-screen com cards
+        _buildAdminMobileMenu();
     }
     if (viewId === 'view-pedidos') {
         // Limpa pesquisa ao entrar na vista para não confundir ao voltar
@@ -775,8 +768,6 @@ function nav(viewId) {
         if (searchEl) searchEl.value = '';
         renderPats();
     }
-    if (viewId === 'view-admin') { switchAdminTab(ADMIN_TABS[_adminIdx], false); }
-
     document.querySelectorAll('.menu-items li').forEach(li => li.classList.remove('active'));
     const sideMap = {
         'view-dashboard':'nav-dashboard',
@@ -798,8 +789,6 @@ function nav(viewId) {
     if (document.getElementById('side-menu')?.classList.contains('open')) toggleMenu();
     window.scrollTo(0, 0);
     bnavAddClose(); // fecha o mini-menu ao navegar
-    // Re-setup swipe ao entrar na admin (slider pode ter sido re-renderizado)
-    if (viewId === 'view-admin') { switchAdminTab(ADMIN_TABS[_adminIdx], false); }
     // Garante que o bottom nav pill está visível ao mudar de vista
     document.getElementById('bottom-nav')?.classList.remove('bnav-hidden');
     if (window.innerWidth < 768) {
