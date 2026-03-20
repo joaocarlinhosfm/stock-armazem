@@ -911,6 +911,7 @@ header h1 { display: none; }
     background: #e8edf2;
     color: #475569;
     cursor: pointer;
+    position: relative;
     transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
 }
 .dash-refresh-btn:hover {
@@ -922,6 +923,24 @@ header h1 { display: none; }
     transform: scale(0.92);
 }
 .dash-refresh-btn svg { display: block; }
+.dash-refresh-btn::before {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    border: 1.5px solid #2563eb;
+    opacity: 0;
+    transform: scale(0.75);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+}
+.dash-refresh-btn.spinning::before {
+    animation: dash-pulse-ring 1.3s ease-out infinite;
+}
+@keyframes dash-pulse-ring {
+    0%   { opacity: 0.4; transform: scale(1); }
+    100% { opacity: 0;   transform: scale(1.6); }
+}
 
 #menu-btn { display: none; }
 
@@ -3609,6 +3628,72 @@ body.is-offline #app-layout {
    ============================================= */
 .dash-refresh-btn.spinning svg {
     animation: spin 0.7s linear infinite;
+}
+
+/* ── Progress bar de refresh (topo do header) ──────────────────────────── */
+#dash-progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    width: 0%;
+    background: linear-gradient(90deg, #2563eb, #60a5fa);
+    z-index: 1100;
+    border-radius: 0 2px 2px 0;
+    opacity: 0;
+    transition: width 0.35s ease, opacity 0.2s ease;
+    pointer-events: none;
+}
+#dash-progress-bar.active { opacity: 1; }
+
+/* ── Skeleton shimmer (dashboard) ──────────────────────────────────────── */
+.dash-skel-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.dash-skel-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    min-height: 88px;
+}
+.skel-line {
+    border-radius: 6px;
+    background: var(--border);
+    overflow: hidden;
+    position: relative;
+}
+.skel-line::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: skel-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes skel-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+.skel-label  { height: 9px;  width: 50%; margin-bottom: 10px; }
+.skel-value  { height: 26px; width: 38%; margin-bottom: 8px; }
+.skel-sub    { height: 8px;  width: 70%; }
+.dash-skel-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 12px;
+}
+.skel-row { height: 10px; width: 100%; margin-bottom: 10px; border-radius: 5px; }
+.skel-row:last-child { width: 70%; margin-bottom: 0; }
+/* dark mode shimmer */
+.dark-mode .skel-line::after {
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.07) 50%, transparent 100%);
+    background-size: 200% 100%;
 }
 
 /* Toolbar PAT — título + botão + pesquisa, tudo alinhado */
