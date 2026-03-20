@@ -156,6 +156,12 @@ function applyRole(role) {
         badge.className   = 'role-badge-manager';
     }
 
+    // Footer da sidebar — username + role
+    const footerUser = document.getElementById('menu-footer-username');
+    const footerRole = document.getElementById('menu-footer-role');
+    if (footerUser) footerUser.textContent = displayName;
+    if (footerRole) footerRole.textContent = role === 'worker' ? 'Operador' : 'Gestor';
+
     // Esconde o ecrã de seleção
     document.getElementById('role-screen')?.classList.add('hidden');
 }
