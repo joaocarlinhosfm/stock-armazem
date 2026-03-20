@@ -1660,33 +1660,40 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
 /* ── DESKTOP (≥768px) — Windows Settings layout ── */
 @media (min-width: 768px) {
     /* Layout: sidebar esquerda + conteúdo direita */
+    /* Escape do padding 20px 32px do #main-content */
     #view-admin {
         display: flex;
-        align-items: flex-start;
+        flex-direction: row;
+        align-items: stretch;
+        margin: -20px -32px -40px;
+        width: calc(100% + 64px);
         min-height: calc(100vh - var(--header-h));
         gap: 0;
+        box-sizing: border-box;
     }
     #view-admin > .view-header { display: none; }
 
-    /* Sidebar — transforma as .admin-tabs numa nav vertical */
+    /* Sidebar — nav vertical fixa, participa no fluxo flex normal */
     .admin-tabs {
-        flex-direction: column;
-        flex-shrink: 0;
-        width: 200px;
+        flex-direction: column !important;
+        flex-shrink: 0 !important;
+        width: 210px !important;
         background: var(--card-bg) !important;
-        border: none;
-        border-right: 1px solid var(--border);
+        border: none !important;
+        border-right: 1px solid var(--border) !important;
         border-radius: 0 !important;
-        padding: 14px 8px !important;
-        position: sticky;
-        top: 0;
-        height: calc(100vh - var(--header-h));
-        overflow-y: auto;
-        overflow-x: hidden;
+        padding: 14px 8px 20px !important;
+        /* position: relative — fica no fluxo, não sobrepõe o conteúdo */
+        position: relative !important;
+        height: auto !important;
+        min-height: 100% !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
         gap: 1px !important;
         margin-bottom: 0 !important;
-        scrollbar-width: none;
-        z-index: 5;
+        scrollbar-width: none !important;
+        z-index: 5 !important;
+        box-sizing: border-box !important;
     }
 
     /* Título da sidebar */
@@ -1752,13 +1759,14 @@ h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
     /* Slider-wrap = área de conteúdo direita
        overflow: visible é CRÍTICO — sem isto os modais ficam clipados */
     .admin-slider-wrap {
-        flex: 1;
-        min-width: 0;
+        flex: 1 !important;
+        min-width: 0 !important;
         overflow: visible !important;
         touch-action: auto;
-        background: #f8fafc;
-        padding: 20px 20px 40px;
+        background: var(--bg);
+        padding: 24px 24px 60px !important;
         min-height: calc(100vh - var(--header-h));
+        box-sizing: border-box;
     }
 
     /* Slider: sem transform, sem flex row — comporta-se como bloco normal
