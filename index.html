@@ -1092,12 +1092,16 @@
     <div id="inv-partial-modal" class="modal-overlay" role="dialog" aria-modal="true">
         <div class="modal-content modal-content-wide">
             <div class="modal-icon">💾</div>
-            <h3>Guardar Progresso Parcial</h3>
-            <p class="modal-desc">O inventário será guardado no Firebase e poderás retomar nas próximas 72h.</p>
+            <h3>Guardar Progresso</h3>
+            <p class="modal-desc">Progresso guardado automaticamente. Podes retomar em qualquer dispositivo nas próximas 72h.</p>
             <div id="inv-partial-stats" class="inv-partial-stats"></div>
-            <button class="btn-primary" onclick="exportInventoryPartialEmail()" style="margin-top:8px">
+            <button class="btn-primary" onclick="invSaveAndExit()" style="margin-top:12px">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v14a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Guardar e Sair
+            </button>
+            <button class="btn-primary inv-email-btn" onclick="exportInventoryPartialEmail()" style="margin-top:6px">
                 <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
-                Exportar parcial por Email
+                Guardar, Sair e Enviar Email
             </button>
             <button class="btn-cancel" onclick="closeInvPartial()" style="margin-top:6px">Continuar inventário</button>
         </div>

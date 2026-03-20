@@ -3481,8 +3481,24 @@ function closeInvPartial() {
     document.getElementById('inv-partial-modal').classList.remove('active');
 }
 
+// Guarda progresso no Firebase (já está guardado incrementalmente) e sai para o menu
+async function invSaveAndExit() {
+    // Força um último save para garantir que está actualizado
+    await _invSaveResume();
+    // Fecha todos os modais do inventário
+    document.getElementById('inv-partial-modal').classList.remove('active');
+    document.getElementById('inv-modal').classList.remove('active');
+    invSearchClear();
+    showToast('Progresso guardado — podes retomar em qualquer dispositivo', 'success');
+}
+
 async function exportInventoryPartialEmail() {
+    // Guarda no Firebase antes de exportar
+    await _invSaveResume();
     closeInvPartial();
+    // Fecha o inventário
+    document.getElementById('inv-modal').classList.remove('active');
+    invSearchClear();
     await exportInventoryEmail(true); // true = parcial
 }
 
