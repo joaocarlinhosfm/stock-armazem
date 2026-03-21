@@ -3790,13 +3790,12 @@ function _buildInventoryWorkbook() {
     return wb;
 }
 
-// ── Inventário Resume — Firebase /inv-resume/{user} (72h TTL) ──────────────
+// ── Inventário Resume — Firebase /inv-resume/shared (72h TTL) ──────────────
+// Caminho único partilhado — não depende do dispositivo nem do username em localStorage
 const INV_RESUME_FIREBASE_TTL = 72 * 60 * 60 * 1000; // 72 horas em ms
 
 function _invResumeUrl() {
-    const user = (localStorage.getItem('hiperfrio-username') || 'default')
-        .replace(/[^a-zA-Z0-9_-]/g, '_');
-    return `${BASE_URL}/inv-resume/${user}.json`;
+    return `${BASE_URL}/inv-resume/shared.json`;
 }
 
 async function _invSaveResume() {
