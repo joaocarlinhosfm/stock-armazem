@@ -3036,26 +3036,32 @@ async function startInventory() {
     if (!data || Object.keys(data).length === 0) {
         showToast('Sem produtos para inventariar', 'error'); return;
     }
-    // Abre o setup imediatamente — banner de retoma aparece assim que Firebase responde
+
+    // Carrega sessão guardada ANTES de abrir o modal — banner já está pronto ao aparecer
+    const saved = await _invLoadResume();
+
     _openInvSetup(data);
-    _invLoadResume().then(saved => {
-        const banner = document.getElementById('inv-resume-banner');
-        if (!banner) return;
-        if (!saved) { banner.style.display = 'none'; return; }
-        const hoursAgo = Math.round((Date.now() - (saved.ts || 0)) / 3600000);
-        const timeLabel = hoursAgo < 1 ? 'há menos de 1h' : `há ${hoursAgo}h`;
-        document.getElementById('inv-resume-banner-text').textContent =
-            `Inventário em curso · ${saved.idx + 1}/${saved.items.length} · guardado ${timeLabel}`;
-        banner.style.display = 'flex';
-        document.getElementById('inv-resume-btn-retomar').onclick = () => {
-            closeInvSetup();
-            _resumeInventory(saved);
-        };
-        document.getElementById('inv-resume-btn-novo').onclick = () => {
+
+    const banner = document.getElementById('inv-resume-banner');
+    if (banner) {
+        if (!saved) {
             banner.style.display = 'none';
-            _invClearResume();
-        };
-    });
+        } else {
+            const hoursAgo = Math.round((Date.now() - (saved.ts || 0)) / 3600000);
+            const timeLabel = hoursAgo < 1 ? 'há menos de 1h' : `há ${hoursAgo}h`;
+            document.getElementById('inv-resume-banner-text').textContent =
+                `Inventário em curso · ${saved.idx + 1}/${saved.items.length} · guardado ${timeLabel}`;
+            banner.style.display = 'flex';
+            document.getElementById('inv-resume-btn-retomar').onclick = () => {
+                closeInvSetup();
+                _resumeInventory(saved);
+            };
+            document.getElementById('inv-resume-btn-novo').onclick = () => {
+                banner.style.display = 'none';
+                _invClearResume();
+            };
+        }
+    }
 }
 
 function _openInvSetup(data) {
@@ -3809,8 +3815,8 @@ async function _invSaveResume() {
             ts:      Date.now(),
         });
         const url = await authUrl(_invResumeUrl());
-        fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: payload })
-            .catch(e => console.warn('invSaveResume (Firebase):', e));
+        // await o fetch — garante que os dados chegaram ao Firebase antes de continuar
+        await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: payload });
     } catch (e) { console.warn('invSaveResume:', e); }
 }
 
@@ -3818,15 +3824,26 @@ async function _invLoadResume() {
     try {
         const url = await authUrl(_invResumeUrl());
         const res = await fetch(url);
-        if (!res.ok) return null;
+        if (!res.ok) {
+            console.warn('invLoadResume: resposta', res.status, res.statusText);
+            return null;
+        }
         const saved = await res.json();
-        if (!saved || !saved.items || saved.items.length === 0) return null;
+        if (!saved || !saved.items || saved.items.length === 0) {
+            console.log('invLoadResume: sem sessão guardada');
+            return null;
+        }
         if (Date.now() - (saved.ts || 0) > INV_RESUME_FIREBASE_TTL) {
+            console.log('invLoadResume: sessão expirada');
             _invClearResume();
             return null;
         }
+        console.log(`invLoadResume: encontrada sessão — produto ${saved.idx + 1}/${saved.items.length}`);
         return saved;
-    } catch (_e) { return null; }
+    } catch (e) {
+        console.warn('invLoadResume erro:', e);
+        return null;
+    }
 }
 
 async function _invClearResume() {
