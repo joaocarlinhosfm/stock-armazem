@@ -1690,16 +1690,25 @@ async function renderTools() {
     if (!list) return;
     const data = await fetchCollection('ferramentas');
 
-    // Actualizar subtítulo do header
-    const sub = document.getElementById('tools-header-sub');
-    if (sub && data) {
+    const TOOL_ALERT_DAYS = 7;
+
+    // Stat chips
+    if (data) {
         const entries = Object.values(data);
         const total   = entries.length;
+        const disp    = entries.filter(t => t.status === 'disponivel').length;
         const aloc    = entries.filter(t => t.status === 'alocada').length;
-        sub.textContent = `${total} ferramenta${total !== 1 ? 's' : ''} · ${aloc} alocada${aloc !== 1 ? 's' : ''}`;
+        const over    = entries.filter(t => t.status === 'alocada' && t.dataEntrega && _calcDias(t.dataEntrega) > TOOL_ALERT_DAYS).length;
+        const sub = document.getElementById('tools-header-sub');
+        if (sub) sub.textContent = `${total} ferramenta${total !== 1 ? 's' : ''} · ${aloc} alocada${aloc !== 1 ? 's' : ''}`;
+        const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+        el('ts-total', total); el('ts-disp', disp); el('ts-aloc', aloc); el('ts-over', over);
+        // Esconder stat de atraso se zero
+        const overStat = document.querySelector('.ts-red');
+        if (overStat) overStat.style.display = over > 0 ? '' : 'none';
     }
 
-    // Actualizar botões de filtro
+    // Filtros activos
     document.querySelectorAll('.tools-filter-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.filter === (_toolsFilter || 'all'));
     });
@@ -1714,30 +1723,38 @@ async function renderTools() {
         ? _toolsFilter.toLowerCase() : '';
     const statusFilter = ['disponivel','alocada'].includes(_toolsFilter) ? _toolsFilter : null;
 
-    let found = 0;
-    ;[...Object.entries(data)].reverse().forEach(([id, t]) => {
-        if (filterLower && !t.nome?.toLowerCase().includes(filterLower)) return;
-        if (statusFilter && t.status !== statusFilter) return;
-        found++;
+    // Separar em grupos: overdue → alocadas → disponíveis
+    const all = [...Object.entries(data)].reverse();
+    const overdueList  = all.filter(([,t]) => t.status === 'alocada' && t.dataEntrega && _calcDias(t.dataEntrega) > TOOL_ALERT_DAYS);
+    const alocList     = all.filter(([,t]) => t.status === 'alocada' && !(t.dataEntrega && _calcDias(t.dataEntrega) > TOOL_ALERT_DAYS));
+    const dispList     = all.filter(([,t]) => t.status !== 'alocada');
+
+    const TOOL_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
+    const RETURN_ICON = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg>`;
+    const CHEVRON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>`;
+
+    function _makeCard(id, t) {
+        if (filterLower && !t.nome?.toLowerCase().includes(filterLower)) return null;
+        if (statusFilter && t.status !== statusFilter) return null;
 
         const isAv = t.status === 'disponivel';
-        const TOOL_ALERT_DAYS = 7;
-        const isOverdue = !isAv && t.dataEntrega &&
-            _calcDias(t.dataEntrega) > TOOL_ALERT_DAYS;
+        const isOverdue = !isAv && t.dataEntrega && _calcDias(t.dataEntrega) > TOOL_ALERT_DAYS;
 
         const div = document.createElement('div');
         div.className = `tool-card ${isAv ? 'tool-available' : 'tool-allocated'}${isOverdue ? ' tool-overdue' : ''}`;
-        div.onclick = () => isAv ? openModal(id) : openConfirmModal({
-            icon: '↩', title: 'Confirmar devolução?',
-            desc: `"${escapeHtml(t.nome)}" será marcada como disponível.`,
-            onConfirm: () => returnTool(id)
-        });
+
+        // Long press → histórico
         div.addEventListener('contextmenu', e => { e.preventDefault(); openHistoryModal(id, t.nome); });
         div.addEventListener('touchstart', () => {
             _toolLongPressTimer = setTimeout(() => openHistoryModal(id, t.nome), 600);
         }, { passive: true });
         div.addEventListener('touchend',  () => clearTimeout(_toolLongPressTimer), { passive: true });
         div.addEventListener('touchmove', () => clearTimeout(_toolLongPressTimer), { passive: true });
+
+        // Ícone
+        const icon = document.createElement('div');
+        icon.className = 'tool-icon';
+        icon.innerHTML = TOOL_ICON;
 
         // Info
         const info = document.createElement('div');
@@ -1760,46 +1777,81 @@ async function renderTools() {
             sub.appendChild(dot);
             sub.appendChild(lbl);
         } else {
-            const _days = t.dataEntrega
-                ? _calcDias(t.dataEntrega)
-                : null;
-
+            const days = t.dataEntrega ? _calcDias(t.dataEntrega) : null;
             const colabBadge = document.createElement('span');
             colabBadge.className   = `tool-badge ${isOverdue ? 'tool-badge-overdue' : 'tool-badge-colab'}`;
             colabBadge.textContent = (t.colaborador || '').toUpperCase();
             sub.appendChild(colabBadge);
-
-            if (_days !== null) {
+            if (days !== null) {
                 const daysBadge = document.createElement('span');
                 daysBadge.className   = `tool-badge ${isOverdue ? 'tool-badge-overdue' : 'tool-badge-days'}`;
-                daysBadge.textContent = _days === 0 ? 'hoje' : _days === 1 ? '1d fora' : `${_days}d fora`;
+                daysBadge.textContent = days === 0 ? 'hoje' : days === 1 ? '1d fora' : `${days}d fora`;
                 sub.appendChild(daysBadge);
             }
-
             if (isOverdue) {
                 const ovd = document.createElement('span');
                 ovd.className   = 'tool-badge tool-badge-overdue';
-                ovd.textContent = '⚠ verificar';
+                ovd.textContent = 'verificar';
                 sub.appendChild(ovd);
             }
         }
 
         info.appendChild(nome);
         info.appendChild(sub);
-
-        // Seta
-        const arrow = document.createElement('span');
-        arrow.className = 'tool-arrow';
-        arrow.innerHTML = isAv
-            ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>`
-            : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg>`;
-
+        div.appendChild(icon);
         div.appendChild(info);
-        div.appendChild(arrow);
-        list.appendChild(div);
-    });
 
-    if (found === 0) {
+        if (isAv) {
+            // Clicar no card → alocar
+            div.onclick = () => openModal(id);
+            const arrow = document.createElement('span');
+            arrow.className = 'tool-arrow';
+            arrow.innerHTML = CHEVRON;
+            div.appendChild(arrow);
+        } else {
+            // Clicar no card → histórico; botão explícito → devolver
+            div.onclick = () => openHistoryModal(id, t.nome);
+            const retBtn = document.createElement('button');
+            retBtn.className = 'tool-return-btn';
+            retBtn.innerHTML = RETURN_ICON;
+            retBtn.title = 'Devolver';
+            retBtn.onclick = e => {
+                e.stopPropagation();
+                openConfirmModal({
+                    icon: '↩', title: 'Confirmar devolução?',
+                    desc: `"${escapeHtml(t.nome)}" será marcada como disponível.`,
+                    onConfirm: () => returnTool(id)
+                });
+            };
+            div.appendChild(retBtn);
+        }
+
+        return div;
+    }
+
+    function _addSection(label, items) {
+        let added = 0;
+        const frag = document.createDocumentFragment();
+        items.forEach(([id, t]) => {
+            const card = _makeCard(id, t);
+            if (card) { frag.appendChild(card); added++; }
+        });
+        if (added > 0) {
+            const lbl = document.createElement('div');
+            lbl.className = 'tools-section-label';
+            lbl.textContent = label;
+            list.appendChild(lbl);
+            list.appendChild(frag);
+        }
+        return added;
+    }
+
+    let total = 0;
+    total += _addSection('Em atraso', overdueList);
+    total += _addSection('Alocadas', alocList);
+    total += _addSection('Disponíveis', dispList);
+
+    if (total === 0) {
         list.innerHTML = '<div class="empty-msg">Nenhuma ferramenta encontrada.</div>';
     }
 }

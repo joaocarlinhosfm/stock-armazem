@@ -327,13 +327,21 @@
                 </div>
                 <button class="btn-timeline" onclick="openToolTimeline()" title="Ver timeline"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg> Timeline</button>
             </div>
+            <!-- Stat chips -->
+            <div class="tools-stats" id="tools-stats">
+                <div class="tools-stat"><span class="ts-num" id="ts-total">—</span><span class="ts-lbl">Total</span></div>
+                <div class="tools-stat ts-green"><span class="ts-num" id="ts-disp">—</span><span class="ts-lbl">Disponíveis</span></div>
+                <div class="tools-stat ts-amber"><span class="ts-num" id="ts-aloc">—</span><span class="ts-lbl">Alocadas</span></div>
+                <div class="tools-stat ts-red"><span class="ts-num" id="ts-over">—</span><span class="ts-lbl">Em atraso</span></div>
+            </div>
             <div class="tools-search-wrap">
-                <input type="text" id="inp-tools-search" class="blue-input tools-search-input"
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--text-muted);flex-shrink:0"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="inp-tools-search" class="tools-search-input"
                     placeholder="Pesquisar ferramenta..." autocomplete="off">
             </div>
             <div class="tools-filter-row">
                 <button class="tools-filter-btn active" data-filter="all" onclick="toolsFilterSet(this,'all')">Todas</button>
-                <button class="tools-filter-btn" data-filter="disponivel" onclick="toolsFilterSet(this,'disponivel')">Em armazém</button>
+                <button class="tools-filter-btn" data-filter="disponivel" onclick="toolsFilterSet(this,'disponivel')">Disponíveis</button>
                 <button class="tools-filter-btn" data-filter="alocada" onclick="toolsFilterSet(this,'alocada')">Alocadas</button>
             </div>
             <div id="tools-list"></div>
