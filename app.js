@@ -2369,11 +2369,12 @@ let   _adminIdx   = 0;   // índice activo
 
 // ── Admin mobile — menu estilo Android ────────────────────────────────────────
 const _adminMobileTitles = {
-    workers:  'Funcionários',
-    tools:    'Ferramentas',
-    clientes: 'Clientes',
-    users:    'Utilizadores',
-    settings: 'Definições',
+    workers:   'Funcionários',
+    tools:     'Ferramentas',
+    clientes:  'Clientes',
+    users:     'Utilizadores',
+    settings:  'Definições',
+    relatorio: 'Relatórios',
 };
 let _adminMobileActive = null;
 
