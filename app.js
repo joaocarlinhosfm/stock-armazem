@@ -11,12 +11,20 @@ function _calcDias(tsOrStr, tsEnd) {
     if (!tsOrStr) return 0;
     let origem;
     if (typeof tsOrStr === 'string') {
-        const [y, m, d] = tsOrStr.split('-').map(Number);
-        origem = new Date(y, m - 1, d);
+        if (tsOrStr.includes('T') || tsOrStr.includes(' ')) {
+            // ISO datetime: "2024-03-20T10:30:00.000Z" ou "2024-03-20 10:30:00"
+            const dt = new Date(tsOrStr);
+            origem = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+        } else {
+            // Apenas data: "2024-03-20"
+            const [y, m, d] = tsOrStr.split('-').map(Number);
+            origem = new Date(y, m - 1, d);
+        }
     } else {
         const dt = new Date(tsOrStr);
         origem = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
     }
+    if (isNaN(origem.getTime())) return 0;
     const fim = tsEnd ? new Date(tsEnd) : new Date();
     const fimZero = new Date(fim.getFullYear(), fim.getMonth(), fim.getDate());
     return Math.max(0, Math.round((fimZero - origem) / 86400000));
@@ -4701,15 +4709,32 @@ async function renderPats() {
 
     el.innerHTML = '';
 
-    // ── Pendentes: lista plana (comportamento original) ──────────────────
+    // ── Pendentes: lista plana com count bar ────────────────────────────
     if (_patTab === 'pendentes') {
         const estabCount = {};
         entries.forEach(([, p]) => {
             const n = (p.estabelecimento || '').trim().toLowerCase();
             if (n) estabCount[n] = (estabCount[n] || 0) + 1;
         });
+
+        // Count bar com urgentes
+        const urgentes = entries.filter(([, p]) => _calcDias(p.criadoEm) >= 15).length;
+        const countBar = document.createElement('div');
+        countBar.className = 'pat-count-bar';
+        countBar.innerHTML = `<span class="pat-count-lbl">${entries.length} pedido${entries.length !== 1 ? 's' : ''} pendente${entries.length !== 1 ? 's' : ''}</span>`
+            + (urgentes > 0 ? `<span class="pat-count-badge">${urgentes} urgente${urgentes !== 1 ? 's' : ''} (+15 dias)</span>` : '');
+        el.appendChild(countBar);
+
         entries.forEach(([id, pat]) => el.appendChild(_buildPatCard(id, pat, 'pendentes', estabCount)));
         updatePatCount();
+
+        // Actualizar contador na tab
+        const tabEl = document.getElementById('pat-tab-pendentes');
+        if (tabEl) {
+            let cnt = tabEl.querySelector('.pat-tab-cnt');
+            if (!cnt) { cnt = document.createElement('span'); cnt.className = 'pat-tab-cnt'; tabEl.appendChild(cnt); }
+            cnt.textContent = entries.length;
+        }
         return;
     }
 
@@ -4742,20 +4767,31 @@ async function renderPats() {
 function _buildPatCard(id, pat, tab, estabCount) {
     const card = document.createElement('div');
     const separacao = !!pat.separacao;
-    const isLev = tab === 'levantadas';
+    const isLev  = tab === 'levantadas';
     const isHist = tab === 'historico';
     const isSelected = _patSelMode && _patSelIds.has(id);
 
-    card.className = 'pat-card'
-        + (separacao ? ' pat-card-separacao' : '')
-        + (isLev  ? ' pat-card-levantada' : '')
-        + (isHist ? ' pat-card-historico'  : '')
-        + (isSelected ? ' pat-card-selected' : '');
-
-    const dias = _calcDias(pat.criadoEm);
-    const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
+    const dias    = _calcDias(pat.criadoEm);
     const urgente = tab === 'pendentes' && dias >= 15;
     const nomeNorm = (pat.estabelecimento || '').trim().toLowerCase();
+
+    // Classes do card
+    let cardClass = 'pat-card';
+    if (separacao && !urgente) cardClass += ' pat-card-separacao';
+    if (urgente)               cardClass += ' pat-card-urgente';
+    if (isLev)                 cardClass += ' pat-card-levantada';
+    if (isHist)                cardClass += ' pat-card-historico';
+    if (isSelected)            cardClass += ' pat-card-selected';
+    card.className = cardClass;
+
+    // Barra lateral colorida
+    const bar = document.createElement('div');
+    bar.className = 'pat-card-bar';
+    card.appendChild(bar);
+
+    // Body com padding
+    const body = document.createElement('div');
+    body.className = 'pat-card-body';
 
     // Top row
     const cardTop = document.createElement('div');
@@ -4763,25 +4799,31 @@ function _buildPatCard(id, pat, tab, estabCount) {
     const cardTopLeft = document.createElement('div');
     cardTopLeft.className = 'pat-card-top-left';
 
+    // Checkbox selecção
     if (_patSelMode) {
         const cb = document.createElement('span');
         cb.className = 'pat-sel-cb' + (isSelected ? ' checked' : '');
-        cb.innerHTML = isSelected ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : '';
+        cb.innerHTML = isSelected
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+            : '';
         cardTopLeft.appendChild(cb);
     }
 
+    // Badge PAT número
     const patBadge = document.createElement('span');
     patBadge.className   = 'pat-badge' + (urgente ? ' pat-badge-urgente' : '');
     patBadge.textContent = 'PAT ' + (pat.numero || '—');
     cardTopLeft.appendChild(patBadge);
 
+    // Tag Guia Transporte
     if (separacao) {
         const sepTag = document.createElement('span');
         sepTag.className   = 'pat-sep-tag';
-        sepTag.textContent = ' Guia Transporte';
+        sepTag.textContent = 'Guia Transporte';
         cardTopLeft.appendChild(sepTag);
     }
 
+    // Badge duplicados
     if (tab === 'pendentes') {
         const dupCount = estabCount[nomeNorm] || 0;
         if (dupCount > 1) {
@@ -4793,30 +4835,29 @@ function _buildPatCard(id, pat, tab, estabCount) {
         }
     }
 
-    // Data label consoante o tab
+    // Data / dias
     const diasSpan = document.createElement('span');
     diasSpan.className = 'pat-dias' + (urgente ? ' pat-dias-urgente' : '');
     if (isHist && pat.saidaEm) {
         const d = new Date(pat.saidaEm);
-        diasSpan.textContent = d.toLocaleDateString('pt-PT', { day:'2-digit', month:'2-digit' });
-        // Indicador de expiração: dias restantes no histórico
+        diasSpan.textContent = d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
         const diasRestantes = 15 - _calcDias(pat.saidaEm);
-        if (diasRestantes <= 3) {
-            diasSpan.title = `Apagado em ${diasRestantes}d`;
-            diasSpan.style.color = 'var(--text-muted)';
-        }
+        if (diasRestantes <= 3) diasSpan.style.color = 'var(--text-muted)';
     } else if (isLev && pat.levantadoEm) {
-        diasSpan.textContent = new Date(pat.levantadoEm).toLocaleDateString('pt-PT', { day:'2-digit', month:'2-digit' });
+        diasSpan.textContent = new Date(pat.levantadoEm).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
     } else {
+        const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
         diasSpan.textContent = diasLabel;
     }
     cardTop.appendChild(cardTopLeft);
     cardTop.appendChild(diasSpan);
 
+    // Estabelecimento
     const estabDiv = document.createElement('div');
     estabDiv.className   = 'pat-card-estab';
     estabDiv.textContent = pat.estabelecimento || 'Sem estabelecimento';
 
+    // Produtos
     const prodsDiv = document.createElement('div');
     prodsDiv.className = 'pat-card-produtos';
     (pat.produtos || []).forEach(p => {
@@ -4826,55 +4867,57 @@ function _buildPatCard(id, pat, tab, estabCount) {
         prodsDiv.appendChild(chip);
     });
 
+    // Acções
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'pat-card-actions';
     actionsDiv.onclick   = e => e.stopPropagation();
 
+    const DEL_SVG = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
+    const CHECK_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
     if (_patSelMode) {
-        // Botão de editar referências (não faz toggle, abre modal)
         const btnRefs = document.createElement('button');
         btnRefs.className = 'pat-btn-refs';
         btnRefs.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Refs';
-        btnRefs.onclick = (e) => { e.stopPropagation(); openPatRefsModal(id, pat); };
+        btnRefs.onclick = e => { e.stopPropagation(); openPatRefsModal(id, pat); };
         actionsDiv.appendChild(btnRefs);
     } else if (tab === 'pendentes') {
         const btnLev = document.createElement('button');
         btnLev.className = 'pat-btn-levantado';
-        btnLev.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-        btnLev.appendChild(document.createTextNode('Dar como levantado'));
+        btnLev.innerHTML = CHECK_SVG + ' Dar como levantado';
         btnLev.onclick = () => marcarPatLevantado(id);
         const btnDel = document.createElement('button');
         btnDel.className = 'pat-btn-apagar';
-        btnDel.innerHTML = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
+        btnDel.innerHTML = DEL_SVG;
         btnDel.onclick = () => apagarPat(id);
         actionsDiv.appendChild(btnLev);
         actionsDiv.appendChild(btnDel);
     } else if (tab === 'levantadas') {
         const btnSaida = document.createElement('button');
         btnSaida.className = 'pat-btn-guia';
-        btnSaida.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Dar saída';
+        btnSaida.innerHTML = CHECK_SVG + ' Dar saída';
         btnSaida.onclick = () => darSaidaPat(id);
         const btnDel = document.createElement('button');
         btnDel.className = 'pat-btn-apagar';
-        btnDel.innerHTML = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
+        btnDel.innerHTML = DEL_SVG;
         btnDel.onclick = () => apagarPat(id);
         actionsDiv.appendChild(btnSaida);
         actionsDiv.appendChild(btnDel);
     } else if (tab === 'historico') {
-        // Histórico: só apagar manualmente
         const btnDel = document.createElement('button');
         btnDel.className = 'pat-btn-apagar';
-        btnDel.innerHTML = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
+        btnDel.innerHTML = DEL_SVG;
         btnDel.onclick = () => apagarPat(id);
         actionsDiv.appendChild(btnDel);
     }
 
-    card.appendChild(cardTop);
-    card.appendChild(estabDiv);
-    card.appendChild(prodsDiv);
-    if (actionsDiv.children.length > 0) card.appendChild(actionsDiv);
+    body.appendChild(cardTop);
+    body.appendChild(estabDiv);
+    if ((pat.produtos || []).length > 0) body.appendChild(prodsDiv);
+    if (actionsDiv.children.length > 0) body.appendChild(actionsDiv);
+    card.appendChild(body);
 
-    card.onclick = (e) => {
+    card.onclick = e => {
         if (_patSelMode) {
             if (_patSelIds.has(id)) _patSelIds.delete(id); else _patSelIds.add(id);
             _updateLevantarBtn();
