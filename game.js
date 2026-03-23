@@ -306,24 +306,26 @@ var _lastThemeName="";
 var _bgFloaters=[]; // DOM spans for background emojis
 
 function getTheme(){
-  if(score>=150)return THEMES.gold;
-  if(score>=100)return THEMES.fire;
-  if(score>=50)return THEMES.galaxy;
+  // Use obstacleScore for reliable theme switching (not affected by combos)
+  if(obstacleScore>=80)return THEMES.gold;
+  if(obstacleScore>=55)return THEMES.fire;
+  if(obstacleScore>=30)return THEMES.galaxy;
   return THEMES.hearts;
 }
 
 function applyTheme(theme){
-  if(theme.name===_lastThemeName)return;
+  if(theme.name===_lastThemeName)return; // no change
+  console.log("Theme switch:", _lastThemeName,"->",theme.name,"obstacleScore:",obstacleScore);
   _lastThemeName=theme.name;
   _currentTheme=theme;
-  // Clear pipe cache so new theme colors are used
-  pipeCache={};
-  // Update background floater emojis
+  pipeCache={}; // force redraw with new colors
   updateBgFloaters(theme);
-  // Update star color
-  layers.forEach(function(l,i){
-    l.color=i===2?theme.starColor:i===1?theme.starColor.replace("255","200"):theme.starColor.replace("255","180");
-  });
+  // Re-apply layer colors (initStars may have reset them)
+  if(layers&&layers.length){
+    layers[0].color=theme.starColor.replace("255","180");
+    layers[1].color=theme.starColor.replace("255","200");
+    layers[2].color=theme.starColor;
+  }
 }
 
 function updateBgFloaters(theme){
