@@ -3985,9 +3985,16 @@ const _CHAIN_ICONS = [
     {
         match: /pingo\s*doce/i,
         icon:  'pingo-doce-pin.png',
-        size:  [64, 50],   // largura × altura em px no mapa
-        anchor: [32, 50],  // ponto de ancoragem (centro base)
-        popup:  [0, -52],  // deslocamento do popup
+        size:  [64, 50],
+        anchor: [32, 50],
+        popup:  [0, -52],
+    },
+    {
+        match: /continente/i,
+        icon:  'continente-pin.png',
+        size:  [64, 57],
+        anchor: [32, 57],
+        popup:  [0, -59],
     },
 ];
 
