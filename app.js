@@ -4059,17 +4059,23 @@ async function openPatMap() {
 
     // Inicializar mapa Leaflet (só uma vez)
     if (!_patMap) {
-        await _sleep(100); // aguarda DOM estar pronto
+        // Garantir que o container tem dimensões antes de inicializar
+        await _sleep(200);
+        const container = document.getElementById('pat-map-container');
+        if (!container) return;
         _patMap = L.map('pat-map-container', {
-            center: [39.9, -8.0],  // centro de Portugal
+            center: [39.9, -8.0],
             zoom: 7,
             zoomControl: true,
+            attributionControl: true,
         });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
             maxZoom: 18,
         }).addTo(_patMap);
     }
+    // Forçar recálculo de tamanho ANTES de adicionar markers
+    _patMap.invalidateSize();
 
     // Limpar markers anteriores
     _patMapMarkers.forEach(m => m.remove());
@@ -4157,8 +4163,9 @@ async function openPatMap() {
     const failedTxt = failed > 0 ? ` · ${failed} não localizad${failed !== 1 ? 'os' : 'o'}` : '';
     subtitleEl.textContent = `${geocoded} estabelecimento${geocoded !== 1 ? 's' : ''} no mapa${failedTxt}`;
 
-    // Forçar Leaflet a recalcular dimensões (o modal pode ter animado)
-    setTimeout(() => _patMap && _patMap.invalidateSize(), 150);
+    // Forçar Leaflet a recalcular dimensões múltiplas vezes para garantir
+    setTimeout(() => _patMap && _patMap.invalidateSize(), 100);
+    setTimeout(() => _patMap && _patMap.invalidateSize(), 400);
 }
 
 function closePatMap() {

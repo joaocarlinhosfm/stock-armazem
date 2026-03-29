@@ -5792,24 +5792,26 @@ body.is-offline #app-layout {
    ══════════════════════════════════════════════════════════ */
 #pat-map-modal {
     padding: 0 !important;
-    align-items: stretch !important;
-    justify-content: stretch !important;
-    background: rgba(0,0,0,0) !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    background: var(--card-bg) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
 }
 .pat-map-modal-content {
     display: flex;
     flex-direction: column;
-    width: 100% !important;
-    height: 100% !important;
-    max-width: 100% !important;
-    max-height: 100% !important;
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    max-height: none !important;
     border-radius: 0 !important;
     background: var(--card-bg);
-    position: relative;
     overflow: hidden;
     padding: 0 !important;
+    z-index: 5001;
 }
 .pat-map-header {
     display: flex;
@@ -5860,6 +5862,7 @@ body.is-offline #app-layout {
     flex: 1;
     width: 100%;
     min-height: 0;
+    height: 100%;
 }
 .pat-map-loading {
     position: absolute;
