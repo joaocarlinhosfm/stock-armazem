@@ -4058,51 +4058,41 @@ async function openPatMap() {
     const loadingTxt = document.getElementById('pat-map-loading-text');
     const errorEl    = document.getElementById('pat-map-error');
     const subtitleEl = document.getElementById('pat-map-subtitle');
+    const container  = document.getElementById('pat-map-container');
 
-    if (loadingEl) { loadingEl.style.display = 'flex'; }
-    if (errorEl)   errorEl.style.display = 'none';
-    if (subtitleEl) subtitleEl.textContent = '';
-    if (loadingTxt) loadingTxt.textContent = 'A preparar mapa...';
+    if (loadingEl) loadingEl.style.display = 'flex';
+    if (errorEl)   errorEl.style.display   = 'none';
+    if (subtitleEl) subtitleEl.textContent  = '';
+    if (loadingTxt) loadingTxt.textContent  = 'A preparar mapa...';
 
-    // Esperar que o container tenha dimensões reais
-    const container = document.getElementById('pat-map-container');
-    if (!container) { console.error('pat-map-container não encontrado'); return; }
+    if (!container) { console.error('[map] container não encontrado'); return; }
 
-    // Polling até ter altura > 0
-    let tries = 0;
-    while (container.offsetHeight < 50 && tries < 20) {
-        await _sleep(100);
-        tries++;
-    }
-    console.log(`[map] container: ${container.offsetWidth}x${container.offsetHeight} (tentativas: ${tries})`);
+    // Calcular altura disponível directamente via viewport
+    // vh - header (~60px) - topbar da vista (~80px) - padding bottom
+    const headerEl = document.getElementById('app-header');
+    const headerH  = headerEl ? headerEl.offsetHeight : 60;
+    const mapHeaderEl = document.querySelector('.pat-map-header');
+    await _sleep(50); // um tick para o DOM pintar
+    const mapHeaderH = mapHeaderEl ? mapHeaderEl.offsetHeight : 80;
+    const availH = window.innerHeight - headerH - mapHeaderH;
+    container.style.height = availH + 'px';
+    container.style.width  = '100%';
+    console.log(`[map] header:${headerH}px mapHeader:${mapHeaderH}px container:${container.offsetWidth}x${availH}px`);
 
-    if (container.offsetHeight < 50) {
-        console.error('[map] container sem altura após polling');
-        if (loadingEl) loadingEl.style.display = 'none';
-        if (errorEl) { errorEl.style.display = 'flex'; document.getElementById('pat-map-error-text').textContent = 'Erro ao inicializar o mapa.'; }
-        return;
-    }
+    // Destruir instância anterior e criar nova
+    if (_patMap) { _patMap.remove(); _patMap = null; _patMapMarkers = []; }
 
-    // Destruir instância anterior se existir (evita conflitos)
-    if (_patMap) {
-        _patMap.remove();
-        _patMap = null;
-        _patMapMarkers = [];
-    }
-
-    // Criar mapa fresco
     _patMap = L.map('pat-map-container', {
         center: [39.9, -8.0],
         zoom: 7,
         zoomControl: true,
     });
-
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 18,
     }).addTo(_patMap);
-
     _patMap.invalidateSize();
+
     if (loadingTxt) loadingTxt.textContent = 'A carregar pedidos...';
 
     // Limpar markers anteriores
