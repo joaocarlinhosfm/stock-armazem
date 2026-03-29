@@ -5866,20 +5866,18 @@ body.is-offline #app-layout {
 }
 
 #pat-map-loading {
-    position: absolute;
-    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 14px;
     background: var(--card-bg);
-    z-index: 20;
     font-size: 0.85rem;
     color: var(--text-muted);
     font-weight: 600;
+    padding: 40px 0;
+    flex-shrink: 0;
 }
-#pat-map-loading.hidden { display: none !important; }
 .pat-map-spinner {
     width: 32px; height: 32px;
     border: 3px solid var(--border);
@@ -5905,9 +5903,9 @@ body.is-offline #app-layout {
 #pat-map-container {
     flex: 1;
     width: 100%;
-    /* Altura explícita para o Leaflet */
-    height: calc(100vh - 110px);
-    min-height: 300px;
+    min-height: 0;
+    /* Leaflet precisa de altura explícita — usa toda a viewport menos header+topbar */
+    height: calc(100vh - var(--header-h, 60px) - 80px);
 }
 
 

@@ -4048,10 +4048,9 @@ window._patMapLevantar = function(id) {
 async function openPatMap() {
     _patMapOpen = true;
 
-    // Navegar para a vista do mapa (como qualquer outra vista)
+    // Navegar para a vista do mapa
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-map')?.classList.add('active');
-    // Fallback para :has() em browsers antigos
     document.getElementById('main-content')?.classList.add('map-view-active');
     window.scrollTo(0, 0);
 
@@ -4060,24 +4059,51 @@ async function openPatMap() {
     const errorEl    = document.getElementById('pat-map-error');
     const subtitleEl = document.getElementById('pat-map-subtitle');
 
-    loadingEl?.classList.remove('hidden');
-    if (errorEl) errorEl.style.display = 'none';
+    if (loadingEl) { loadingEl.style.display = 'flex'; }
+    if (errorEl)   errorEl.style.display = 'none';
     if (subtitleEl) subtitleEl.textContent = '';
+    if (loadingTxt) loadingTxt.textContent = 'A preparar mapa...';
 
-    // Inicializar Leaflet — o container tem dimensões reais agora
-    await _sleep(100);
-    if (!_patMap) {
-        _patMap = L.map('pat-map-container', {
-            center: [39.9, -8.0],
-            zoom: 7,
-            zoomControl: true,
-        });
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-            maxZoom: 18,
-        }).addTo(_patMap);
+    // Esperar que o container tenha dimensões reais
+    const container = document.getElementById('pat-map-container');
+    if (!container) { console.error('pat-map-container não encontrado'); return; }
+
+    // Polling até ter altura > 0
+    let tries = 0;
+    while (container.offsetHeight < 50 && tries < 20) {
+        await _sleep(100);
+        tries++;
     }
+    console.log(`[map] container: ${container.offsetWidth}x${container.offsetHeight} (tentativas: ${tries})`);
+
+    if (container.offsetHeight < 50) {
+        console.error('[map] container sem altura após polling');
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (errorEl) { errorEl.style.display = 'flex'; document.getElementById('pat-map-error-text').textContent = 'Erro ao inicializar o mapa.'; }
+        return;
+    }
+
+    // Destruir instância anterior se existir (evita conflitos)
+    if (_patMap) {
+        _patMap.remove();
+        _patMap = null;
+        _patMapMarkers = [];
+    }
+
+    // Criar mapa fresco
+    _patMap = L.map('pat-map-container', {
+        center: [39.9, -8.0],
+        zoom: 7,
+        zoomControl: true,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 18,
+    }).addTo(_patMap);
+
     _patMap.invalidateSize();
+    if (loadingTxt) loadingTxt.textContent = 'A carregar pedidos...';
 
     // Limpar markers anteriores
     _patMapMarkers.forEach(m => m.remove());
@@ -4089,8 +4115,8 @@ async function openPatMap() {
         .filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
 
     if (pendentes.length === 0) {
-        loadingEl.classList.add('hidden');
-        errorEl.style.display = 'flex';
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (errorEl) errorEl.style.display = 'flex';
         document.getElementById('pat-map-error-text').textContent = 'Sem pedidos pendentes para mostrar.';
         return;
     }
@@ -4145,7 +4171,7 @@ async function openPatMap() {
         if (i < groupEntries.length - 1) await _sleep(1100);
     }
 
-    loadingEl.classList.add('hidden');
+    if (loadingEl) loadingEl.style.display = 'none';
 
     if (geocoded === 0) {
         errorEl.style.display = 'flex';
