@@ -5788,85 +5788,86 @@ body.is-offline #app-layout {
 .dark-mode #pat-scan-wrap { background: #0a0f1e; }
 
 /* ══════════════════════════════════════════════════════════
-   MAPA DE PEDIDOS PAT — Leaflet modal
+   MAPA DE PEDIDOS PAT — vista normal (não modal)
    ══════════════════════════════════════════════════════════ */
-#pat-map-modal {
+
+/* A vista escapa o padding do #main-content */
+#main-content:has(#view-map.active) {
     padding: 0 !important;
-    align-items: flex-start !important;
-    justify-content: flex-start !important;
-    background: var(--card-bg) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
 }
-.pat-map-modal-content {
-    display: flex;
+
+/* Fallback para browsers sem :has() */
+#main-content.map-view-active {
+    padding: 0 !important;
+}
+
+.view-map-full {
+    display: none;
     flex-direction: column;
-    position: fixed !important;
-    inset: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    max-width: none !important;
-    max-height: none !important;
-    border-radius: 0 !important;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     background: var(--card-bg);
     overflow: hidden;
-    padding: 0 !important;
-    z-index: 5001;
 }
+.view-map-full.active {
+    display: flex !important;
+}
+
 .pat-map-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px 12px;
+    padding: 10px 14px 8px;
     border-bottom: 1px solid var(--border);
     background: var(--card-bg);
-    z-index: 10;
     flex-shrink: 0;
     gap: 10px;
 }
 .pat-map-header-left {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
     min-width: 0;
+    flex: 1;
 }
-.pat-map-title {
+.pat-map-back-row {
     display: flex;
     align-items: center;
-    gap: 7px;
-    font-size: 1rem;
+}
+.pat-map-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: transparent;
+    border: none;
+    color: var(--primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 2px 0;
+}
+.pat-map-title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.pat-map-title {
+    font-size: 0.95rem;
     font-weight: 800;
     color: var(--text-main);
     letter-spacing: -0.2px;
-    margin: 0;
 }
 .pat-map-subtitle {
-    font-size: 0.72rem;
+    font-size: 0.70rem;
     color: var(--text-muted);
     font-weight: 500;
 }
-.pat-map-close-btn {
-    width: 34px; height: 34px;
-    border-radius: 9px;
-    border: 1px solid var(--border);
-    background: var(--input-fill);
-    color: var(--text-main);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: background 0.13s;
-}
-.pat-map-close-btn:hover { background: var(--border); }
 
-#pat-map-container {
-    flex: 1;
-    width: 100%;
-    min-height: 0;
-    height: 100%;
-}
-.pat-map-loading {
+#pat-map-loading {
     position: absolute;
-    inset: 60px 0 0;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -5878,7 +5879,7 @@ body.is-offline #app-layout {
     color: var(--text-muted);
     font-weight: 600;
 }
-.pat-map-loading.hidden { display: none; }
+#pat-map-loading.hidden { display: none !important; }
 .pat-map-spinner {
     width: 32px; height: 32px;
     border: 3px solid var(--border);
@@ -5886,9 +5887,7 @@ body.is-offline #app-layout {
     border-radius: 50%;
     animation: pat-map-spin 0.8s linear infinite;
 }
-@keyframes pat-map-spin {
-    to { transform: rotate(360deg); }
-}
+@keyframes pat-map-spin { to { transform: rotate(360deg); } }
 .pat-map-error {
     position: absolute;
     inset: 60px 0 0;
@@ -5902,6 +5901,15 @@ body.is-offline #app-layout {
     font-weight: 600;
     z-index: 20;
 }
+
+#pat-map-container {
+    flex: 1;
+    width: 100%;
+    /* Altura explícita para o Leaflet */
+    height: calc(100vh - 110px);
+    min-height: 300px;
+}
+
 
 /* Popup Leaflet — sobrescrever estilos */
 .leaflet-popup-content-wrapper {

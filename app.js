@@ -728,6 +728,7 @@ function nav(viewId) {
         'view-register':  'Novo Artigo',
         'view-bulk':      'Entrada de Lote',
         'view-encomendas':'Encomendas',
+        'view-map':       'Mapa PAT',
     };
     const titleEl = document.getElementById('header-page-title');
     if (titleEl && pageTitles[viewId]) titleEl.textContent = pageTitles[viewId];
@@ -4046,35 +4047,36 @@ window._patMapLevantar = function(id) {
 
 async function openPatMap() {
     _patMapOpen = true;
-    const modal = document.getElementById('pat-map-modal');
+
+    // Navegar para a vista do mapa (como qualquer outra vista)
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-map')?.classList.add('active');
+    // Fallback para :has() em browsers antigos
+    document.getElementById('main-content')?.classList.add('map-view-active');
+    window.scrollTo(0, 0);
+
     const loadingEl  = document.getElementById('pat-map-loading');
     const loadingTxt = document.getElementById('pat-map-loading-text');
     const errorEl    = document.getElementById('pat-map-error');
     const subtitleEl = document.getElementById('pat-map-subtitle');
 
-    modal.classList.add('active');
-    focusModal('pat-map-modal');
-    loadingEl.classList.remove('hidden');
-    errorEl.style.display = 'none';
+    loadingEl?.classList.remove('hidden');
+    if (errorEl) errorEl.style.display = 'none';
+    if (subtitleEl) subtitleEl.textContent = '';
 
-    // Inicializar mapa Leaflet (só uma vez)
+    // Inicializar Leaflet — o container tem dimensões reais agora
+    await _sleep(100);
     if (!_patMap) {
-        // Garantir que o container tem dimensões antes de inicializar
-        await _sleep(200);
-        const container = document.getElementById('pat-map-container');
-        if (!container) return;
         _patMap = L.map('pat-map-container', {
             center: [39.9, -8.0],
             zoom: 7,
             zoomControl: true,
-            attributionControl: true,
         });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
             maxZoom: 18,
         }).addTo(_patMap);
     }
-    // Forçar recálculo de tamanho ANTES de adicionar markers
     _patMap.invalidateSize();
 
     // Limpar markers anteriores
@@ -4163,14 +4165,14 @@ async function openPatMap() {
     const failedTxt = failed > 0 ? ` · ${failed} não localizad${failed !== 1 ? 'os' : 'o'}` : '';
     subtitleEl.textContent = `${geocoded} estabelecimento${geocoded !== 1 ? 's' : ''} no mapa${failedTxt}`;
 
-    // Forçar Leaflet a recalcular dimensões múltiplas vezes para garantir
-    setTimeout(() => _patMap && _patMap.invalidateSize(), 100);
-    setTimeout(() => _patMap && _patMap.invalidateSize(), 400);
+    // Forçar Leaflet a recalcular dimensões
+    setTimeout(() => _patMap && _patMap.invalidateSize(), 200);
 }
 
 function closePatMap() {
     _patMapOpen = false;
-    document.getElementById('pat-map-modal').classList.remove('active');
+    document.getElementById('main-content')?.classList.remove('map-view-active');
+    nav('view-pedidos');
 }
 
 
