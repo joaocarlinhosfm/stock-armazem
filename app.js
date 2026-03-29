@@ -3932,31 +3932,50 @@ async function _geocodeEstab(nome) {
     const key = nome.trim().toLowerCase();
     if (_geocodeCache[key] !== undefined) return _geocodeCache[key];
 
-    // Limpar o nome para melhor geocoding:
-    // ex: "PINGO DOCE ESMORIZ - 742" → "Pingo Doce Esmoriz"
+    // Estratégia multi-tentativa:
+    // 1. Nome limpo + Portugal
+    // 2. Só a localidade (última palavra antes do traço/número)
+    // 3. Primeiras palavras significativas
+
     const cleaned = nome
-        .replace(/-\s*\d+\s*$/, '')      // remove " - 742" no fim
-        .replace(/\s+\d+\s*$/, '')        // remove número solto no fim
-        .replace(/[()]/g, '')              // remove parênteses
+        .replace(/-\s*\d+\s*$/, '')   // remove " - 742" no fim
+        .replace(/\s+\d+\s*$/, '')     // remove número solto
+        .replace(/[()]/g, '')           // remove parênteses
         .trim();
 
-    const q = encodeURIComponent(cleaned + ', Portugal');
-    const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=pt`;
+    // Extrair localidade: ex "PINGO DOCE ESMORIZ" → "ESMORIZ"
+    const words = cleaned.split(/\s+/).filter(w => w.length > 2);
+    // Remover palavras genéricas de cadeias de supermercado
+    const stopWords = ['PINGO','DOCE','CONTINENTE','JUMBO','LIDL','ALDI','MERCADONA','BP','GALP','REPSOL','DISCOUNT','ARMAZEM','GERAL','HIPERFRIO','SUPERMERCADO','MINIPRECO','INTERMARCHE','SHOPPING'];
+    const localWords = words.filter(w => !stopWords.includes(w.toUpperCase()));
 
-    try {
-        const res = await fetch(url, {
-            headers: { 'Accept-Language': 'pt', 'User-Agent': 'HiperfrioStock/1.0' }
-        });
-        if (!res.ok) { _geocodeCache[key] = null; return null; }
-        const data = await res.json();
-        if (!data || data.length === 0) { _geocodeCache[key] = null; return null; }
-        const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-        _geocodeCache[key] = result;
-        return result;
-    } catch(e) {
-        _geocodeCache[key] = null;
-        return null;
+    const queries = [
+        cleaned + ', Portugal',
+        localWords.join(' ') + ', Portugal',
+        localWords.slice(-1)[0] + ', Portugal',  // só última palavra localidade
+    ].filter((q, i, arr) => q.trim() !== ', Portugal' && arr.indexOf(q) === i);
+
+    for (const q of queries) {
+        const encoded = encodeURIComponent(q);
+        const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1&countrycodes=pt`;
+        try {
+            const res = await fetch(url, {
+                headers: { 'Accept-Language': 'pt-PT,pt;q=0.9', 'User-Agent': 'HiperfrioStock/1.0 (warehouse management)' }
+            });
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (data && data.length > 0) {
+                const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+                _geocodeCache[key] = result;
+                return result;
+            }
+        } catch(e) { continue; }
+        // Delay entre tentativas
+        await _sleep(800);
     }
+
+    _geocodeCache[key] = null;
+    return null;
 }
 
 function _makePinIcon(count, urgente, separacao) {
