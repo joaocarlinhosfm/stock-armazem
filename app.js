@@ -3914,6 +3914,240 @@ async function _invClearResume() {
     } catch (_e) {}
 }
 
+// ══════════════════════════════════════════════════════════
+// MAPA DE PEDIDOS PAT — Leaflet + Nominatim (OpenStreetMap)
+// ══════════════════════════════════════════════════════════
+
+let _patMap        = null;  // instância Leaflet
+let _patMapMarkers = [];    // markers actuais
+let _patMapOpen    = false;
+
+// Cache de geocoding para não repetir pedidos na mesma sessão
+const _geocodeCache = {};
+
+// Atraso entre pedidos Nominatim (1 req/s conforme ToS)
+function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function _geocodeEstab(nome) {
+    const key = nome.trim().toLowerCase();
+    if (_geocodeCache[key] !== undefined) return _geocodeCache[key];
+
+    // Limpar o nome para melhor geocoding:
+    // ex: "PINGO DOCE ESMORIZ - 742" → "Pingo Doce Esmoriz"
+    const cleaned = nome
+        .replace(/-\s*\d+\s*$/, '')      // remove " - 742" no fim
+        .replace(/\s+\d+\s*$/, '')        // remove número solto no fim
+        .replace(/[()]/g, '')              // remove parênteses
+        .trim();
+
+    const q = encodeURIComponent(cleaned + ', Portugal');
+    const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=pt`;
+
+    try {
+        const res = await fetch(url, {
+            headers: { 'Accept-Language': 'pt', 'User-Agent': 'HiperfrioStock/1.0' }
+        });
+        if (!res.ok) { _geocodeCache[key] = null; return null; }
+        const data = await res.json();
+        if (!data || data.length === 0) { _geocodeCache[key] = null; return null; }
+        const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+        _geocodeCache[key] = result;
+        return result;
+    } catch(e) {
+        _geocodeCache[key] = null;
+        return null;
+    }
+}
+
+function _makePinIcon(count, urgente, separacao) {
+    const color = urgente ? 'red' : separacao ? 'amber' : 'blue';
+    const label = count > 1 ? count : '';
+    return L.divIcon({
+        className: '',
+        html: `<div class="pat-pin ${count > 1 ? 'cluster' : color}">
+                   <div class="pat-pin-inner">${count > 1 ? count : ''}</div>
+               </div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -34],
+    });
+}
+
+function _makePopupHtml(pats) {
+    if (pats.length === 1) {
+        const [id, pat] = pats[0];
+        const dias = _calcDias(pat.criadoEm);
+        const urgente = dias >= 15;
+        const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
+        return `
+            <div class="pat-popup">
+                <div class="pat-popup-num">PAT ${pat.numero || '—'}</div>
+                <div class="pat-popup-estab">${escapeHtml(pat.estabelecimento || '—')}</div>
+                <div class="pat-popup-meta">
+                    <span class="pat-popup-dias ${urgente ? 'urgente' : ''}">${diasLabel}</span>
+                    ${pat.separacao ? '<span class="pat-popup-sep">Guia Transporte</span>' : ''}
+                </div>
+                <button class="pat-popup-btn" onclick="_patMapLevantar('${id}')">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Dar como levantado
+                </button>
+            </div>`;
+    }
+
+    // Múltiplas PATs no mesmo local
+    const items = pats.map(([id, pat]) => {
+        const dias = _calcDias(pat.criadoEm);
+        const urgente = dias >= 15;
+        const diasLabel = dias === 0 ? 'Hoje' : `${dias}d`;
+        return `<div class="pat-popup-list-item">
+                    <span class="pat-popup-list-num">PAT ${pat.numero || '—'}</span>
+                    <span class="pat-popup-list-dias ${urgente ? 'urgente' : ''}">${diasLabel}</span>
+                    <button class="pat-popup-btn" style="width:auto;padding:4px 10px;font-size:0.65rem"
+                        onclick="_patMapLevantar('${id}')">✓</button>
+                </div>`;
+    }).join('');
+
+    const primeiro = pats[0][1];
+    return `
+        <div class="pat-popup">
+            <div class="pat-popup-estab">${escapeHtml(primeiro.estabelecimento || '—')}</div>
+            <div class="pat-popup-meta">
+                <span class="pat-popup-dias">${pats.length} pedidos pendentes</span>
+            </div>
+            <div class="pat-popup-list">${items}</div>
+        </div>`;
+}
+
+// Exposto globalmente para o onclick do popup
+window._patMapLevantar = function(id) {
+    marcarPatLevantado(id).then(() => {
+        closePatMap();
+    });
+};
+
+async function openPatMap() {
+    _patMapOpen = true;
+    const modal = document.getElementById('pat-map-modal');
+    const loadingEl  = document.getElementById('pat-map-loading');
+    const loadingTxt = document.getElementById('pat-map-loading-text');
+    const errorEl    = document.getElementById('pat-map-error');
+    const subtitleEl = document.getElementById('pat-map-subtitle');
+
+    modal.classList.add('active');
+    focusModal('pat-map-modal');
+    loadingEl.classList.remove('hidden');
+    errorEl.style.display = 'none';
+
+    // Inicializar mapa Leaflet (só uma vez)
+    if (!_patMap) {
+        await _sleep(100); // aguarda DOM estar pronto
+        _patMap = L.map('pat-map-container', {
+            center: [39.9, -8.0],  // centro de Portugal
+            zoom: 7,
+            zoomControl: true,
+        });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18,
+        }).addTo(_patMap);
+    }
+
+    // Limpar markers anteriores
+    _patMapMarkers.forEach(m => m.remove());
+    _patMapMarkers = [];
+
+    // Buscar PATs pendentes
+    const pats = await _fetchPats();
+    const pendentes = Object.entries(pats || {})
+        .filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
+
+    if (pendentes.length === 0) {
+        loadingEl.classList.add('hidden');
+        errorEl.style.display = 'flex';
+        document.getElementById('pat-map-error-text').textContent = 'Sem pedidos pendentes para mostrar.';
+        return;
+    }
+
+    subtitleEl.textContent = `A geocodificar ${pendentes.length} pedido${pendentes.length !== 1 ? 's' : ''}...`;
+
+    // Agrupar por estabelecimento (mesmo nome → mesmo pin)
+    const groups = {};
+    pendentes.forEach(([id, pat]) => {
+        const key = (pat.estabelecimento || '').trim().toLowerCase();
+        if (!groups[key]) groups[key] = [];
+        groups[key].push([id, pat]);
+    });
+
+    const groupEntries = Object.entries(groups);
+    let geocoded = 0;
+    let failed   = 0;
+    const bounds = [];
+
+    for (let i = 0; i < groupEntries.length; i++) {
+        if (!_patMapOpen) break; // modal foi fechado
+
+        const [estabKey, items] = groupEntries[i];
+        const nomeOriginal = items[0][1].estabelecimento || estabKey;
+
+        loadingTxt.textContent = `A localizar "${nomeOriginal}"... (${i + 1}/${groupEntries.length})`;
+
+        const coords = await _geocodeEstab(nomeOriginal);
+
+        if (!_patMapOpen) break;
+
+        if (!coords) { failed++; continue; }
+
+        geocoded++;
+        bounds.push([coords.lat, coords.lng]);
+
+        // Determinar cor do pin
+        const urgente   = items.some(([, p]) => _calcDias(p.criadoEm) >= 15);
+        const separacao = items.some(([, p]) => !!p.separacao);
+        const icon = _makePinIcon(items.length, urgente, separacao);
+
+        const marker = L.marker([coords.lat, coords.lng], { icon })
+            .bindPopup(_makePopupHtml(items), {
+                maxWidth: 280,
+                className: 'pat-map-popup',
+            })
+            .addTo(_patMap);
+
+        _patMapMarkers.push(marker);
+
+        // Rate limit Nominatim: 1 req/s
+        if (i < groupEntries.length - 1) await _sleep(1100);
+    }
+
+    loadingEl.classList.add('hidden');
+
+    if (geocoded === 0) {
+        errorEl.style.display = 'flex';
+        document.getElementById('pat-map-error-text').textContent = 'Não foi possível localizar nenhum estabelecimento.';
+        return;
+    }
+
+    // Ajustar vista para mostrar todos os pins
+    if (bounds.length > 0) {
+        if (bounds.length === 1) {
+            _patMap.setView(bounds[0], 13);
+        } else {
+            _patMap.fitBounds(bounds, { padding: [40, 40] });
+        }
+    }
+
+    const failedTxt = failed > 0 ? ` · ${failed} não localizad${failed !== 1 ? 'os' : 'o'}` : '';
+    subtitleEl.textContent = `${geocoded} estabelecimento${geocoded !== 1 ? 's' : ''} no mapa${failedTxt}`;
+
+    // Forçar Leaflet a recalcular dimensões (o modal pode ter animado)
+    setTimeout(() => _patMap && _patMap.invalidateSize(), 150);
+}
+
+function closePatMap() {
+    _patMapOpen = false;
+    document.getElementById('pat-map-modal').classList.remove('active');
+}
+
+
 // =============================================
 // PONTO 23: TIMELINE DE FERRAMENTAS
 // =============================================
