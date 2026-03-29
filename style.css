@@ -6018,25 +6018,38 @@ body.is-offline #app-layout {
 
 /* Pin personalizado */
 .pat-pin {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px; height: 32px;
-    border-radius: 50% 50% 50% 0;
-    transform: rotate(-45deg);
-    border: 2px solid white;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    position: relative;
+    width: 36px;
+    height: 44px;
     cursor: pointer;
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.30));
+    transition: transform 0.15s, filter 0.15s;
 }
-.pat-pin-inner {
-    transform: rotate(45deg);
-    font-size: 10px;
+.pat-pin:hover {
+    transform: translateY(-3px) scale(1.08);
+    filter: drop-shadow(0 6px 10px rgba(0,0,0,0.35));
+}
+.pat-pin svg {
+    width: 36px;
+    height: 44px;
+    display: block;
+}
+/* Contador para clusters */
+.pat-pin-count {
+    position: absolute;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
     font-weight: 800;
     color: white;
     line-height: 1;
+    font-family: 'Inter', sans-serif;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.25);
 }
-.pat-pin.blue    { background: #2563eb; }
-.pat-pin.amber   { background: #d97706; }
-.pat-pin.red     { background: #dc2626; }
-.pat-pin.cluster { background: #6366f1; }
+.pat-pin.blue  .pat-pin-body { fill: #2563eb; }
+.pat-pin.amber .pat-pin-body { fill: #d97706; }
+.pat-pin.red   .pat-pin-body { fill: #dc2626; }
+.pat-pin.cluster .pat-pin-body { fill: #6366f1; }
+.pat-pin .pat-pin-hole { fill: white; opacity: 0.9; }
 

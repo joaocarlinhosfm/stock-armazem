@@ -3979,17 +3979,60 @@ async function _geocodeEstab(nome) {
     return null;
 }
 
+// Ícones de estabelecimentos customizados
+// Para adicionar novos: { match: /regex/, icon: 'ficheiro.png', size: [w, h] }
+const _CHAIN_ICONS = [
+    {
+        match: /pingo\s*doce/i,
+        icon:  'pingo-doce-pin.png',
+        size:  [64, 50],   // largura × altura em px no mapa
+        anchor: [32, 50],  // ponto de ancoragem (centro base)
+        popup:  [0, -52],  // deslocamento do popup
+    },
+];
+
+function _getChainIcon(nomeEstab) {
+    const nome = (nomeEstab || '').trim();
+    for (const chain of _CHAIN_ICONS) {
+        if (chain.match.test(nome)) {
+            return L.icon({
+                iconUrl:    chain.icon,
+                iconSize:   chain.size,
+                iconAnchor: chain.anchor,
+                popupAnchor: chain.popup,
+            });
+        }
+    }
+    return null;
+}
+
 function _makePinIcon(count, urgente, separacao) {
     const color = urgente ? 'red' : separacao ? 'amber' : 'blue';
-    const label = count > 1 ? count : '';
+    const cls   = count > 1 ? 'cluster' : color;
+
+    // SVG de gota invertida (teardrop) com buraco branco no centro
+    const countHtml = count > 1
+        ? `<div class="pat-pin-count">${count}</div>`
+        : '';
+
+    const html = `
+        <div class="pat-pin ${cls}">
+            <svg viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
+                <path class="pat-pin-body"
+                    d="M18 2 C9.163 2 2 9.163 2 18 C2 28.5 18 42 18 42 C18 42 34 28.5 34 18 C34 9.163 26.837 2 18 2 Z"
+                    stroke="white" stroke-width="1.5"
+                />
+                <circle class="pat-pin-hole" cx="18" cy="17" r="6"/>
+            </svg>
+            ${countHtml}
+        </div>`;
+
     return L.divIcon({
         className: '',
-        html: `<div class="pat-pin ${count > 1 ? 'cluster' : color}">
-                   <div class="pat-pin-inner">${count > 1 ? count : ''}</div>
-               </div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -34],
+        html,
+        iconSize:    [36, 44],
+        iconAnchor:  [18, 44],
+        popupAnchor: [0, -46],
     });
 }
 
@@ -4146,7 +4189,11 @@ async function openPatMap() {
         // Determinar cor do pin
         const urgente   = items.some(([, p]) => _calcDias(p.criadoEm) >= 15);
         const separacao = items.some(([, p]) => !!p.separacao);
-        const icon = _makePinIcon(items.length, urgente, separacao);
+        const nomeEstab = items[0][1].estabelecimento || '';
+
+        // Ícone customizado por cadeia ou pin SVG genérico
+        const chainIcon = _getChainIcon(nomeEstab);
+        const icon = chainIcon || _makePinIcon(items.length, urgente, separacao);
 
         const marker = L.marker([coords.lat, coords.lng], { icon })
             .bindPopup(_makePopupHtml(items), {
