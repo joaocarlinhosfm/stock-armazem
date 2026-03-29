@@ -3996,6 +3996,13 @@ const _CHAIN_ICONS = [
         anchor: [32, 57],
         popup:  [0, -59],
     },
+    {
+        match: /recheio/i,
+        icon:  'recheio-pin.png',
+        size:  [64, 57],
+        anchor: [32, 57],
+        popup:  [0, -59],
+    },
 ];
 
 function _getChainIcon(nomeEstab) {
