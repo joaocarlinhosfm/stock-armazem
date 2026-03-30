@@ -377,33 +377,6 @@
                 <span id="pat-map-error-text">Erro ao carregar o mapa.</span>
             </div>
             <div id="pat-map-container"></div>
-
-            <!-- Bottom-sheet: detalhe do local clicado -->
-            <div id="map-pin-sheet" class="map-pin-sheet" style="display:none">
-                <div class="map-pin-sheet-handle"></div>
-                <div class="map-pin-sheet-inner">
-                    <div class="map-pin-sheet-header">
-                        <div class="map-pin-sheet-header-left">
-                            <div id="map-pin-estab" class="map-pin-estab"></div>
-                            <div id="map-pin-badges" class="map-pin-badges"></div>
-                        </div>
-                        <button class="map-pin-sheet-close" onclick="closeMapPinSheet()" aria-label="Fechar">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
-                    </div>
-                    <div id="map-pin-pats" class="map-pin-pats"></div>
-                    <div class="map-pin-sheet-actions">
-                        <button id="map-pin-gmaps-btn" class="map-pin-btn map-pin-btn-gmaps" onclick="openMapPinGmaps()">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-                            Google Maps
-                        </button>
-                        <button id="map-pin-center-btn" class="map-pin-btn map-pin-btn-center" onclick="centerMapOnPin()">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
-                            Centrar no Mapa
-                        </button>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <div id="view-register" class="view">
@@ -1511,6 +1484,33 @@
             </div>
         </div>
     </div>
+    <!-- Bottom-sheet: detalhe do pin do mapa (position:fixed, fora de qualquer view) -->
+    <div id="map-pin-sheet" class="map-pin-sheet" style="display:none">
+        <div class="map-pin-sheet-handle"></div>
+        <div class="map-pin-sheet-inner">
+            <div class="map-pin-sheet-header">
+                <div class="map-pin-sheet-header-left">
+                    <div id="map-pin-estab" class="map-pin-estab"></div>
+                    <div id="map-pin-badges" class="map-pin-badges"></div>
+                </div>
+                <button class="map-pin-sheet-close" onclick="closeMapPinSheet()" aria-label="Fechar">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div id="map-pin-pats" class="map-pin-pats"></div>
+            <div class="map-pin-sheet-actions">
+                <button id="map-pin-gmaps-btn" class="map-pin-btn map-pin-btn-gmaps" onclick="openMapPinGmaps()">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                    Google Maps
+                </button>
+                <button id="map-pin-center-btn" class="map-pin-btn map-pin-btn-center" onclick="centerMapOnPin()">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+                    Centrar no Mapa
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Leaflet CSS + JS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>

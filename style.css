@@ -6056,12 +6056,12 @@ body.is-offline #app-layout {
 
 /* ── Map Pin Bottom-Sheet ────────────────────────────────── */
 .map-pin-sheet {
-    position: absolute;
+    position: fixed;
     bottom: 0; left: 0; right: 0;
     background: var(--card-bg);
     border-radius: 20px 20px 0 0;
-    box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
-    z-index: 1000;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
+    z-index: 6000;
     animation: sheetSlideUp 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
     max-height: 72vh;
     display: flex;
@@ -6303,6 +6303,7 @@ body.is-offline #app-layout {
 /* Desktop — sheet mais estreito e à direita */
 @media (min-width: 768px) {
     .map-pin-sheet {
+        position: fixed;
         left: auto;
         right: 16px;
         bottom: 16px;
