@@ -3919,7 +3919,8 @@ async function _invClearResume() {
 // MAPA DE PEDIDOS PAT — Leaflet + Nominatim (OpenStreetMap)
 // ══════════════════════════════════════════════════════════
 
-let _patMap        = null;  // instância Leaflet
+let _patMap            = null;  // instância Leaflet
+let _markerJustClicked = false; // flag para não fechar sheet ao clicar marker
 let _patMapMarkers = [];    // markers actuais
 let _patMapOpen    = false;
 
@@ -4340,7 +4341,10 @@ async function openPatMap() {
     _patMap.fitBounds(PT_BOUNDS, { padding: [20, 20] });
     _patMap.invalidateSize();
     // Fechar sheet ao clicar no mapa
-    _patMap.on('click', () => closeMapPinSheet());
+    _patMap.on('click', () => {
+        if (_markerJustClicked) { _markerJustClicked = false; return; }
+        closeMapPinSheet();
+    });
 
     if (loadingTxt) loadingTxt.textContent = 'A carregar pedidos...';
 
@@ -4390,10 +4394,13 @@ async function openPatMap() {
         const icon = chainIcon || _makePinIcon(items.length, urgente, separacao);
         const marker = L.marker([coords.lat, coords.lng], { icon })
             .addTo(_patMap);
-        marker.on('click', (e) => {
-            console.log('[map] marker clicado:', items[0][1].estabelecimento);
-            L.DomEvent.stopPropagation(e);
-            openMapPinSheet(items, { lat: coords.lat, lng: coords.lng });
+        const _items = items.slice();
+        const _lat   = coords.lat;
+        const _lng   = coords.lng;
+        marker.on('click', () => {
+            console.log('[map] marker clicado:', _items[0][1].estabelecimento);
+            _markerJustClicked = true;
+            openMapPinSheet(_items, { lat: _lat, lng: _lng });
         });
         _patMapMarkers.push(marker);
         return true;
