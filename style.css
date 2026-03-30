@@ -6312,3 +6312,87 @@ body.is-offline #app-layout {
     .map-pin-sheet-handle { display: none; }
 }
 
+/* ── Clientes Admin ──────────────────────────────────────────────────────── */
+.clientes-btn-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+.clientes-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--input-fill);
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.clientes-export-btn:hover { background: var(--border); }
+
+/* Badge de localização na lista */
+.cliente-loc-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+.cliente-loc-badge.has-loc { color: #16a34a; background: #f0fdf4; }
+.cliente-loc-badge.no-loc  { color: #94a3b8; background: var(--input-fill); }
+
+/* Botão editar na lista */
+.admin-list-edit {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--input-fill);
+    color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.12s, color 0.12s;
+}
+.admin-list-edit:hover { background: var(--primary-soft); color: var(--primary); }
+
+/* Modal editar cliente — coords */
+.cliente-coords-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+.cliente-coords-status.has-coords {
+    background: #f0fdf4;
+    color: #15803d;
+    border: 1px solid #86efac;
+}
+.cliente-coords-status.no-coords {
+    background: #fefce8;
+    color: #854d0e;
+    border: 1px solid #fde047;
+}
+.cliente-coords-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.pro-form-hint {
+    font-size: 0.70rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+

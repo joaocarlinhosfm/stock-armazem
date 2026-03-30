@@ -3979,7 +3979,18 @@ function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 async function _geocodeEstab(nome, saveToFirebase = true) {
     const key = nome.trim().toLowerCase();
 
-    // 1. Memória (sessão ou Firebase pré-carregado)
+    // 1. Verificar se o cliente tem coordenadas manuais na Firebase
+    const clientes = _clientesCache.data || {};
+    const clienteMatch = Object.values(clientes).find(c =>
+        (c.nome || '').trim().toLowerCase() === key && c.lat && c.lng
+    );
+    if (clienteMatch) {
+        const coords = { lat: parseFloat(clienteMatch.lat), lng: parseFloat(clienteMatch.lng) };
+        _geocodeCache[key] = coords;
+        return coords;
+    }
+
+    // 2. Cache em memória (sessão ou Firebase pré-carregado)
     if (_geocodeCache[key] !== undefined) return _geocodeCache[key];
 
     // 2. Nominatim — estratégia multi-tentativa
@@ -4795,6 +4806,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'inv-result-modal',   close: closeInvResult },
             { id: 'timeline-modal',     close: closeToolTimeline },
             { id: 'edit-tool-modal',    close: closeEditToolModal },
+            { id: 'modal-edit-cliente', close: closeEditClienteModal },
         ];
         for (const { id, close } of modals) {
             if (document.getElementById(id)?.classList.contains('active')) { close(); break; }
@@ -5187,15 +5199,33 @@ async function renderClientesList() {
     total.className   = 'clientes-total';
     total.textContent = `${entries.length} clientes`;
     list.appendChild(total);
+
     entries.forEach(([id, c]) => {
         const row = document.createElement('div');
         row.className = 'admin-list-row';
+
         const lbl = document.createElement('span');
         lbl.className   = 'admin-list-label clientes-list-label';
         lbl.textContent = c.numero.padStart(3, '0') + '  ·  ' + c.nome;
+
+        // Badge de localização
+        const locBadge = document.createElement('span');
+        const hasCoords = c.lat && c.lng;
+        locBadge.className = `cliente-loc-badge ${hasCoords ? 'has-loc' : 'no-loc'}`;
+        locBadge.title = hasCoords ? `${c.lat}, ${c.lng}` : 'Sem localização';
+        locBadge.innerHTML = hasCoords
+            ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`
+            : `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
+
+        const edit = document.createElement('button');
+        edit.className   = 'admin-list-edit';
+        edit.title = 'Editar';
+        edit.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+        edit.onclick = () => openEditClienteModal(id, c);
+
         const del = document.createElement('button');
         del.className   = 'admin-list-delete';
-        del.textContent = '🗑';
+        del.innerHTML = '🗑';
         del.onclick = () => openConfirmModal({
             icon: '', title: 'Apagar cliente?',
             desc: `${escapeHtml(c.numero)} — ${escapeHtml(c.nome)}`,
@@ -5208,16 +5238,173 @@ async function renderClientesList() {
                 } catch(_e) { showToast('Erro ao apagar', 'error'); }
             }
         });
+
         row.appendChild(lbl);
+        row.appendChild(locBadge);
+        row.appendChild(edit);
         row.appendChild(del);
         list.appendChild(row);
     });
 }
 
+// ── Modal Editar Cliente ───────────────────────────────────────────────────
+function openEditClienteModal(id, c) {
+    document.getElementById('edit-cliente-id').value      = id;
+    document.getElementById('edit-cliente-numero').value  = c.numero || '';
+    document.getElementById('edit-cliente-nome').value    = c.nome   || '';
+    document.getElementById('edit-cliente-lat').value     = c.lat    || '';
+    document.getElementById('edit-cliente-lng').value     = c.lng    || '';
+
+    // Mostrar estado actual das coordenadas
+    const statusEl = document.getElementById('edit-cliente-coords-status');
+    if (c.lat && c.lng) {
+        statusEl.className = 'cliente-coords-status has-coords';
+        statusEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg> Localização guardada (${parseFloat(c.lat).toFixed(4)}, ${parseFloat(c.lng).toFixed(4)})`;
+    } else {
+        statusEl.className = 'cliente-coords-status no-coords';
+        statusEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Sem localização — será geocodificada automaticamente no mapa`;
+    }
+
+    document.getElementById('modal-edit-cliente').classList.add('active');
+    setTimeout(() => document.getElementById('edit-cliente-nome').focus(), 100);
+}
+
+function closeEditClienteModal() {
+    document.getElementById('modal-edit-cliente').classList.remove('active');
+}
+
+async function saveEditCliente() {
+    const id     = document.getElementById('edit-cliente-id').value;
+    const numero = document.getElementById('edit-cliente-numero').value.trim();
+    const nome   = document.getElementById('edit-cliente-nome').value.trim();
+    const latVal = document.getElementById('edit-cliente-lat').value.trim();
+    const lngVal = document.getElementById('edit-cliente-lng').value.trim();
+
+    if (!numero || !nome) { showToast('Preenche o número e o nome', 'error'); return; }
+
+    const payload = { numero, nome };
+
+    // Só guardar coords se ambas estiverem preenchidas e válidas
+    if (latVal !== '' && lngVal !== '') {
+        const lat = parseFloat(latVal);
+        const lng = parseFloat(lngVal);
+        if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            showToast('Coordenadas inválidas', 'error'); return;
+        }
+        payload.lat = lat;
+        payload.lng = lng;
+    } else {
+        // Limpar coords se campos estão vazios
+        payload.lat = null;
+        payload.lng = null;
+    }
+
+    try {
+        await apiFetch(`${BASE_URL}/clientes/${id}.json`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        // Actualizar cache local
+        if (_clientesCache.data) {
+            _clientesCache.data[id] = { ..._clientesCache.data[id], ...payload };
+        }
+        // Se coords mudaram, invalidar geocode-cache para este estabelecimento
+        if (latVal !== '' && lngVal !== '') {
+            const cacheKey = nome.trim().toLowerCase();
+            _geocodeCache[cacheKey] = { lat: parseFloat(latVal), lng: parseFloat(lngVal) };
+            _saveGeocodeCacheEntry(cacheKey, { lat: parseFloat(latVal), lng: parseFloat(lngVal) });
+        }
+        closeEditClienteModal();
+        renderClientesList();
+        showToast('Cliente guardado');
+    } catch(_e) { showToast('Erro ao guardar', 'error'); }
+}
+
 // ── Importar Excel de clientes ─────────────────────────────────────────────
-function importClientesExcel() {
+async function importClientesExcel(input) {
+    const file = input?.files?.[0];
+    if (!file) return;
     const preview = document.getElementById('clientes-import-preview');
-    preview.innerHTML = '<div class="clientes-preview-info">Para actualizar a lista, importa o ficheiro <strong>clientes_firebase.json</strong> na <a href="https://console.warn.google.com" target="_blank" style="color:var(--primary)">Firebase Console</a> → Realtime Database → nó <code>/clientes</code> → ⋮ Import JSON.</div>';
+    preview.innerHTML = '<div class="pat-loading">A processar ficheiro...</div>';
+
+    try {
+        await _ensureXLSX();
+        const buf  = await file.arrayBuffer();
+        const wb   = XLSX.read(buf, { type: 'array' });
+        const ws   = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+        const clientes = {};
+        let count = 0;
+        rows.forEach(row => {
+            const num  = String(row[0] || '').trim();
+            const nome = String(row[1] || '').trim();
+            if (!num || !nome || isNaN(Number(num))) return;
+            const id = `c${num.padStart(3, '0')}`;
+            clientes[id] = { numero: num, nome };
+            count++;
+        });
+
+        if (count === 0) {
+            preview.innerHTML = '<div class="clientes-preview-error">Nenhum cliente encontrado. Verifica o formato do ficheiro.</div>';
+            return;
+        }
+
+        preview.innerHTML = `<div class="clientes-preview-info">✓ ${count} clientes encontrados. A importar...</div>`;
+
+        // Guardar no Firebase (merge — preserva coords existentes)
+        const existing = await _fetchClientes(true);
+        const merged = {};
+        for (const [id, c] of Object.entries(clientes)) {
+            merged[id] = { ...c };
+            // Preservar lat/lng se já existia
+            if (existing[id]?.lat) merged[id].lat = existing[id].lat;
+            if (existing[id]?.lng) merged[id].lng = existing[id].lng;
+        }
+
+        await apiFetch(`${BASE_URL}/clientes.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(merged)
+        });
+
+        _clientesCache.data = merged;
+        _clientesCache.lastFetch = Date.now();
+        preview.innerHTML = `<div class="clientes-preview-info">✓ ${count} clientes importados com sucesso.</div>`;
+        renderClientesList();
+        input.value = '';
+    } catch(e) {
+        console.error('[clientes] importar:', e);
+        preview.innerHTML = `<div class="clientes-preview-error">Erro ao processar ficheiro: ${e.message}</div>`;
+    }
+}
+
+// ── Exportar Excel de clientes ─────────────────────────────────────────────
+async function exportClientesExcel() {
+    try {
+        await _ensureXLSX();
+        const data    = await _fetchClientes(true);
+        const entries = Object.entries(data || {})
+            .sort((a, b) => Number(a[1].numero) - Number(b[1].numero));
+
+        if (entries.length === 0) { showToast('Sem clientes para exportar', 'error'); return; }
+
+        const rows = [['Número', 'Nome', 'Latitude', 'Longitude']];
+        entries.forEach(([, c]) => {
+            rows.push([c.numero, c.nome, c.lat || '', c.lng || '']);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = [{ wch: 8 }, { wch: 40 }, { wch: 14 }, { wch: 14 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
+        XLSX.writeFile(wb, `clientes-hiperfrio-${new Date().toISOString().slice(0,10)}.xlsx`);
+        showToast(`${entries.length} clientes exportados`);
+    } catch(e) {
+        console.error('[clientes] exportar:', e);
+        showToast('Erro ao exportar', 'error');
+    }
 }
 
 // =============================================
