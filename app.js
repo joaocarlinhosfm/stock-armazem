@@ -141,6 +141,12 @@ async function authUrl(url) {
 const ROLE_KEY    = 'hiperfrio-role';   // 'worker' | 'manager'
 let   currentRole = null;               // definido no arranque
 
+function requireManagerAccess({ silent = false } = {}) {
+    if (currentRole === 'manager') return true;
+    if (!silent) showToast('Acesso reservado a gestores', 'error');
+    return false;
+}
+
 // Aplica o perfil à UI — chamado uma vez no boot
 function applyRole(role) {
     currentRole = role;
@@ -366,6 +372,7 @@ async function handleLogin(e) {
 const USERS_BASE_URL = `${BASE_URL}/config/users`;
 
 async function createUser() {
+    if (!requireManagerAccess()) return;
     const nameRaw  = document.getElementById('new-user-name')?.value.trim().toLowerCase();
     const role     = document.getElementById('new-user-role')?.value;
     const password = document.getElementById('new-user-pass')?.value;
@@ -412,6 +419,7 @@ async function createUser() {
 }
 
 async function renderUsersList() {
+    if (!requireManagerAccess({ silent: true })) return;
     const el = document.getElementById('users-list');
     if (!el) return;
     el.innerHTML = '<div class="empty-msg">A carregar...</div>';
@@ -445,6 +453,7 @@ async function renderUsersList() {
 }
 
 async function deleteUser(username) {
+    if (!requireManagerAccess()) return;
     const currentUser = localStorage.getItem('hiperfrio-username') || '';
     if (username === currentUser) {
         showToast('Não podes eliminar a tua própria conta', 'error');
@@ -501,9 +510,7 @@ function closeSwitchRoleModal() {
 }
 
 function checkAdminAccess() {
-    if (currentRole === 'manager') return true;
-    showToast('Acesso reservado a gestores', 'error');
-    return false;
+    return requireManagerAccess();
 }
 
 // Inicializa a app após o perfil estar definido
@@ -640,7 +647,10 @@ async function syncQueue() {
         invalidateCache('stock');
         invalidateCache('ferramentas');
         invalidateCache('funcionarios');
+        _patCache.lastFetch = 0;
         renderList(window._searchInputEl?.value || '', true);
+        renderPats();
+        updatePatCount();
     }
 }
 
@@ -1636,6 +1646,40 @@ async function forceRefresh() {
 
 // Debounce de escrita para changeQtd — agrupa toques rápidos numa só chamada à Firebase
 const _qtyTimers = {};
+const _qtyPendingBase = {};
+
+async function _readServerStockQty(id, fallbackQty = 0) {
+    if (!navigator.onLine) return fallbackQty;
+    try {
+        const url = await authUrl(`${BASE_URL}/stock/${id}/quantidade.json`);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const qty = await res.json();
+        const parsed = typeof qty === 'number' ? qty : parseFloat(qty);
+        return Number.isFinite(parsed) ? parsed : fallbackQty;
+    } catch (e) {
+        console.warn('[Stock] fallback para cache local:', id, e?.message);
+        return fallbackQty;
+    }
+}
+
+async function _commitStockDelta(id, baseQty, finalQty) {
+    if (finalQty === undefined) return baseQty;
+    if (!navigator.onLine) {
+        await apiFetch(`${BASE_URL}/stock/${id}.json`, {
+            method: 'PATCH', body: JSON.stringify({ quantidade: finalQty })
+        });
+        return finalQty;
+    }
+
+    const delta = finalQty - baseQty;
+    const latestQty = await _readServerStockQty(id, cache.stock.data?.[id]?.quantidade ?? baseQty);
+    const mergedQty = Math.max(0, latestQty + delta);
+    await apiFetch(`${BASE_URL}/stock/${id}.json`, {
+        method: 'PATCH', body: JSON.stringify({ quantidade: mergedQty })
+    });
+    return mergedQty;
+}
 
 async function changeQtd(id, delta) {
     if (navigator.vibrate) navigator.vibrate(30);
@@ -1643,6 +1687,9 @@ async function changeQtd(id, delta) {
     if (!stockData?.[id]) return;
 
     const oldQty = stockData[id].quantidade || 0;
+    if (!Object.prototype.hasOwnProperty.call(_qtyPendingBase, id)) {
+        _qtyPendingBase[id] = oldQty;
+    }
     const newQty = Math.max(0, oldQty + delta);
     if (newQty === oldQty) return;
     if (delta < 0) {
@@ -1667,20 +1714,26 @@ async function changeQtd(id, delta) {
     _qtyTimers[id] = setTimeout(async () => {
         const finalQty = stockData[id]?.quantidade;
         if (finalQty === undefined) return;
+        const baseQty = _qtyPendingBase[id] ?? oldQty;
         try {
-            await apiFetch(`${BASE_URL}/stock/${id}.json`, {
-                method: 'PATCH', body: JSON.stringify({ quantidade: finalQty })
-            });
+            const savedQty = await _commitStockDelta(id, baseQty, finalQty);
+            stockData[id].quantidade = savedQty;
+            if (qtyEl) {
+                qtyEl.textContent = fmtQty(savedQty, stockData[id]?.unidade);
+                qtyEl.classList.toggle('is-zero', savedQty === 0);
+            }
+            if (minusEl) minusEl.disabled = savedQty === 0;
             if (qtyEl) qtyEl.classList.remove('qty-saving');
         } catch (e) {
             console.warn('changeQtd erro:', e?.message || e);
             if (qtyEl) qtyEl.classList.remove('qty-saving');
-            stockData[id].quantidade = oldQty;
-            if (qtyEl)   { qtyEl.textContent = fmtQty(oldQty, stockData[id]?.unidade); qtyEl.classList.toggle('is-zero', oldQty === 0); }
-            if (minusEl)   minusEl.disabled = oldQty === 0;
+            stockData[id].quantidade = baseQty;
+            if (qtyEl)   { qtyEl.textContent = fmtQty(baseQty, stockData[id]?.unidade); qtyEl.classList.toggle('is-zero', baseQty === 0); }
+            if (minusEl)   minusEl.disabled = baseQty === 0;
             showToast('Erro ao guardar quantidade', 'error');
         }
         delete _qtyTimers[id];
+        delete _qtyPendingBase[id];
     }, 600);
 }
 
@@ -1866,6 +1919,7 @@ async function renderTools() {
 }
 
 async function renderAdminTools() {
+    if (!requireManagerAccess({ silent: true })) return;
     const data = await fetchCollection('ferramentas');
     const list = document.getElementById('admin-tools-list');
     if (!list) return;
@@ -2058,6 +2112,7 @@ function closeEditToolModal() {
 }
 
 async function saveEditTool() {
+    if (!requireManagerAccess()) return;
     const id   = document.getElementById('edit-tool-id').value;
     const nome = document.getElementById('edit-tool-name').value.trim().toUpperCase();
     if (!nome) { showToast('Nome obrigatório', 'error'); return; }
@@ -2077,6 +2132,7 @@ async function saveEditTool() {
 }
 
 async function deleteTool(id) {
+    if (!requireManagerAccess()) return;
     // PONTO 3: se ferramenta está alocada, força devolução antes de apagar
     const tool = cache.ferramentas.data?.[id];
     const _doDelete = async () => {
@@ -2102,6 +2158,7 @@ async function deleteTool(id) {
 // FUNCIONÁRIOS
 // =============================================
 async function renderWorkers() {
+    if (!requireManagerAccess({ silent: true })) return;
     const data    = await fetchCollection('funcionarios');
     const workers = data ? Object.entries(data).map(([id,v]) => ({id, nome:v.nome})) : [];
     const list    = document.getElementById('workers-list');
@@ -2141,6 +2198,7 @@ async function renderWorkers() {
 }
 
 async function deleteWorker(id) {
+    if (!requireManagerAccess()) return;
     if (cache.funcionarios.data) delete cache.funcionarios.data[id];
     renderWorkers();
     try {
@@ -3862,8 +3920,13 @@ function _buildInventoryWorkbook() {
 // Caminho único partilhado — não depende do dispositivo nem do username em localStorage
 const INV_RESUME_FIREBASE_TTL = 72 * 60 * 60 * 1000; // 72 horas em ms
 
+function _invResumeUserKey() {
+    const username = (localStorage.getItem(USER_KEY) || '').trim().toLowerCase();
+    return username && /^[a-z0-9._-]+$/.test(username) ? username : 'anon-device';
+}
+
 function _invResumeUrl() {
-    return `${BASE_URL}/inv-resume/shared.json`;
+    return `${BASE_URL}/inv-resume/${encodeURIComponent(_invResumeUserKey())}.json`;
 }
 
 async function _invSaveResume() {
@@ -4979,6 +5042,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Form: Funcionário
     document.getElementById('form-worker')?.addEventListener('submit', async e => {
         e.preventDefault();
+        if (!requireManagerAccess()) return;
         const nome = document.getElementById('worker-name').value.trim().toUpperCase();
         if (!nome) return;
         try {
@@ -4994,6 +5058,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Form: Registar Ferramenta
     document.getElementById('form-tool-reg')?.addEventListener('submit', async e => {
         e.preventDefault();
+        if (!requireManagerAccess()) return;
         const nome  = document.getElementById('reg-tool-name').value.trim().toUpperCase();
         const payload = { nome, status:'disponivel' };
         try {
@@ -5016,21 +5081,19 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.70';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.46';
+const SW_SCRIPT_URL = 'sw.js?v=6.46';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados
-    navigator.serviceWorker.getRegistrations().then(regs => {
-        regs.forEach(r => r.unregister());
-    });
+    /* preserva o SW actual */
     // Limpar todas as caches
-    if ('caches' in window) {
-        caches.keys().then(names => names.forEach(n => caches.delete(n)));
-    }
+    /* preserva cache do SW activo */
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.67')
+        navigator.serviceWorker.register(SW_SCRIPT_URL)
             .then(reg => {
+                reg.update().catch(() => {});
                 // 2 — Verifica se o SW activo é a versão correcta
                 // Se for uma versão antiga (cache-first), força update imediato
                 if (reg.active) {
@@ -5924,20 +5987,24 @@ async function levantarSelectedPats() {
                 const ts = Date.now();
                 // Calcula novas quantidades de stock antes de lançar os pedidos
                 // agrupa por id de produto para evitar PATCHes duplicados
-                const stockPatches = {}; // { stockId: novaQtd }
+                const stockPatches = {}; // { stockId: { baseQty, delta } }
                 for (const id of ids) {
                     const pat = _patCache.data?.[id];
                     if (!pat || !pat.separacao) continue;
                     for (const p of (pat.produtos || [])) {
                         if (!p.id) continue;
-                        const base = stockPatches[p.id] ?? (cache.stock.data?.[p.id]?.quantidade ?? 0);
-                        stockPatches[p.id] = Math.max(0, base - (p.quantidade || 1));
+                        const currentQty = cache.stock.data?.[p.id]?.quantidade ?? 0;
+                        if (!stockPatches[p.id]) {
+                            stockPatches[p.id] = { baseQty: currentQty, delta: 0 };
+                        }
+                        stockPatches[p.id].delta -= (p.quantidade || 1);
                     }
                 }
 
                 // Aplica ao cache local imediatamente
-                Object.entries(stockPatches).forEach(([sid, qty]) => {
-                    if (cache.stock.data?.[sid]) cache.stock.data[sid].quantidade = qty;
+                Object.entries(stockPatches).forEach(([sid, patch]) => {
+                    const nextQty = Math.max(0, patch.baseQty + patch.delta);
+                    if (cache.stock.data?.[sid]) cache.stock.data[sid].quantidade = nextQty;
                 });
 
                 // Lança todos os PATCHes em paralelo
@@ -5952,14 +6019,16 @@ async function levantarSelectedPats() {
                     });
                 });
 
-                const stockPromises = Object.entries(stockPatches).map(([sid, qty]) => {
+                const stockPromises = Object.entries(stockPatches).map(([sid, patch]) => {
                     const _itm = cache.stock.data?.[sid];
-                    const _saiu = (_itm?.quantidade ?? qty) - qty;
-                    if (_saiu > 0) registarMovimento('saida_pat', sid, _itm?.codigo, _itm?.nome, _saiu);
-                    return apiFetch(`${BASE_URL}/stock/${sid}.json`, {
-                        method: 'PATCH',
-                        body: JSON.stringify({ quantidade: qty }),
-                    }).catch(e => console.warn('[Stock] PATCH falhou:', sid, e.message));
+                    const finalQty = Math.max(0, patch.baseQty + patch.delta);
+                    const movedQty = Math.abs(Math.min(0, patch.delta));
+                    if (movedQty > 0) registarMovimento('saida_pat', sid, _itm?.codigo, _itm?.nome, movedQty);
+                    return _commitStockDelta(sid, patch.baseQty, finalQty)
+                        .then(savedQty => {
+                            if (cache.stock.data?.[sid]) cache.stock.data[sid].quantidade = savedQty;
+                        })
+                        .catch(e => console.warn('[Stock] PATCH falhou:', sid, e.message));
                 });
 
                 await Promise.allSettled([...patPromises, ...stockPromises]);
@@ -6858,10 +6927,11 @@ async function marcarPatLevantado(id) {
                             const novaQty = Math.max(0, atual - (p.quantidade || 1));
                             if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = novaQty;
                             registarMovimento('saida_pat', p.id, p.codigo, p.nome, p.quantidade || 1);
-                            return apiFetch(`${BASE_URL}/stock/${p.id}.json`, {
-                                method: 'PATCH',
-                                body: JSON.stringify({ quantidade: novaQty }),
-                            }).catch(e => console.warn('[Stock] PATCH falhou:', p.id, e.message));
+                            return _commitStockDelta(p.id, atual, novaQty)
+                                .then(savedQty => {
+                                    if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = savedQty;
+                                })
+                                .catch(e => console.warn('[Stock] PATCH falhou:', p.id, e.message));
                         });
                     await Promise.allSettled(patches);
                     renderList();
