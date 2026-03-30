@@ -4923,12 +4923,20 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v5.69';
+const SW_EXPECTED_VERSION = 'hiperfrio-v5.70';
 
 if ('serviceWorker' in navigator) {
+    // Forçar limpeza de SW desactualizados
+    navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(r => r.unregister());
+    });
+    // Limpar todas as caches
+    if ('caches' in window) {
+        caches.keys().then(names => names.forEach(n => caches.delete(n)));
+    }
     window.addEventListener('load', () => {
         // 1 — Regista o SW novo
-        navigator.serviceWorker.register('sw.js?v=5.66')
+        navigator.serviceWorker.register('sw.js?v=5.67')
             .then(reg => {
                 // 2 — Verifica se o SW activo é a versão correcta
                 // Se for uma versão antiga (cache-first), força update imediato
