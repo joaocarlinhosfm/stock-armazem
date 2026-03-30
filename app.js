@@ -5248,25 +5248,67 @@ async function renderClientesList() {
 }
 
 // ── Modal Editar Cliente ───────────────────────────────────────────────────
-function openEditClienteModal(id, c) {
-    document.getElementById('edit-cliente-id').value      = id;
-    document.getElementById('edit-cliente-numero').value  = c.numero || '';
-    document.getElementById('edit-cliente-nome').value    = c.nome   || '';
-    document.getElementById('edit-cliente-lat').value     = c.lat    || '';
-    document.getElementById('edit-cliente-lng').value     = c.lng    || '';
+function _ecInitials(nome) {
+    const words = (nome || '').trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return '?';
+    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+    return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}
 
-    // Mostrar estado actual das coordenadas
-    const statusEl = document.getElementById('edit-cliente-coords-status');
-    if (c.lat && c.lng) {
-        statusEl.className = 'cliente-coords-status has-coords';
-        statusEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg> Localização guardada (${parseFloat(c.lat).toFixed(4)}, ${parseFloat(c.lng).toFixed(4)})`;
-    } else {
-        statusEl.className = 'cliente-coords-status no-coords';
-        statusEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Sem localização — será geocodificada automaticamente no mapa`;
+function ecUpdatePreview() {
+    const nome = document.getElementById('edit-cliente-nome')?.value || '';
+    const disp = document.getElementById('ec-nome-display');
+    const avt  = document.getElementById('ec-avatar');
+    if (disp) disp.textContent = nome || '—';
+    if (avt)  avt.textContent  = _ecInitials(nome);
+}
+
+function ecUpdateLocStatus() {
+    const lat = document.getElementById('edit-cliente-lat')?.value?.trim();
+    const lng = document.getElementById('edit-cliente-lng')?.value?.trim();
+    const el  = document.getElementById('ec-loc-status');
+    if (!el) return;
+    if (lat && lng) {
+        el.className = 'ec-loc-status editing-loc';
+        el.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg> Coordenadas definidas — a guardar ao clicar em Guardar`;
+    } else if (!lat && !lng) {
+        // Mostrar estado original (repor ao que estava ao abrir)
+        _ecSetInitialLocStatus();
     }
+}
+
+function _ecSetInitialLocStatus(lat, lng) {
+    const el = document.getElementById('ec-loc-status');
+    if (!el) return;
+    if (lat && lng) {
+        el.className = 'ec-loc-status has-loc';
+        el.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Localização guardada · ${parseFloat(lat).toFixed(5)}, ${parseFloat(lng).toFixed(5)}`;
+    } else {
+        el.className = 'ec-loc-status no-loc';
+        el.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Sem localização — será geocodificada automaticamente`;
+    }
+}
+
+function openEditClienteModal(id, c) {
+    document.getElementById('edit-cliente-id').value  = id;
+    document.getElementById('edit-cliente-numero').value = c.numero || '';
+    document.getElementById('edit-cliente-nome').value   = c.nome   || '';
+    document.getElementById('edit-cliente-lat').value    = c.lat    || '';
+    document.getElementById('edit-cliente-lng').value    = c.lng    || '';
+
+    // Preview no header
+    const nomeDisplay = document.getElementById('ec-nome-display');
+    const numDisplay  = document.getElementById('ec-numero-display');
+    const avatar      = document.getElementById('ec-avatar');
+    if (nomeDisplay) nomeDisplay.textContent = c.nome  || '—';
+    if (numDisplay)  numDisplay.textContent  = `Nº ${(c.numero || '').padStart(3, '0')}`;
+    if (avatar)      avatar.textContent      = _ecInitials(c.nome);
+
+    // Estado da localização
+    _ecSetInitialLocStatus(c.lat, c.lng);
 
     document.getElementById('modal-edit-cliente').classList.add('active');
-    setTimeout(() => document.getElementById('edit-cliente-nome').focus(), 100);
+    setTimeout(() => document.getElementById('edit-cliente-nome')?.focus(), 120);
 }
 
 function closeEditClienteModal() {
@@ -5275,16 +5317,16 @@ function closeEditClienteModal() {
 
 async function saveEditCliente() {
     const id     = document.getElementById('edit-cliente-id').value;
-    const numero = document.getElementById('edit-cliente-numero').value.trim();
+    const numero = document.getElementById('edit-cliente-numero').value.trim(); // readonly, só para payload
     const nome   = document.getElementById('edit-cliente-nome').value.trim();
     const latVal = document.getElementById('edit-cliente-lat').value.trim();
     const lngVal = document.getElementById('edit-cliente-lng').value.trim();
 
-    if (!numero || !nome) { showToast('Preenche o número e o nome', 'error'); return; }
+    if (!nome) { showToast('O nome não pode estar vazio', 'error'); return; }
 
-    const payload = { numero, nome };
+    // Só alterar nome (número fica inalterado)
+    const payload = { nome };
 
-    // Só guardar coords se ambas estiverem preenchidas e válidas
     if (latVal !== '' && lngVal !== '') {
         const lat = parseFloat(latVal);
         const lng = parseFloat(lngVal);
@@ -5294,7 +5336,6 @@ async function saveEditCliente() {
         payload.lat = lat;
         payload.lng = lng;
     } else {
-        // Limpar coords se campos estão vazios
         payload.lat = null;
         payload.lng = null;
     }
@@ -5305,15 +5346,13 @@ async function saveEditCliente() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        // Actualizar cache local
         if (_clientesCache.data) {
             _clientesCache.data[id] = { ..._clientesCache.data[id], ...payload };
         }
-        // Se coords mudaram, invalidar geocode-cache para este estabelecimento
-        if (latVal !== '' && lngVal !== '') {
+        if (payload.lat && payload.lng) {
             const cacheKey = nome.trim().toLowerCase();
-            _geocodeCache[cacheKey] = { lat: parseFloat(latVal), lng: parseFloat(lngVal) };
-            _saveGeocodeCacheEntry(cacheKey, { lat: parseFloat(latVal), lng: parseFloat(lngVal) });
+            _geocodeCache[cacheKey] = { lat: payload.lat, lng: payload.lng };
+            _saveGeocodeCacheEntry(cacheKey, { lat: payload.lat, lng: payload.lng });
         }
         closeEditClienteModal();
         renderClientesList();
