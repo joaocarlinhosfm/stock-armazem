@@ -4115,6 +4115,57 @@ function openMapPinSheet(pats, coords) {
     _renderMapPinSheet(pats);
     sheet.classList.remove('closing');
     sheet.classList.add('open');
+
+    // Posicionar junto ao pin após render (precisamos da altura real)
+    requestAnimationFrame(() => _positionSheetNearPin(coords, sheet));
+}
+
+function _positionSheetNearPin(coords, sheet) {
+    if (!_patMap || !coords) return;
+
+    // Converter coordenadas geo → pixel no ecrã
+    const point = _patMap.latLngToContainerPoint([coords.lat, coords.lng]);
+    const mapContainer = document.getElementById('pat-map-container');
+    if (!mapContainer) return;
+
+    const mapRect  = mapContainer.getBoundingClientRect();
+    const pinX     = mapRect.left + point.x;  // X absoluto no viewport
+    const pinY     = mapRect.top  + point.y;  // Y absoluto no viewport
+
+    const sheetW   = sheet.offsetWidth  || 320;
+    const sheetH   = sheet.offsetHeight || 200;
+    const vw       = window.innerWidth;
+    const vh       = window.innerHeight;
+    const margin   = 12; // margem das bordas
+    const pinOffset = 50; // distância do pin (acima do ícone)
+
+    // Posição preferida: à direita e acima do pin
+    let left = pinX + margin;
+    let top  = pinY - sheetH - pinOffset;
+
+    // Ajustar horizontalmente se sair do ecrã
+    if (left + sheetW > vw - margin) {
+        left = pinX - sheetW - margin; // tentar à esquerda
+    }
+    if (left < margin) {
+        left = margin; // centrado se não couber
+    }
+
+    // Ajustar verticalmente se sair para cima
+    if (top < mapRect.top + margin) {
+        top = pinY + pinOffset; // colocar abaixo do pin
+    }
+
+    // Garantir que não sai pela base do viewport
+    if (top + sheetH > vh - margin) {
+        top = vh - sheetH - margin;
+    }
+
+    // Aplicar posição (override do bottom fixo)
+    sheet.style.left   = left + 'px';
+    sheet.style.top    = top  + 'px';
+    sheet.style.bottom = 'auto';
+    sheet.style.right  = 'auto';
 }
 
 function _renderMapPinSheet(pats) {
@@ -4259,7 +4310,14 @@ function closeMapPinSheet() {
     const sheet = document.getElementById('map-pin-sheet');
     if (!sheet || !sheet.classList.contains('open')) return;
     sheet.classList.add('closing');
-    setTimeout(() => { sheet.classList.remove('open', 'closing'); }, 200);
+    setTimeout(() => {
+        sheet.classList.remove('open', 'closing');
+        // Repor posição para próxima abertura
+        sheet.style.left   = '';
+        sheet.style.top    = '';
+        sheet.style.bottom = '';
+        sheet.style.right  = '';
+    }, 200);
 }
 
 function openMapPinGmaps() {

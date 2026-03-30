@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=1774867799">
+    <link rel="stylesheet" href="style.css?v=1774868674">
 
     <style id="sheet-critical">
     .map-pin-sheet {
@@ -126,13 +126,23 @@
     .map-pin-btn-center { background: #f1f5f9; color: #0f172a; }
     @media (min-width: 768px) {
         .map-pin-sheet {
-            left: auto !important;
-            right: 16px !important;
-            bottom: 16px !important;
-            width: 340px;
-            border-radius: 16px;
+            width: 320px;
+            border-radius: 14px;
+            max-height: 60vh;
         }
         .map-pin-sheet-handle { display: none; }
+    }
+    /* Seta triangular apontando para o pin */
+    .map-pin-sheet::before {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 20px;
+        width: 16px;
+        height: 8px;
+        background: #ffffff;
+        clip-path: polygon(0 0, 100% 0, 50% 100%);
+        pointer-events: none;
     }
     </style>
 </head>
@@ -1353,7 +1363,7 @@
         });
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-    <script src="app.js?v=1774867799"></script>
+    <script src="app.js?v=1774868674"></script>
 
     <!-- Modal: PAT Scan OCR -->
     <div id="pat-scan-modal" class="modal-overlay" role="dialog" aria-modal="true">
