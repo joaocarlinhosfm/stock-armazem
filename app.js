@@ -4112,17 +4112,13 @@ function openMapPinSheet(pats, coords) {
     const sheet = document.getElementById('map-pin-sheet');
     if (!sheet) { console.error('[sheet] #map-pin-sheet não encontrado!'); return; }
 
-    // Preencher conteúdo primeiro
-    try {
-        _renderMapPinSheet(pats);
-    } catch(e) {
-        console.error('[sheet] erro em _renderMapPinSheet:', e);
-        const estabEl = document.getElementById('map-pin-estab');
-        if (estabEl) estabEl.textContent = pats[0]?.[1]?.estabelecimento || '—';
-    }
+    console.log('[sheet] a chamar _renderMapPinSheet...');
+    _renderMapPinSheet(pats);
+    console.log('[sheet] _renderMapPinSheet concluído, a mostrar sheet...');
 
     sheet.classList.remove('closing');
     sheet.style.display = 'flex';
+    console.log('[sheet] display = flex aplicado');
 }
 
 function _renderMapPinSheet(pats) {
