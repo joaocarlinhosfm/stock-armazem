@@ -4010,13 +4010,16 @@ async function _persistEstabCoords(nome, coords, clienteNumero = '') {
     _geocodeCache[key] = { lat: coords.lat, lng: coords.lng };
     _saveGeocodeCacheEntry(key, coords);
 
-    const clientes = _clientesCache.data || {};
+    const clientes = _clientesCache.data || await _fetchClientes();
     const clienteMatch = Object.entries(clientes).find(([, c]) => {
         const sameNumero = clienteNumero && String(c.numero || '').trim() === String(clienteNumero).trim();
         const sameNome = _normEstabKey(c.nome) === key;
         return sameNumero || sameNome;
     });
-    if (!clienteMatch) return;
+    if (!clienteMatch) {
+        console.warn('[geocache] sem cliente correspondente para persistir coords:', { nome, clienteNumero });
+        return;
+    }
 
     const [clienteId, cliente] = clienteMatch;
     const lat = parseFloat(coords.lat);
@@ -4098,13 +4101,15 @@ async function _saveGeocodeCacheEntry(key, coords) {
 // Atraso entre pedidos Nominatim (1 req/s conforme ToS)
 function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-async function _geocodeEstab(nome, saveToFirebase = true) {
+async function _geocodeEstab(nome, saveToFirebase = true, clienteNumero = '') {
     const key = _normEstabKey(nome);
 
     // 1. Verificar se o cliente tem coordenadas manuais na Firebase
     const clientes = _clientesCache.data || {};
     const clienteMatch = Object.values(clientes).find(c =>
-        _normEstabKey(c.nome) === key && c.lat != null && c.lng != null
+        ((clienteNumero && String(c.numero || '').trim() === String(clienteNumero).trim())
+            || _normEstabKey(c.nome) === key)
+        && c.lat != null && c.lng != null
     );
     if (clienteMatch) {
         const coords = { lat: parseFloat(clienteMatch.lat), lng: parseFloat(clienteMatch.lng) };
@@ -4146,7 +4151,7 @@ async function _geocodeEstab(nome, saveToFirebase = true) {
             if (data && data.length > 0) {
                 const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
                 if (saveToFirebase) {
-                    await _persistEstabCoords(nome, result, clienteMatch?.numero || '');
+                    await _persistEstabCoords(nome, result, clienteNumero || clienteMatch?.numero || '');
                 } else {
                     _geocodeCache[key] = result;
                 }
@@ -4570,6 +4575,7 @@ async function openPatMap() {
 
     // Buscar PATs pendentes
     const pats = await _fetchPats();
+    await _fetchClientes();
     const pendentes = Object.entries(pats || {})
         .filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
 
@@ -4676,7 +4682,7 @@ async function openPatMap() {
         const progressTxt = missing.length > 1 ? ` (${i + 1}/${missing.length})` : '';
         subtitleEl.textContent = `A localizar "${nomeOriginal}"...${progressTxt}`;
 
-        const coords = await _geocodeEstab(nomeOriginal, true);
+        const coords = await _geocodeEstab(nomeOriginal, true, items[0]?.[1]?.clienteNumero || '');
         if (!_patMapOpen) break;
         if (!coords) { failed++; continue; }
 
