@@ -4399,7 +4399,13 @@ async function openPatMap() {
         marker.on('click', () => {
             console.log('[map] marker clicado:', _items[0][1].estabelecimento);
             _markerJustClicked = true;
-            openMapPinSheet(_items, { lat: _lat, lng: _lng });
+            console.log('[map] a chamar openMapPinSheet, tipo:', typeof openMapPinSheet);
+            try {
+                openMapPinSheet(_items, { lat: _lat, lng: _lng });
+                console.log('[map] openMapPinSheet concluiu sem erro');
+            } catch(e) {
+                console.error('[map] ERRO em openMapPinSheet:', e.message, e.stack);
+            }
         });
         _patMapMarkers.push(marker);
         return true;
