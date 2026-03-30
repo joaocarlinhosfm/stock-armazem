@@ -4106,16 +4106,22 @@ let _mapPinCoords  = null;
 let _mapPinExpanded = null; // id da PAT expandida (modo detalhe)
 
 function openMapPinSheet(pats, coords) {
-    _mapPinCoords   = coords;
-    _mapPinExpanded = pats.length === 1 ? pats[0][0] : null;
+    console.log('[sheet] INICIO openMapPinSheet');
+    try {
+        const sheet = document.getElementById('map-pin-sheet');
+        console.log('[sheet] sheet element:', sheet);
+        if (!sheet) { console.error('[sheet] sheet é null!'); return; }
+        console.log('[sheet] sheet classes antes:', sheet.className);
+        sheet.classList.add('open');
+        console.log('[sheet] sheet classes depois:', sheet.className);
+        console.log('[sheet] computed display:', getComputedStyle(sheet).display);
 
-    const sheet = document.getElementById('map-pin-sheet');
-    if (!sheet) return;
-
-    _renderMapPinSheet(pats);
-
-    sheet.classList.remove('closing');
-    sheet.classList.add('open');
+        const estabEl = document.getElementById('map-pin-estab');
+        if (estabEl) estabEl.textContent = pats[0]?.[1]?.estabelecimento || '—';
+        console.log('[sheet] FIM openMapPinSheet - devia estar visível');
+    } catch(e) {
+        console.error('[sheet] ERRO:', e.message, e.stack);
+    }
 }
 
 function _renderMapPinSheet(pats) {
