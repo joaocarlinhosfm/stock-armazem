@@ -4093,57 +4093,176 @@ function _makePinIcon(count, urgente, separacao) {
     });
 }
 
-function _makePopupHtml(pats) {
-    if (pats.length === 1) {
-        const [id, pat] = pats[0];
-        const dias = _calcDias(pat.criadoEm);
-        const urgente = dias >= 15;
-        const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
-        return `
-            <div class="pat-popup">
-                <div class="pat-popup-num">PAT ${pat.numero || '—'}</div>
-                <div class="pat-popup-estab">${escapeHtml(pat.estabelecimento || '—')}</div>
-                <div class="pat-popup-meta">
-                    <span class="pat-popup-dias ${urgente ? 'urgente' : ''}">${diasLabel}</span>
-                    ${pat.separacao ? '<span class="pat-popup-sep">Guia Transporte</span>' : ''}
-                </div>
-                <button class="pat-popup-btn" onclick="_patMapLevantar('${id}')">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    Dar como levantado
-                </button>
-            </div>`;
-    }
+// ── Map Pin Bottom-Sheet ─────────────────────────────────────────────────────
+let _mapPinCoords  = null;
+let _mapPinExpanded = null; // id da PAT expandida (modo detalhe)
 
-    // Múltiplas PATs no mesmo local
-    const items = pats.map(([id, pat]) => {
-        const dias = _calcDias(pat.criadoEm);
-        const urgente = dias >= 15;
-        const diasLabel = dias === 0 ? 'Hoje' : `${dias}d`;
-        return `<div class="pat-popup-list-item">
-                    <span class="pat-popup-list-num">PAT ${pat.numero || '—'}</span>
-                    <span class="pat-popup-list-dias ${urgente ? 'urgente' : ''}">${diasLabel}</span>
-                    <button class="pat-popup-btn" style="width:auto;padding:4px 10px;font-size:0.65rem"
-                        onclick="_patMapLevantar('${id}')">✓</button>
-                </div>`;
-    }).join('');
-
-    const primeiro = pats[0][1];
-    return `
-        <div class="pat-popup">
-            <div class="pat-popup-estab">${escapeHtml(primeiro.estabelecimento || '—')}</div>
-            <div class="pat-popup-meta">
-                <span class="pat-popup-dias">${pats.length} pedidos pendentes</span>
-            </div>
-            <div class="pat-popup-list">${items}</div>
-        </div>`;
+function openMapPinSheet(pats, coords) {
+    _mapPinCoords   = coords;
+    _mapPinExpanded = pats.length === 1 ? pats[0][0] : null; // 1 PAT → expande logo
+    _renderMapPinSheet(pats);
+    const sheet = document.getElementById('map-pin-sheet');
+    sheet.classList.remove('closing');
+    sheet.style.display = 'flex';
 }
 
-// Exposto globalmente para o onclick do popup
-window._patMapLevantar = function(id) {
-    marcarPatLevantado(id).then(() => {
-        closePatMap();
-    });
-};
+function _renderMapPinSheet(pats) {
+    const estabEl  = document.getElementById('map-pin-estab');
+    const badgesEl = document.getElementById('map-pin-badges');
+    const patsEl   = document.getElementById('map-pin-pats');
+
+    const nome     = pats[0][1].estabelecimento || '—';
+    const urgentes = pats.filter(([, p]) => _calcDias(p.criadoEm) >= 15);
+    const comGuia  = pats.filter(([, p]) => !!p.separacao);
+
+    // Header — nome em destaque
+    estabEl.textContent = nome;
+    badgesEl.innerHTML  = '';
+    if (pats.length > 1) {
+        const b = document.createElement('span');
+        b.className = 'map-pin-badge count';
+        b.textContent = `${pats.length} pedidos`;
+        badgesEl.appendChild(b);
+    }
+    if (urgentes.length > 0) {
+        const b = document.createElement('span');
+        b.className = 'map-pin-badge urgente';
+        b.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${urgentes.length} urgente${urgentes.length !== 1 ? 's' : ''}`;
+        badgesEl.appendChild(b);
+    }
+    if (comGuia.length > 0) {
+        const b = document.createElement('span');
+        b.className = 'map-pin-badge guia';
+        b.textContent = 'Guia Transporte';
+        badgesEl.appendChild(b);
+    }
+
+    patsEl.innerHTML = '';
+
+    if (pats.length === 1) {
+        // Vista única — mostrar detalhe completo directamente
+        patsEl.appendChild(_buildPatDetail(pats[0], pats));
+    } else {
+        // Múltiplas — resumo + expandir ao clicar
+        pats.forEach(([id, pat]) => {
+            const dias    = _calcDias(pat.criadoEm);
+            const urgente = dias >= 15;
+            const diasLbl = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
+            const isExpanded = _mapPinExpanded === id;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = `map-pin-pat-row${urgente ? ' urgente' : ''}`;
+            wrapper.dataset.patId = id;
+
+            // Cabeçalho resumo (sempre visível)
+            const summary = document.createElement('div');
+            summary.className = 'map-pin-pat-summary';
+            summary.innerHTML = `
+                <div class="map-pin-pat-top">
+                    <span class="map-pin-pat-num">PAT ${pat.numero || '—'}</span>
+                    <span class="map-pin-pat-age${urgente ? ' urgente' : ''}">${diasLbl}</span>
+                    <span class="map-pin-pat-chevron${isExpanded ? ' open' : ''}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </span>
+                </div>`;
+            summary.onclick = () => {
+                _mapPinExpanded = isExpanded ? null : id;
+                _renderMapPinSheet(pats);
+            };
+            wrapper.appendChild(summary);
+
+            // Detalhe (expansível)
+            if (isExpanded) {
+                wrapper.appendChild(_buildPatDetail([id, pat], pats));
+            }
+
+            patsEl.appendChild(wrapper);
+        });
+    }
+}
+
+function _buildPatDetail([id, pat], allPats) {
+    const dias    = _calcDias(pat.criadoEm);
+    const urgente = dias >= 15;
+    const prods   = pat.produtos || [];
+
+    const detail = document.createElement('div');
+    detail.className = 'map-pin-pat-detail';
+
+    // Tags
+    if (pat.separacao) {
+        const tags = document.createElement('div');
+        tags.className = 'map-pin-pat-tags';
+        tags.innerHTML = '<span class="map-pin-pat-tag guia">Guia Transporte</span>';
+        detail.appendChild(tags);
+    }
+
+    // Produtos
+    if (prods.length > 0) {
+        const prodsEl = document.createElement('div');
+        prodsEl.className = 'map-pin-pat-prods';
+        prods.forEach(p => {
+            const chip = document.createElement('span');
+            chip.className = 'map-pin-pat-prod';
+            chip.textContent = `${p.codigo || '?'} ×${p.quantidade || 1}`;
+            prodsEl.appendChild(chip);
+        });
+        detail.appendChild(prodsEl);
+    } else {
+        const empty = document.createElement('p');
+        empty.className = 'map-pin-no-prods';
+        empty.textContent = 'Sem produtos associados';
+        detail.appendChild(empty);
+    }
+
+    // Botão levantar com confirmação
+    const levBtn = document.createElement('button');
+    levBtn.className = 'map-pin-lev-btn';
+    levBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Dar como levantado`;
+    levBtn.onclick = () => {
+        // Confirmação via modal existente da app
+        openConfirmModal({
+            icon: '✓',
+            title: 'Confirmar levantamento',
+            desc: `PAT ${pat.numero || id} — ${escapeHtml(pat.estabelecimento || '')}`,
+            onConfirm: async () => {
+                levBtn.classList.add('loading');
+                levBtn.textContent = 'A processar...';
+                await marcarPatLevantado(id);
+                // Remover esta PAT da lista
+                const remaining = allPats.filter(([pid]) => pid !== id);
+                if (remaining.length === 0) {
+                    setTimeout(() => closeMapPinSheet(), 600);
+                } else {
+                    _mapPinExpanded = null;
+                    _renderMapPinSheet(remaining);
+                }
+            }
+        });
+    };
+    detail.appendChild(levBtn);
+    return detail;
+}
+
+function closeMapPinSheet() {
+    const sheet = document.getElementById('map-pin-sheet');
+    if (!sheet || sheet.style.display === 'none') return;
+    sheet.classList.add('closing');
+    setTimeout(() => { sheet.style.display = 'none'; sheet.classList.remove('closing'); }, 200);
+}
+
+function openMapPinGmaps() {
+    if (!_mapPinCoords) return;
+    const { lat, lng } = _mapPinCoords;
+    const nome = document.getElementById('map-pin-estab')?.textContent || '';
+    const q = encodeURIComponent(nome + ', Portugal');
+    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
+}
+
+function centerMapOnPin() {
+    if (!_patMap || !_mapPinCoords) return;
+    _patMap.setView([_mapPinCoords.lat, _mapPinCoords.lng], 15, { animate: true });
+}
 
 async function openPatMap() {
     _patMapOpen = true;
@@ -4209,6 +4328,8 @@ async function openPatMap() {
     // Centrar em Portugal ao arrancar
     _patMap.fitBounds(PT_BOUNDS, { padding: [20, 20] });
     _patMap.invalidateSize();
+    // Fechar sheet ao clicar no mapa
+    _patMap.on('click', () => closeMapPinSheet());
 
     if (loadingTxt) loadingTxt.textContent = 'A carregar pedidos...';
 
@@ -4257,8 +4378,8 @@ async function openPatMap() {
         const chainIcon = _getChainIcon(nomeEstab);
         const icon = chainIcon || _makePinIcon(items.length, urgente, separacao);
         const marker = L.marker([coords.lat, coords.lng], { icon })
-            .bindPopup(_makePopupHtml(items), { maxWidth: 280, className: 'pat-map-popup' })
             .addTo(_patMap);
+        marker.on('click', () => openMapPinSheet(items, { lat: coords.lat, lng: coords.lng }));
         _patMapMarkers.push(marker);
         return true;
     }

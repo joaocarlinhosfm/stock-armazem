@@ -6053,3 +6053,263 @@ body.is-offline #app-layout {
 .pat-pin.cluster .pat-pin-body { fill: #6366f1; }
 .pat-pin .pat-pin-hole { fill: white; opacity: 0.9; }
 
+/* ── Map Pin Bottom-Sheet ────────────────────────────────── */
+.map-pin-sheet {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: var(--card-bg);
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+    z-index: 1000;
+    animation: sheetSlideUp 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    max-height: 72vh;
+    display: flex;
+    flex-direction: column;
+}
+@keyframes sheetSlideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);   opacity: 1; }
+}
+.map-pin-sheet.closing {
+    animation: sheetSlideDown 0.2s ease both;
+}
+@keyframes sheetSlideDown {
+    from { transform: translateY(0);   opacity: 1; }
+    to   { transform: translateY(100%); opacity: 0; }
+}
+.map-pin-sheet-handle {
+    width: 36px; height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    margin: 10px auto 0;
+    flex-shrink: 0;
+}
+.map-pin-sheet-inner {
+    overflow-y: auto;
+    padding: 12px 16px 24px;
+    -webkit-overflow-scrolling: touch;
+}
+.map-pin-sheet-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.map-pin-sheet-header-left {
+    flex: 1;
+    min-width: 0;
+}
+.map-pin-estab {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.2px;
+    line-height: 1.2;
+    margin-bottom: 6px;
+}
+.map-pin-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+.map-pin-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    border: 1px solid;
+}
+.map-pin-badge.urgente {
+    background: #fef2f2;
+    color: #991b1b;
+    border-color: #fca5a5;
+}
+.map-pin-badge.count {
+    background: var(--primary-soft);
+    color: var(--primary);
+    border-color: #bfdbfe;
+}
+.map-pin-badge.guia {
+    background: #fffbeb;
+    color: #92400e;
+    border-color: #fcd34d;
+}
+.map-pin-sheet-close {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--input-fill);
+    color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.12s;
+}
+.map-pin-sheet-close:hover { background: var(--border); }
+
+/* Lista de PATs */
+.map-pin-pats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.map-pin-pat-row {
+    background: var(--input-fill);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.map-pin-pat-row.urgente {
+    background: #fef9f9;
+    border-color: #fca5a5;
+}
+.map-pin-pat-summary {
+    padding: 11px 13px;
+    cursor: pointer;
+    transition: background 0.12s;
+    -webkit-tap-highlight-color: transparent;
+}
+.map-pin-pat-summary:hover { background: var(--border); }
+.map-pin-pat-detail {
+    padding: 0 13px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 0;
+}
+.map-pin-pat-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.map-pin-pat-chevron {
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    transition: transform 0.2s;
+}
+.map-pin-pat-chevron.open {
+    transform: rotate(180deg);
+}
+.map-pin-no-prods {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+.map-pin-pat-num {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: 0.2px;
+}
+.map-pin-pat-age {
+    font-size: 0.70rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.map-pin-pat-age.urgente { color: #dc2626; font-weight: 700; }
+.map-pin-pat-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.map-pin-pat-tag {
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 20px;
+    border: 1px solid;
+}
+.map-pin-pat-tag.guia {
+    background: #fffbeb; color: #92400e; border-color: #fcd34d;
+}
+.map-pin-pat-prods {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.map-pin-pat-prod {
+    font-size: 0.62rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 5px;
+    background: var(--card-bg);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+}
+.map-pin-lev-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 100%;
+    padding: 8px 0;
+    background: #16a34a;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: background 0.13s, opacity 0.13s;
+}
+.map-pin-lev-btn:active { background: #15803d; opacity: 0.9; }
+.map-pin-lev-btn.loading { opacity: 0.6; pointer-events: none; }
+
+/* Botões de acção em baixo */
+.map-pin-sheet-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.map-pin-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 11px 8px;
+    border-radius: 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    transition: opacity 0.13s;
+}
+.map-pin-btn:active { opacity: 0.75; }
+.map-pin-btn-gmaps {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+.map-pin-btn-center {
+    background: var(--input-fill);
+    color: var(--text-main);
+}
+
+/* Desktop — sheet mais estreito e à direita */
+@media (min-width: 768px) {
+    .map-pin-sheet {
+        left: auto;
+        right: 16px;
+        bottom: 16px;
+        width: 340px;
+        border-radius: 16px;
+        max-height: 80vh;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    }
+    .map-pin-sheet-handle { display: none; }
+}
+
