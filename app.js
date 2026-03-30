@@ -3923,37 +3923,70 @@ let _patMap        = null;  // instância Leaflet
 let _patMapMarkers = [];    // markers actuais
 let _patMapOpen    = false;
 
-// Cache de geocoding para não repetir pedidos na mesma sessão
-const _geocodeCache = {};
+// ── Geocoding cache — Firebase /geocode-cache/ ────────────────────────────
+// Estrutura: { "pingo doce esmoriz": { lat, lng, ts }, ... }
+// Cache em memória para a sessão actual (evita re-fetch do Firebase)
+const _geocodeCache = {};         // memória: key → {lat,lng} | null
+let   _geocodeCacheLoaded = false; // flag: já carregámos do Firebase?
+
+const GEOCODE_CACHE_URL = `${BASE_URL}/geocode-cache.json`;
+
+// Carrega toda a cache do Firebase para memória (1 fetch, feito uma vez)
+async function _loadGeocodeCache() {
+    if (_geocodeCacheLoaded) return;
+    try {
+        const url = await authUrl(GEOCODE_CACHE_URL);
+        const res = await fetch(url);
+        if (!res.ok) { _geocodeCacheLoaded = true; return; }
+        const data = await res.json();
+        if (data && typeof data === 'object') {
+            Object.entries(data).forEach(([k, v]) => {
+                // v = { lat, lng, ts } ou null
+                _geocodeCache[k] = (v && v.lat && v.lng) ? { lat: v.lat, lng: v.lng } : null;
+            });
+            console.log(`[geocache] ${Object.keys(_geocodeCache).length} entradas carregadas do Firebase`);
+        }
+    } catch(e) { console.warn('[geocache] erro ao carregar:', e); }
+    _geocodeCacheLoaded = true;
+}
+
+// Persiste uma entrada na cache Firebase (fire-and-forget)
+async function _saveGeocodeCacheEntry(key, coords) {
+    try {
+        const safeKey = key.replace(/[.#$/\[\]]/g, '_');
+        const url = await authUrl(`${BASE_URL}/geocode-cache/${encodeURIComponent(safeKey)}.json`);
+        const payload = coords
+            ? JSON.stringify({ lat: coords.lat, lng: coords.lng, ts: Date.now() })
+            : JSON.stringify(null);
+        fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: payload })
+            .catch(e => console.warn('[geocache] erro ao guardar:', e));
+    } catch(e) { console.warn('[geocache] saveEntry:', e); }
+}
 
 // Atraso entre pedidos Nominatim (1 req/s conforme ToS)
 function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-async function _geocodeEstab(nome) {
+async function _geocodeEstab(nome, saveToFirebase = true) {
     const key = nome.trim().toLowerCase();
+
+    // 1. Memória (sessão ou Firebase pré-carregado)
     if (_geocodeCache[key] !== undefined) return _geocodeCache[key];
 
-    // Estratégia multi-tentativa:
-    // 1. Nome limpo + Portugal
-    // 2. Só a localidade (última palavra antes do traço/número)
-    // 3. Primeiras palavras significativas
-
+    // 2. Nominatim — estratégia multi-tentativa
     const cleaned = nome
-        .replace(/-\s*\d+\s*$/, '')   // remove " - 742" no fim
-        .replace(/\s+\d+\s*$/, '')     // remove número solto
-        .replace(/[()]/g, '')           // remove parênteses
+        .replace(/-\s*\d+\s*$/, '')
+        .replace(/\s+\d+\s*$/, '')
+        .replace(/[()]/g, '')
         .trim();
 
-    // Extrair localidade: ex "PINGO DOCE ESMORIZ" → "ESMORIZ"
     const words = cleaned.split(/\s+/).filter(w => w.length > 2);
-    // Remover palavras genéricas de cadeias de supermercado
-    const stopWords = ['PINGO','DOCE','CONTINENTE','JUMBO','LIDL','ALDI','MERCADONA','BP','GALP','REPSOL','DISCOUNT','ARMAZEM','GERAL','HIPERFRIO','SUPERMERCADO','MINIPRECO','INTERMARCHE','SHOPPING'];
+    const stopWords = ['PINGO','DOCE','CONTINENTE','JUMBO','LIDL','ALDI','MERCADONA','BP','GALP','REPSOL','DISCOUNT','ARMAZEM','GERAL','HIPERFRIO','SUPERMERCADO','MINIPRECO','INTERMARCHE','SHOPPING','RECHEIO'];
     const localWords = words.filter(w => !stopWords.includes(w.toUpperCase()));
 
     const queries = [
         cleaned + ', Portugal',
         localWords.join(' ') + ', Portugal',
-        localWords.slice(-1)[0] + ', Portugal',  // só última palavra localidade
+        localWords.slice(-1)[0] + ', Portugal',
     ].filter((q, i, arr) => q.trim() !== ', Portugal' && arr.indexOf(q) === i);
 
     for (const q of queries) {
@@ -3961,21 +3994,22 @@ async function _geocodeEstab(nome) {
         const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1&countrycodes=pt`;
         try {
             const res = await fetch(url, {
-                headers: { 'Accept-Language': 'pt-PT,pt;q=0.9', 'User-Agent': 'HiperfrioStock/1.0 (warehouse management)' }
+                headers: { 'Accept-Language': 'pt-PT,pt;q=0.9', 'User-Agent': 'HiperfrioStock/1.0' }
             });
             if (!res.ok) continue;
             const data = await res.json();
             if (data && data.length > 0) {
                 const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
                 _geocodeCache[key] = result;
+                if (saveToFirebase) _saveGeocodeCacheEntry(key, result);
                 return result;
             }
         } catch(e) { continue; }
-        // Delay entre tentativas
         await _sleep(800);
     }
 
     _geocodeCache[key] = null;
+    if (saveToFirebase) _saveGeocodeCacheEntry(key, null);
     return null;
 }
 
@@ -4139,15 +4173,32 @@ async function openPatMap() {
     // Destruir instância anterior e criar nova
     if (_patMap) { _patMap.remove(); _patMap = null; _patMapMarkers = []; }
 
+    // Bounds de Portugal continental + ilhas (Açores e Madeira incluídos)
+    const PT_BOUNDS = L.latLngBounds(
+        L.latLng(30.0, -31.5),   // SW — inclui Açores
+        L.latLng(42.2, -6.2)     // NE — nordeste de Trás-os-Montes
+    );
+
     _patMap = L.map('pat-map-container', {
-        center: [39.9, -8.0],
-        zoom: 7,
-        zoomControl: true,
+        center:       [39.6, -8.0],  // centro aproximado de Portugal continental
+        zoom:         7,
+        minZoom:      6,             // não deixa afastar mais do que isto
+        maxZoom:      17,
+        maxBounds:    PT_BOUNDS,
+        maxBoundsViscosity: 1.0,     // 1.0 = limite rígido, não deixa arrastar para fora
+        zoomControl:  true,
     });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 18,
+
+    // Stadia Alidade Smooth — requer registo gratuito em stadiamaps.com para produção
+    // Em localhost e Vercel funciona sem chave até 200k tiles/mês
+    L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
+        attribution: '© <a href="https://stadiamaps.com/">Stadia Maps</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 20,
+        minZoom: 6,
     }).addTo(_patMap);
+
+    // Centrar em Portugal ao arrancar
+    _patMap.fitBounds(PT_BOUNDS, { padding: [20, 20] });
     _patMap.invalidateSize();
 
     if (loadingTxt) loadingTxt.textContent = 'A carregar pedidos...';
@@ -4168,7 +4219,7 @@ async function openPatMap() {
         return;
     }
 
-    subtitleEl.textContent = `A geocodificar ${pendentes.length} pedido${pendentes.length !== 1 ? 's' : ''}...`;
+    subtitleEl.textContent = `A preparar localizações...`;
 
     // Agrupar por estabelecimento (mesmo nome → mesmo pin)
     const groups = {};
@@ -4177,70 +4228,101 @@ async function openPatMap() {
         if (!groups[key]) groups[key] = [];
         groups[key].push([id, pat]);
     });
-
     const groupEntries = Object.entries(groups);
-    let geocoded = 0;
-    let failed   = 0;
-    const bounds = [];
 
-    for (let i = 0; i < groupEntries.length; i++) {
-        if (!_patMapOpen) break; // modal foi fechado
+    // ── Passo 1: Carregar cache do Firebase ──────────────────────────────
+    if (loadingTxt) loadingTxt.textContent = 'A carregar localizações guardadas...';
+    await _loadGeocodeCache();
 
-        const [estabKey, items] = groupEntries[i];
-        const nomeOriginal = items[0][1].estabelecimento || estabKey;
+    const cached  = groupEntries.filter(([k]) => _geocodeCache[k] !== undefined);
+    const missing = groupEntries.filter(([k]) => _geocodeCache[k] === undefined);
+    console.log(`[map] ${cached.length} em cache, ${missing.length} por geocodificar`);
 
-        loadingTxt.textContent = `A localizar "${nomeOriginal}"... (${i + 1}/${groupEntries.length})`;
-
-        const coords = await _geocodeEstab(nomeOriginal);
-
-        if (!_patMapOpen) break;
-
-        if (!coords) { failed++; continue; }
-
-        geocoded++;
-        bounds.push([coords.lat, coords.lng]);
-
-        // Determinar cor do pin
+    // ── Passo 2: Helper para adicionar marker ────────────────────────────
+    function _addMarker(estabKey, items) {
+        const coords = _geocodeCache[estabKey];
+        if (!coords) return false;
         const urgente   = items.some(([, p]) => _calcDias(p.criadoEm) >= 15);
         const separacao = items.some(([, p]) => !!p.separacao);
         const nomeEstab = items[0][1].estabelecimento || '';
-
-        // Ícone customizado por cadeia ou pin SVG genérico
         const chainIcon = _getChainIcon(nomeEstab);
         const icon = chainIcon || _makePinIcon(items.length, urgente, separacao);
-
         const marker = L.marker([coords.lat, coords.lng], { icon })
-            .bindPopup(_makePopupHtml(items), {
-                maxWidth: 280,
-                className: 'pat-map-popup',
-            })
+            .bindPopup(_makePopupHtml(items), { maxWidth: 280, className: 'pat-map-popup' })
             .addTo(_patMap);
-
         _patMapMarkers.push(marker);
+        return true;
+    }
 
-        // Rate limit Nominatim: 1 req/s
-        if (i < groupEntries.length - 1) await _sleep(1100);
+    // ── Passo 3: Mostrar pins da cache imediatamente ─────────────────────
+    let geocoded = 0;
+    const bounds = [];
+
+    cached.forEach(([k, items]) => {
+        if (_addMarker(k, items) && _geocodeCache[k]) {
+            bounds.push([_geocodeCache[k].lat, _geocodeCache[k].lng]);
+            geocoded++;
+        }
+    });
+
+    if (geocoded > 0) {
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (bounds.length === 1) { _patMap.setView(bounds[0], 13); }
+        else if (bounds.length > 1) { _patMap.fitBounds(bounds, { padding: [40, 40] }); }
+        const pendingTxt = missing.length > 0 ? ` · a localizar ${missing.length} novo${missing.length !== 1 ? 's' : ''}...` : '';
+        subtitleEl.textContent = `${geocoded} estabelecimento${geocoded !== 1 ? 's' : ''} no mapa${pendingTxt}`;
+        setTimeout(() => _patMap && _patMap.invalidateSize(), 200);
+    }
+
+    // ── Passo 4: Geocodificar os que faltam (background se já há pins) ───
+    if (missing.length === 0) {
+        if (geocoded === 0) {
+            if (loadingEl) loadingEl.style.display = 'none';
+            if (errorEl) { errorEl.style.display = 'flex'; document.getElementById('pat-map-error-text').textContent = 'Não foi possível localizar nenhum estabelecimento.'; }
+        }
+        const naoEncontrados = groupEntries.filter(([k]) => _geocodeCache[k] === null).length;
+        if (naoEncontrados > 0) subtitleEl.textContent += ` · ${naoEncontrados} não localizado${naoEncontrados !== 1 ? 's' : ''}`;
+        return;
+    }
+
+    let newGeocoded = 0;
+    let failed = 0;
+
+    for (let i = 0; i < missing.length; i++) {
+        if (!_patMapOpen) break;
+        const [estabKey, items] = missing[i];
+        const nomeOriginal = items[0][1].estabelecimento || estabKey;
+        const progressTxt = missing.length > 1 ? ` (${i + 1}/${missing.length})` : '';
+        subtitleEl.textContent = `A localizar "${nomeOriginal}"...${progressTxt}`;
+
+        const coords = await _geocodeEstab(nomeOriginal, true);
+        if (!_patMapOpen) break;
+        if (!coords) { failed++; continue; }
+
+        newGeocoded++;
+        bounds.push([coords.lat, coords.lng]);
+        _addMarker(estabKey, items);
+
+        if (bounds.length > 1) { _patMap.fitBounds(bounds, { padding: [40, 40] }); }
+        else { _patMap.setView([coords.lat, coords.lng], 13); }
+
+        if (newGeocoded === 1 && geocoded === 0) {
+            if (loadingEl) loadingEl.style.display = 'none';
+        }
+        if (i < missing.length - 1) await _sleep(1100);
     }
 
     if (loadingEl) loadingEl.style.display = 'none';
 
-    if (geocoded === 0) {
-        errorEl.style.display = 'flex';
-        document.getElementById('pat-map-error-text').textContent = 'Não foi possível localizar nenhum estabelecimento.';
+    const totalShown = geocoded + newGeocoded;
+    if (totalShown === 0) {
+        if (errorEl) { errorEl.style.display = 'flex'; document.getElementById('pat-map-error-text').textContent = 'Não foi possível localizar nenhum estabelecimento.'; }
         return;
     }
 
-    // Ajustar vista para mostrar todos os pins
-    if (bounds.length > 0) {
-        if (bounds.length === 1) {
-            _patMap.setView(bounds[0], 13);
-        } else {
-            _patMap.fitBounds(bounds, { padding: [40, 40] });
-        }
-    }
-
     const failedTxt = failed > 0 ? ` · ${failed} não localizad${failed !== 1 ? 'os' : 'o'}` : '';
-    subtitleEl.textContent = `${geocoded} estabelecimento${geocoded !== 1 ? 's' : ''} no mapa${failedTxt}`;
+    const newTxt    = newGeocoded > 0 ? ` (${newGeocoded} novo${newGeocoded !== 1 ? 's' : ''} guardado${newGeocoded !== 1 ? 's' : ''})` : '';
+    subtitleEl.textContent = `${totalShown} estabelecimento${totalShown !== 1 ? 's' : ''} no mapa${newTxt}${failedTxt}`;
 
     // Forçar Leaflet a recalcular dimensões
     setTimeout(() => _patMap && _patMap.invalidateSize(), 200);
