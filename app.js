@@ -4121,11 +4121,28 @@ function openMapPinSheet(pats, coords) {
         if (estabEl) estabEl.textContent = pats[0]?.[1]?.estabelecimento || '—';
     }
 
-    // Mostrar com estilo inline explícito e forçar reflow
+    // Mostrar com todos os estilos inline — sem depender de CSS externo
     sheet.classList.remove('closing');
-    sheet.style.cssText = 'display:flex !important; flex-direction:column; min-height:120px;';
-    void sheet.offsetHeight; // forçar reflow
-    console.log('[sheet] sheet visível:', sheet.offsetHeight, 'px, display:', getComputedStyle(sheet).display);
+    sheet.style.cssText = [
+        'display:flex !important',
+        'flex-direction:column',
+        'position:fixed',
+        'bottom:0',
+        'left:0',
+        'right:0',
+        'top:auto',
+        'min-height:200px',
+        'max-height:75vh',
+        'background:#ffffff',
+        'border-radius:20px 20px 0 0',
+        'box-shadow:0 -4px 24px rgba(0,0,0,0.35)',
+        'z-index:999999',
+        'overflow-y:auto',
+        'padding:16px',
+        'border-top:4px solid #2563eb',
+    ].join(';');
+    void sheet.offsetHeight;
+    console.log('[sheet] sheet visível:', sheet.offsetHeight, 'px, display:', getComputedStyle(sheet).display, 'bottom:', getComputedStyle(sheet).bottom, 'z-index:', getComputedStyle(sheet).zIndex);
 }
 
 function _renderMapPinSheet(pats) {
