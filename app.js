@@ -4381,8 +4381,11 @@ async function openPatMap() {
     container.style.width  = '100%';
     console.log(`[map] header:${headerH}px mapHeader:${mapHeaderH}px container:${container.offsetWidth}x${availH}px`);
 
-    // Destruir instância anterior e criar nova
-    if (_patMap) { _patMap.remove(); _patMap = null; _patMapMarkers = []; }
+    // Reutilizar instância do mapa se já existir (evita reload desnecessário)
+    if (_patMap) {
+        _patMapMarkers.forEach(m => m.remove());
+        _patMapMarkers = [];
+    }
 
     // Bounds de Portugal continental + ilhas (Açores e Madeira incluídos)
     const PT_BOUNDS = L.latLngBounds(
@@ -4390,7 +4393,7 @@ async function openPatMap() {
         L.latLng(42.2, -6.2)     // NE — nordeste de Trás-os-Montes
     );
 
-    _patMap = L.map('pat-map-container', {
+    if (!_patMap) { _patMap = L.map('pat-map-container', {
         center:       [39.6, -8.0],  // centro aproximado de Portugal continental
         zoom:         7,
         minZoom:      6,             // não deixa afastar mais do que isto
@@ -4415,7 +4418,7 @@ async function openPatMap() {
     _patMap.on('click', () => {
         if (_markerJustClicked) { _markerJustClicked = false; return; }
         closeMapPinSheet();
-    });
+    }); } // fim do if (!_patMap)
 
     if (loadingTxt) loadingTxt.textContent = 'A carregar pedidos...';
 
@@ -4498,7 +4501,7 @@ async function openPatMap() {
         if (loadingEl) loadingEl.style.display = 'none';
         if (bounds.length === 1) { _patMap.setView(bounds[0], 13); }
         else if (bounds.length > 1) { _patMap.fitBounds(bounds, { padding: [40, 40] }); }
-        const pendingTxt = missing.length > 0 ? ` · a localizar ${missing.length} novo${missing.length !== 1 ? 's' : ''}...` : '';
+        const pendingTxt = ''; // sem mensagem de 'a localizar novos'
         subtitleEl.textContent = `${geocoded} estabelecimento${geocoded !== 1 ? 's' : ''} no mapa${pendingTxt}`;
         setTimeout(() => _patMap && _patMap.invalidateSize(), 200);
     }
@@ -4550,7 +4553,7 @@ async function openPatMap() {
     }
 
     const failedTxt = failed > 0 ? ` · ${failed} não localizad${failed !== 1 ? 'os' : 'o'}` : '';
-    const newTxt    = newGeocoded > 0 ? ` (${newGeocoded} novo${newGeocoded !== 1 ? 's' : ''} guardado${newGeocoded !== 1 ? 's' : ''})` : '';
+    const newTxt    = ''; // sem mensagem de 'novos guardados'
     subtitleEl.textContent = `${totalShown} estabelecimento${totalShown !== 1 ? 's' : ''} no mapa${newTxt}${failedTxt}`;
 
     // Forçar Leaflet a recalcular dimensões
