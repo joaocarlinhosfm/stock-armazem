@@ -4112,19 +4112,20 @@ function openMapPinSheet(pats, coords) {
     const sheet = document.getElementById('map-pin-sheet');
     if (!sheet) { console.error('[sheet] #map-pin-sheet não encontrado!'); return; }
 
+    // Preencher conteúdo primeiro
     try {
         _renderMapPinSheet(pats);
     } catch(e) {
         console.error('[sheet] erro em _renderMapPinSheet:', e);
-        // Mostrar sheet mesmo assim com info mínima
         const estabEl = document.getElementById('map-pin-estab');
         if (estabEl) estabEl.textContent = pats[0]?.[1]?.estabelecimento || '—';
     }
 
+    // Mostrar com estilo inline explícito e forçar reflow
     sheet.classList.remove('closing');
-    sheet.removeAttribute('style');       // limpar qualquer inline style
-    sheet.style.display = 'flex';
-    console.log('[sheet] display definido para flex, sheet.style.display =', sheet.style.display);
+    sheet.style.cssText = 'display:flex !important; flex-direction:column; min-height:120px;';
+    void sheet.offsetHeight; // forçar reflow
+    console.log('[sheet] sheet visível:', sheet.offsetHeight, 'px, display:', getComputedStyle(sheet).display);
 }
 
 function _renderMapPinSheet(pats) {
