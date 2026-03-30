@@ -6058,16 +6058,14 @@ body.is-offline #app-layout {
 .map-pin-sheet {
     display: none;
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    top: auto;
+    /* posição definida via JS dinamicamente */
     flex-direction: column;
     background: var(--card-bg);
-    border-radius: 20px 20px 0 0;
-    box-shadow: 0 -6px 32px rgba(0,0,0,0.18);
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.22);
     z-index: 9999;
-    max-height: 75vh;
+    max-height: 60vh;
+    width: 320px;
     overflow: hidden;
 }
 .map-pin-sheet.open {
@@ -6309,18 +6307,8 @@ body.is-offline #app-layout {
     color: var(--text-main);
 }
 
-/* Desktop — sheet mais estreito e à direita */
+/* Sheet handle escondido no desktop */
 @media (min-width: 768px) {
-    .map-pin-sheet {
-        position: fixed;
-        left: auto;
-        right: 16px;
-        bottom: 16px;
-        width: 340px;
-        border-radius: 16px;
-        max-height: 80vh;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-    }
     .map-pin-sheet-handle { display: none; }
 }
 

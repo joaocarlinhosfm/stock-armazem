@@ -4123,49 +4123,63 @@ function openMapPinSheet(pats, coords) {
 function _positionSheetNearPin(coords, sheet) {
     if (!_patMap || !coords) return;
 
-    // Converter coordenadas geo → pixel no ecrã
     const point = _patMap.latLngToContainerPoint([coords.lat, coords.lng]);
     const mapContainer = document.getElementById('pat-map-container');
     if (!mapContainer) return;
 
-    const mapRect  = mapContainer.getBoundingClientRect();
-    const pinX     = mapRect.left + point.x;  // X absoluto no viewport
-    const pinY     = mapRect.top  + point.y;  // Y absoluto no viewport
+    const mapRect = mapContainer.getBoundingClientRect();
+    const pinX    = mapRect.left + point.x;
+    const pinY    = mapRect.top  + point.y;
 
-    const sheetW   = sheet.offsetWidth  || 320;
-    const sheetH   = sheet.offsetHeight || 200;
-    const vw       = window.innerWidth;
-    const vh       = window.innerHeight;
-    const margin   = 12; // margem das bordas
-    const pinOffset = 50; // distância do pin (acima do ícone)
+    const sheetW  = sheet.offsetWidth  || 320;
+    const sheetH  = sheet.offsetHeight || 200;
+    const vw      = window.innerWidth;
+    const vh      = window.innerHeight;
+    const margin  = 12;
+    const gap     = 14; // espaço entre pin e sheet
 
-    // Posição preferida: à direita e acima do pin
-    let left = pinX + margin;
-    let top  = pinY - sheetH - pinOffset;
+    // Preferência: acima do pin, centrado horizontalmente
+    let left = pinX - sheetW / 2;
+    let top  = pinY - sheetH - gap;
+    let arrowBelow = true; // seta aponta para baixo (pin está abaixo do sheet)
 
-    // Ajustar horizontalmente se sair do ecrã
-    if (left + sheetW > vw - margin) {
-        left = pinX - sheetW - margin; // tentar à esquerda
-    }
-    if (left < margin) {
-        left = margin; // centrado se não couber
-    }
-
-    // Ajustar verticalmente se sair para cima
+    // Se sair pelo topo → colocar abaixo do pin
     if (top < mapRect.top + margin) {
-        top = pinY + pinOffset; // colocar abaixo do pin
+        top = pinY + gap;
+        arrowBelow = false; // seta aponta para cima (pin está acima do sheet)
     }
 
-    // Garantir que não sai pela base do viewport
-    if (top + sheetH > vh - margin) {
-        top = vh - sheetH - margin;
-    }
+    // Ajustar horizontalmente
+    if (left < mapRect.left + margin) left = mapRect.left + margin;
+    if (left + sheetW > vw - margin)  left = vw - sheetW - margin;
 
-    // Aplicar posição (override do bottom fixo)
-    sheet.style.left   = left + 'px';
-    sheet.style.top    = top  + 'px';
+    // Garantir que não sai pela base
+    if (top + sheetH > vh - margin) top = vh - sheetH - margin;
+
+    sheet.style.left   = Math.round(left) + 'px';
+    sheet.style.top    = Math.round(top)  + 'px';
     sheet.style.bottom = 'auto';
     sheet.style.right  = 'auto';
+
+    // Posicionar a seta a apontar para o pin
+    const arrow = document.getElementById('map-pin-arrow');
+    if (arrow) {
+        const arrowX = Math.round(pinX - left); // posição X da seta relativa ao sheet
+        const clampedX = Math.max(20, Math.min(arrowX, sheetW - 20));
+        arrow.style.left      = clampedX + 'px';
+        arrow.style.transform = 'translateX(-50%)';
+        if (arrowBelow) {
+            // Seta em baixo do sheet
+            arrow.style.bottom   = '-7px';
+            arrow.style.top      = 'auto';
+            arrow.style.clipPath = 'polygon(0 0, 100% 0, 50% 100%)';
+        } else {
+            // Seta em cima do sheet
+            arrow.style.top      = '-7px';
+            arrow.style.bottom   = 'auto';
+            arrow.style.clipPath = 'polygon(50% 0, 0 100%, 100% 100%)';
+        }
+    }
 }
 
 function _renderMapPinSheet(pats) {
