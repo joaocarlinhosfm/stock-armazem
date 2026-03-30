@@ -4105,12 +4105,26 @@ let _mapPinCoords  = null;
 let _mapPinExpanded = null; // id da PAT expandida (modo detalhe)
 
 function openMapPinSheet(pats, coords) {
+    console.log('[sheet] openMapPinSheet chamado, pats:', pats.length, 'coords:', coords);
     _mapPinCoords   = coords;
-    _mapPinExpanded = pats.length === 1 ? pats[0][0] : null; // 1 PAT → expande logo
-    _renderMapPinSheet(pats);
+    _mapPinExpanded = pats.length === 1 ? pats[0][0] : null;
+
     const sheet = document.getElementById('map-pin-sheet');
+    if (!sheet) { console.error('[sheet] #map-pin-sheet não encontrado!'); return; }
+
+    try {
+        _renderMapPinSheet(pats);
+    } catch(e) {
+        console.error('[sheet] erro em _renderMapPinSheet:', e);
+        // Mostrar sheet mesmo assim com info mínima
+        const estabEl = document.getElementById('map-pin-estab');
+        if (estabEl) estabEl.textContent = pats[0]?.[1]?.estabelecimento || '—';
+    }
+
     sheet.classList.remove('closing');
+    sheet.removeAttribute('style');       // limpar qualquer inline style
     sheet.style.display = 'flex';
+    console.log('[sheet] display definido para flex, sheet.style.display =', sheet.style.display);
 }
 
 function _renderMapPinSheet(pats) {
@@ -4387,7 +4401,8 @@ async function openPatMap() {
         const marker = L.marker([coords.lat, coords.lng], { icon })
             .addTo(_patMap);
         marker.on('click', (e) => {
-            L.DomEvent.stopPropagation(e); // impede que o click chegue ao mapa e feche o sheet
+            console.log('[map] marker clicado:', items[0][1].estabelecimento);
+            L.DomEvent.stopPropagation(e);
             openMapPinSheet(items, { lat: coords.lat, lng: coords.lng });
         });
         _patMapMarkers.push(marker);
