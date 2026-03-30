@@ -5807,6 +5807,7 @@ body.is-offline #app-layout {
     width: 100%;
     background: var(--card-bg);
     overflow: hidden;
+    position: relative; /* necessário para o bottom-sheet usar position:absolute */
 }
 .view-map-full.active {
     display: flex !important;

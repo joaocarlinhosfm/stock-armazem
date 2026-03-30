@@ -4046,6 +4046,13 @@ const _CHAIN_ICONS = [
         anchor: [32, 57],
         popup:  [0, -59],
     },
+    {
+        match: /leclerc/i,
+        icon:  'leclerc-pin.png',
+        size:  [64, 57],
+        anchor: [32, 57],
+        popup:  [0, -59],
+    },
 ];
 
 function _getChainIcon(nomeEstab) {
@@ -4379,7 +4386,10 @@ async function openPatMap() {
         const icon = chainIcon || _makePinIcon(items.length, urgente, separacao);
         const marker = L.marker([coords.lat, coords.lng], { icon })
             .addTo(_patMap);
-        marker.on('click', () => openMapPinSheet(items, { lat: coords.lat, lng: coords.lng }));
+        marker.on('click', (e) => {
+            L.DomEvent.stopPropagation(e); // impede que o click chegue ao mapa e feche o sheet
+            openMapPinSheet(items, { lat: coords.lat, lng: coords.lng });
+        });
         _patMapMarkers.push(marker);
         return true;
     }
