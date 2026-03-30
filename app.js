@@ -4105,20 +4105,16 @@ let _mapPinCoords  = null;
 let _mapPinExpanded = null; // id da PAT expandida (modo detalhe)
 
 function openMapPinSheet(pats, coords) {
-    console.log('[sheet] openMapPinSheet chamado, pats:', pats.length, 'coords:', coords);
     _mapPinCoords   = coords;
     _mapPinExpanded = pats.length === 1 ? pats[0][0] : null;
 
     const sheet = document.getElementById('map-pin-sheet');
-    if (!sheet) { console.error('[sheet] #map-pin-sheet não encontrado!'); return; }
+    if (!sheet) return;
 
-    console.log('[sheet] a chamar _renderMapPinSheet...');
     _renderMapPinSheet(pats);
-    console.log('[sheet] _renderMapPinSheet concluído, a mostrar sheet...');
 
     sheet.classList.remove('closing');
-    sheet.style.display = 'flex';
-    console.log('[sheet] display = flex aplicado');
+    sheet.classList.add('open');
 }
 
 function _renderMapPinSheet(pats) {
@@ -4261,9 +4257,9 @@ function _buildPatDetail([id, pat], allPats) {
 
 function closeMapPinSheet() {
     const sheet = document.getElementById('map-pin-sheet');
-    if (!sheet || sheet.style.display === 'none') return;
+    if (!sheet || !sheet.classList.contains('open')) return;
     sheet.classList.add('closing');
-    setTimeout(() => { sheet.style.display = 'none'; sheet.classList.remove('closing'); }, 200);
+    setTimeout(() => { sheet.classList.remove('open', 'closing'); }, 200);
 }
 
 function openMapPinGmaps() {

@@ -6056,6 +6056,7 @@ body.is-offline #app-layout {
 
 /* ── Map Pin Bottom-Sheet ────────────────────────────────── */
 .map-pin-sheet {
+    display: none;
     position: fixed;
     bottom: 0;
     left: 0;
@@ -6068,6 +6069,9 @@ body.is-offline #app-layout {
     z-index: 9999;
     max-height: 75vh;
     overflow: hidden;
+}
+.map-pin-sheet.open {
+    display: flex;
 }
 @keyframes sheetSlideUp {
     from { transform: translateY(100%); opacity: 0; }
