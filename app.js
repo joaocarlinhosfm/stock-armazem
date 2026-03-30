@@ -3937,29 +3937,38 @@ async function _loadGeocodeCache() {
     try {
         const url = await authUrl(GEOCODE_CACHE_URL);
         const res = await fetch(url);
-        if (!res.ok) { _geocodeCacheLoaded = true; return; }
+        if (!res.ok) {
+            console.warn(`[geocache] HTTP ${res.status} — a continuar sem cache Firebase`);
+            // 401 = rules não publicadas ainda; continua sem cache (geocodifica tudo)
+            _geocodeCacheLoaded = true;
+            return;
+        }
         const data = await res.json();
         if (data && typeof data === 'object') {
             Object.entries(data).forEach(([k, v]) => {
-                // v = { lat, lng, ts } ou null
                 _geocodeCache[k] = (v && v.lat && v.lng) ? { lat: v.lat, lng: v.lng } : null;
             });
-            console.log(`[geocache] ${Object.keys(_geocodeCache).length} entradas carregadas do Firebase`);
+            console.log(`[geocache] ${Object.keys(_geocodeCache).length} entradas carregadas`);
+        } else {
+            console.log('[geocache] cache vazia (primeira utilização)');
         }
-    } catch(e) { console.warn('[geocache] erro ao carregar:', e); }
+    } catch(e) {
+        console.warn('[geocache] erro ao carregar:', e);
+    }
     _geocodeCacheLoaded = true;
 }
 
-// Persiste uma entrada na cache Firebase (fire-and-forget)
+// Persiste uma entrada na cache Firebase (fire-and-forget, ignora erros de rules)
 async function _saveGeocodeCacheEntry(key, coords) {
     try {
-        const safeKey = key.replace(/[.#$/\[\]]/g, '_');
+        const safeKey = key.replace(/[.#$\/\[\]]/g, '_');
         const url = await authUrl(`${BASE_URL}/geocode-cache/${encodeURIComponent(safeKey)}.json`);
         const payload = coords
             ? JSON.stringify({ lat: coords.lat, lng: coords.lng, ts: Date.now() })
             : JSON.stringify(null);
         fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: payload })
-            .catch(e => console.warn('[geocache] erro ao guardar:', e));
+            .then(r => { if (!r.ok) console.warn(`[geocache] save ${r.status} para "${key}"`); })
+            .catch(e => console.warn('[geocache] save erro:', e));
     } catch(e) { console.warn('[geocache] saveEntry:', e); }
 }
 
@@ -4189,10 +4198,10 @@ async function openPatMap() {
         zoomControl:  true,
     });
 
-    // Stadia Alidade Smooth — requer registo gratuito em stadiamaps.com para produção
-    // Em localhost e Vercel funciona sem chave até 200k tiles/mês
-    L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
-        attribution: '© <a href="https://stadiamaps.com/">Stadia Maps</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    // CartoDB Positron — minimalista, sem API key, gratuito
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
         maxZoom: 20,
         minZoom: 6,
     }).addTo(_patMap);
