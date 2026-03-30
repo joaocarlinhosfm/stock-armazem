@@ -1,12 +1,13 @@
-// NOTA DE SEGURANÇA (#24): a apiKey do Firebase é pública por design.
-// A protecção real é feita pelas Firebase Security Rules (exigem Anonymous Auth).
-// Confirmar que as rules não permitem leitura/escrita sem token válido.
+﻿// NOTA DE SEGURANÃ‡A (#24): a apiKey do Firebase Ã© pÃºblica por design.
+// A protecÃ§Ã£o real Ã© feita pelas Firebase Security Rules (exigem Anonymous Auth).
+// Confirmar que as rules nÃ£o permitem leitura/escrita sem token vÃ¡lido.
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
+window.BASE_URL = BASE_URL;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _calcDias(tsOrStr, tsEnd?) — dias de calendário entre dois pontos
-// tsEnd opcional — se omitido usa hoje. Conta 1 dia a partir das 00:00.
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// _calcDias(tsOrStr, tsEnd?) â€” dias de calendÃ¡rio entre dois pontos
+// tsEnd opcional â€” se omitido usa hoje. Conta 1 dia a partir das 00:00.
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function _calcDias(tsOrStr, tsEnd) {
     if (!tsOrStr) return 0;
     let origem;
@@ -20,7 +21,6 @@ function _calcDias(tsOrStr, tsEnd) {
             const [y, m, d] = tsOrStr.split('-').map(Number);
             origem = new Date(y, m - 1, d);
         }
-    } else {
         const dt = new Date(tsOrStr);
         origem = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
     }
@@ -30,9 +30,9 @@ function _calcDias(tsOrStr, tsEnd) {
     return Math.max(0, Math.round((fimZero - origem) / 86400000));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _debounce(fn, ms) — função utilitária centralizada para debounce de pesquisa
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// _debounce(fn, ms) â€” funÃ§Ã£o utilitÃ¡ria centralizada para debounce de pesquisa
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function _debounce(fn, ms = 300) {
     let timer;
     return (...args) => {
@@ -41,8 +41,8 @@ function _debounce(fn, ms = 300) {
     };
 }
 
-// ── Lazy loading de bibliotecas pesadas ──────────────────────────────────────
-// Tesseract (~2.5 MB) e XLSX (~1 MB) só são carregados quando realmente usados,
+// â”€â”€ Lazy loading de bibliotecas pesadas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Tesseract (~2.5 MB) e XLSX (~1 MB) sÃ³ sÃ£o carregados quando realmente usados,
 // evitando atrasar o arranque da app em Android com rede lenta.
 function _loadScript(src) {
     return new Promise((resolve, reject) => {
@@ -65,7 +65,7 @@ async function loadXlsx() {
 }
 
 // =============================================
-// XSS — escapar sempre dados do utilizador
+// XSS â€” escapar sempre dados do utilizador
 // =============================================
 function escapeHtml(str) {
     if (str == null) return '';
@@ -75,31 +75,31 @@ function escapeHtml(str) {
 }
 
 // =============================================
-// FIREBASE AUTH — token anónimo para REST API
+// FIREBASE AUTH â€” token anÃ³nimo para REST API
 // =============================================
 let _authToken     = null;
-let _authTokenExp  = 0;     // timestamp de expiração (tokens duram 1h)
+let _authTokenExp  = 0;     // timestamp de expiraÃ§Ã£o (tokens duram 1h)
 
-// Obtém token válido — aguarda Promise do SDK Firebase ou renova se expirado
+// ObtÃ©m token vÃ¡lido â€” aguarda Promise do SDK Firebase ou renova se expirado
 async function getAuthToken() {
     const now = Date.now();
-    // Token em cache ainda válido (margem de 5 min)
+    // Token em cache ainda vÃ¡lido (margem de 5 min)
     if (_authToken && now < _authTokenExp - 300_000) return _authToken;
 
     // Aguarda a Promise criada pelo SDK (com timeout de 10s)
     const tokenPromise = window._firebaseTokenPromise
         ? window._firebaseTokenPromise
-        : Promise.reject(new Error('Firebase SDK não carregou'));
+        : Promise.reject(new Error('Firebase SDK nÃ£o carregou'));
 
     _authToken = await Promise.race([
         tokenPromise,
-        new Promise((_, rej) => setTimeout(() => rej(new Error('Auth timeout — verifica Anonymous Auth na consola Firebase')), 10_000))
+        new Promise((_, rej) => setTimeout(() => rej(new Error('Auth timeout â€” verifica Anonymous Auth na consola Firebase')), 10_000))
     ]);
 
-    // Se o user está disponível, renova o token (force=true garante token fresco)
+    // Se o user estÃ¡ disponÃ­vel, renova o token (force=true garante token fresco)
     if (window._firebaseUser) {
         try {
-            const forceRefreshToken = (_authToken !== null); // força renovação se já tivemos token antes
+            const forceRefreshToken = (_authToken !== null); // forÃ§a renovaÃ§Ã£o se jÃ¡ tivemos token antes
             _authToken = await window._firebaseUser.getIdToken(forceRefreshToken);
         } catch(_e) { console.warn('[Auth] falha ao renovar token:', _e?.message); }
     }
@@ -108,7 +108,7 @@ async function getAuthToken() {
     return _authToken;
 }
 
-// Renovação proactiva do token a cada 45 min — protege sessões longas (ponto 1)
+// RenovaÃ§Ã£o proactiva do token a cada 45 min â€” protege sessÃµes longas (ponto 1)
 let _tokenRenewalTimer = null;
 function _scheduleTokenRenewal() {
     clearTimeout(_tokenRenewalTimer);
@@ -117,9 +117,9 @@ function _scheduleTokenRenewal() {
             try {
                 _authToken = await window._firebaseUser.getIdToken(true);
                 _authTokenExp = Date.now() + 3_500_000;
-            } catch(e) { console.warn('[Auth] falha na renovação:', e.message); }
+            } catch(e) { console.warn('[Auth] falha na renovaÃ§Ã£o:', e.message); }
         }
-        _scheduleTokenRenewal(); // agenda próxima renovação
+        _scheduleTokenRenewal(); // agenda prÃ³xima renovaÃ§Ã£o
     }, 45 * 60 * 1000); // 45 minutos
 }
 
@@ -130,13 +130,13 @@ async function authUrl(url) {
         const sep   = url.includes('?') ? '&' : '?';
         return `${url}${sep}auth=${token}`;
     } catch (e) {
-        console.warn('Auth token indisponível:', e.message);
-        return url; // offline — a fila offline trata do reenvio quando voltar online
+        console.warn('Auth token indisponÃ­vel:', e.message);
+        return url; // offline â€” a fila offline trata do reenvio quando voltar online
     }
 }
 
 // =============================================
-// PERFIL — Funcionário vs Gestor
+// PERFIL â€” FuncionÃ¡rio vs Gestor
 // =============================================
 const ROLE_KEY    = 'hiperfrio-role';   // 'worker' | 'manager'
 let   currentRole = null;               // definido no arranque
@@ -147,12 +147,12 @@ function requireManagerAccess({ silent = false } = {}) {
     return false;
 }
 
-// Aplica o perfil à UI — chamado uma vez no boot
+// Aplica o perfil Ã  UI â€” chamado uma vez no boot
 function applyRole(role) {
     currentRole = role;
     document.body.classList.toggle('worker-mode', role === 'worker');
 
-    // Badge no header — inserido dentro de .header-titles para não quebrar o flex layout
+    // Badge no header â€” inserido dentro de .header-titles para nÃ£o quebrar o flex layout
     let badge = document.getElementById('role-badge');
     if (!badge) {
         badge = document.createElement('button');
@@ -161,35 +161,35 @@ function applyRole(role) {
         document.querySelector('.header-titles')?.appendChild(badge);
     }
     const savedUser = localStorage.getItem('hiperfrio-username') || '';
-    const displayName = savedUser || (role === 'worker' ? 'Funcionário' : 'Gestor');
+    const displayName = savedUser || (role === 'worker' ? 'FuncionÃ¡rio' : 'Gestor');
     if (role === 'worker') {
-        badge.textContent = `${displayName} ▾`;
+        badge.textContent = `${displayName} â–¾`;
         badge.className   = 'role-badge-worker';
     } else {
-        badge.textContent = `${displayName} ▾`;
+        badge.textContent = `${displayName} â–¾`;
         badge.className   = 'role-badge-manager';
     }
 
-    // Footer da sidebar — username + role
+    // Footer da sidebar â€” username + role
     const footerUser = document.getElementById('menu-footer-username');
     const footerRole = document.getElementById('menu-footer-role');
     if (footerUser) footerUser.textContent = displayName;
     if (footerRole) footerRole.textContent = role === 'worker' ? 'Operador' : 'Gestor';
 
-    // Esconde o ecrã de seleção
+    // Esconde o ecrÃ£ de seleÃ§Ã£o
     document.getElementById('role-screen')?.classList.add('hidden');
 }
 
-// ──────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // SISTEMA DE LOGIN POR USERNAME + PASSWORD
-// ──────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const USERS_URL = `${BASE_URL}/config/users.json`;
 const USER_KEY  = 'hiperfrio-username';
 
 // Hash SHA-256 da password (com salt diferente do PIN)
-// hashPassword — salt inclui o username para que o mesmo password gere hashes
+// hashPassword â€” salt inclui o username para que o mesmo password gere hashes
 // diferentes por utilizador, dificultando rainbow table attacks em massa.
-// O salt fixo mantém-se por retrocompatibilidade com hashes já criados.
+// O salt fixo mantÃ©m-se por retrocompatibilidade com hashes jÃ¡ criados.
 async function hashPassword(password, username = '') {
     const saltedInput = password + 'hiperfrio-pw-salt' + username.toLowerCase();
     const data    = new TextEncoder().encode(saltedInput);
@@ -198,8 +198,8 @@ async function hashPassword(password, username = '') {
 }
 
 // Carrega lista de utilizadores da Firebase
-// Gera um verificador offline derivado da password — nunca guarda dados Firebase localmente.
-// salt diferente do Firebase para que compromisso local não dê acesso ao servidor.
+// Gera um verificador offline derivado da password â€” nunca guarda dados Firebase localmente.
+// salt diferente do Firebase para que compromisso local nÃ£o dÃª acesso ao servidor.
 const _OFFLINE_SALT = 'hiperfrio-offline-v2';
 async function _offlineVerifier(username, password) {
     const raw = new TextEncoder().encode(username + ':' + password + ':' + _OFFLINE_SALT);
@@ -215,25 +215,25 @@ async function loadUsers() {
         console.warn('[Login] sem token Firebase:', e.message);
     }
 
-    // 2) Pedido à Firebase
+    // 2) Pedido Ã  Firebase
     try {
         const url = await authUrl(USERS_URL);
         const res  = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data && !data.error) {
-            // Não guardar dados Firebase localmente — apenas marca timestamp de sucesso
+            // NÃ£o guardar dados Firebase localmente â€” apenas marca timestamp de sucesso
             localStorage.setItem('hiperfrio-last-online', Date.now().toString());
             return data;
         }
-        throw new Error(data?.error || 'resposta inválida');
+        throw new Error(data?.error || 'resposta invÃ¡lida');
     } catch (e) {
-        console.warn('[Login] servidor inacessível — tenta sessão offline');
+        console.warn('[Login] servidor inacessÃ­vel â€” tenta sessÃ£o offline');
         return null; // null = offline, {} = sem utilizadores
     }
 }
 
-// Floating label — adiciona/remove classe has-value consoante o input tem conteúdo
+// Floating label â€” adiciona/remove classe has-value consoante o input tem conteÃºdo
 function lsFieldUpdate(input, fieldId) {
     const field = document.getElementById(fieldId);
     if (!field) return;
@@ -255,7 +255,7 @@ function toggleLoginPassword() {
         : '<path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>';
 }
 
-// Handler do formulário de login
+// Handler do formulÃ¡rio de login
 async function handleLogin(e) {
     if (e) e.preventDefault();
 
@@ -285,10 +285,10 @@ async function handleLogin(e) {
         const users = await loadUsers();
 
         if (users === null) {
-            // Offline — tentar autenticação com sessão local guardada de forma segura
+            // Offline â€” tentar autenticaÃ§Ã£o com sessÃ£o local guardada de forma segura
             const sessionRaw = localStorage.getItem('hiperfrio-session');
             if (!sessionRaw) {
-                showError('Sem ligação ao servidor. Liga-te à internet para autenticares pela primeira vez.');
+                showError('Sem ligaÃ§Ã£o ao servidor. Liga-te Ã  internet para autenticares pela primeira vez.');
                 return;
             }
             try {
@@ -297,7 +297,7 @@ async function handleLogin(e) {
                 const verifier = await _offlineVerifier(username, password);
                 if (session.username === username && session.verifier === verifier
                     && Date.now() - session.ts < TTL_24H) {
-                    // Sessão offline válida
+                    // SessÃ£o offline vÃ¡lida
                     const role = session.role || 'worker';
                     localStorage.setItem(ROLE_KEY, role);
                     localStorage.setItem(USER_KEY, username);
@@ -305,24 +305,24 @@ async function handleLogin(e) {
                     bootApp();
                     return;
                 }
-            } catch (_e) { /* sessão corrompida */ }
-            showError('Sem ligação. Só o último utilizador autenticado pode entrar offline.');
+            } catch (_e) { /* sessÃ£o corrompida */ }
+            showError('Sem ligaÃ§Ã£o. SÃ³ o Ãºltimo utilizador autenticado pode entrar offline.');
             return;
         }
 
         if (!users || !Object.keys(users).length) {
-            showError('Não foi possível contactar o servidor. Verifica a ligação.');
+            showError('NÃ£o foi possÃ­vel contactar o servidor. Verifica a ligaÃ§Ã£o.');
             return;
         }
 
         const userObj = users[username];
         if (!userObj) {
-            showError('Utilizador não encontrado.');
+            showError('Utilizador nÃ£o encontrado.');
             return;
         }
 
         const pwHash = await hashPassword(password, username);
-        // Retrocompatibilidade: testa também o hash antigo (sem username no salt)
+        // Retrocompatibilidade: testa tambÃ©m o hash antigo (sem username no salt)
         const pwHashLegacy = await hashPassword(password);
         if (pwHash !== userObj.passwordHash && pwHashLegacy !== userObj.passwordHash) {
             showError('Password incorrecta.');
@@ -335,11 +335,11 @@ async function handleLogin(e) {
                 body: JSON.stringify({ passwordHash: pwHash }) }).catch(() => {});
         }
 
-        // Login bem sucedido — guardar sessão offline segura (só verifier, nunca dados Firebase)
+        // Login bem sucedido â€” guardar sessÃ£o offline segura (sÃ³ verifier, nunca dados Firebase)
         const role = userObj.role || 'worker';
         const verifier = await _offlineVerifier(username, password);
         localStorage.setItem('hiperfrio-session', JSON.stringify({ username, role, verifier, ts: Date.now() }));
-        // Limpar qualquer cache antiga com dados sensíveis
+        // Limpar qualquer cache antiga com dados sensÃ­veis
         localStorage.removeItem('hiperfrio-users-cache');
         localStorage.setItem(ROLE_KEY, role);
         localStorage.setItem(USER_KEY, username);
@@ -357,7 +357,7 @@ async function handleLogin(e) {
         bootApp();
 
     } catch (err) {
-        showError('Erro de ligação. Tenta novamente.');
+        showError('Erro de ligaÃ§Ã£o. Tenta novamente.');
         console.error('[Login] erro:', err);
     } finally {
         if (btn)     btn.disabled = false;
@@ -366,9 +366,9 @@ async function handleLogin(e) {
     }
 }
 
-// ──────────────────────────────────────────────────────────
-// GESTÃO DE UTILIZADORES (Admin → tab Utilizadores)
-// ──────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GESTÃƒO DE UTILIZADORES (Admin â†’ tab Utilizadores)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const USERS_BASE_URL = `${BASE_URL}/config/users`;
 
 async function createUser() {
@@ -379,19 +379,19 @@ async function createUser() {
 
     if (!nameRaw)    { showToast('Indica o nome de utilizador', 'error'); return; }
     if (!password || password.length < 4) { showToast('Password deve ter pelo menos 4 caracteres', 'error'); return; }
-    // Só letras, números, ponto e underscore
-    if (!/^[a-z0-9._]+$/.test(nameRaw)) { showToast('Nome só pode ter letras, números, ponto e _', 'error'); return; }
+    // SÃ³ letras, nÃºmeros, ponto e underscore
+    if (!/^[a-z0-9._]+$/.test(nameRaw)) { showToast('Nome sÃ³ pode ter letras, nÃºmeros, ponto e _', 'error'); return; }
 
     const pwHash = await hashPassword(password, nameRaw);
     const url    = await authUrl(`${USERS_BASE_URL}/${nameRaw}.json`);
 
     try {
-        // Verifica se já existe — só considera existente se HTTP 200 e valor não-null
+        // Verifica se jÃ¡ existe â€” sÃ³ considera existente se HTTP 200 e valor nÃ£o-null
         const checkRes = await fetch(url);
         if (checkRes.ok) {
             const existing = await checkRes.json();
             if (existing !== null && !existing.error) {
-                showToast('Utilizador já existe', 'error'); return;
+                showToast('Utilizador jÃ¡ existe', 'error'); return;
             }
         }
 
@@ -414,7 +414,7 @@ async function createUser() {
         showToast(`Utilizador "${nameRaw}" criado`);
         renderUsersList();
     } catch (e) {
-        showToast('Erro de ligação: ' + (e.message || e), 'error');
+        showToast('Erro de ligaÃ§Ã£o: ' + (e.message || e), 'error');
     }
 }
 
@@ -441,10 +441,10 @@ async function renderUsersList() {
                     <span style="font-size:1.3rem">${u.role === 'manager' ? 'G' : 'F'}</span>
                     <div style="min-width:0;">
                         <div style="font-weight:700;font-size:0.9rem;color:var(--text-main)">${safeName}</div>
-                        <div style="font-size:0.72rem;color:var(--text-muted)">${u.role === 'manager' ? 'Gestor' : 'Funcionário'}</div>
+                        <div style="font-size:0.72rem;color:var(--text-muted)">${u.role === 'manager' ? 'Gestor' : 'FuncionÃ¡rio'}</div>
                     </div>
                 </div>
-                <button class="btn-danger-sm" onclick="deleteUser('${safeName}')">🗑</button>
+                <button class="btn-danger-sm" onclick="deleteUser('${safeName}')">ðŸ—‘</button>
             </div>
         `}).join('');
     } catch (e) {
@@ -456,7 +456,7 @@ async function deleteUser(username) {
     if (!requireManagerAccess()) return;
     const currentUser = localStorage.getItem('hiperfrio-username') || '';
     if (username === currentUser) {
-        showToast('Não podes eliminar a tua própria conta', 'error');
+        showToast('NÃ£o podes eliminar a tua prÃ³pria conta', 'error');
         return;
     }
     if (!confirm(`Eliminar utilizador "${username}"?`)) return;
@@ -468,18 +468,18 @@ async function deleteUser(username) {
     renderUsersList();
 }
 
-// Trocar de perfil — sem reload para ser mais rápido
+// Trocar de perfil â€” sem reload para ser mais rÃ¡pido
 function switchRole() {
     closeSwitchRoleModal();
     localStorage.removeItem(ROLE_KEY);
     currentRole = null;
     // Remove badge
     document.getElementById('role-badge')?.remove();
-    // Repõe body classes
+    // RepÃµe body classes
     document.body.classList.remove('worker-mode');
-    // Invalida cache em memória
+    // Invalida cache em memÃ³ria
     Object.keys(cache).forEach(k => { cache[k].data = null; cache[k].lastFetch = 0; });
-    // Para renovação de token
+    // Para renovaÃ§Ã£o de token
     clearTimeout(_tokenRenewalTimer);
     // Limpa username
     localStorage.removeItem('hiperfrio-username');
@@ -489,14 +489,14 @@ function switchRole() {
     const u = document.getElementById('ls-username'); if (u) u.value = '';
     const p = document.getElementById('ls-password'); if (p) p.value = '';
     const e = document.getElementById('ls-error'); if (e) e.classList.remove('visible');
-    // Mostra ecrã de login
+    // Mostra ecrÃ£ de login
     const rs = document.getElementById('role-screen');
     if (rs) { rs.style.opacity='0'; rs.style.transition='opacity 0s'; rs.classList.remove('hidden'); requestAnimationFrame(() => { rs.style.transition='opacity 0.3s'; rs.style.opacity='1'; }); }
     // Esconde todas as vistas
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     // Reset nav activo
     document.querySelectorAll('.menu-items li, .bottom-nav-item').forEach(b => b.classList.remove('active'));
-    // Volta ao dashboard ao próximo login
+    // Volta ao dashboard ao prÃ³ximo login
     document.getElementById('view-dashboard')?.classList.add('active');
     document.getElementById('nav-dashboard')?.classList.add('active');
 }
@@ -513,20 +513,20 @@ function checkAdminAccess() {
     return requireManagerAccess();
 }
 
-// Inicializa a app após o perfil estar definido
+// Inicializa a app apÃ³s o perfil estar definido
 async function bootApp() {
-    // Garante token válido antes de qualquer fetch — crítico após login
+    // Garante token vÃ¡lido antes de qualquer fetch â€” crÃ­tico apÃ³s login
     try {
         await getAuthToken();
     } catch(_e) {
         console.warn('bootApp: sem token, continua offline');
     }
     _scheduleTokenRenewal();
-    // Auto-fechar mês anterior se for dia 1
+    // Auto-fechar mÃªs anterior se for dia 1
     _autoFecharMesSeNecessario();
-    // Pré-preencher campo de email do inventário nas Definições
+    // PrÃ©-preencher campo de email do inventÃ¡rio nas DefiniÃ§Ãµes
     setTimeout(_invLoadEmailField, 400);
-    // Lança fetches em paralelo após ter token
+    // LanÃ§a fetches em paralelo apÃ³s ter token
     await Promise.all([
         renderList(),
         fetchCollection('ferramentas'),
@@ -540,9 +540,9 @@ async function bootApp() {
 
 // =============================================
 // =============================================
-// CACHE EM MEMÓRIA — TTL 60s
+// CACHE EM MEMÃ“RIA â€” TTL 60s
 // =============================================
-const CACHE_TTL = 300_000; // 5 min — stock de armazém não muda por segundo
+const CACHE_TTL = 300_000; // 5 min â€” stock de armazÃ©m nÃ£o muda por segundo
 const cache = {
     stock:        { data: null, lastFetch: 0 },
     ferramentas:  { data: null, lastFetch: 0 },
@@ -578,105 +578,25 @@ async function fetchCollection(name, force = false) {
 
 function invalidateCache(name) { cache[name].lastFetch = 0; }
 
-// =============================================
-// FILA OFFLINE — localStorage persistente
-// =============================================
-const QUEUE_KEY = 'hiperfrio-offline-queue';
-let isSyncing   = false; // FIX: evita execuções paralelas de syncQueue
-
-function queueLoad() {
-    try {
-        const raw = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
-        return _pruneQueue(raw); // PONTO 10: remove entradas expiradas
-    }
-    catch { return []; }
-}
-function queueSave(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }
-
-// PONTO 10: remove operações com mais de 7 dias da fila
-const QUEUE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-function _pruneQueue(q) {
-    const cutoff = Date.now() - QUEUE_TTL_MS;
-    return q.filter(op => !op.ts || op.ts > cutoff);
-}
-
-function queueAdd(op) {
-    // Regista Background Sync ao adicionar à fila
-    if ('serviceWorker' in navigator && 'SyncManager' in window) {
-        navigator.serviceWorker.ready.then(sw => sw.sync.register('hiperfrio-sync')).catch(() => {});
-    }
-    // FIX: só aceita mutações na fila, nunca GETs
-    if (!op.method || op.method === 'GET') return;
-    op.ts = Date.now(); // timestamp para TTL
-    const q = _pruneQueue(queueLoad());
-    // Colapsar PATCHes repetidos ao mesmo URL
-    if (op.method === 'PATCH') {
-        const idx = q.findIndex(o => o.method === 'PATCH' && o.url === op.url);
-        if (idx !== -1) { q[idx] = op; } else { q.push(op); }
-    } else {
-        // FIX: ignorar operações em IDs temporários (_tmp_) para não enviar URLs inválidos
-        if (op.url && op.url.includes('/_tmp_')) return;
-        q.push(op);
-    }
-    queueSave(q);
-    updateOfflineBanner();
-}
-
-async function syncQueue() {
-    if (isSyncing) return; // FIX: protecção contra execuções paralelas
-    const q = queueLoad();
-    if (q.length === 0) return;
-    isSyncing = true;
-    const failed = [];
-    for (const op of q) {
-        try {
-            const opts = { method: op.method, headers: { 'Content-Type': 'application/json' } };
-            if (op.body) opts.body = op.body;
-            const signedUrl = await authUrl(op.url);
-            const res = await fetch(signedUrl, opts);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        } catch(_e) { console.warn('[Queue] falha ao sincronizar op:', op?.method, _e?.message); failed.push(op); }
-    }
-    queueSave(failed);
-    isSyncing = false;
-    updateOfflineBanner();
-    if (failed.length < q.length) {
-        const synced = q.length - failed.length;
-        showToast(`${synced} alteração(ões) sincronizada(s)`);
-        // Invalida cache e refresca para limpar _tmp_ IDs
+const offlineSync = window.HiperfrioOfflineSync;
+offlineSync.init({
+    authUrl,
+    onSyncSuccess: () => {
         invalidateCache('stock');
         invalidateCache('ferramentas');
         invalidateCache('funcionarios');
-        _patCache.lastFetch = 0;
+        if (typeof _patCache !== 'undefined') _patCache.lastFetch = 0;
         renderList(window._searchInputEl?.value || '', true);
-        renderPats();
-        updatePatCount();
-    }
-}
-
-// Wrapper fetch — se offline, coloca na fila
-async function apiFetch(url, opts = {}) {
-    const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-    if (!navigator.onLine) {
-        queueAdd({ method: opts.method || 'GET', url, body: opts.body || null });
-        return null;
-    }
-    const signedUrl = await authUrl(url);
-    const res = await fetch(signedUrl, { ...opts, headers });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res;
-}
-
-function updateOfflineBanner() {
-    const isOffline = !navigator.onLine;
-    document.body.classList.toggle('is-offline', isOffline);
-    const q       = queueLoad();
-    const countEl = document.getElementById('offline-pending-count');
-    if (countEl) {
-        countEl.textContent   = q.length > 0 ? `${q.length} alteração(ões) pendente(s)` : '';
-        countEl.style.display = q.length > 0 ? 'inline' : 'none';
-    }
-}
+        if (typeof renderPats === 'function') renderPats();
+        if (typeof updatePatCount === 'function') updatePatCount();
+    },
+});
+const queueLoad = (...args) => offlineSync.queueLoad(...args);
+const queueSave = (...args) => offlineSync.queueSave(...args);
+const queueAdd = (...args) => offlineSync.queueAdd(...args);
+const syncQueue = (...args) => offlineSync.syncQueue(...args);
+const apiFetch = (...args) => offlineSync.apiFetch(...args);
+const updateOfflineBanner = (...args) => offlineSync.updateOfflineBanner(...args);
 
 // =============================================
 // UI HELPERS
@@ -687,7 +607,7 @@ function showToast(msg, type = 'success') {
     t.className = 'toast';
     if (type === 'error') t.style.borderLeftColor = 'var(--danger)';
     const icon = document.createElement('span');
-    icon.textContent = type === 'success' ? '✅' : '✗';
+    icon.textContent = type === 'success' ? 'âœ…' : 'âœ—';
     const text = document.createElement('span');
     text.textContent = msg;
     t.appendChild(icon);
@@ -695,6 +615,7 @@ function showToast(msg, type = 'success') {
     container.appendChild(t);
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
 }
+window.showToast = showToast;
 
 function setRefreshSpinning(s) { document.getElementById('btn-refresh')?.classList.toggle('spinning', s); }
 
@@ -703,7 +624,7 @@ function toggleMenu() {
     document.getElementById('menu-overlay')?.classList.toggle('active');
 }
 
-// ── Avatar dropdown (header) ──────────────────────────────
+// â”€â”€ Avatar dropdown (header) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function toggleAvatarMenu() {
     const dd = document.getElementById('avatar-dropdown');
     if (!dd) return;
@@ -720,20 +641,20 @@ document.addEventListener('click', function(e) {
 });
 
 // =============================================
-// NAVEGAÇÃO
-// FIX: active state só actualizado após acesso confirmado
+// NAVEGAÃ‡ÃƒO
+// FIX: active state sÃ³ actualizado apÃ³s acesso confirmado
 // =============================================
-// ARQUITECTURA (#18): esta função gere routing + side-effects.
+// ARQUITECTURA (#18): esta funÃ§Ã£o gere routing + side-effects.
 // Para refactor futuro: separar em _activateView(id) e callbacks por vista.
 function nav(viewId) {
     if (viewId === 'view-admin' && !checkAdminAccess()) return;
 
-    // Actualiza título do header
+    // Actualiza tÃ­tulo do header
     const pageTitles = {
         'view-dashboard': 'Dashboard',
         'view-search':    'Stock',
         'view-pedidos':   'Pedidos PAT',
-        'view-admin':     'Administração',
+        'view-admin':     'AdministraÃ§Ã£o',
         'view-tools':     'Ferramentas',
         'view-register':  'Novo Artigo',
         'view-bulk':      'Entrada de Lote',
@@ -768,7 +689,7 @@ function nav(viewId) {
     if (viewId === 'view-bulk') {
         _bulkCount = 0; _updateBulkCounter();
         _refreshZoneDatalist(); // PONTO 16
-        // PONTO 4: limpa zona se vazia para evitar confusão com lote anterior persistido pelo browser
+        // PONTO 4: limpa zona se vazia para evitar confusÃ£o com lote anterior persistido pelo browser
         const bulkLoc = document.getElementById('bulk-loc');
         if (bulkLoc && !bulkLoc.value.trim()) bulkLoc.value = '';
     }
@@ -777,11 +698,11 @@ function nav(viewId) {
     if (viewId === 'view-encomendas') { loadEncomendas(); }
 
     if (viewId === 'view-admin') {
-        // Mesmo comportamento em mobile e desktop — menu full-screen com cards
+        // Mesmo comportamento em mobile e desktop â€” menu full-screen com cards
         _buildAdminMobileMenu();
     }
     if (viewId === 'view-pedidos') {
-        // Limpa pesquisa ao entrar na vista para não confundir ao voltar
+        // Limpa pesquisa ao entrar na vista para nÃ£o confundir ao voltar
         _patSearchQuery = '';
         const searchEl = document.getElementById('pat-search');
         if (searchEl) searchEl.value = '';
@@ -808,7 +729,7 @@ function nav(viewId) {
     if (document.getElementById('side-menu')?.classList.contains('open')) toggleMenu();
     window.scrollTo(0, 0);
     bnavAddClose(); // fecha o mini-menu ao navegar
-    // Garante que o bottom nav pill está visível ao mudar de vista
+    // Garante que o bottom nav pill estÃ¡ visÃ­vel ao mudar de vista
     document.getElementById('bottom-nav')?.classList.remove('bnav-hidden');
     if (window.innerWidth < 768) {
         const fab = document.getElementById('fab-add');
@@ -817,9 +738,9 @@ function nav(viewId) {
 }
 
 // =============================================
-// DASHBOARD — resumo no topo do stock
+// DASHBOARD â€” resumo no topo do stock
 // =============================================
-// PONTO 17: snapshot diário para tendência no dashboard
+// PONTO 17: snapshot diÃ¡rio para tendÃªncia no dashboard
 const DASH_SNAPSHOT_KEY = 'hiperfrio-dash-snap';
 function _saveDashSnapshot(total, semStock, alocadas) {
     const today = new Date().toISOString().slice(0,10);
@@ -873,14 +794,14 @@ async function renderDashboard(force = false) {
     );
     _saveDashSnapshot(total, semStock, alocadas);
 
-    // Subtítulo com hora de actualização
+    // SubtÃ­tulo com hora de actualizaÃ§Ã£o
     const subEl = document.getElementById('dash-subtitle');
     if (subEl) {
         const now = new Date();
-        subEl.textContent = `Actualizado às ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+        subEl.textContent = `Actualizado Ã s ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
     }
 
-    // ── helper: cria um metric card ──────────────────────────────────────────
+    // â”€â”€ helper: cria um metric card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function _metricCard({ label, value, sub, accent, icon, warn, alert, onClick, progress, stats }) {
         const card = document.createElement('div');
         card.className = 'dv2-card' + (warn ? ' dv2-card--warn' : '') + (alert ? ' dv2-card--alert' : '');
@@ -953,13 +874,13 @@ async function renderDashboard(force = false) {
         return card;
     }
 
-    // ── GRID 2×2 ─────────────────────────────────────────────────────────────
+    // â”€â”€ GRID 2Ã—2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const grid = document.createElement('div');
     grid.className = 'dv2-grid';
 
     grid.appendChild(_metricCard({
         label: 'Produtos', value: total, icon: 'box',
-        sub: `${comStock} com stock · ${semStock} esgotados`,
+        sub: `${comStock} com stock Â· ${semStock} esgotados`,
         accent: '#2563eb',
         progress: total > 0 ? comStock / total : 1,
         onClick: () => nav('view-search'),
@@ -970,14 +891,14 @@ async function renderDashboard(force = false) {
     }));
 
     grid.appendChild(_metricCard({
-        label: 'Sem stock', value: semStock, icon: semStock > 0 ? '' : '✅',
-        sub: semStock > 0 ? `${Math.round(semStock/total*100)}% do inventário` : 'Tudo com stock',
+        label: 'Sem stock', value: semStock, icon: semStock > 0 ? '' : 'âœ…',
+        sub: semStock > 0 ? `${Math.round(semStock/total*100)}% do inventÃ¡rio` : 'Tudo com stock',
         accent: semStock > 0 ? '#dc2626' : '#16a34a',
         warn: semStock > 0,
         progress: total > 0 ? semStock / total : 0,
         onClick: semStock > 0 ? () => { _pendingZeroFilter = true; nav('view-search'); } : null,
         stats: semStock > 0 ? [
-            { label: '% inventário', value: Math.round(semStock/total*100) + '%', color: '#dc2626' },
+            { label: '% inventÃ¡rio', value: Math.round(semStock/total*100) + '%', color: '#dc2626' },
         ] : [
             { label: 'Total produtos', value: total, color: '#16a34a' },
         ],
@@ -986,21 +907,21 @@ async function renderDashboard(force = false) {
     grid.appendChild(_metricCard({
         label: 'Ferramentas', value: `${alocadas}/${totalFerr}`, icon: '',
         sub: alocadasHaMuito.length > 0
-            ? `! ${alocadasHaMuito.length} há +${ALERTA_DIAS}d`
-            : alocadas === 0 ? 'Todas em armazém' : `${totalFerr - alocadas} em armazém`,
+            ? `! ${alocadasHaMuito.length} hÃ¡ +${ALERTA_DIAS}d`
+            : alocadas === 0 ? 'Todas em armazÃ©m' : `${totalFerr - alocadas} em armazÃ©m`,
         accent: alocadasHaMuito.length > 0 ? '#f59e0b' : '#2563eb',
         warn: alocadasHaMuito.length > 0,
         progress: totalFerr > 0 ? alocadas / totalFerr : 0,
         onClick: () => nav('view-tools'),
         stats: [
-            { label: 'Em armazém', value: totalFerr - alocadas, color: '#16a34a' },
+            { label: 'Em armazÃ©m', value: totalFerr - alocadas, color: '#16a34a' },
             { label: 'Alocadas', value: alocadas, color: alocadas > 0 ? '#f59e0b' : '#64748b' },
             ...(alocadasHaMuito.length > 0 ? [{ label: `+${ALERTA_DIAS}d fora`, value: alocadasHaMuito.length, color: '#dc2626' }] : []),
         ],
     }));
 
     grid.appendChild(_metricCard({
-        label: 'PATs', value: patPendentes, icon: '≡',
+        label: 'PATs', value: patPendentes, icon: 'â‰¡',
         sub: patPendentes === 0 ? 'Sem pendentes' : patPendentes === 1 ? '1 pedido pendente' : `${patPendentes} pedidos pendentes`,
         accent: patPendentes > 0 ? '#7c3aed' : '#16a34a',
         onClick: () => nav('view-pedidos'),
@@ -1021,7 +942,7 @@ async function renderDashboard(force = false) {
 
     el.appendChild(grid);
 
-    // ── SECÇÃO: Últimas PATs ─────────────────────────────────────────────────
+    // â”€â”€ SECÃ‡ÃƒO: Ãšltimas PATs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const patEntries = Object.entries(_patCache.data || {})
         .filter(([, p]) => p.status !== 'levantado')
         .sort((a, b) => (b[1].criadoEm || 0) - (a[1].criadoEm || 0))
@@ -1034,10 +955,10 @@ async function renderDashboard(force = false) {
         const hdr = document.createElement('div');
         hdr.className = 'dv2-section-hdr';
         const hdrTitle = document.createElement('span');
-        hdrTitle.textContent = 'Últimas PATs';
+        hdrTitle.textContent = 'Ãšltimas PATs';
         const hdrLink = document.createElement('button');
         hdrLink.className   = 'dv2-section-link';
-        hdrLink.textContent = 'Ver todas →';
+        hdrLink.textContent = 'Ver todas â†’';
         hdrLink.onclick     = () => nav('view-pedidos');
         hdr.appendChild(hdrTitle);
         hdr.appendChild(hdrLink);
@@ -1065,7 +986,7 @@ async function renderDashboard(force = false) {
 
             const num = document.createElement('span');
             num.className   = 'dv2-pat-num';
-            num.textContent = `PAT ${escapeHtml(pat.numero || '—')}`;
+            num.textContent = `PAT ${escapeHtml(pat.numero || 'â€”')}`;
 
             const estab = document.createElement('span');
             estab.className   = 'dv2-pat-estab';
@@ -1089,7 +1010,7 @@ async function renderDashboard(force = false) {
         el.appendChild(sec);
     }
 
-    // ── SECÇÃO: Ferramentas por colaborador ──────────────────────────────────
+    // â”€â”€ SECÃ‡ÃƒO: Ferramentas por colaborador â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const alocadasList = ferraEntries
         .filter(t => t.status === 'alocada' && t.colaborador)
         .sort((a, b) => (a.colaborador || '').localeCompare(b.colaborador || '', 'pt'));
@@ -1104,7 +1025,7 @@ async function renderDashboard(force = false) {
         hdr2Title.textContent = 'Ferramentas em uso';
         const hdr2Link = document.createElement('button');
         hdr2Link.className   = 'dv2-section-link';
-        hdr2Link.textContent = 'Painel →';
+        hdr2Link.textContent = 'Painel â†’';
         hdr2Link.onclick     = () => nav('view-tools');
         hdr2.appendChild(hdr2Title);
         hdr2.appendChild(hdr2Link);
@@ -1140,7 +1061,7 @@ async function renderDashboard(force = false) {
 
             const toolNames = document.createElement('span');
             toolNames.className   = 'dv2-ferr-tools';
-            toolNames.textContent = tools.map(t => t.nome).join(' · ');
+            toolNames.textContent = tools.map(t => t.nome).join(' Â· ');
 
             left2.appendChild(name);
             left2.appendChild(toolNames);
@@ -1162,7 +1083,7 @@ async function renderDashboard(force = false) {
 }
 
 // =============================================
-// ORDENAÇÃO DO STOCK
+// ORDENAÃ‡ÃƒO DO STOCK
 // =============================================
 let _stockSort = 'recente'; // 'recente' | 'nome' | 'qtd-asc' | 'qtd-desc' | 'local'
 let _pendingZeroFilter  = false;
@@ -1175,9 +1096,9 @@ function toolsFilterSet(btn, filter) {
     if (search) search.value = '';
     renderTools();
 }
-let _zeroFilterActive  = false; // zero-stock filter está activo (persiste entre navegações)
+let _zeroFilterActive  = false; // zero-stock filter estÃ¡ activo (persiste entre navegaÃ§Ãµes)
 
-// Menu de ordenação — criado no body para evitar clipping por stacking contexts
+// Menu de ordenaÃ§Ã£o â€” criado no body para evitar clipping por stacking contexts
 function _getSortMenu() {
     let menu = document.getElementById('sort-menu');
     if (!menu) {
@@ -1186,10 +1107,10 @@ function _getSortMenu() {
         menu.className = 'sort-menu';
         const options  = [
             { val: 'recente',  label: 'Mais recente' },
-            { val: 'nome',     label: 'Nome A→Z'     },
-            { val: 'qtd-asc',  label: 'Quantidade ↑' },
-            { val: 'qtd-desc', label: 'Quantidade ↓' },
-            { val: 'local',    label: 'Localização'  },
+            { val: 'nome',     label: 'Nome Aâ†’Z'     },
+            { val: 'qtd-asc',  label: 'Quantidade â†‘' },
+            { val: 'qtd-desc', label: 'Quantidade â†“' },
+            { val: 'local',    label: 'LocalizaÃ§Ã£o'  },
         ];
         options.forEach(o => {
             const btn = document.createElement('button');
@@ -1214,7 +1135,7 @@ function toggleSortMenu() {
         return;
     }
 
-    // Posiciona o menu sob o botão usando coordenadas absolutas
+    // Posiciona o menu sob o botÃ£o usando coordenadas absolutas
     const rect = btn.getBoundingClientRect();
     menu.style.top   = `${rect.bottom + window.scrollY + 6}px`;
     menu.style.right = `${window.innerWidth - rect.right - window.scrollX}px`;
@@ -1222,7 +1143,7 @@ function toggleSortMenu() {
     menu.classList.add('open');
     btn.classList.add('active');
 
-    // Fecha ao clicar fora (próximo tick para não capturar o click actual)
+    // Fecha ao clicar fora (prÃ³ximo tick para nÃ£o capturar o click actual)
     setTimeout(() => {
         document.addEventListener('click', _onOutsideSortClick);
     }, 0);
@@ -1242,7 +1163,7 @@ function _closeSortMenu() {
     document.removeEventListener('click', _onOutsideSortClick);
 }
 
-// Fecha sort menu em scroll ou resize (posição desactualizada)
+// Fecha sort menu em scroll ou resize (posiÃ§Ã£o desactualizada)
 window.addEventListener('scroll', () => {
     if (document.getElementById('sort-menu')?.classList.contains('open')) _closeSortMenu();
 }, { passive: true });
@@ -1252,7 +1173,7 @@ window.addEventListener('resize', () => {
 
 function setStockSort(val) {
     _stockSort = val;
-    // Actualiza estado visual das opções
+    // Actualiza estado visual das opÃ§Ãµes
     document.querySelectorAll('.sort-option').forEach(btn => {
         btn.classList.toggle('active', btn.id === `sort-${val}`);
     });
@@ -1273,8 +1194,8 @@ function getSortedEntries(entries) {
 }
 
 // =============================================
-// STOCK — RENDER
-// FIX: usa [...entries].reverse() para não mutar o cache
+// STOCK â€” RENDER
+// FIX: usa [...entries].reverse() para nÃ£o mutar o cache
 // FIX: qty-display.is-zero para stock a 0
 // FIX: filtragem por show/hide nos cards existentes sem recriar DOM
 // =============================================
@@ -1299,7 +1220,7 @@ function filterZeroStock() {
         const _badgeTxt = document.createElement('span');
         _badgeTxt.textContent = '! A mostrar apenas produtos sem stock';
         const _badgeBtn = document.createElement('button');
-        _badgeBtn.textContent = '✕ Limpar';
+        _badgeBtn.textContent = 'âœ• Limpar';
         _badgeBtn.onclick = clearZeroFilter;
         badge.appendChild(_badgeTxt);
         badge.appendChild(_badgeBtn);
@@ -1310,7 +1231,7 @@ function filterZeroStock() {
     }
 }
 
-// PONTO 16: histórico de zonas
+// PONTO 16: histÃ³rico de zonas
 const ZONE_HISTORY_KEY = 'hiperfrio-zone-history';
 function _saveZoneToHistory(zona) {
     if (!zona) return;
@@ -1331,11 +1252,11 @@ function closeBatch() {
     if (_bulkCount === 0) { nav('view-search'); return; }
     const zona = document.getElementById('bulk-loc')?.value?.trim() || '?';
     openConfirmModal({
-        icon: '📦',
+        icon: 'ðŸ“¦',
         title: 'Fechar lote?',
         desc: `${_bulkCount} produto${_bulkCount > 1 ? 's' : ''} adicionado${_bulkCount > 1 ? 's' : ''} na zona "${zona}". Fechar e ir para o stock?`,
         onConfirm: () => {
-            // Limpa o formulário completo
+            // Limpa o formulÃ¡rio completo
             document.getElementById('form-bulk')?.reset();
             setUnitSelector('bulk', 'un');
             document.getElementById('bulk-notas').value = '';
@@ -1364,7 +1285,7 @@ function clearZeroFilter() {
     renderList('', false);
 }
 
-// PONTO 8: lógica de filtragem centralizada — usada por renderList em ambos os caminhos
+// PONTO 8: lÃ³gica de filtragem centralizada â€” usada por renderList em ambos os caminhos
 function _itemMatchesFilter(item, filterLower, filterUpper) {
     if (!filterLower) return true;
     return (item.nome || '').toLowerCase().includes(filterLower)
@@ -1382,10 +1303,10 @@ async function renderList(filter = '', force = false) {
     const data    = await fetchCollection('stock', force);
     const entries = Object.entries(data);
 
-    // Se DOM já tem cards (re-render por filtro), apenas faz show/hide
+    // Se DOM jÃ¡ tem cards (re-render por filtro), apenas faz show/hide
     const existingCards = listEl.querySelectorAll('.swipe-wrapper[data-id]');
     if (existingCards.length > 0 && !force) {
-        // Remove "Mostrar mais" antes de filtrar — contagem pode mudar
+        // Remove "Mostrar mais" antes de filtrar â€” contagem pode mudar
         document.getElementById('load-more-btn')?.remove();
         const filterLower = filter.toLowerCase();
         let visible = 0;
@@ -1419,18 +1340,18 @@ async function renderList(filter = '', force = false) {
         return;
     }
 
-    // Hint contextual — swipe para gestores, leitura para funcionários
+    // Hint contextual â€” swipe para gestores, leitura para funcionÃ¡rios
     const hintKey = currentRole === 'worker' ? 'worker-hint-seen' : 'swipe-hint-seen';
     if (!filter && !localStorage.getItem(hintKey)) {
         const hint = document.createElement('div');
         hint.className = 'swipe-hint';
         if (currentRole === 'worker') {
             const msg = document.createElement('span');
-            msg.textContent = '👁️ Modo consulta — apenas visualização';
+            msg.textContent = 'ðŸ‘ï¸ Modo consulta â€” apenas visualizaÃ§Ã£o';
             hint.appendChild(msg);
         } else {
-            const l = document.createElement('span'); l.textContent = '✏️ Swipe direita para editar';
-            const r = document.createElement('span'); r.textContent = '🗑️ Swipe esquerda para apagar';
+            const l = document.createElement('span'); l.textContent = 'âœï¸ Swipe direita para editar';
+            const r = document.createElement('span'); r.textContent = 'ðŸ—‘ï¸ Swipe esquerda para apagar';
             hint.appendChild(l); hint.appendChild(r);
         }
         listEl.appendChild(hint);
@@ -1439,10 +1360,10 @@ async function renderList(filter = '', force = false) {
 
     const filterLower = filter.toLowerCase();
     let found = 0;
-    const PAGE_SIZE = 80; // PONTO 9: paginação
+    const PAGE_SIZE = 80; // PONTO 9: paginaÃ§Ã£o
     let _shownCount = 0;
 
-    // Ordenação configurável
+    // OrdenaÃ§Ã£o configurÃ¡vel
     getSortedEntries(entries).forEach(([id, item]) => {
         const matches = _itemMatchesFilter(item, filterLower, filter.toUpperCase());
 
@@ -1461,13 +1382,13 @@ async function renderList(filter = '', force = false) {
         bgR.appendChild(iR);
         wrapper.appendChild(bgL); wrapper.appendChild(bgR);
 
-        // Card content — tudo via textContent (sem XSS)
+        // Card content â€” tudo via textContent (sem XSS)
         const el = document.createElement('div');
         el.className = 'item-card';
 
         const refLabel = document.createElement('div');
         refLabel.className   = 'ref-label';
-        refLabel.textContent = 'REFERÊNCIA';
+        refLabel.textContent = 'REFERÃŠNCIA';
 
         const refVal = document.createElement('div');
         refVal.className   = 'ref-value';
@@ -1498,7 +1419,7 @@ async function renderList(filter = '', force = false) {
 
         const btnM = document.createElement('button');
         btnM.className   = 'btn-qty';
-        btnM.textContent = '−';
+        btnM.textContent = 'âˆ’';
         btnM.disabled    = qty === 0;
         btnM.id          = `btn-minus-${id}`;
         btnM.onclick     = () => changeQtd(id, -1);
@@ -1507,7 +1428,7 @@ async function renderList(filter = '', force = false) {
         qtySpan.className   = 'qty-display' + (qty === 0 ? ' is-zero' : '');
         qtySpan.id          = `qty-${id}`;
         qtySpan.textContent = fmtQty(qty, item.unidade);
-        // Duplo-toque/duplo-clique abre edição inline de quantidade
+        // Duplo-toque/duplo-clique abre ediÃ§Ã£o inline de quantidade
         let _tapTimer = null;
         qtySpan.addEventListener('click', () => {
             if (_tapTimer) {
@@ -1531,7 +1452,7 @@ async function renderList(filter = '', force = false) {
             const notasRow = document.createElement('div');
             notasRow.className   = 'card-notas';
             notasRow.title       = item.notas;
-            notasRow.textContent = `📝 ${item.notas}`;
+            notasRow.textContent = `ðŸ“ ${item.notas}`;
             el.appendChild(refLabel); el.appendChild(refVal); el.appendChild(nomEl);
             el.appendChild(notasRow);
         } else {
@@ -1542,7 +1463,7 @@ async function renderList(filter = '', force = false) {
         attachSwipe(el, wrapper, id, item);
         wrapper.appendChild(el);
         if (!matches) { listEl.appendChild(wrapper); return; }
-        // PONTO 9: só renderiza os primeiros PAGE_SIZE visíveis
+        // PONTO 9: sÃ³ renderiza os primeiros PAGE_SIZE visÃ­veis
         if (_shownCount < PAGE_SIZE) {
             listEl.appendChild(wrapper);
         } else {
@@ -1553,7 +1474,7 @@ async function renderList(filter = '', force = false) {
         _shownCount++;
     });
 
-    // Botão "Mostrar mais" se há cards diferidos
+    // BotÃ£o "Mostrar mais" se hÃ¡ cards diferidos
     const deferred = listEl.querySelectorAll('.swipe-wrapper[data-deferred="1"]').length;
     const existingBtn = document.getElementById('load-more-btn');
     if (existingBtn) existingBtn.remove();
@@ -1586,11 +1507,11 @@ async function renderList(filter = '', force = false) {
     }
 }
 
-// Edição inline de quantidade — abre mini-form no lugar do span
+// EdiÃ§Ã£o inline de quantidade â€” abre mini-form no lugar do span
 function openInlineQtyEdit(id, item) {
     const qtyEl = document.getElementById(`qty-${id}`);
-    if (!qtyEl || qtyEl.querySelector('input')) return; // já em edição
-    const currentQty = cache.stock.data?.[id]?.quantidade ?? item.quantidade ?? 0; // PONTO 5: lê do cache actualizado
+    if (!qtyEl || qtyEl.querySelector('input')) return; // jÃ¡ em ediÃ§Ã£o
+    const currentQty = cache.stock.data?.[id]?.quantidade ?? item.quantidade ?? 0; // PONTO 5: lÃª do cache actualizado
     const wrap = document.createElement('div');
     wrap.className = 'qty-inline-edit';
     const inp = document.createElement('input');
@@ -1613,9 +1534,19 @@ function openInlineQtyEdit(id, item) {
             registarMovimento('saida_manual', id, item.codigo, item.nome, oldValInline - newVal);
         }
         try {
-            await apiFetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: newVal }) });
+            const savedQty = await _commitStockAbsolute(id, oldValInline, newVal);
+            if (cache.stock.data?.[id]) cache.stock.data[id].quantidade = savedQty;
+            qtyEl.textContent = fmtQty(savedQty, item.unidade);
+            qtyEl.classList.toggle('is-zero', savedQty === 0);
+            document.getElementById(`btn-minus-${id}`)?.toggleAttribute('disabled', savedQty === 0);
             renderDashboard();
-        } catch(_e) { showToast('Erro ao guardar','error'); }
+        } catch(_e) {
+            if (_e?.message === 'STOCK_CONFLICT') {
+                showToast('Stock alterado por outro operador. Actualiza e tenta novamente.', 'error');
+            } else {
+                showToast('Erro ao guardar','error');
+            }
+        }
     };
     const cancelFn = () => { wrap.replaceWith(qtyEl); };
     inp.addEventListener('keydown', e => {
@@ -1625,7 +1556,7 @@ function openInlineQtyEdit(id, item) {
     inp.addEventListener('blur', () => setTimeout(cancelFn, 150));
     const ok = document.createElement('button');
     ok.className = 'qty-inline-ok';
-    ok.textContent = '✓';
+    ok.textContent = 'âœ“';
     ok.addEventListener('mousedown', e => { e.preventDefault(); confirmFn(); });
     wrap.appendChild(inp);
     wrap.appendChild(ok);
@@ -1644,42 +1575,19 @@ async function forceRefresh() {
     showToast('Stock atualizado!');
 }
 
-// Debounce de escrita para changeQtd — agrupa toques rápidos numa só chamada à Firebase
+// Debounce de escrita para changeQtd â€” agrupa toques rÃ¡pidos numa sÃ³ chamada Ã  Firebase
 const _qtyTimers = {};
 const _qtyPendingBase = {};
 
-async function _readServerStockQty(id, fallbackQty = 0) {
-    if (!navigator.onLine) return fallbackQty;
-    try {
-        const url = await authUrl(`${BASE_URL}/stock/${id}/quantidade.json`);
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const qty = await res.json();
-        const parsed = typeof qty === 'number' ? qty : parseFloat(qty);
-        return Number.isFinite(parsed) ? parsed : fallbackQty;
-    } catch (e) {
-        console.warn('[Stock] fallback para cache local:', id, e?.message);
-        return fallbackQty;
-    }
-}
-
-async function _commitStockDelta(id, baseQty, finalQty) {
-    if (finalQty === undefined) return baseQty;
-    if (!navigator.onLine) {
-        await apiFetch(`${BASE_URL}/stock/${id}.json`, {
-            method: 'PATCH', body: JSON.stringify({ quantidade: finalQty })
-        });
-        return finalQty;
-    }
-
-    const delta = finalQty - baseQty;
-    const latestQty = await _readServerStockQty(id, cache.stock.data?.[id]?.quantidade ?? baseQty);
-    const mergedQty = Math.max(0, latestQty + delta);
-    await apiFetch(`${BASE_URL}/stock/${id}.json`, {
-        method: 'PATCH', body: JSON.stringify({ quantidade: mergedQty })
-    });
-    return mergedQty;
-}
+const stockCore = window.HiperfrioStockCore;
+stockCore.init({
+    authUrl,
+    apiFetch,
+    getCache: () => cache,
+});
+const _readServerStockQty = (...args) => stockCore.readServerStockQty(...args);
+const _commitStockDelta = (...args) => stockCore.commitStockDelta(...args);
+const _commitStockAbsolute = (...args) => stockCore.commitStockAbsolute(...args);
 
 async function changeQtd(id, delta) {
     if (navigator.vibrate) navigator.vibrate(30);
@@ -1708,7 +1616,7 @@ async function changeQtd(id, delta) {
     }
     if (minusEl) minusEl.disabled = newQty === 0;
 
-    // Mostra indicador de "a guardar" após 300ms sem actividade
+    // Mostra indicador de "a guardar" apÃ³s 300ms sem actividade
     if (qtyEl) qtyEl.classList.add('qty-saving');
     clearTimeout(_qtyTimers[id]);
     _qtyTimers[id] = setTimeout(async () => {
@@ -1762,7 +1670,7 @@ async function renderTools() {
         const aloc    = entries.filter(t => t.status === 'alocada').length;
         const over    = entries.filter(t => t.status === 'alocada' && t.dataEntrega && _calcDias(t.dataEntrega) > TOOL_ALERT_DAYS).length;
         const sub = document.getElementById('tools-header-sub');
-        if (sub) sub.textContent = `${total} ferramenta${total !== 1 ? 's' : ''} · ${aloc} alocada${aloc !== 1 ? 's' : ''}`;
+        if (sub) sub.textContent = `${total} ferramenta${total !== 1 ? 's' : ''} Â· ${aloc} alocada${aloc !== 1 ? 's' : ''}`;
         const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
         el('ts-total', total); el('ts-disp', disp); el('ts-aloc', aloc); el('ts-over', over);
         // Esconder stat de atraso se zero
@@ -1777,7 +1685,7 @@ async function renderTools() {
 
     list.innerHTML = '';
     if (!data || Object.keys(data).length === 0) {
-        list.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div class="empty-state-title">Sem ferramentas</div><div class="empty-state-sub">Adiciona ferramentas em Administração.</div></div>`;
+        list.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div class="empty-state-title">Sem ferramentas</div><div class="empty-state-sub">Adiciona ferramentas em AdministraÃ§Ã£o.</div></div>`;
         return;
     }
 
@@ -1785,7 +1693,7 @@ async function renderTools() {
         ? _toolsFilter.toLowerCase() : '';
     const statusFilter = ['disponivel','alocada'].includes(_toolsFilter) ? _toolsFilter : null;
 
-    // Separar em grupos: overdue → alocadas → disponíveis
+    // Separar em grupos: overdue â†’ alocadas â†’ disponÃ­veis
     const all = [...Object.entries(data)].reverse();
     const overdueList  = all.filter(([,t]) => t.status === 'alocada' && t.dataEntrega && _calcDias(t.dataEntrega) > TOOL_ALERT_DAYS);
     const alocList     = all.filter(([,t]) => t.status === 'alocada' && !(t.dataEntrega && _calcDias(t.dataEntrega) > TOOL_ALERT_DAYS));
@@ -1805,7 +1713,7 @@ async function renderTools() {
         const div = document.createElement('div');
         div.className = `tool-card ${isAv ? 'tool-available' : 'tool-allocated'}${isOverdue ? ' tool-overdue' : ''}`;
 
-        // Long press → histórico
+        // Long press â†’ histÃ³rico
         div.addEventListener('contextmenu', e => { e.preventDefault(); openHistoryModal(id, t.nome); });
         div.addEventListener('touchstart', () => {
             _toolLongPressTimer = setTimeout(() => openHistoryModal(id, t.nome), 600);
@@ -1813,7 +1721,7 @@ async function renderTools() {
         div.addEventListener('touchend',  () => clearTimeout(_toolLongPressTimer), { passive: true });
         div.addEventListener('touchmove', () => clearTimeout(_toolLongPressTimer), { passive: true });
 
-        // Ícone
+        // Ãcone
         const icon = document.createElement('div');
         icon.className = 'tool-icon';
         icon.innerHTML = TOOL_ICON;
@@ -1835,7 +1743,7 @@ async function renderTools() {
             dot.style.background = '#16a34a';
             const lbl = document.createElement('span');
             lbl.className   = 'tool-status-label';
-            lbl.textContent = 'Em armazém';
+            lbl.textContent = 'Em armazÃ©m';
             sub.appendChild(dot);
             sub.appendChild(lbl);
         } else {
@@ -1864,14 +1772,14 @@ async function renderTools() {
         div.appendChild(info);
 
         if (isAv) {
-            // Clicar no card → alocar
+            // Clicar no card â†’ alocar
             div.onclick = () => openModal(id);
             const arrow = document.createElement('span');
             arrow.className = 'tool-arrow';
             arrow.innerHTML = CHEVRON;
             div.appendChild(arrow);
         } else {
-            // Clicar no card → histórico; botão explícito → devolver
+            // Clicar no card â†’ histÃ³rico; botÃ£o explÃ­cito â†’ devolver
             div.onclick = () => openHistoryModal(id, t.nome);
             const retBtn = document.createElement('button');
             retBtn.className = 'tool-return-btn';
@@ -1880,8 +1788,8 @@ async function renderTools() {
             retBtn.onclick = e => {
                 e.stopPropagation();
                 openConfirmModal({
-                    icon: '↩', title: 'Confirmar devolução?',
-                    desc: `"${escapeHtml(t.nome)}" será marcada como disponível.`,
+                    icon: 'â†©', title: 'Confirmar devoluÃ§Ã£o?',
+                    desc: `"${escapeHtml(t.nome)}" serÃ¡ marcada como disponÃ­vel.`,
                     onConfirm: () => returnTool(id)
                 });
             };
@@ -1911,7 +1819,7 @@ async function renderTools() {
     let total = 0;
     total += _addSection('Em atraso', overdueList);
     total += _addSection('Alocadas', alocList);
-    total += _addSection('Disponíveis', dispList);
+    total += _addSection('DisponÃ­veis', dispList);
 
     if (total === 0) {
         list.innerHTML = '<div class="empty-msg">Nenhuma ferramenta encontrada.</div>';
@@ -1936,26 +1844,26 @@ async function renderAdminTools() {
         lbl.className   = 'admin-list-label';
         lbl.textContent = t.nome;
 
-        // Barra de acções alinhada à esquerda
+        // Barra de acÃ§Ãµes alinhada Ã  esquerda
         const actions = document.createElement('div');
         actions.className = 'admin-tool-actions';
 
         const editBtn = document.createElement('button');
         editBtn.className   = 'admin-tool-btn admin-tool-btn-edit';
-        editBtn.innerHTML   = '✏️ <span>Editar</span>';
+        editBtn.innerHTML   = 'âœï¸ <span>Editar</span>';
         editBtn.onclick     = () => openEditToolModal(id, t);
 
         const histBtn = document.createElement('button');
         histBtn.className   = 'admin-tool-btn admin-tool-btn-hist';
-        histBtn.innerHTML   = '≡ <span>Histórico</span>';
+        histBtn.innerHTML   = 'â‰¡ <span>HistÃ³rico</span>';
         histBtn.onclick     = () => openHistoryModal(id, t.nome);
 
         const delBtn = document.createElement('button');
         delBtn.className   = 'admin-tool-btn admin-tool-btn-del';
-        delBtn.innerHTML   = '🗑️ <span>Eliminar</span>';
+        delBtn.innerHTML   = 'ðŸ—‘ï¸ <span>Eliminar</span>';
         delBtn.onclick     = () => openConfirmModal({
             icon:'', title:'Apagar ferramenta?',
-            desc:`"${escapeHtml(t.nome)}" será removida permanentemente.`,
+            desc:`"${escapeHtml(t.nome)}" serÃ¡ removida permanentemente.`,
             onConfirm: () => deleteTool(id)
         });
 
@@ -1969,9 +1877,9 @@ async function renderAdminTools() {
 }
 
 // =============================================
-// HISTÓRICO DAS FERRAMENTAS
+// HISTÃ“RICO DAS FERRAMENTAS
 // =============================================
-const HISTORY_MAX = 50; // máximo de registos por ferramenta
+const HISTORY_MAX = 50; // mÃ¡ximo de registos por ferramenta
 
 async function addToolHistoryEvent(toolId, acao, colaborador) {
     const event = { acao, colaborador: colaborador || '', data: new Date().toISOString() };
@@ -1984,7 +1892,7 @@ async function addToolHistoryEvent(toolId, acao, colaborador) {
         const histCache = cache.ferramentas.data?.[toolId]?.historico;
         const histCount = histCache ? Object.keys(histCache).length : 0;
         if (histCount >= HISTORY_MAX) {
-            // Faz fetch apenas quando necessário para obter os IDs ordenados
+            // Faz fetch apenas quando necessÃ¡rio para obter os IDs ordenados
             try {
                 const url  = await authUrl(`${BASE_URL}/ferramentas/${toolId}/historico.json`);
                 const res  = await fetch(url);
@@ -1995,13 +1903,13 @@ async function addToolHistoryEvent(toolId, acao, colaborador) {
                         await apiFetch(`${BASE_URL}/ferramentas/${toolId}/historico/${sorted[0][0]}.json`, { method: 'DELETE' });
                     }
                 }
-            } catch (e) { console.warn('Limpeza histórico:', e?.message || e); }
+            } catch (e) { console.warn('Limpeza histÃ³rico:', e?.message || e); }
         }
     } catch (e) { console.warn('addToolHistoryEvent:', e?.message || e); /* best-effort */ }
 }
 
 async function openHistoryModal(toolId, toolName) {
-    document.getElementById('history-modal-tool-name').textContent = `🪛 ${toolName}`;
+    document.getElementById('history-modal-tool-name').textContent = `ðŸª› ${toolName}`;
     const listEl = document.getElementById('history-list');
     listEl.innerHTML = '<div class="empty-msg">A carregar...</div>';
     document.getElementById('history-modal').classList.add('active');
@@ -2009,7 +1917,7 @@ async function openHistoryModal(toolId, toolName) {
 
     try {
         if (!navigator.onLine) {
-            listEl.innerHTML = '<div class="empty-msg">Sem ligação — histórico indisponível offline.</div>';
+            listEl.innerHTML = '<div class="empty-msg">Sem ligaÃ§Ã£o â€” histÃ³rico indisponÃ­vel offline.</div>';
             return;
         }
         const url  = await authUrl(`${BASE_URL}/ferramentas/${toolId}/historico.json`);
@@ -2019,7 +1927,7 @@ async function openHistoryModal(toolId, toolName) {
         listEl.innerHTML = '';
 
         if (!data) {
-            listEl.innerHTML = '<div class="empty-msg">Sem registos de histórico.</div>';
+            listEl.innerHTML = '<div class="empty-msg">Sem registos de histÃ³rico.</div>';
             return;
         }
 
@@ -2029,7 +1937,7 @@ async function openHistoryModal(toolId, toolName) {
         events.forEach(ev => {
             const row  = document.createElement('div');
             row.className = `history-row ${ev.acao === 'atribuida' ? 'history-out' : 'history-in'}`;
-            const icon = ev.acao === 'atribuida' ? '→' : '↩';
+            const icon = ev.acao === 'atribuida' ? 'â†’' : 'â†©';
             const label = ev.acao === 'atribuida'
                 ? `Entregue a ${ev.colaborador || '?'}`
                 : `Devolvida${ev.colaborador ? ` por ${ev.colaborador}` : ''}`;
@@ -2052,7 +1960,7 @@ async function openHistoryModal(toolId, toolName) {
             listEl.appendChild(row);
         });
     } catch (e) {
-        listEl.innerHTML = '<div class="empty-msg">Erro ao carregar histórico.</div>';
+        listEl.innerHTML = '<div class="empty-msg">Erro ao carregar histÃ³rico.</div>';
     }
 }
 
@@ -2076,7 +1984,7 @@ async function assignTool(worker) {
 }
 
 async function returnTool(id) {
-    // PONTO 2: guarda colaborador ANTES de modificar cache — evita perda offline
+    // PONTO 2: guarda colaborador ANTES de modificar cache â€” evita perda offline
     const colaborador = cache.ferramentas.data[id]?.colaborador || '';
     const dataEntregaOrig = cache.ferramentas.data[id]?.dataEntrega || '';
     cache.ferramentas.data[id] = {
@@ -2087,7 +1995,7 @@ async function returnTool(id) {
         await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, {
             method:'PATCH', body:JSON.stringify({status:'disponivel',colaborador:'',dataEntrega:''})
         });
-        // Regista histórico com colaborador preservado mesmo offline
+        // Regista histÃ³rico com colaborador preservado mesmo offline
         await addToolHistoryEvent(id, 'devolvida', colaborador);
     } catch (e) {
         console.warn('returnTool erro:', e?.message || e);
@@ -2115,7 +2023,7 @@ async function saveEditTool() {
     if (!requireManagerAccess()) return;
     const id   = document.getElementById('edit-tool-id').value;
     const nome = document.getElementById('edit-tool-name').value.trim().toUpperCase();
-    if (!nome) { showToast('Nome obrigatório', 'error'); return; }
+    if (!nome) { showToast('Nome obrigatÃ³rio', 'error'); return; }
     if (cache.ferramentas.data?.[id]) {
         cache.ferramentas.data[id] = { ...cache.ferramentas.data[id], nome };
     }
@@ -2133,7 +2041,7 @@ async function saveEditTool() {
 
 async function deleteTool(id) {
     if (!requireManagerAccess()) return;
-    // PONTO 3: se ferramenta está alocada, força devolução antes de apagar
+    // PONTO 3: se ferramenta estÃ¡ alocada, forÃ§a devoluÃ§Ã£o antes de apagar
     const tool = cache.ferramentas.data?.[id];
     const _doDelete = async () => {
         delete cache.ferramentas.data[id]; renderAdminTools(); renderTools(); renderDashboard();
@@ -2146,7 +2054,7 @@ async function deleteTool(id) {
         openConfirmModal({
             icon: '',
             title: 'Ferramenta alocada!',
-            desc: `"${escapeHtml(tool.nome)}" está com ${escapeHtml(tool.colaborador || '?')}. Apagar irá forçar a devolução sem registo. Confirmas?`,
+            desc: `"${escapeHtml(tool.nome)}" estÃ¡ com ${escapeHtml(tool.colaborador || '?')}. Apagar irÃ¡ forÃ§ar a devoluÃ§Ã£o sem registo. Confirmas?`,
             onConfirm: _doDelete
         });
     } else {
@@ -2155,7 +2063,7 @@ async function deleteTool(id) {
 }
 
 // =============================================
-// FUNCIONÁRIOS
+// FUNCIONÃRIOS
 // =============================================
 async function renderWorkers() {
     if (!requireManagerAccess({ silent: true })) return;
@@ -2170,7 +2078,7 @@ async function renderWorkers() {
 
     list.innerHTML = '';
     if (workers.length === 0) {
-        list.innerHTML = '<div class="empty-msg">Nenhum funcionário adicionado.</div>'; return;
+        list.innerHTML = '<div class="empty-msg">Nenhum funcionÃ¡rio adicionado.</div>'; return;
     }
     workers.forEach(w => {
         const row = document.createElement('div');
@@ -2188,8 +2096,8 @@ async function renderWorkers() {
         btn.className = 'admin-list-delete';
         btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>';
         btn.onclick = () => openConfirmModal({
-            icon:'👤', title:'Apagar funcionário?',
-            desc:`"${escapeHtml(w.nome)}" será removido permanentemente.`,
+            icon:'ðŸ‘¤', title:'Apagar funcionÃ¡rio?',
+            desc:`"${escapeHtml(w.nome)}" serÃ¡ removido permanentemente.`,
             onConfirm: () => deleteWorker(w.id)
         });
         row.appendChild(avatar); row.appendChild(lbl); row.appendChild(btn);
@@ -2207,23 +2115,23 @@ async function deleteWorker(id) {
 }
 
 // =============================================
-// MODAL — entregar ferramenta
+// MODAL â€” entregar ferramenta
 // =============================================
 let toolToAllocate = null;
 
 async function openModal(id) {
     const data    = await fetchCollection('funcionarios');
     const workers = data ? Object.entries(data).map(([wid,v]) => ({id:wid,nome:v.nome})) : [];
-    if (workers.length === 0) return showToast('Adicione funcionários na Administração','error');
+    if (workers.length === 0) return showToast('Adicione funcionÃ¡rios na AdministraÃ§Ã£o','error');
     toolToAllocate = id;
 
-    // Mostra o nome e ícone da ferramenta no modal
+    // Mostra o nome e Ã­cone da ferramenta no modal
     const toolData = cache.ferramentas.data?.[id];
     const toolName = toolData?.nome || '';
     const toolIcon = toolData?.icone || '';
     const toolDesc = document.getElementById('worker-modal-tool-name');
     if (toolDesc) toolDesc.textContent = toolName ? `${toolIcon} ${toolName}` : '';
-    // Actualiza também o ícone grande no topo do modal
+    // Actualiza tambÃ©m o Ã­cone grande no topo do modal
     const modalIcon = document.getElementById('worker-modal-icon');
     if (modalIcon) modalIcon.textContent = toolIcon;
 
@@ -2252,7 +2160,7 @@ function focusModal(id) {
 }
 
 // =============================================
-// MODAL — confirmação genérica
+// MODAL â€” confirmaÃ§Ã£o genÃ©rica
 // =============================================
 let confirmCallback = null;
 
@@ -2270,14 +2178,14 @@ function closeConfirmModal() {
 }
 
 // =============================================
-// MODAL — apagar produto (swipe left)
+// MODAL â€” apagar produto (swipe left)
 // =============================================
 let pendingDeleteId = null;
 
 function openDeleteModal(id, item) {
     pendingDeleteId = id;
     document.getElementById('delete-modal-desc').textContent =
-        `"${String(item.codigo||'').toUpperCase()} — ${item.nome}" será removido permanentemente.`;
+        `"${String(item.codigo||'').toUpperCase()} â€” ${item.nome}" serÃ¡ removido permanentemente.`;
     document.getElementById('delete-modal').classList.add('active');
     focusModal('delete-modal');
 }
@@ -2287,7 +2195,7 @@ function closeDeleteModal() {
 }
 
 // =============================================
-// MODAL — editar produto (swipe right)
+// MODAL â€” editar produto (swipe right)
 // =============================================
 function openEditModal(id, item) {
     document.getElementById('edit-id').value     = id;
@@ -2304,7 +2212,7 @@ function closeEditModal() { document.getElementById('edit-modal').classList.remo
 
 // =============================================
 // SWIPE GESTURES
-// FIX: único par de listeners globais — sem acumulação por card
+// FIX: Ãºnico par de listeners globais â€” sem acumulaÃ§Ã£o por card
 // =============================================
 const SWIPE_THRESHOLD = 80;
 let _swipeCard    = null;
@@ -2324,7 +2232,7 @@ document.addEventListener('mouseup', () => {
 });
 
 function attachSwipe(card, wrapper, id, item) {
-    // Funcionários não têm swipe — apenas leitura
+    // FuncionÃ¡rios nÃ£o tÃªm swipe â€” apenas leitura
     if (currentRole === 'worker') return;
     card.addEventListener('touchstart', e => {
         e.stopPropagation();
@@ -2333,7 +2241,7 @@ function attachSwipe(card, wrapper, id, item) {
     card.addEventListener('touchmove',  e => _onSwipeMove(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
     card.addEventListener('touchend',   e => { e.stopPropagation(); _onSwipeEnd(); }, { passive: true });
     card.addEventListener('mousedown',  e => {
-        // Não interferir com cliques nos botões +/−
+        // NÃ£o interferir com cliques nos botÃµes +/âˆ’
         if (e.target.closest('.btn-qty')) return;
         _onSwipeStart(card, wrapper, id, item, e.clientX, e.clientY);
         e.preventDefault();
@@ -2352,7 +2260,7 @@ function _onSwipeStart(card, wrapper, id, item, x, y = 0) {
     _swipeCurrentX = 0;
     _swipeDragging  = true;
     _swipeIntent   = null;
-    // Don't add is-swiping yet — wait to know direction
+    // Don't add is-swiping yet â€” wait to know direction
 }
 
 function _onSwipeMove(x, y = 0) {
@@ -2410,7 +2318,7 @@ async function exportCSV() {
         if (btn) { btn.disabled = false; btn.textContent = 'Exportar'; }
         return;
     }
-    const headers = ['Referência','Nome','Localização','Quantidade','Unidade'];
+    const headers = ['ReferÃªncia','Nome','LocalizaÃ§Ã£o','Quantidade','Unidade'];
     const cleanData = Object.fromEntries(Object.entries(data).filter(([k]) => !k.startsWith('_tmp_')));
     const rows = Object.values(cleanData).map(item => [
         `"${(item.codigo||'').toUpperCase()}"`,
@@ -2434,7 +2342,7 @@ async function exportCSV() {
 // =============================================
 // ADMIN TABS
 // =============================================
-// PONTO 25: exportar histórico de ferramentas para CSV
+// PONTO 25: exportar histÃ³rico de ferramentas para CSV
 async function exportToolHistoryCSV() {
     const btn = document.getElementById('export-hist-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'A exportar...'; }
@@ -2444,7 +2352,7 @@ async function exportToolHistoryCSV() {
             showToast('Sem ferramentas para exportar', 'error');
             return;
         }
-        const headers = ['Ferramenta','Ícone','Ação','Colaborador','Data'];
+        const headers = ['Ferramenta','Ãcone','AÃ§Ã£o','Colaborador','Data'];
         const rows = [];
         for (const [id, t] of Object.entries(ferrData)) {
             if (!t.historico) continue;
@@ -2459,12 +2367,12 @@ async function exportToolHistoryCSV() {
             }
         }
         if (rows.length === 0) {
-            showToast('Sem histórico para exportar', 'error');
+            showToast('Sem histÃ³rico para exportar', 'error');
             return;
         }
         rows.sort((a, b) => a[4] < b[4] ? 1 : -1); // mais recente primeiro
         const csv  = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
-        const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' });
+        const blob = new Blob(['ï»¿'+csv], { type:'text/csv;charset=utf-8;' });
         const url  = URL.createObjectURL(blob);
         Object.assign(document.createElement('a'), {
             href: url,
@@ -2473,27 +2381,27 @@ async function exportToolHistoryCSV() {
         URL.revokeObjectURL(url);
         showToast(`${rows.length} registos exportados!`);
     } catch(e) {
-        showToast('Erro ao exportar histórico', 'error');
+        showToast('Erro ao exportar histÃ³rico', 'error');
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = 'Exportar Histórico'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Exportar HistÃ³rico'; }
 
     }
 }
 
 // =============================================
-// ADMIN — slider com swipe entre tabs
+// ADMIN â€” slider com swipe entre tabs
 // =============================================
 const ADMIN_TABS  = ['workers', 'tools', 'clientes', 'users', 'settings', 'relatorio'];
-let   _adminIdx   = 0;   // índice activo
+let   _adminIdx   = 0;   // Ã­ndice activo
 
-// ── Admin mobile — menu estilo Android ────────────────────────────────────────
+// â”€â”€ Admin mobile â€” menu estilo Android â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const _adminMobileTitles = {
-    workers:   'Funcionários',
+    workers:   'FuncionÃ¡rios',
     tools:     'Ferramentas',
     clientes:  'Clientes',
     users:     'Utilizadores',
-    settings:  'Definições',
-    relatorio: 'Relatórios',
+    settings:  'DefiniÃ§Ãµes',
+    relatorio: 'RelatÃ³rios',
 };
 let _adminMobileActive = null;
 
@@ -2504,17 +2412,17 @@ function _buildAdminMobileMenu() {
     document.getElementById('admin-mobile-detail')?.remove();
 
     const items = [
-        { tab:'workers',  bg:'#eff6ff', color:'#2563eb', label:'Funcionários', sub:'Gerir técnicos e colaboradores',
+        { tab:'workers',  bg:'#eff6ff', color:'#2563eb', label:'FuncionÃ¡rios', sub:'Gerir tÃ©cnicos e colaboradores',
           svg:'<path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>', vb:'0 0 20 20', fill:true },
         { tab:'tools',    bg:'#dcfce7', color:'#16a34a', label:'Ferramentas',  sub:'Registar e gerir ferramentas',
           svg:'<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>', vb:'0 0 24 24', fill:false },
         { tab:'clientes', bg:'#fef3c7', color:'#d97706', label:'Clientes',     sub:'Importar e consultar clientes',
           svg:'<path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/>', vb:'0 0 20 20', fill:true },
-        { tab:'users',    bg:'#ede9fe', color:'#7c3aed', label:'Utilizadores', sub:'Gerir contas e permissões',
+        { tab:'users',    bg:'#ede9fe', color:'#7c3aed', label:'Utilizadores', sub:'Gerir contas e permissÃµes',
           svg:'<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>', vb:'0 0 20 20', fill:true },
-        { tab:'settings',  bg:'#f1f5f9', color:'#64748b', label:'Definições',   sub:'OCR, tema, versão da app',
+        { tab:'settings',  bg:'#f1f5f9', color:'#64748b', label:'DefiniÃ§Ãµes',   sub:'OCR, tema, versÃ£o da app',
           svg:'<path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>', vb:'0 0 20 20', fill:true },
-        { tab:'relatorio', bg:'#ecfdf5', color:'#059669', label:'Relatórios',   sub:'Análise mensal de tendências',
+        { tab:'relatorio', bg:'#ecfdf5', color:'#059669', label:'RelatÃ³rios',   sub:'AnÃ¡lise mensal de tendÃªncias',
           svg:'<path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v2a1 1 0 102 0V9z" clip-rule="evenodd"/>', vb:'0 0 20 20', fill:true },
     ];
 
@@ -2522,13 +2430,13 @@ function _buildAdminMobileMenu() {
     menu.id = 'admin-mobile-menu';
 
     const groups = [
-        { label:'Gestão',  tabs: items.slice(0,3) },
+        { label:'GestÃ£o',  tabs: items.slice(0,3) },
         { label:'Sistema',  tabs: items.slice(3,5) },
-        { label:'Análise',  tabs: items.slice(5) },
+        { label:'AnÃ¡lise',  tabs: items.slice(5) },
     ];
 
     groups.forEach(g => {
-        // Label de secção
+        // Label de secÃ§Ã£o
         const lbl = document.createElement('div');
         lbl.className = 'admin-mobile-section-label';
         lbl.textContent = g.label;
@@ -2544,7 +2452,7 @@ function _buildAdminMobileMenu() {
             row.style.cssText = 'display:flex;align-items:center;gap:14px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--border);background:var(--card-bg);-webkit-tap-highlight-color:transparent';
             row.addEventListener('click', () => adminMobileOpen(item.tab));
 
-            // Ícone
+            // Ãcone
             const iconWrap = document.createElement('div');
             iconWrap.className = 'admin-mobile-item-icon';
             iconWrap.style.cssText = `background:${item.bg};width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0`;
@@ -2611,9 +2519,9 @@ function _buildAdminMobileMenu() {
     backBtn.type = 'button';
     backBtn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:transparent;border:none;outline:none;color:var(--primary);font-family:Inter,sans-serif;font-size:0.85rem;font-weight:600;cursor:pointer;padding:6px 0;margin:0;-webkit-appearance:none;appearance:none;letter-spacing:0.01em;';
     backBtn.addEventListener('click', adminMobileBack);
-    backBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg> Administração';
+    backBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg> AdministraÃ§Ã£o';
 
-    // Título da secção como h2
+    // TÃ­tulo da secÃ§Ã£o como h2
     const detailTitle = document.createElement('h2');
     detailTitle.className = 'admin-mobile-detail-title';
     detailTitle.id = 'admin-mobile-detail-title';
@@ -2646,7 +2554,7 @@ function adminMobileOpen(tab) {
 
     const panel = document.getElementById(`panel-${tab}`);
     if (panel) {
-        // Forçar dimensões — o .admin-panel tem width/min-width:20% do slider desktop
+        // ForÃ§ar dimensÃµes â€” o .admin-panel tem width/min-width:20% do slider desktop
         panel.style.cssText = 'width:100% !important; min-width:100% !important; flex-shrink:0; box-sizing:border-box; padding:0;';
         content.appendChild(panel);
     }
@@ -2665,7 +2573,7 @@ function adminMobileOpen(tab) {
     detail.classList.add('admin-mobile-detail-enter');
 
     const titleEl = document.getElementById('header-page-title');
-    if (titleEl) titleEl.textContent = _adminMobileTitles[tab] || 'Administração';
+    if (titleEl) titleEl.textContent = _adminMobileTitles[tab] || 'AdministraÃ§Ã£o';
     window.scrollTo(0, 0);
 }
 
@@ -2680,7 +2588,7 @@ function adminMobileBack() {
     if (slider && content) {
         while (content.firstChild) {
             const child = content.firstChild;
-            // Limpar estilos inline forçados — o slider desktop usa CSS próprio
+            // Limpar estilos inline forÃ§ados â€” o slider desktop usa CSS prÃ³prio
             if (child.style) child.style.cssText = '';
             slider.appendChild(child);
         }
@@ -2698,7 +2606,7 @@ function adminMobileBack() {
     menu.style.display   = 'block';
 
     const titleEl = document.getElementById('header-page-title');
-    if (titleEl) titleEl.textContent = 'Administração';
+    if (titleEl) titleEl.textContent = 'AdministraÃ§Ã£o';
     window.scrollTo(0, 0);
 }
 
@@ -2707,12 +2615,12 @@ function switchAdminTab(tab, animate = true) {
     if (idx < 0) return;
     _adminIdx = idx;
 
-    // Actualiza botões
+    // Actualiza botÃµes
     document.querySelectorAll('.admin-tab').forEach((t, i) =>
         t.classList.toggle('active', i === idx)
     );
 
-    // Desktop ≥768px: mostra/esconde painéis via classe (sem transform)
+    // Desktop â‰¥768px: mostra/esconde painÃ©is via classe (sem transform)
     // transform num elemento pai quebra position:fixed dos modais
     if (window.innerWidth >= 768) {
         ADMIN_TABS.forEach((t, i) => {
@@ -2727,7 +2635,7 @@ function switchAdminTab(tab, animate = true) {
     if (tab === 'relatorio') { renderRelatorio(); }
     if (tab === 'workers')  renderWorkers();
     if (tab === 'tools')    renderAdminTools();
-    // Move slider apenas em mobile — no desktop usamos display:none/block
+    // Move slider apenas em mobile â€” no desktop usamos display:none/block
     // (transform num pai quebra position:fixed dos modais no desktop)
     const slider = document.getElementById('admin-slider');
     if (slider) {
@@ -2739,14 +2647,14 @@ function switchAdminTab(tab, animate = true) {
                 slider.classList.remove('is-dragging');
             }
         } else {
-            // Garantir que não fica transform inline residual
+            // Garantir que nÃ£o fica transform inline residual
             slider.style.transform = '';
             slider.style.transition = '';
         }
     }
 }
 
-// AbortController para garantir que os listeners são limpos antes de re-setup
+// AbortController para garantir que os listeners sÃ£o limpos antes de re-setup
 let _adminSwipeAC = null;
 
 function _setupAdminSwipe() {
@@ -2765,8 +2673,8 @@ function _setupAdminSwipe() {
     let active = false;
 
     const INTENT_THRESHOLD = 8;    // px para decidir h vs v
-    const SWIPE_THRESHOLD  = 50;   // px para confirmar mudança de tab
-    const RESIST = 0.25;           // resistência nos extremos
+    const SWIPE_THRESHOLD  = 50;   // px para confirmar mudanÃ§a de tab
+    const RESIST = 0.25;           // resistÃªncia nos extremos
 
     wrap.addEventListener('touchstart', e => {
         if (e.touches.length !== 1) return;
@@ -2782,16 +2690,16 @@ function _setupAdminSwipe() {
         const dx = e.touches[0].clientX - startX;
         const dy = e.touches[0].clientY - startY;
 
-        // Decide intenção uma só vez
+        // Decide intenÃ§Ã£o uma sÃ³ vez
         if (intent === null && (Math.abs(dx) > INTENT_THRESHOLD || Math.abs(dy) > INTENT_THRESHOLD)) {
             intent = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
         }
-        if (intent !== 'h') return;   // scroll vertical — não interferir
+        if (intent !== 'h') return;   // scroll vertical â€” nÃ£o interferir
 
         e.preventDefault();
         deltaX = dx;
 
-        // Resistência nos extremos
+        // ResistÃªncia nos extremos
         let extra = deltaX;
         if ((_adminIdx === 0 && deltaX > 0) || (_adminIdx === ADMIN_TABS.length - 1 && deltaX < 0)) {
             extra = deltaX * RESIST;
@@ -2815,7 +2723,7 @@ function _setupAdminSwipe() {
         } else if (deltaX > SWIPE_THRESHOLD && _adminIdx > 0) {
             switchAdminTab(ADMIN_TABS[_adminIdx - 1]);
         } else {
-            switchAdminTab(ADMIN_TABS[_adminIdx]);   // volta à posição
+            switchAdminTab(ADMIN_TABS[_adminIdx]);   // volta Ã  posiÃ§Ã£o
         }
         deltaX = 0;
         intent = null;
@@ -2826,7 +2734,7 @@ function _setupAdminSwipe() {
 }
 
 // =============================================
-// TEMAS — claro / escuro
+// TEMAS â€” claro / escuro
 // =============================================
 function _applyTheme(theme) {
     document.body.classList.remove('dark-mode');
@@ -2835,7 +2743,7 @@ function _applyTheme(theme) {
     // Sync theme dropdown UI
     _syncThemeDropdown(theme);
 
-    // Barra de status Android — meta theme-color dinâmica
+    // Barra de status Android â€” meta theme-color dinÃ¢mica
     const themeColors = {
         light: '#2563eb',
         dark:  '#0f172a',
@@ -2851,7 +2759,7 @@ function _applyTheme(theme) {
 
     // Liga/desliga o comportamento de scroll da barra de pesquisa
     _setupSearchScrollBehaviour(false);
-    // Scroll hide/show do pill — activo em todos os temas
+    // Scroll hide/show do pill â€” activo em todos os temas
     _setupBottomNavScrollBehaviour(true);
 }
 
@@ -2910,7 +2818,7 @@ function _setupSearchScrollBehaviour(enable) {
 
     window.addEventListener('scroll', onScroll, { passive: true });
 
-    // Retorna função de cleanup para quando o tema mudar
+    // Retorna funÃ§Ã£o de cleanup para quando o tema mudar
     _searchScrollCleanup = () => {
         window.removeEventListener('scroll', onScroll);
         container.classList.remove('search-scrolled-away');
@@ -2928,9 +2836,9 @@ function _setupBottomNavScrollBehaviour(enable) {
     const nav = document.getElementById('bottom-nav');
     if (!nav) return;
 
-    // Detecção de direcção: esconde ao descer, mostra ao subir
-    const SCROLL_SENSITIVITY = 6;   // px mínimos de delta para reagir
-    const SHOW_AT_TOP        = 30;  // px — perto do topo mostra sempre
+    // DetecÃ§Ã£o de direcÃ§Ã£o: esconde ao descer, mostra ao subir
+    const SCROLL_SENSITIVITY = 6;   // px mÃ­nimos de delta para reagir
+    const SHOW_AT_TOP        = 30;  // px â€” perto do topo mostra sempre
     let _lastY   = window.scrollY;
     let _hidden  = false;
     let _rafId   = null;
@@ -2970,7 +2878,7 @@ function _setupBottomNavScrollBehaviour(enable) {
 
 
 
-// Ponto de entrada único para mudança de tema
+// Ponto de entrada Ãºnico para mudanÃ§a de tema
 function setTheme(theme) {
     localStorage.setItem('hiperfrio-tema', theme);
     _applyTheme(theme);
@@ -3016,15 +2924,15 @@ function closeThemeDropdown() {
 }
 
 // =============================================
-// INICIALIZAÇÃO
+// INICIALIZAÃ‡ÃƒO
 // =============================================
 
 // =============================================
-// DETECÇÃO DE CÓDIGO DUPLICADO
+// DETECÃ‡ÃƒO DE CÃ“DIGO DUPLICADO
 // =============================================
 function checkDuplicateCodigo(codigo, onConfirm) {
     if (!codigo || codigo.toUpperCase() === 'SEMREF') {
-        onConfirm(); return; // SEMREF é sempre permitido em duplicado
+        onConfirm(); return; // SEMREF Ã© sempre permitido em duplicado
     }
     const stock = cache.stock.data || {};
     const dupes = Object.values(stock).filter(
@@ -3033,10 +2941,10 @@ function checkDuplicateCodigo(codigo, onConfirm) {
     if (dupes.length === 0) {
         onConfirm(); return;
     }
-    // Existe duplicado — mostra modal de confirmação
+    // Existe duplicado â€” mostra modal de confirmaÃ§Ã£o
     const names = dupes.map(d => d.nome || '(sem nome)').join(', ');
     document.getElementById('dup-modal-desc').textContent =
-        `O código "${codigo.toUpperCase()}" já existe em: ${names}. Queres registar mesmo assim?`;
+        `O cÃ³digo "${codigo.toUpperCase()}" jÃ¡ existe em: ${names}. Queres registar mesmo assim?`;
     document.getElementById('dup-confirm-btn').onclick = () => { closeDupModal(); onConfirm(); };
     document.getElementById('dup-modal').classList.add('active');
     focusModal('dup-modal');
@@ -3046,14 +2954,14 @@ function closeDupModal() {
 }
 
 // =============================================
-// UNIDADE DE MEDIDA — dropdown inline no input
+// UNIDADE DE MEDIDA â€” dropdown inline no input
 // =============================================
-// Fonte única de verdade para unidades — adicionar aqui para afectar toda a app
+// Fonte Ãºnica de verdade para unidades â€” adicionar aqui para afectar toda a app
 const UNITS = [
     { value: 'un', label: 'Unidade',     short: 'Unidade' },
     { value: 'L',  label: 'Litros (L)',  short: 'Litros'  },
     { value: 'm',  label: 'Metros (m)',  short: 'm'       },
-    { value: 'm2', label: 'Metros² (m²)',short: 'm²'      },
+    { value: 'm2', label: 'MetrosÂ² (mÂ²)',short: 'mÂ²'      },
 ];
 // Mapas derivados
 const UNIT_SHORT    = Object.fromEntries(UNITS.map(u => [u.value, u.short]));
@@ -3067,7 +2975,7 @@ function _closeAllUnitMenus() {
     });
 }
 
-// Listener nomeado para poder ser removido com segurança (ponto 7)
+// Listener nomeado para poder ser removido com seguranÃ§a (ponto 7)
 function _onOutsideUnitClick(e) {
     const isInsideAny = UNIT_PREFIXES.some(p =>
         document.getElementById(`${p}-unit-wrap`)?.contains(e.target)
@@ -3118,7 +3026,7 @@ function setUnitSelector(prefix, unit) {
     });
 }
 
-// Formata quantidade — só mostra unidade se não for "un"
+// Formata quantidade â€” sÃ³ mostra unidade se nÃ£o for "un"
 function fmtQty(quantidade, unidade) {
     const qty = quantidade ?? 0;
     if (!unidade || unidade === 'un') return String(qty);
@@ -3126,30 +3034,30 @@ function fmtQty(quantidade, unidade) {
 }
 
 // =============================================
-// INVENTÁRIO GUIADO — v2
-// Pontos: filtro por zona, revisão, retoma, stats, Excel, email
+// INVENTÃRIO GUIADO â€” v2
+// Pontos: filtro por zona, revisÃ£o, retoma, stats, Excel, email
 // =============================================
 
-// INV_RESUME_KEY removida — resume migrado para Firebase /inv-resume/{user}
+// INV_RESUME_KEY removida â€” resume migrado para Firebase /inv-resume/{user}
 const INV_EMAIL_KEY = 'hiperfrio-inv-email';
 
 function _invGetEmail() {
     return localStorage.getItem(INV_EMAIL_KEY) || '';
 }
 
-// Carrega o email guardado no campo das Definições ao arrancar
+// Carrega o email guardado no campo das DefiniÃ§Ãµes ao arrancar
 function _invLoadEmailField() {
     const el = document.getElementById('inv-email-input');
     if (el) el.value = _invGetEmail();
 }
 
-// Estado da sessão de inventário
+// Estado da sessÃ£o de inventÃ¡rio
 let _invItems     = [];        // produtos a percorrer
-let _invIdx       = 0;         // índice actual
-let _invChanges   = {};        // { id: newQty } — confirmados
+let _invIdx       = 0;         // Ã­ndice actual
+let _invChanges   = {};        // { id: newQty } â€” confirmados
 let _invSkipped   = new Set(); // ids saltados
 let _invOptions   = { zones: null, skipZeros: false }; // null = todas as zonas
-let _invLastData  = null;      // snapshot dos dados no início (para o Excel)
+let _invLastData  = null;      // snapshot dos dados no inÃ­cio (para o Excel)
 
 async function startInventory() {
     const data = await fetchCollection('stock', true);
@@ -3157,7 +3065,7 @@ async function startInventory() {
         showToast('Sem produtos para inventariar', 'error'); return;
     }
 
-    // Carrega sessão guardada ANTES de abrir o modal — banner já está pronto ao aparecer
+    // Carrega sessÃ£o guardada ANTES de abrir o modal â€” banner jÃ¡ estÃ¡ pronto ao aparecer
     const saved = await _invLoadResume();
 
     _openInvSetup(data);
@@ -3168,9 +3076,9 @@ async function startInventory() {
             banner.style.display = 'none';
         } else {
             const hoursAgo = Math.round((Date.now() - (saved.ts || 0)) / 3600000);
-            const timeLabel = hoursAgo < 1 ? 'há menos de 1h' : `há ${hoursAgo}h`;
+            const timeLabel = hoursAgo < 1 ? 'hÃ¡ menos de 1h' : `hÃ¡ ${hoursAgo}h`;
             document.getElementById('inv-resume-banner-text').textContent =
-                `Inventário em curso · ${saved.idx + 1}/${saved.items.length} · guardado ${timeLabel}`;
+                `InventÃ¡rio em curso Â· ${saved.idx + 1}/${saved.items.length} Â· guardado ${timeLabel}`;
             banner.style.display = 'flex';
             document.getElementById('inv-resume-btn-retomar').onclick = () => {
                 closeInvSetup();
@@ -3185,7 +3093,7 @@ async function startInventory() {
 }
 
 function _openInvSetup(data) {
-    // Extrai zonas únicas ordenadas
+    // Extrai zonas Ãºnicas ordenadas
     const zones = [...new Set(
         Object.values(data)
             .filter(p => !String(p.codigo||'').startsWith('_tmp_'))
@@ -3197,7 +3105,7 @@ function _openInvSetup(data) {
     container.innerHTML = '';
 
     if (zones.length === 0) {
-        container.innerHTML = '<p class="modal-desc" style="margin:0">Todos os produtos serão inventariados (sem zonas definidas).</p>';
+        container.innerHTML = '<p class="modal-desc" style="margin:0">Todos os produtos serÃ£o inventariados (sem zonas definidas).</p>';
     } else {
         zones.forEach(zone => {
             const chip = document.createElement('button');
@@ -3233,7 +3141,7 @@ function _updateInvSetupBtn() {
     const toggleBtn = document.querySelector('.inv-setup-toggle-all');
     if (!btn) return;
     if (chips.length === 0) {
-        btn.textContent = 'Iniciar Inventário →';
+        btn.textContent = 'Iniciar InventÃ¡rio â†’';
     } else if (active.length === 0) {
         btn.textContent = 'Selecciona pelo menos uma zona';
         btn.disabled = true;
@@ -3242,9 +3150,9 @@ function _updateInvSetupBtn() {
     } else {
         const allActive = active.length === chips.length;
         btn.textContent = allActive
-            ? `Iniciar — todos os produtos →`
-            : `Iniciar — ${active.length} zona${active.length > 1 ? 's' : ''} →`;
-        if (toggleBtn) toggleBtn.textContent = allActive ? 'Limpar selecção' : 'Seleccionar todas';
+            ? `Iniciar â€” todos os produtos â†’`
+            : `Iniciar â€” ${active.length} zona${active.length > 1 ? 's' : ''} â†’`;
+        if (toggleBtn) toggleBtn.textContent = allActive ? 'Limpar selecÃ§Ã£o' : 'Seleccionar todas';
     }
     btn.disabled = false;
 }
@@ -3313,7 +3221,7 @@ function _resumeInventory(saved) {
     _invChanges  = saved.changes;
     _invSkipped  = new Set(saved.skipped || []);
     _invOptions  = saved.options || { zones: null, skipZeros: false };
-    // Bug 5: garantir que _invLastData não é null ao exportar depois de retomar
+    // Bug 5: garantir que _invLastData nÃ£o Ã© null ao exportar depois de retomar
     _invLastData = cache.stock.data ? { ...cache.stock.data } : null;
     if (!_invLastData) {
         fetchCollection('stock', false).then(d => { if (d) _invLastData = { ...d }; });
@@ -3321,7 +3229,7 @@ function _resumeInventory(saved) {
     document.getElementById('inv-modal').classList.add('active');
     focusModal('inv-modal');
     _renderInvStep();
-    showToast(`A retomar — produto ${_invIdx + 1} de ${_invItems.length}`);
+    showToast(`A retomar â€” produto ${_invIdx + 1} de ${_invItems.length}`);
 }
 
 function _renderInvStep() {
@@ -3332,13 +3240,13 @@ function _renderInvStep() {
     document.getElementById('inv-progress-text').textContent = `${_invIdx + 1} / ${total}`;
     document.getElementById('inv-progress-bar').style.width  = `${Math.round((_invIdx / total) * 100)}%`;
 
-    // Zone progress: "Zona 201-001A — 4 de 12"
+    // Zone progress: "Zona 201-001A â€” 4 de 12"
     const zonaEl = document.getElementById('inv-zone-progress');
     if (zonaEl) {
         const zona = (item.localizacao||'').trim().toUpperCase() || 'SEM LOCAL';
         const zonaItems = _invItems.filter(([,p]) => (p.localizacao||'').trim().toUpperCase() === zona || (zona === 'SEM LOCAL' && !(p.localizacao||'').trim()));
         const zonaIdx   = zonaItems.findIndex(([i]) => i === id);
-        zonaEl.innerHTML = `<strong>${zona}</strong> — ${zonaIdx + 1} de ${zonaItems.length}`;
+        zonaEl.innerHTML = `<strong>${zona}</strong> â€” ${zonaIdx + 1} de ${zonaItems.length}`;
     }
 
     const zona = (item.localizacao||'').trim().toUpperCase();
@@ -3362,14 +3270,14 @@ function _renderInvStep() {
         }
     }
 
-    // Quantidade: usa valor já confirmado se existir, senão o original
+    // Quantidade: usa valor jÃ¡ confirmado se existir, senÃ£o o original
     const currentVal = _invChanges[id] !== undefined ? _invChanges[id] : (item.quantidade || 0);
     const qtyInput   = document.getElementById('inv-qtd');
     qtyInput.value   = currentVal;
     qtyInput.focus();
     qtyInput.select();
 
-    // Enter = Confirmar (fix bug UX mobile — substitui listener anterior para evitar duplicados)
+    // Enter = Confirmar (fix bug UX mobile â€” substitui listener anterior para evitar duplicados)
     const newInput = qtyInput.cloneNode(true);
     qtyInput.parentNode.replaceChild(newInput, qtyInput);
     newInput.value = currentVal;
@@ -3379,7 +3287,7 @@ function _renderInvStep() {
     newInput.focus();
     newInput.select();
 
-    // Mostra a quantidade original do sistema como referência
+    // Mostra a quantidade original do sistema como referÃªncia
     const origEl = document.getElementById('inv-orig-qty');
     if (origEl) {
         const orig = item.quantidade || 0;
@@ -3424,10 +3332,10 @@ function invPrev() {
 function closeInventory() {
     document.getElementById('inv-modal').classList.remove('active');
     invSearchClear();
-    // Progresso guardado — não apaga para possível retoma
+    // Progresso guardado â€” nÃ£o apaga para possÃ­vel retoma
 }
 
-// ── Pesquisa inline no inventário ────────────────────────────────────────────
+// â”€â”€ Pesquisa inline no inventÃ¡rio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function invSearchInput(q) {
     const clearBtn = document.getElementById('inv-search-clear');
     const results  = document.getElementById('inv-search-results');
@@ -3437,7 +3345,7 @@ function invSearchInput(q) {
     results.innerHTML = '';
 
     const term = q.trim().toLowerCase();
-    // Produto actual para referência de zona
+    // Produto actual para referÃªncia de zona
     const [curId, curItem] = _invItems[_invIdx] || [];
     const curZona = (curItem?.localizacao||'').trim().toUpperCase();
 
@@ -3468,7 +3376,7 @@ function invSearchInput(q) {
         hdr.className = 'inv-search-result-header';
         const ref = document.createElement('span');
         ref.className = 'inv-search-result-ref';
-        ref.textContent = item.codigo || '—';
+        ref.textContent = item.codigo || 'â€”';
         const zonaBadge = document.createElement('span');
         zonaBadge.className = 'inv-search-result-zona';
         zonaBadge.textContent = zona;
@@ -3479,30 +3387,30 @@ function invSearchInput(q) {
         nome.className = 'inv-search-result-nome';
         nome.textContent = item.nome || id;
 
-        // Acções
+        // AcÃ§Ãµes
         const acts = document.createElement('div');
         acts.className = 'inv-search-result-actions';
 
         if (!isCurrent) {
             const btnGoto = document.createElement('button');
             btnGoto.className = 'inv-search-btn-goto';
-            btnGoto.textContent = 'Ir para →';
+            btnGoto.textContent = 'Ir para â†’';
             btnGoto.onclick = () => _invSearchJumpTo(idx);
 
             const btnOnly = document.createElement('button');
             btnOnly.className = 'inv-search-btn-only';
-            btnOnly.textContent = 'Confirmar só este';
+            btnOnly.textContent = 'Confirmar sÃ³ este';
             btnOnly.onclick = () => _invSearchConfirmOnly(id, item);
 
             acts.appendChild(btnGoto); acts.appendChild(btnOnly);
         } else {
             const lbl = document.createElement('span');
             lbl.style.cssText = 'font-size:0.75rem;color:var(--primary);font-weight:700;padding:4px 0';
-            lbl.textContent = '← Produto actual';
+            lbl.textContent = 'â† Produto actual';
             acts.appendChild(lbl);
         }
 
-        // Contexto: outros produtos da mesma zona (até 3)
+        // Contexto: outros produtos da mesma zona (atÃ© 3)
         const zonaNeighbours = _invItems
             .map(([i, p], ni) => ({ i, p, ni }))
             .filter(({ i, p }) => i !== id && (p.localizacao||'').trim().toUpperCase() === zona)
@@ -3515,8 +3423,8 @@ function invSearchInput(q) {
                 const row = document.createElement('div');
                 row.className = 'inv-search-ctx-row' + (ni === _invIdx ? ' ctx-current' : '');
                 const confirmed = _invChanges[i] !== undefined;
-                row.innerHTML = `<span>${p.codigo || '—'} · ${(p.nome||'').slice(0,22)}</span>`
-                    + `<span style="color:${confirmed?'var(--success)':'var(--text-muted)'}">${confirmed ? '✓' : '–'}</span>`;
+                row.innerHTML = `<span>${p.codigo || 'â€”'} Â· ${(p.nome||'').slice(0,22)}</span>`
+                    + `<span style="color:${confirmed?'var(--success)':'var(--text-muted)'}">${confirmed ? 'âœ“' : 'â€“'}</span>`;
                 ctx.appendChild(row);
             });
             card.appendChild(hdr); card.appendChild(nome); card.appendChild(acts); card.appendChild(ctx);
@@ -3545,9 +3453,9 @@ function _invSearchJumpTo(idx) {
 
 function _invSearchConfirmOnly(id, item) {
     const inp = document.getElementById('inv-search-input');
-    // Abre modal rápido de confirmação para este produto
+    // Abre modal rÃ¡pido de confirmaÃ§Ã£o para este produto
     openConfirmModal({
-        icon: '📦',
+        icon: 'ðŸ“¦',
         title: `Confirmar ${item.codigo || id}`,
         desc: `Qual a quantidade actual de "${item.nome || id}"? (Sistema: ${item.quantidade || 0})`,
         onConfirm: () => {
@@ -3577,7 +3485,7 @@ function _invSearchConfirmOnly(id, item) {
     }, 50);
 }
 
-// ── Guardar progresso parcial ─────────────────────────────────────────────────
+// â”€â”€ Guardar progresso parcial â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function _openInvSavePartial() {
     const confirmed = Object.keys(_invChanges).length;
     const skipped   = _invSkipped.size;
@@ -3607,22 +3515,22 @@ function closeInvPartial() {
     document.getElementById('inv-partial-modal').classList.remove('active');
 }
 
-// Guarda progresso no Firebase (já está guardado incrementalmente) e sai para o menu
+// Guarda progresso no Firebase (jÃ¡ estÃ¡ guardado incrementalmente) e sai para o menu
 async function invSaveAndExit() {
-    // Força um último save para garantir que está actualizado
+    // ForÃ§a um Ãºltimo save para garantir que estÃ¡ actualizado
     await _invSaveResume();
-    // Fecha todos os modais do inventário
+    // Fecha todos os modais do inventÃ¡rio
     document.getElementById('inv-partial-modal').classList.remove('active');
     document.getElementById('inv-modal').classList.remove('active');
     invSearchClear();
-    showToast('Progresso guardado — podes retomar em qualquer dispositivo', 'success');
+    showToast('Progresso guardado â€” podes retomar em qualquer dispositivo', 'success');
 }
 
 async function exportInventoryPartialEmail() {
     // Guarda no Firebase antes de exportar
     await _invSaveResume();
     closeInvPartial();
-    // Fecha o inventário
+    // Fecha o inventÃ¡rio
     document.getElementById('inv-modal').classList.remove('active');
     invSearchClear();
     await exportInventoryEmail(true); // true = parcial
@@ -3630,7 +3538,7 @@ async function exportInventoryPartialEmail() {
 
 function _finishInventory() {
     document.getElementById('inv-modal').classList.remove('active');
-    _invClearResume(); // limpa a sessão guardada
+    _invClearResume(); // limpa a sessÃ£o guardada
 
     const data = cache.stock.data || {};
     const changed = Object.entries(_invChanges).filter(([id, newQty]) => {
@@ -3638,7 +3546,7 @@ function _finishInventory() {
         return oldQty !== undefined && newQty !== oldQty;
     });
 
-    // Abre modal de revisão
+    // Abre modal de revisÃ£o
     _openInvReview(changed, data);
 }
 
@@ -3649,14 +3557,14 @@ function _openInvReview(changed, data) {
 
     const descEl = document.getElementById('inv-review-desc');
     descEl.textContent = changed.length === 0
-        ? `${confirmed} produto${confirmed !== 1?'s':''} confirmado${confirmed !== 1?'s':''} — sem diferenças de quantidade.`
-        : `${changed.length} diferença${changed.length !== 1?'s':''} encontrada${changed.length !== 1?'s':''}. Revê e confirma antes de guardar.`;
+        ? `${confirmed} produto${confirmed !== 1?'s':''} confirmado${confirmed !== 1?'s':''} â€” sem diferenÃ§as de quantidade.`
+        : `${changed.length} diferenÃ§a${changed.length !== 1?'s':''} encontrada${changed.length !== 1?'s':''}. RevÃª e confirma antes de guardar.`;
 
     const listEl = document.getElementById('inv-review-list');
     listEl.innerHTML = '';
 
     if (changed.length === 0) {
-        listEl.innerHTML = '<div class="empty-msg">Tudo conforme ✓</div>';
+        listEl.innerHTML = '<div class="empty-msg">Tudo conforme âœ“</div>';
     } else {
         changed.forEach(([id, newQty]) => {
             const item   = data[id] || {};
@@ -3684,7 +3592,7 @@ function _openInvReview(changed, data) {
             const oldSpan  = document.createElement('span');
             oldSpan.className   = 'inv-rev-old';
             oldSpan.textContent = fmtQty(oldQty, item.unidade);
-            const arr  = document.createTextNode(' → ');
+            const arr  = document.createTextNode(' â†’ ');
             const newSpan  = document.createElement('span');
             newSpan.className   = 'inv-rev-new';
             newSpan.textContent = fmtQty(newQty, item.unidade);
@@ -3709,7 +3617,7 @@ function _openInvReview(changed, data) {
 
 function invReviewBack() {
     document.getElementById('inv-review-modal').classList.remove('active');
-    // Reabre o inventário no último produto
+    // Reabre o inventÃ¡rio no Ãºltimo produto
     document.getElementById('inv-modal').classList.add('active');
     _invSaveResume();
 }
@@ -3720,12 +3628,12 @@ async function invReviewConfirm() {
     const data    = cache.stock.data || {};
     const checked = [...document.querySelectorAll('.inv-review-cb:checked')].map(cb => cb.dataset.id);
 
-    // Estatísticas para o ecrã de resultado
+    // EstatÃ­sticas para o ecrÃ£ de resultado
     let totalAdded   = 0;
     let totalRemoved = 0;
     let savedCount   = 0;
 
-    // Calcula estatísticas e actualiza cache local primeiro
+    // Calcula estatÃ­sticas e actualiza cache local primeiro
     const patches = [];
     for (const id of checked) {
         const newQty = _invChanges[id];
@@ -3736,25 +3644,28 @@ async function invReviewConfirm() {
         if (diff < 0) totalRemoved += Math.abs(diff);
         savedCount++;
         if (data[id]) data[id].quantidade = newQty;
-        patches.push({ id, newQty });
+        patches.push({ id, oldQty, newQty });
     }
-    // Envia todos os PATCHes em paralelo — muito mais rápido que em série
+    // Envia todos os PATCHes em paralelo â€” muito mais rÃ¡pido que em sÃ©rie
     const results = await Promise.allSettled(
-        patches.map(({ id, newQty }) =>
-            apiFetch(`${BASE_URL}/stock/${id}.json`, {
-                method: 'PATCH', body: JSON.stringify({ quantidade: newQty })
+        patches.map(({ id, oldQty, newQty }) =>
+            _commitStockAbsolute(id, oldQty, newQty).then(savedQty => {
+                if (data[id]) data[id].quantidade = savedQty;
             })
         )
     );
     if (results.some(r => r.status === 'rejected')) {
         console.warn('invSave: alguns PATCHes falharam');
         invalidateCache('stock');
+        if (results.some(r => r.status === 'rejected' && r.reason?.message === 'STOCK_CONFLICT')) {
+            showToast('Inventario com conflito: houve movimentos durante a contagem. Revê os artigos afectados.', 'error');
+        }
     }
 
     renderList(window._searchInputEl?.value || '', true);
     renderDashboard();
 
-    // Guardar snapshot final para exportação
+    // Guardar snapshot final para exportaÃ§Ã£o
     _invLastData = { ...cache.stock.data };
 
     // Mostrar resultado com stats
@@ -3785,13 +3696,13 @@ function _openInvResult(stats) {
                 <span class="inv-stat-label">Unid. adicionadas</span>
             </div>
             <div class="inv-stat-card inv-stat-minus">
-                <span class="inv-stat-num">−${stats.removed}</span>
+                <span class="inv-stat-num">âˆ’${stats.removed}</span>
                 <span class="inv-stat-label">Unid. removidas</span>
             </div>
         </div>
         ${stats.saved > 0
-            ? `<p class="inv-result-saved">${stats.saved} alteração${stats.saved !== 1?'s':''} guardada${stats.saved !== 1?'s':''} no sistema.</p>`
-            : '<p class="inv-result-saved">Nenhuma diferença encontrada — stock conforme!</p>'}
+            ? `<p class="inv-result-saved">${stats.saved} alteraÃ§Ã£o${stats.saved !== 1?'s':''} guardada${stats.saved !== 1?'s':''} no sistema.</p>`
+            : '<p class="inv-result-saved">Nenhuma diferenÃ§a encontrada â€” stock conforme!</p>'}
     `;
     document.getElementById('inv-result-modal').classList.add('active');
     focusModal('inv-result-modal');
@@ -3822,17 +3733,17 @@ async function exportInventoryEmail(parcial = false) {
         .map(([id, item]) => {
             const nq = _invChanges[id];
             const oq = item.quantidade || 0;
-            return `• ${item.nome||id} (${item.localizacao||'sem zona'}): ${fmtQty(oq, item.unidade)} → ${fmtQty(nq, item.unidade)}`;
+            return `â€¢ ${item.nome||id} (${item.localizacao||'sem zona'}): ${fmtQty(oq, item.unidade)} â†’ ${fmtQty(nq, item.unidade)}`;
         });
 
     const parcialLabel = parcial ? ' [PARCIAL]' : '';
-    const subject = encodeURIComponent(`Inventário Hiperfrio${parcialLabel} — ${dateStr}`);
+    const subject = encodeURIComponent(`InventÃ¡rio Hiperfrio${parcialLabel} â€” ${dateStr}`);
     const body = encodeURIComponent(
-        `Inventário Hiperfrio${parcialLabel} — ${dateStr}\n\n`
+        `InventÃ¡rio Hiperfrio${parcialLabel} â€” ${dateStr}\n\n`
         + `Produtos verificados: ${Object.keys(_invChanges).length}/${_invItems.length}\n`
         + (parcial ? `Por verificar: ${_invItems.length - Object.keys(_invChanges).length - _invSkipped.size}\n` : '')
-        + `Diferenças encontradas: ${diffRows.length}\n\n`
-        + (diffRows.length > 0 ? 'ALTERAÇÕES:\n' + diffRows.join('\n') + '\n\n' : 'Sem diferenças de stock.\n\n')
+        + `DiferenÃ§as encontradas: ${diffRows.length}\n\n`
+        + (diffRows.length > 0 ? 'ALTERAÃ‡Ã•ES:\n' + diffRows.join('\n') + '\n\n' : 'Sem diferenÃ§as de stock.\n\n')
         + '(Ficheiro Excel em anexo)'
     );
 
@@ -3850,8 +3761,8 @@ async function exportInventoryEmail(parcial = false) {
             const file = new File([blob], filename, { type: blob.type });
             if (navigator.canShare({ files: [file] })) {
                 await navigator.share({
-                    title: `Inventário Hiperfrio${parcialLabel} — ${dateStr}`,
-                    text:  `Relatório de inventário de ${dateStr}`,
+                    title: `InventÃ¡rio Hiperfrio${parcialLabel} â€” ${dateStr}`,
+                    text:  `RelatÃ³rio de inventÃ¡rio de ${dateStr}`,
                     files: [file],
                 });
                 return;
@@ -3861,7 +3772,7 @@ async function exportInventoryEmail(parcial = false) {
         }
     }
 
-    // Fallback: download do Excel + mailto com destinatário pré-preenchido
+    // Fallback: download do Excel + mailto com destinatÃ¡rio prÃ©-preenchido
     exportInventoryExcel();
     setTimeout(() => {
         const mailto = destEmail
@@ -3879,15 +3790,15 @@ function _buildInventoryWorkbook() {
         const newQty  = _invChanges[id];
         const origQty = item.quantidade || 0;
         const status  = _invSkipped.has(id) ? 'Saltado'
-            : newQty === undefined ? 'Não verificado'
+            : newQty === undefined ? 'NÃ£o verificado'
             : newQty === origQty   ? 'Conforme'
-            : newQty > origQty     ? 'Corrigido ↑' : 'Corrigido ↓';
+            : newQty > origQty     ? 'Corrigido â†‘' : 'Corrigido â†“';
         return {
-            'Referência': item.codigo||'', 'Nome': item.nome||'',
+            'ReferÃªncia': item.codigo||'', 'Nome': item.nome||'',
             'Zona': item.localizacao||'SEM LOCAL',
             'Qtd Sistema': origQty,
-            'Qtd Inventário': newQty !== undefined ? newQty : origQty,
-            'Diferença': newQty !== undefined ? newQty - origQty : 0,
+            'Qtd InventÃ¡rio': newQty !== undefined ? newQty : origQty,
+            'DiferenÃ§a': newQty !== undefined ? newQty - origQty : 0,
             'Unidade': item.unidade === 'un' || !item.unidade ? '' : item.unidade,
             'Estado': status, 'Notas': item.notas||'',
         };
@@ -3895,29 +3806,29 @@ function _buildInventoryWorkbook() {
     const wb  = XLSX.utils.book_new();
     const ws1 = XLSX.utils.json_to_sheet(rows);
     ws1['!cols'] = [12,30,12,14,16,12,10,18,25].map(w => ({ wch: w }));
-    XLSX.utils.book_append_sheet(wb, ws1, 'Inventário Completo');
-    const diffRows = rows.filter(r => r['Diferença'] !== 0);
+    XLSX.utils.book_append_sheet(wb, ws1, 'InventÃ¡rio Completo');
+    const diffRows = rows.filter(r => r['DiferenÃ§a'] !== 0);
     if (diffRows.length > 0) {
         const ws2 = XLSX.utils.json_to_sheet(diffRows);
         ws2['!cols'] = [12,30,12,14,16,12,10,18,25].map(w => ({ wch: w }));
-        XLSX.utils.book_append_sheet(wb, ws2, 'Diferenças');
+        XLSX.utils.book_append_sheet(wb, ws2, 'DiferenÃ§as');
     }
     const ws3 = XLSX.utils.aoa_to_sheet([
-        ['Hiperfrio Stock — Relatório de Inventário',''],
+        ['Hiperfrio Stock â€” RelatÃ³rio de InventÃ¡rio',''],
         ['Data', now.toLocaleDateString('pt-PT')],
         ['Hora', now.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})],
         ['Produtos verificados', Object.keys(_invChanges).length],
         ['Produtos saltados', _invSkipped.size],
         ['Total de produtos', _invItems.length],
-        ['Diferenças encontradas', diffRows.length],
+        ['DiferenÃ§as encontradas', diffRows.length],
     ]);
     ws3['!cols'] = [{ wch: 30 }, { wch: 20 }];
     XLSX.utils.book_append_sheet(wb, ws3, 'Resumo');
     return wb;
 }
 
-// ── Inventário Resume — Firebase /inv-resume/shared (72h TTL) ──────────────
-// Caminho único partilhado — não depende do dispositivo nem do username em localStorage
+// â”€â”€ InventÃ¡rio Resume â€” Firebase /inv-resume/shared (72h TTL) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Caminho Ãºnico partilhado â€” nÃ£o depende do dispositivo nem do username em localStorage
 const INV_RESUME_FIREBASE_TTL = 72 * 60 * 60 * 1000; // 72 horas em ms
 
 function _invResumeUserKey() {
@@ -3940,7 +3851,7 @@ async function _invSaveResume() {
             ts:      Date.now(),
         });
         const url = await authUrl(_invResumeUrl());
-        // await o fetch — garante que os dados chegaram ao Firebase antes de continuar
+        // await o fetch â€” garante que os dados chegaram ao Firebase antes de continuar
         await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: payload });
     } catch (e) { console.warn('invSaveResume:', e); }
 }
@@ -3955,15 +3866,15 @@ async function _invLoadResume() {
         }
         const saved = await res.json();
         if (!saved || !saved.items || saved.items.length === 0) {
-            console.log('invLoadResume: sem sessão guardada');
+            console.log('invLoadResume: sem sessÃ£o guardada');
             return null;
         }
         if (Date.now() - (saved.ts || 0) > INV_RESUME_FIREBASE_TTL) {
-            console.log('invLoadResume: sessão expirada');
+            console.log('invLoadResume: sessÃ£o expirada');
             _invClearResume();
             return null;
         }
-        console.log(`invLoadResume: encontrada sessão — produto ${saved.idx + 1}/${saved.items.length}`);
+        console.log(`invLoadResume: encontrada sessÃ£o â€” produto ${saved.idx + 1}/${saved.items.length}`);
         return saved;
     } catch (e) {
         console.warn('invLoadResume erro:', e);
@@ -3978,43 +3889,102 @@ async function _invClearResume() {
     } catch (_e) {}
 }
 
-// ══════════════════════════════════════════════════════════
-// MAPA DE PEDIDOS PAT — Leaflet + Nominatim (OpenStreetMap)
-// ══════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// MAPA DE PEDIDOS PAT â€” Leaflet + Nominatim (OpenStreetMap)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-let _patMap            = null;  // instância Leaflet
-let _markerJustClicked = false; // flag para não fechar sheet ao clicar marker
+let _patMap            = null;  // instÃ¢ncia Leaflet
+let _markerJustClicked = false; // flag para nÃ£o fechar sheet ao clicar marker
 let _patMapMarkers = [];    // markers actuais
 let _patMapOpen    = false;
 
-// ── Geocoding cache — Firebase /geocode-cache/ ────────────────────────────
+// â”€â”€ Geocoding cache â€” Firebase /geocode-cache/ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Estrutura: { "pingo doce esmoriz": { lat, lng, ts }, ... }
-// Cache em memória para a sessão actual (evita re-fetch do Firebase)
-const _geocodeCache = {};         // memória: key → {lat,lng} | null
-let   _geocodeCacheLoaded = false; // flag: já carregámos do Firebase?
+// Cache em memÃ³ria para a sessÃ£o actual (evita re-fetch do Firebase)
+const _geocodeCache = {};         // memÃ³ria: key â†’ {lat,lng} | null
+let   _geocodeCacheLoaded = false; // flag: jÃ¡ carregÃ¡mos do Firebase?
 
 const GEOCODE_CACHE_URL = `${BASE_URL}/geocode-cache.json`;
 
-// Carrega toda a cache do Firebase para memória (1 fetch, feito uma vez)
+function _normEstabKey(nome) {
+    return (nome || '').trim().toLowerCase();
+}
+
+function _firebaseGeocodeKey(key) {
+    return key.replace(/[.#$\/\[\]]/g, '_');
+}
+
+async function _persistEstabCoords(nome, coords, clienteNumero = '') {
+    const key = _normEstabKey(nome);
+    if (!key || !coords) return;
+
+    _geocodeCache[key] = { lat: coords.lat, lng: coords.lng };
+    _saveGeocodeCacheEntry(key, coords);
+
+    const clientes = _clientesCache.data || {};
+    const clienteMatch = Object.entries(clientes).find(([, c]) => {
+        const sameNumero = clienteNumero && String(c.numero || '').trim() === String(clienteNumero).trim();
+        const sameNome = _normEstabKey(c.nome) === key;
+        return sameNumero || sameNome;
+    });
+    if (!clienteMatch) return;
+
+    const [clienteId, cliente] = clienteMatch;
+    const lat = parseFloat(coords.lat);
+    const lng = parseFloat(coords.lng);
+    const oldLat = parseFloat(cliente.lat);
+    const oldLng = parseFloat(cliente.lng);
+    const changed = !Number.isFinite(oldLat) || !Number.isFinite(oldLng)
+        || Math.abs(oldLat - lat) > 0.000001
+        || Math.abs(oldLng - lng) > 0.000001;
+    if (!changed) return;
+
+    if (_clientesCache.data?.[clienteId]) {
+        _clientesCache.data[clienteId] = { ..._clientesCache.data[clienteId], lat, lng };
+    }
+    try {
+        await apiFetch(`${BASE_URL}/clientes/${clienteId}.json`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat, lng })
+        });
+    } catch (e) {
+        console.warn('[geocache] falha ao guardar coords no cliente:', clienteId, e?.message);
+    }
+}
+
+function _getMapPendingPatsForEstab(nome) {
+    const key = _normEstabKey(nome);
+    return Object.entries(_patCache.data || {})
+        .filter(([, p]) =>
+            _normEstabKey(p.estabelecimento) === key
+            && p.status !== 'levantado'
+            && p.status !== 'historico'
+        );
+}
+
+// Carrega toda a cache do Firebase para memÃ³ria (1 fetch, feito uma vez)
 async function _loadGeocodeCache() {
     if (_geocodeCacheLoaded) return;
     try {
         const url = await authUrl(GEOCODE_CACHE_URL);
         const res = await fetch(url);
         if (!res.ok) {
-            console.warn(`[geocache] HTTP ${res.status} — a continuar sem cache Firebase`);
-            // 401 = rules não publicadas ainda; continua sem cache (geocodifica tudo)
+            console.warn(`[geocache] HTTP ${res.status} â€” a continuar sem cache Firebase`);
+            // 401 = rules nÃ£o publicadas ainda; continua sem cache (geocodifica tudo)
             _geocodeCacheLoaded = true;
             return;
         }
         const data = await res.json();
         if (data && typeof data === 'object') {
             Object.entries(data).forEach(([k, v]) => {
-                _geocodeCache[k] = (v && v.lat && v.lng) ? { lat: v.lat, lng: v.lng } : null;
+                const rawKey = _normEstabKey(v?.keyOriginal || k);
+                if (!rawKey) return;
+                _geocodeCache[rawKey] = (v && v.lat != null && v.lng != null) ? { lat: v.lat, lng: v.lng } : null;
             });
             console.log(`[geocache] ${Object.keys(_geocodeCache).length} entradas carregadas`);
         } else {
-            console.log('[geocache] cache vazia (primeira utilização)');
+            console.log('[geocache] cache vazia (primeira utilizaÃ§Ã£o)');
         }
     } catch(e) {
         console.warn('[geocache] erro ao carregar:', e);
@@ -4025,10 +3995,10 @@ async function _loadGeocodeCache() {
 // Persiste uma entrada na cache Firebase (fire-and-forget, ignora erros de rules)
 async function _saveGeocodeCacheEntry(key, coords) {
     try {
-        const safeKey = key.replace(/[.#$\/\[\]]/g, '_');
+        const safeKey = _firebaseGeocodeKey(key);
         const url = await authUrl(`${BASE_URL}/geocode-cache/${encodeURIComponent(safeKey)}.json`);
         const payload = coords
-            ? JSON.stringify({ lat: coords.lat, lng: coords.lng, ts: Date.now() })
+            ? JSON.stringify({ keyOriginal: key, lat: coords.lat, lng: coords.lng, ts: Date.now() })
             : JSON.stringify(null);
         fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: payload })
             .then(r => { if (!r.ok) console.warn(`[geocache] save ${r.status} para "${key}"`); })
@@ -4040,12 +4010,12 @@ async function _saveGeocodeCacheEntry(key, coords) {
 function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function _geocodeEstab(nome, saveToFirebase = true) {
-    const key = nome.trim().toLowerCase();
+    const key = _normEstabKey(nome);
 
     // 1. Verificar se o cliente tem coordenadas manuais na Firebase
     const clientes = _clientesCache.data || {};
     const clienteMatch = Object.values(clientes).find(c =>
-        (c.nome || '').trim().toLowerCase() === key && c.lat && c.lng
+        _normEstabKey(c.nome) === key && c.lat != null && c.lng != null
     );
     if (clienteMatch) {
         const coords = { lat: parseFloat(clienteMatch.lat), lng: parseFloat(clienteMatch.lng) };
@@ -4053,10 +4023,10 @@ async function _geocodeEstab(nome, saveToFirebase = true) {
         return coords;
     }
 
-    // 2. Cache em memória (sessão ou Firebase pré-carregado)
+    // 2. Cache em memÃ³ria (sessÃ£o ou Firebase prÃ©-carregado)
     if (_geocodeCache[key] !== undefined) return _geocodeCache[key];
 
-    // 2. Nominatim — estratégia multi-tentativa
+    // 2. Nominatim â€” estratÃ©gia multi-tentativa
     const cleaned = nome
         .replace(/-\s*\d+\s*$/, '')
         .replace(/\s+\d+\s*$/, '')
@@ -4070,8 +4040,10 @@ async function _geocodeEstab(nome, saveToFirebase = true) {
     const queries = [
         cleaned + ', Portugal',
         localWords.join(' ') + ', Portugal',
-        localWords.slice(-1)[0] + ', Portugal',
-    ].filter((q, i, arr) => q.trim() !== ', Portugal' && arr.indexOf(q) === i);
+        localWords.length ? localWords[localWords.length - 1] + ', Portugal' : '',
+    ].filter((q, i, arr) =>
+        q && q !== 'undefined, Portugal' && q.trim() !== ', Portugal' && arr.indexOf(q) === i
+    );
 
     for (const q of queries) {
         const encoded = encodeURIComponent(q);
@@ -4084,8 +4056,11 @@ async function _geocodeEstab(nome, saveToFirebase = true) {
             const data = await res.json();
             if (data && data.length > 0) {
                 const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-                _geocodeCache[key] = result;
-                if (saveToFirebase) _saveGeocodeCacheEntry(key, result);
+                if (saveToFirebase) {
+                    await _persistEstabCoords(nome, result, clienteMatch?.numero || '');
+                } else {
+                    _geocodeCache[key] = result;
+                }
                 return result;
             }
         } catch(e) { continue; }
@@ -4097,7 +4072,7 @@ async function _geocodeEstab(nome, saveToFirebase = true) {
     return null;
 }
 
-// Ícones de estabelecimentos customizados
+// Ãcones de estabelecimentos customizados
 // Para adicionar novos: { match: /regex/, icon: 'ficheiro.png', size: [w, h] }
 const _CHAIN_ICONS = [
     {
@@ -4175,7 +4150,7 @@ function _makePinIcon(count, urgente, separacao) {
     });
 }
 
-// ── Map Pin Bottom-Sheet ─────────────────────────────────────────────────────
+// â”€â”€ Map Pin Bottom-Sheet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let _mapPinCoords  = null;
 let _mapPinExpanded = null; // id da PAT expandida (modo detalhe)
 
@@ -4190,7 +4165,7 @@ function openMapPinSheet(pats, coords) {
     sheet.classList.remove('closing');
     sheet.classList.add('open');
 
-    // Posicionar junto ao pin após render (precisamos da altura real)
+    // Posicionar junto ao pin apÃ³s render (precisamos da altura real)
     requestAnimationFrame(() => _positionSheetNearPin(coords, sheet));
 }
 
@@ -4210,24 +4185,24 @@ function _positionSheetNearPin(coords, sheet) {
     const vw      = window.innerWidth;
     const vh      = window.innerHeight;
     const margin  = 12;
-    const gap     = 14; // espaço entre pin e sheet
+    const gap     = 14; // espaÃ§o entre pin e sheet
 
-    // Preferência: acima do pin, centrado horizontalmente
+    // PreferÃªncia: acima do pin, centrado horizontalmente
     let left = pinX - sheetW / 2;
     let top  = pinY - sheetH - gap;
-    let arrowBelow = true; // seta aponta para baixo (pin está abaixo do sheet)
+    let arrowBelow = true; // seta aponta para baixo (pin estÃ¡ abaixo do sheet)
 
-    // Se sair pelo topo → colocar abaixo do pin
+    // Se sair pelo topo â†’ colocar abaixo do pin
     if (top < mapRect.top + margin) {
         top = pinY + gap;
-        arrowBelow = false; // seta aponta para cima (pin está acima do sheet)
+        arrowBelow = false; // seta aponta para cima (pin estÃ¡ acima do sheet)
     }
 
     // Ajustar horizontalmente
     if (left < mapRect.left + margin) left = mapRect.left + margin;
     if (left + sheetW > vw - margin)  left = vw - sheetW - margin;
 
-    // Garantir que não sai pela base
+    // Garantir que nÃ£o sai pela base
     if (top + sheetH > vh - margin) top = vh - sheetH - margin;
 
     sheet.style.left   = Math.round(left) + 'px';
@@ -4238,7 +4213,7 @@ function _positionSheetNearPin(coords, sheet) {
     // Posicionar a seta a apontar para o pin
     const arrow = document.getElementById('map-pin-arrow');
     if (arrow) {
-        const arrowX = Math.round(pinX - left); // posição X da seta relativa ao sheet
+        const arrowX = Math.round(pinX - left); // posiÃ§Ã£o X da seta relativa ao sheet
         const clampedX = Math.max(20, Math.min(arrowX, sheetW - 20));
         arrow.style.left      = clampedX + 'px';
         arrow.style.transform = 'translateX(-50%)';
@@ -4261,11 +4236,11 @@ function _renderMapPinSheet(pats) {
     const badgesEl = document.getElementById('map-pin-badges');
     const patsEl   = document.getElementById('map-pin-pats');
 
-    const nome     = pats[0][1].estabelecimento || '—';
+    const nome     = pats[0][1].estabelecimento || 'â€”';
     const urgentes = pats.filter(([, p]) => _calcDias(p.criadoEm) >= 15);
     const comGuia  = pats.filter(([, p]) => !!p.separacao);
 
-    // Header — nome em destaque
+    // Header â€” nome em destaque
     estabEl.textContent = nome;
     badgesEl.innerHTML  = '';
     if (pats.length > 1) {
@@ -4290,26 +4265,26 @@ function _renderMapPinSheet(pats) {
     patsEl.innerHTML = '';
 
     if (pats.length === 1) {
-        // Vista única — mostrar detalhe completo directamente
+        // Vista Ãºnica â€” mostrar detalhe completo directamente
         patsEl.appendChild(_buildPatDetail(pats[0], pats));
     } else {
-        // Múltiplas — resumo + expandir ao clicar
+        // MÃºltiplas â€” resumo + expandir ao clicar
         pats.forEach(([id, pat]) => {
             const dias    = _calcDias(pat.criadoEm);
             const urgente = dias >= 15;
-            const diasLbl = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
+            const diasLbl = dias === 0 ? 'Hoje' : dias === 1 ? 'HÃ¡ 1 dia' : `HÃ¡ ${dias} dias`;
             const isExpanded = _mapPinExpanded === id;
 
             const wrapper = document.createElement('div');
             wrapper.className = `map-pin-pat-row${urgente ? ' urgente' : ''}`;
             wrapper.dataset.patId = id;
 
-            // Cabeçalho resumo (sempre visível)
+            // CabeÃ§alho resumo (sempre visÃ­vel)
             const summary = document.createElement('div');
             summary.className = 'map-pin-pat-summary';
             summary.innerHTML = `
                 <div class="map-pin-pat-top">
-                    <span class="map-pin-pat-num">PAT ${pat.numero || '—'}</span>
+                    <span class="map-pin-pat-num">PAT ${pat.numero || 'â€”'}</span>
                     <span class="map-pin-pat-age${urgente ? ' urgente' : ''}">${diasLbl}</span>
                     <span class="map-pin-pat-chevron${isExpanded ? ' open' : ''}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -4321,7 +4296,7 @@ function _renderMapPinSheet(pats) {
             };
             wrapper.appendChild(summary);
 
-            // Detalhe (expansível)
+            // Detalhe (expansÃ­vel)
             if (isExpanded) {
                 wrapper.appendChild(_buildPatDetail([id, pat], pats));
             }
@@ -4354,7 +4329,7 @@ function _buildPatDetail([id, pat], allPats) {
         prods.forEach(p => {
             const chip = document.createElement('span');
             chip.className = 'map-pin-pat-prod';
-            chip.textContent = `${p.codigo || '?'} ×${p.quantidade || 1}`;
+            chip.textContent = `${p.codigo || '?'} Ã—${p.quantidade || 1}`;
             prodsEl.appendChild(chip);
         });
         detail.appendChild(prodsEl);
@@ -4365,27 +4340,31 @@ function _buildPatDetail([id, pat], allPats) {
         detail.appendChild(empty);
     }
 
-    // Botão levantar com confirmação
+    // BotÃ£o levantar com confirmaÃ§Ã£o
     const levBtn = document.createElement('button');
     levBtn.className = 'map-pin-lev-btn';
     levBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Dar como levantado`;
     levBtn.onclick = () => {
-        // Confirmação via modal existente da app
+        // ConfirmaÃ§Ã£o via modal existente da app
         openConfirmModal({
-            icon: '✓',
+            icon: 'âœ“',
             title: 'Confirmar levantamento',
-            desc: `PAT ${pat.numero || id} — ${escapeHtml(pat.estabelecimento || '')}`,
+            desc: `PAT ${pat.numero || id} â€” ${escapeHtml(pat.estabelecimento || '')}`,
             onConfirm: async () => {
                 levBtn.classList.add('loading');
                 levBtn.textContent = 'A processar...';
                 await marcarPatLevantado(id);
-                // Remover esta PAT da lista
-                const remaining = allPats.filter(([pid]) => pid !== id);
+                if (_patMapOpen) await openPatMap();
+                const remaining = _getMapPendingPatsForEstab(pat.estabelecimento);
                 if (remaining.length === 0) {
                     setTimeout(() => closeMapPinSheet(), 600);
                 } else {
                     _mapPinExpanded = null;
                     _renderMapPinSheet(remaining);
+                    requestAnimationFrame(() => {
+                        const sheet = document.getElementById('map-pin-sheet');
+                        if (sheet && _mapPinCoords) _positionSheetNearPin(_mapPinCoords, sheet);
+                    });
                 }
             }
         });
@@ -4400,7 +4379,7 @@ function closeMapPinSheet() {
     sheet.classList.add('closing');
     setTimeout(() => {
         sheet.classList.remove('open', 'closing');
-        // Repor posição para próxima abertura
+        // Repor posiÃ§Ã£o para prÃ³xima abertura
         sheet.style.left   = '';
         sheet.style.top    = '';
         sheet.style.bottom = '';
@@ -4441,9 +4420,9 @@ async function openPatMap() {
     if (subtitleEl) subtitleEl.textContent  = '';
     if (loadingTxt) loadingTxt.textContent  = 'A preparar mapa...';
 
-    if (!container) { console.error('[map] container não encontrado'); return; }
+    if (!container) { console.error('[map] container nÃ£o encontrado'); return; }
 
-    // Calcular altura disponível directamente via viewport
+    // Calcular altura disponÃ­vel directamente via viewport
     // vh - header (~60px) - topbar da vista (~80px) - padding bottom
     const headerEl = document.getElementById('app-header');
     const headerH  = headerEl ? headerEl.offsetHeight : 60;
@@ -4455,31 +4434,31 @@ async function openPatMap() {
     container.style.width  = '100%';
     console.log(`[map] header:${headerH}px mapHeader:${mapHeaderH}px container:${container.offsetWidth}x${availH}px`);
 
-    // Reutilizar instância do mapa se já existir (evita reload desnecessário)
+    // Reutilizar instÃ¢ncia do mapa se jÃ¡ existir (evita reload desnecessÃ¡rio)
     if (_patMap) {
         _patMapMarkers.forEach(m => m.remove());
         _patMapMarkers = [];
     }
 
-    // Bounds de Portugal continental + ilhas (Açores e Madeira incluídos)
+    // Bounds de Portugal continental + ilhas (AÃ§ores e Madeira incluÃ­dos)
     const PT_BOUNDS = L.latLngBounds(
-        L.latLng(30.0, -31.5),   // SW — inclui Açores
-        L.latLng(42.2, -6.2)     // NE — nordeste de Trás-os-Montes
+        L.latLng(30.0, -31.5),   // SW â€” inclui AÃ§ores
+        L.latLng(42.2, -6.2)     // NE â€” nordeste de TrÃ¡s-os-Montes
     );
 
     if (!_patMap) { _patMap = L.map('pat-map-container', {
         center:       [39.6, -8.0],  // centro aproximado de Portugal continental
         zoom:         7,
-        minZoom:      6,             // não deixa afastar mais do que isto
+        minZoom:      6,             // nÃ£o deixa afastar mais do que isto
         maxZoom:      17,
         maxBounds:    PT_BOUNDS,
-        maxBoundsViscosity: 1.0,     // 1.0 = limite rígido, não deixa arrastar para fora
+        maxBoundsViscosity: 1.0,     // 1.0 = limite rÃ­gido, nÃ£o deixa arrastar para fora
         zoomControl:  true,
     });
 
-    // CartoDB Positron — minimalista, sem API key, gratuito
+    // CartoDB Positron â€” minimalista, sem API key, gratuito
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+        attribution: 'Â© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> Â© <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 20,
         minZoom: 6,
@@ -4512,26 +4491,27 @@ async function openPatMap() {
         return;
     }
 
-    subtitleEl.textContent = `A preparar localizações...`;
+    subtitleEl.textContent = `A preparar localizaÃ§Ãµes...`;
 
-    // Agrupar por estabelecimento (mesmo nome → mesmo pin)
+    // Agrupar por estabelecimento (mesmo nome â†’ mesmo pin)
     const groups = {};
     pendentes.forEach(([id, pat]) => {
-        const key = (pat.estabelecimento || '').trim().toLowerCase();
+        const key = _normEstabKey(pat.estabelecimento);
+        if (!key) return;
         if (!groups[key]) groups[key] = [];
         groups[key].push([id, pat]);
     });
     const groupEntries = Object.entries(groups);
 
-    // ── Passo 1: Carregar cache do Firebase ──────────────────────────────
-    if (loadingTxt) loadingTxt.textContent = 'A carregar localizações guardadas...';
+    // â”€â”€ Passo 1: Carregar cache do Firebase â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    if (loadingTxt) loadingTxt.textContent = 'A carregar localizaÃ§Ãµes guardadas...';
     await _loadGeocodeCache();
 
     const cached  = groupEntries.filter(([k]) => _geocodeCache[k] !== undefined);
     const missing = groupEntries.filter(([k]) => _geocodeCache[k] === undefined);
     console.log(`[map] ${cached.length} em cache, ${missing.length} por geocodificar`);
 
-    // ── Passo 2: Helper para adicionar marker ────────────────────────────
+    // â”€â”€ Passo 2: Helper para adicionar marker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function _addMarker(estabKey, items) {
         const coords = _geocodeCache[estabKey];
         if (!coords) return false;
@@ -4542,15 +4522,21 @@ async function openPatMap() {
         const icon = chainIcon || _makePinIcon(items.length, urgente, separacao);
         const marker = L.marker([coords.lat, coords.lng], { icon })
             .addTo(_patMap);
-        const _items = items.slice();
         const _lat   = coords.lat;
         const _lng   = coords.lng;
         marker.on('click', () => {
-            console.log('[map] marker clicado:', _items[0][1].estabelecimento);
+            const currentItems = _getMapPendingPatsForEstab(items[0]?.[1]?.estabelecimento || estabKey);
+            if (currentItems.length === 0) {
+                marker.remove();
+                _patMapMarkers = _patMapMarkers.filter(m => m !== marker);
+                closeMapPinSheet();
+                return;
+            }
+            console.log('[map] marker clicado:', currentItems[0][1].estabelecimento);
             _markerJustClicked = true;
             console.log('[map] a chamar openMapPinSheet, tipo:', typeof openMapPinSheet);
             try {
-                openMapPinSheet(_items, { lat: _lat, lng: _lng });
+                openMapPinSheet(currentItems, { lat: _lat, lng: _lng });
                 console.log('[map] openMapPinSheet concluiu sem erro');
             } catch(e) {
                 console.error('[map] ERRO em openMapPinSheet:', e.message, e.stack);
@@ -4560,7 +4546,7 @@ async function openPatMap() {
         return true;
     }
 
-    // ── Passo 3: Mostrar pins da cache imediatamente ─────────────────────
+    // â”€â”€ Passo 3: Mostrar pins da cache imediatamente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let geocoded = 0;
     const bounds = [];
 
@@ -4580,14 +4566,14 @@ async function openPatMap() {
         setTimeout(() => _patMap && _patMap.invalidateSize(), 200);
     }
 
-    // ── Passo 4: Geocodificar os que faltam (background se já há pins) ───
+    // â”€â”€ Passo 4: Geocodificar os que faltam (background se jÃ¡ hÃ¡ pins) â”€â”€â”€
     if (missing.length === 0) {
         if (geocoded === 0) {
             if (loadingEl) loadingEl.style.display = 'none';
-            if (errorEl) { errorEl.style.display = 'flex'; document.getElementById('pat-map-error-text').textContent = 'Não foi possível localizar nenhum estabelecimento.'; }
+            if (errorEl) { errorEl.style.display = 'flex'; document.getElementById('pat-map-error-text').textContent = 'NÃ£o foi possÃ­vel localizar nenhum estabelecimento.'; }
         }
         const naoEncontrados = groupEntries.filter(([k]) => _geocodeCache[k] === null).length;
-        if (naoEncontrados > 0) subtitleEl.textContent += ` · ${naoEncontrados} não localizado${naoEncontrados !== 1 ? 's' : ''}`;
+        if (naoEncontrados > 0) subtitleEl.textContent += ` Â· ${naoEncontrados} nÃ£o localizado${naoEncontrados !== 1 ? 's' : ''}`;
         return;
     }
 
@@ -4622,15 +4608,15 @@ async function openPatMap() {
 
     const totalShown = geocoded + newGeocoded;
     if (totalShown === 0) {
-        if (errorEl) { errorEl.style.display = 'flex'; document.getElementById('pat-map-error-text').textContent = 'Não foi possível localizar nenhum estabelecimento.'; }
+        if (errorEl) { errorEl.style.display = 'flex'; document.getElementById('pat-map-error-text').textContent = 'NÃ£o foi possÃ­vel localizar nenhum estabelecimento.'; }
         return;
     }
 
-    const failedTxt = failed > 0 ? ` · ${failed} não localizad${failed !== 1 ? 'os' : 'o'}` : '';
+    const failedTxt = failed > 0 ? ` Â· ${failed} nÃ£o localizad${failed !== 1 ? 'os' : 'o'}` : '';
     const newTxt    = ''; // sem mensagem de 'novos guardados'
     subtitleEl.textContent = `${totalShown} estabelecimento${totalShown !== 1 ? 's' : ''} no mapa${newTxt}${failedTxt}`;
 
-    // Forçar Leaflet a recalcular dimensões
+    // ForÃ§ar Leaflet a recalcular dimensÃµes
     setTimeout(() => _patMap && _patMap.invalidateSize(), 200);
 }
 
@@ -4652,13 +4638,13 @@ async function openToolTimeline() {
 
     try {
         if (!navigator.onLine) {
-            el.innerHTML = '<div class="empty-msg">Sem ligação — timeline indisponível offline.</div>';
+            el.innerHTML = '<div class="empty-msg">Sem ligaÃ§Ã£o â€” timeline indisponÃ­vel offline.</div>';
             return;
         }
         const ferrData = await fetchCollection('ferramentas', true);
         if (!ferrData) { el.innerHTML = '<div class="empty-msg">Sem dados.</div>'; return; }
 
-        // Recolhe todos os eventos de histórico
+        // Recolhe todos os eventos de histÃ³rico
         const events = [];
         for (const [id, t] of Object.entries(ferrData)) {
             if (t.historico) {
@@ -4717,12 +4703,12 @@ async function openToolTimeline() {
             const action = document.createElement('span');
             action.className = 'tl-action';
             if (ev.acao === 'alocada_agora') {
-                action.textContent = `🔴 Com ${ev.colaborador || '?'} há ${ev._dias}d`;
+                action.textContent = `ðŸ”´ Com ${ev.colaborador || '?'} hÃ¡ ${ev._dias}d`;
                 action.className += ' tl-action-overdue';
             } else if (ev.acao === 'atribuida') {
-                action.textContent = `→ Entregue a ${ev.colaborador || '?'}`;
+                action.textContent = `â†’ Entregue a ${ev.colaborador || '?'}`;
             } else {
-                action.textContent = `↩ Devolvida${ev.colaborador ? ' por ' + ev.colaborador : ''}`;
+                action.textContent = `â†© Devolvida${ev.colaborador ? ' por ' + ev.colaborador : ''}`;
             }
 
             const time = document.createElement('span');
@@ -4746,7 +4732,7 @@ function closeToolTimeline() {
 }
 
 // =============================================
-// BOTTOM NAV — botão + com mini-menu
+// BOTTOM NAV â€” botÃ£o + com mini-menu
 // =============================================
 let _bnavAddOpen = false;
 
@@ -4785,13 +4771,13 @@ function bnavAddChoose(viewId) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // PAT: só aceita dígitos
+    // PAT: sÃ³ aceita dÃ­gitos
     document.getElementById('pat-numero')?.addEventListener('input', function() {
         this.value = this.value.replace(/\D/g, '').slice(0, 6);
         const hint = document.getElementById('pat-numero-hint');
         if (hint) {
             if (this.value.length > 0 && this.value.length < 6) {
-                hint.textContent = `${this.value.length}/6 dígitos`;
+                hint.textContent = `${this.value.length}/6 dÃ­gitos`;
                 hint.style.color = 'var(--text-muted)';
             } else {
                 hint.textContent = '';
@@ -4802,20 +4788,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // Tema
     const savedTheme = localStorage.getItem('hiperfrio-tema') || 'light';
     _applyTheme(savedTheme);
-    // _applyTheme já chama _setupSearchScrollBehaviour e _setupBottomNavScrollBehaviour
+    // _applyTheme jÃ¡ chama _setupSearchScrollBehaviour e _setupBottomNavScrollBehaviour
     _setupAdminSwipe();
 
-    // Verifica perfil guardado — se existir, arranca diretamente
+    // Verifica perfil guardado â€” se existir, arranca diretamente
     const savedRole = localStorage.getItem(ROLE_KEY);
     if (savedRole === 'worker' || savedRole === 'manager') {
         applyRole(savedRole);
         bootApp();
     }
 
-    // Pesquisa com debounce — cache o elemento para evitar lookups repetidos
+    // Pesquisa com debounce â€” cache o elemento para evitar lookups repetidos
     const searchInput = document.getElementById('inp-search');
     const searchClear = document.getElementById('inp-search-clear');
-    window._searchInputEl = searchInput; // referência global para renderList
+    window._searchInputEl = searchInput; // referÃªncia global para renderList
     if (searchInput) {
         let debounceTimer;
         searchInput.oninput = e => {
@@ -4827,7 +4813,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Delegação de eventos nas ferramentas — um único listener no container
+    // DelegaÃ§Ã£o de eventos nas ferramentas â€” um Ãºnico listener no container
     const toolsListEl = document.getElementById('tools-list');
     if (toolsListEl) {
         toolsListEl.addEventListener('contextmenu', e => {
@@ -4886,7 +4872,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Online/Offline
     window.addEventListener('offline', () => {
         updateOfflineBanner();
-        showToast('Sem ligação — alterações guardadas localmente', 'error');
+        showToast('Sem ligaÃ§Ã£o â€” alteraÃ§Ãµes guardadas localmente', 'error');
     });
     window.addEventListener('online', async () => {
         updateOfflineBanner();
@@ -4907,7 +4893,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Confirm modal OK — desabilita durante operações async
+    // Confirm modal OK â€” desabilita durante operaÃ§Ãµes async
     document.getElementById('confirm-modal-ok').onclick = async () => {
         const cb = confirmCallback;
         if (!cb) return;
@@ -5035,11 +5021,11 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             await apiFetch(`${BASE_URL}/stock/${id}.json`, { method:'PATCH', body:JSON.stringify(updated) });
             showToast('Produto atualizado!');
-        } catch (e) { console.warn('editProduct:', e?.message||e); invalidateCache('stock'); showToast('Erro ao guardar alterações','error'); }
-        finally { btn.disabled = false; btn.textContent = 'Guardar Alterações'; }
+        } catch (e) { console.warn('editProduct:', e?.message||e); invalidateCache('stock'); showToast('Erro ao guardar alteraÃ§Ãµes','error'); }
+        finally { btn.disabled = false; btn.textContent = 'Guardar AlteraÃ§Ãµes'; }
     });
 
-    // Form: Funcionário
+    // Form: FuncionÃ¡rio
     document.getElementById('form-worker')?.addEventListener('submit', async e => {
         e.preventDefault();
         if (!requireManagerAccess()) return;
@@ -5051,8 +5037,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res) { const r = await res.json(); if (r?.name) cache.funcionarios.data[r.name] = {nome}; }
             else { cache.funcionarios.data[`_tmp_${Date.now()}`] = {nome}; }
             document.getElementById('worker-name').value = '';
-            renderWorkers(); showToast('Funcionário adicionado');
-        } catch(_e) { invalidateCache('funcionarios'); showToast('Erro ao adicionar funcionário','error'); }
+            renderWorkers(); showToast('FuncionÃ¡rio adicionado');
+        } catch(_e) { invalidateCache('funcionarios'); showToast('Erro ao adicionar funcionÃ¡rio','error'); }
     });
 
     // Form: Registar Ferramenta
@@ -5085,24 +5071,24 @@ const SW_EXPECTED_VERSION = 'hiperfrio-v6.46';
 const SW_SCRIPT_URL = 'sw.js?v=6.46';
 
 if ('serviceWorker' in navigator) {
-    // Forçar limpeza de SW desactualizados
+    // ForÃ§ar limpeza de SW desactualizados
     /* preserva o SW actual */
     // Limpar todas as caches
     /* preserva cache do SW activo */
     window.addEventListener('load', () => {
-        // 1 — Regista o SW novo
+        // 1 â€” Regista o SW novo
         navigator.serviceWorker.register(SW_SCRIPT_URL)
             .then(reg => {
                 reg.update().catch(() => {});
-                // 2 — Verifica se o SW activo é a versão correcta
-                // Se for uma versão antiga (cache-first), força update imediato
+                // 2 â€” Verifica se o SW activo Ã© a versÃ£o correcta
+                // Se for uma versÃ£o antiga (cache-first), forÃ§a update imediato
                 if (reg.active) {
                     const msgChannel = new MessageChannel();
                     msgChannel.port1.onmessage = e => {
                         if (e.data && e.data.version !== SW_EXPECTED_VERSION) {
-                            console.warn('SW desactualizado — a forçar update...');
+                            console.warn('SW desactualizado â€” a forÃ§ar update...');
                             reg.update().then(() => {
-                                // Após update, recarrega para aplicar
+                                // ApÃ³s update, recarrega para aplicar
                                 navigator.serviceWorker.addEventListener('controllerchange', () => {
                                     window.location.reload();
                                 }, { once: true });
@@ -5114,7 +5100,7 @@ if ('serviceWorker' in navigator) {
             })
             .catch(e => console.warn('PWA SW erro:', e));
 
-        // 3 — Se o SW mudar enquanto a app está aberta, recarrega automaticamente
+        // 3 â€” Se o SW mudar enquanto a app estÃ¡ aberta, recarrega automaticamente
         let swRefreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (!swRefreshing) {
@@ -5126,7 +5112,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // =============================================
-// CLIENTES — autocomplete Nº Cliente no modal PAT
+// CLIENTES â€” autocomplete NÂº Cliente no modal PAT
 // =============================================
 const CLIENTES_URL = `${BASE_URL}/clientes.json`;
 const _clientesCache = { data: null, lastFetch: 0 };
@@ -5154,7 +5140,7 @@ function patClientSearch(val) {
 
     const data = _clientesCache.data || {};
 
-    // Número exacto — verifica quantos clientes partilham esse NR
+    // NÃºmero exacto â€” verifica quantos clientes partilham esse NR
     if (/^\d{1,3}$/.test(q)) {
         const exactMatches = Object.values(data).filter(c => c.numero === q);
         if (exactMatches.length === 1) {
@@ -5170,7 +5156,7 @@ function patClientSearch(val) {
         }
     }
 
-    // Sugestões parciais
+    // SugestÃµes parciais
     const matches = Object.values(data)
         .filter(c => c.numero.startsWith(q) || c.nome.toLowerCase().includes(q.toLowerCase()))
         .slice(0, 10);
@@ -5189,7 +5175,7 @@ function _renderClientDropdown(dd, matches, isExact) {
     if (isExact) {
         const hdr = document.createElement('div');
         hdr.className = 'pat-dd-header';
-        hdr.textContent = matches.length + ' estabelecimentos com este Nº — escolhe:';
+        hdr.textContent = matches.length + ' estabelecimentos com este NÂº â€” escolhe:';
         dd.appendChild(hdr);
     }
     matches.forEach((c, i) => {
@@ -5245,7 +5231,7 @@ function patClientKeydown(e) {
     }
 }
 
-// ── Lista de clientes no Admin ─────────────────────────────────────────────
+// â”€â”€ Lista de clientes no Admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function renderClientesList() {
     const list = document.getElementById('clientes-list');
     if (!list) return;
@@ -5254,7 +5240,7 @@ async function renderClientesList() {
     const entries = Object.entries(data || {})
         .sort((a, b) => Number(a[1].numero) - Number(b[1].numero));
     if (entries.length === 0) {
-        list.innerHTML = '<div class="empty-msg">Nenhum cliente. Usa o botão acima para importar.</div>';
+        list.innerHTML = '<div class="empty-msg">Nenhum cliente. Usa o botÃ£o acima para importar.</div>';
         return;
     }
     list.innerHTML = '';
@@ -5269,13 +5255,13 @@ async function renderClientesList() {
 
         const lbl = document.createElement('span');
         lbl.className   = 'admin-list-label clientes-list-label';
-        lbl.textContent = c.numero.padStart(3, '0') + '  ·  ' + c.nome;
+        lbl.textContent = c.numero.padStart(3, '0') + '  Â·  ' + c.nome;
 
-        // Badge de localização
+        // Badge de localizaÃ§Ã£o
         const locBadge = document.createElement('span');
         const hasCoords = c.lat && c.lng;
         locBadge.className = `cliente-loc-badge ${hasCoords ? 'has-loc' : 'no-loc'}`;
-        locBadge.title = hasCoords ? `${c.lat}, ${c.lng}` : 'Sem localização';
+        locBadge.title = hasCoords ? `${c.lat}, ${c.lng}` : 'Sem localizaÃ§Ã£o';
         locBadge.innerHTML = hasCoords
             ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`
             : `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
@@ -5288,10 +5274,10 @@ async function renderClientesList() {
 
         const del = document.createElement('button');
         del.className   = 'admin-list-delete';
-        del.innerHTML = '🗑';
+        del.innerHTML = 'ðŸ—‘';
         del.onclick = () => openConfirmModal({
             icon: '', title: 'Apagar cliente?',
-            desc: `${escapeHtml(c.numero)} — ${escapeHtml(c.nome)}`,
+            desc: `${escapeHtml(c.numero)} â€” ${escapeHtml(c.nome)}`,
             onConfirm: async () => {
                 try {
                     await apiFetch(`${BASE_URL}/clientes/${id}.json`, { method: 'DELETE' });
@@ -5310,7 +5296,7 @@ async function renderClientesList() {
     });
 }
 
-// ── Modal Editar Cliente ───────────────────────────────────────────────────
+// â”€â”€ Modal Editar Cliente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function _ecInitials(nome) {
     const words = (nome || '').trim().split(/\s+/).filter(Boolean);
     if (words.length === 0) return '?';
@@ -5322,7 +5308,7 @@ function ecUpdatePreview() {
     const nome = document.getElementById('edit-cliente-nome')?.value || '';
     const disp = document.getElementById('ec-nome-display');
     const avt  = document.getElementById('ec-avatar');
-    if (disp) disp.textContent = nome || '—';
+    if (disp) disp.textContent = nome || 'â€”';
     if (avt)  avt.textContent  = _ecInitials(nome);
 }
 
@@ -5333,7 +5319,7 @@ function ecUpdateLocStatus() {
     if (!el) return;
     if (lat && lng) {
         el.className = 'ec-loc-status editing-loc';
-        el.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg> Coordenadas definidas — a guardar ao clicar em Guardar`;
+        el.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg> Coordenadas definidas â€” a guardar ao clicar em Guardar`;
     } else if (!lat && !lng) {
         // Mostrar estado original (repor ao que estava ao abrir)
         _ecSetInitialLocStatus();
@@ -5345,10 +5331,10 @@ function _ecSetInitialLocStatus(lat, lng) {
     if (!el) return;
     if (lat && lng) {
         el.className = 'ec-loc-status has-loc';
-        el.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Localização guardada · ${parseFloat(lat).toFixed(5)}, ${parseFloat(lng).toFixed(5)}`;
+        el.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> LocalizaÃ§Ã£o guardada Â· ${parseFloat(lat).toFixed(5)}, ${parseFloat(lng).toFixed(5)}`;
     } else {
         el.className = 'ec-loc-status no-loc';
-        el.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Sem localização — será geocodificada automaticamente`;
+        el.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Sem localizaÃ§Ã£o â€” serÃ¡ geocodificada automaticamente`;
     }
 }
 
@@ -5363,11 +5349,11 @@ function openEditClienteModal(id, c) {
     const nomeDisplay = document.getElementById('ec-nome-display');
     const numDisplay  = document.getElementById('ec-numero-display');
     const avatar      = document.getElementById('ec-avatar');
-    if (nomeDisplay) nomeDisplay.textContent = c.nome  || '—';
-    if (numDisplay)  numDisplay.textContent  = `Nº ${(c.numero || '').padStart(3, '0')}`;
+    if (nomeDisplay) nomeDisplay.textContent = c.nome  || 'â€”';
+    if (numDisplay)  numDisplay.textContent  = `NÂº ${(c.numero || '').padStart(3, '0')}`;
     if (avatar)      avatar.textContent      = _ecInitials(c.nome);
 
-    // Estado da localização
+    // Estado da localizaÃ§Ã£o
     _ecSetInitialLocStatus(c.lat, c.lng);
 
     document.getElementById('modal-edit-cliente').classList.add('active');
@@ -5380,21 +5366,22 @@ function closeEditClienteModal() {
 
 async function saveEditCliente() {
     const id     = document.getElementById('edit-cliente-id').value;
-    const numero = document.getElementById('edit-cliente-numero').value.trim(); // readonly, só para payload
+    const numero = document.getElementById('edit-cliente-numero').value.trim(); // readonly, sÃ³ para payload
     const nome   = document.getElementById('edit-cliente-nome').value.trim();
     const latVal = document.getElementById('edit-cliente-lat').value.trim();
     const lngVal = document.getElementById('edit-cliente-lng').value.trim();
+    const previousNome = _clientesCache.data?.[id]?.nome || '';
 
-    if (!nome) { showToast('O nome não pode estar vazio', 'error'); return; }
+    if (!nome) { showToast('O nome nÃ£o pode estar vazio', 'error'); return; }
 
-    // Só alterar nome (número fica inalterado)
+    // SÃ³ alterar nome (nÃºmero fica inalterado)
     const payload = { nome };
 
     if (latVal !== '' && lngVal !== '') {
         const lat = parseFloat(latVal);
         const lng = parseFloat(lngVal);
         if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-            showToast('Coordenadas inválidas', 'error'); return;
+            showToast('Coordenadas invÃ¡lidas', 'error'); return;
         }
         payload.lat = lat;
         payload.lng = lng;
@@ -5412,10 +5399,17 @@ async function saveEditCliente() {
         if (_clientesCache.data) {
             _clientesCache.data[id] = { ..._clientesCache.data[id], ...payload };
         }
-        if (payload.lat && payload.lng) {
-            const cacheKey = nome.trim().toLowerCase();
-            _geocodeCache[cacheKey] = { lat: payload.lat, lng: payload.lng };
-            _saveGeocodeCacheEntry(cacheKey, { lat: payload.lat, lng: payload.lng });
+        const cacheKey = _normEstabKey(nome);
+        const previousKey = _normEstabKey(previousNome);
+        if (previousKey && previousKey !== cacheKey) {
+            delete _geocodeCache[previousKey];
+            _saveGeocodeCacheEntry(previousKey, null);
+        }
+        if (payload.lat != null && payload.lng != null && cacheKey) {
+            await _persistEstabCoords(nome, { lat: payload.lat, lng: payload.lng }, numero);
+        } else if (cacheKey) {
+            _geocodeCache[cacheKey] = null;
+            _saveGeocodeCacheEntry(cacheKey, null);
         }
         closeEditClienteModal();
         renderClientesList();
@@ -5423,7 +5417,7 @@ async function saveEditCliente() {
     } catch(_e) { showToast('Erro ao guardar', 'error'); }
 }
 
-// ── Importar Excel de clientes ─────────────────────────────────────────────
+// â”€â”€ Importar Excel de clientes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function importClientesExcel(input) {
     const file = input?.files?.[0];
     if (!file) return;
@@ -5453,14 +5447,14 @@ async function importClientesExcel(input) {
             return;
         }
 
-        preview.innerHTML = `<div class="clientes-preview-info">✓ ${count} clientes encontrados. A importar...</div>`;
+        preview.innerHTML = `<div class="clientes-preview-info">âœ“ ${count} clientes encontrados. A importar...</div>`;
 
-        // Guardar no Firebase (merge — preserva coords existentes)
+        // Guardar no Firebase (merge â€” preserva coords existentes)
         const existing = await _fetchClientes(true);
         const merged = {};
         for (const [id, c] of Object.entries(clientes)) {
             merged[id] = { ...c };
-            // Preservar lat/lng se já existia
+            // Preservar lat/lng se jÃ¡ existia
             if (existing[id]?.lat) merged[id].lat = existing[id].lat;
             if (existing[id]?.lng) merged[id].lng = existing[id].lng;
         }
@@ -5473,7 +5467,7 @@ async function importClientesExcel(input) {
 
         _clientesCache.data = merged;
         _clientesCache.lastFetch = Date.now();
-        preview.innerHTML = `<div class="clientes-preview-info">✓ ${count} clientes importados com sucesso.</div>`;
+        preview.innerHTML = `<div class="clientes-preview-info">âœ“ ${count} clientes importados com sucesso.</div>`;
         renderClientesList();
         input.value = '';
     } catch(e) {
@@ -5482,7 +5476,7 @@ async function importClientesExcel(input) {
     }
 }
 
-// ── Exportar Excel de clientes ─────────────────────────────────────────────
+// â”€â”€ Exportar Excel de clientes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function exportClientesExcel() {
     try {
         await _ensureXLSX();
@@ -5492,7 +5486,7 @@ async function exportClientesExcel() {
 
         if (entries.length === 0) { showToast('Sem clientes para exportar', 'error'); return; }
 
-        const rows = [['Número', 'Nome', 'Latitude', 'Longitude']];
+        const rows = [['NÃºmero', 'Nome', 'Latitude', 'Longitude']];
         entries.forEach(([, c]) => {
             rows.push([c.numero, c.nome, c.lat || '', c.lng || '']);
         });
@@ -5526,7 +5520,7 @@ async function _fetchPats(force = false) {
         if (!res.ok) throw new Error(res.status);
         _patCache.data = await res.json() || {};
         _patCache.lastFetch = now;
-        // Auto-limpeza: apaga entradas de histórico com mais de 15 dias
+        // Auto-limpeza: apaga entradas de histÃ³rico com mais de 15 dias
         _autoLimparHistorico();
     } catch(_e) { _patCache.data = _patCache.data || {}; }
     return _patCache.data;
@@ -5538,26 +5532,26 @@ async function _autoLimparHistorico() {
     if (!expirados.length) return;
     for (const [id, pat] of expirados) {
         await _relSalvarPatAntesDeApagar(pat);
-        apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'DELETE' }).catch(e => console.warn('[Histórico] falha auto-limpeza:', id, e?.message));
+        apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'DELETE' }).catch(e => console.warn('[HistÃ³rico] falha auto-limpeza:', id, e?.message));
         delete _patCache.data[id];
     }
 }
 
 function _getPatPendingCount() {
-    // _patCache é a variável module-level correcta (cache principal não inclui pedidos)
+    // _patCache Ã© a variÃ¡vel module-level correcta (cache principal nÃ£o inclui pedidos)
     const data = (_patCache && _patCache.data) ? _patCache.data : {};
     return Object.values(data).filter(p => p.status !== 'levantado' && p.status !== 'historico').length;
 }
 
 async function updatePatCount() {
-    // Actualiza a cache de PATs — card do dashboard lê _getPatPendingCount() da cache
+    // Actualiza a cache de PATs â€” card do dashboard lÃª _getPatPendingCount() da cache
     await _fetchPats();
 }
 
 let _patSearchQuery  = '';
 let _patTab          = 'pendentes'; // 'pendentes' | 'levantadas' | 'historico'
-let _patSelMode      = false;       // modo seleção para levantar
-let _patSelWorker    = '';          // funcionário escolhido
+let _patSelMode      = false;       // modo seleÃ§Ã£o para levantar
+let _patSelWorker    = '';          // funcionÃ¡rio escolhido
 let _patSelIds       = new Set();   // IDs seleccionados
 
 const _debouncedPatSearch = _debounce(val => {
@@ -5567,12 +5561,12 @@ const _debouncedPatSearch = _debounce(val => {
 
 function patSearchFilter(val) { _debouncedPatSearch(val); }
 
-// ── Popover de pedidos duplicados por estabelecimento ──────────────
+// â”€â”€ Popover de pedidos duplicados por estabelecimento â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let _dupPopoverEl = null;
 let _dupPopoverCloseHandler = null;
 
 function showDupPopover(badge, estabNorm) {
-    // fecha se já aberto + limpa listener anterior
+    // fecha se jÃ¡ aberto + limpa listener anterior
     if (_dupPopoverCloseHandler) { document.removeEventListener('click', _dupPopoverCloseHandler); _dupPopoverCloseHandler = null; }
     if (_dupPopoverEl) { _dupPopoverEl.remove(); _dupPopoverEl = null; }
 
@@ -5584,13 +5578,13 @@ function showDupPopover(badge, estabNorm) {
     const pop = document.createElement('div');
     pop.className = 'dup-popover';
     pop.innerHTML = `
-        <div class="dup-pop-title">PATs — ${escapeHtml(pats[0]?.[1]?.estabelecimento || estabNorm)}</div>
+        <div class="dup-pop-title">PATs â€” ${escapeHtml(pats[0]?.[1]?.estabelecimento || estabNorm)}</div>
         ${pats.map(([, p]) => {
             const dias = _calcDias(p.criadoEm);
-            const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
+            const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'HÃ¡ 1 dia' : `HÃ¡ ${dias} dias`;
             const urgente = dias >= 15;
             return `<div class="dup-pop-row">
-                <span class="dup-pop-pat ${urgente ? 'dup-pop-urgente' : ''}">PAT ${escapeHtml(p.numero || '—')}</span>
+                <span class="dup-pop-pat ${urgente ? 'dup-pop-urgente' : ''}">PAT ${escapeHtml(p.numero || 'â€”')}</span>
                 <span class="dup-pop-dias">${diasLabel}</span>
             </div>`;
         }).join('')}
@@ -5651,7 +5645,7 @@ async function renderPats() {
         .sort((a, b) => (b[1].criadoEm || 0) - (a[1].criadoEm || 0));
 
     if (entries.length === 0) {
-        const msgs = { pendentes: 'Nenhum pedido pendente.', levantadas: 'Nenhuma PAT levantada.', historico: 'Sem histórico.' };
+        const msgs = { pendentes: 'Nenhum pedido pendente.', levantadas: 'Nenhuma PAT levantada.', historico: 'Sem histÃ³rico.' };
         el.innerHTML = `<div class="pat-empty">${msgs[_patTab] || ''}</div>`;
         updatePatCount();
         return;
@@ -5659,7 +5653,7 @@ async function renderPats() {
 
     el.innerHTML = '';
 
-    // ── Pendentes: lista plana com count bar ────────────────────────────
+    // â”€â”€ Pendentes: lista plana com count bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (_patTab === 'pendentes') {
         const estabCount = {};
         entries.forEach(([, p]) => {
@@ -5688,23 +5682,23 @@ async function renderPats() {
         return;
     }
 
-    // ── Levantadas / Histórico: agrupadas por funcionário ────────────────
+    // â”€â”€ Levantadas / HistÃ³rico: agrupadas por funcionÃ¡rio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const grupos = {};
     entries.forEach(([id, pat]) => {
-        const key = pat.funcionario || '—';
+        const key = pat.funcionario || 'â€”';
         if (!grupos[key]) grupos[key] = [];
         grupos[key].push([id, pat]);
     });
     const sortedGroups = Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b, 'pt'));
 
     sortedGroups.forEach(([func, items]) => {
-        // Cabeçalho do grupo
+        // CabeÃ§alho do grupo
         const header = document.createElement('div');
         header.className = 'pat-group-header';
         header.innerHTML = `
             <div class="pat-group-info">
-                <span class="pat-group-avatar">${func === '—' ? '?' : func[0].toUpperCase()}</span>
-                <span class="pat-group-name">${func === '—' ? 'Sem funcionário' : func}</span>
+                <span class="pat-group-avatar">${func === 'â€”' ? '?' : func[0].toUpperCase()}</span>
+                <span class="pat-group-name">${func === 'â€”' ? 'Sem funcionÃ¡rio' : func}</span>
                 <span class="pat-group-count">${items.length}</span>
             </div>`;
         el.appendChild(header);
@@ -5749,7 +5743,7 @@ function _buildPatCard(id, pat, tab, estabCount) {
     const cardTopLeft = document.createElement('div');
     cardTopLeft.className = 'pat-card-top-left';
 
-    // Checkbox selecção
+    // Checkbox selecÃ§Ã£o
     if (_patSelMode) {
         const cb = document.createElement('span');
         cb.className = 'pat-sel-cb' + (isSelected ? ' checked' : '');
@@ -5759,10 +5753,10 @@ function _buildPatCard(id, pat, tab, estabCount) {
         cardTopLeft.appendChild(cb);
     }
 
-    // Badge PAT número
+    // Badge PAT nÃºmero
     const patBadge = document.createElement('span');
     patBadge.className   = 'pat-badge' + (urgente ? ' pat-badge-urgente' : '');
-    patBadge.textContent = 'PAT ' + (pat.numero || '—');
+    patBadge.textContent = 'PAT ' + (pat.numero || 'â€”');
     cardTopLeft.appendChild(patBadge);
 
     // Tag Guia Transporte
@@ -5796,7 +5790,7 @@ function _buildPatCard(id, pat, tab, estabCount) {
     } else if (isLev && pat.levantadoEm) {
         diasSpan.textContent = new Date(pat.levantadoEm).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
     } else {
-        const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
+        const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'HÃ¡ 1 dia' : `HÃ¡ ${dias} dias`;
         diasSpan.textContent = diasLabel;
     }
     cardTop.appendChild(cardTopLeft);
@@ -5813,11 +5807,11 @@ function _buildPatCard(id, pat, tab, estabCount) {
     (pat.produtos || []).forEach(p => {
         const chip = document.createElement('span');
         chip.className   = 'pat-prod-chip';
-        chip.textContent = (p.codigo || '?') + ' × ' + (p.quantidade || 1);
+        chip.textContent = (p.codigo || '?') + ' Ã— ' + (p.quantidade || 1);
         prodsDiv.appendChild(chip);
     });
 
-    // Acções
+    // AcÃ§Ãµes
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'pat-card-actions';
     actionsDiv.onclick   = e => e.stopPropagation();
@@ -5845,7 +5839,7 @@ function _buildPatCard(id, pat, tab, estabCount) {
     } else if (tab === 'levantadas') {
         const btnSaida = document.createElement('button');
         btnSaida.className = 'pat-btn-guia';
-        btnSaida.innerHTML = CHECK_SVG + ' Dar saída';
+        btnSaida.innerHTML = CHECK_SVG + ' Dar saÃ­da';
         btnSaida.onclick = () => darSaidaPat(id);
         const btnDel = document.createElement('button');
         btnDel.className = 'pat-btn-apagar';
@@ -5897,7 +5891,7 @@ function setPatTab(tab) {
     renderPats();
 }
 
-// ── Levantar Encomenda — modal de funcionário ─────────────
+// â”€â”€ Levantar Encomenda â€” modal de funcionÃ¡rio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function openLevantarModal() {
     const modal = document.getElementById('levantar-modal');
     const list  = document.getElementById('levantar-worker-list');
@@ -5911,7 +5905,7 @@ async function openLevantarModal() {
 
     list.innerHTML = '';
     if (!workers.length) {
-        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem">Sem funcionários registados.</div>';
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem">Sem funcionÃ¡rios registados.</div>';
         return;
     }
     workers.forEach(w => {
@@ -5926,7 +5920,7 @@ function closeLevantarModal() {
     document.getElementById('levantar-modal')?.classList.remove('active');
 }
 
-// ── Modo de seleção para levantar ─────────────────────────
+// â”€â”€ Modo de seleÃ§Ã£o para levantar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function startLevantarMode(workerNome) {
     _patTab       = 'pendentes';
     _patSelMode   = true;
@@ -5951,7 +5945,7 @@ function cancelLevantarMode() {
 
 function patSelToggleAll() {
     const pats = _patCache.data || {};
-    // Só selecciona PATs pendentes (tab activo no modo levantar)
+    // SÃ³ selecciona PATs pendentes (tab activo no modo levantar)
     const pendentes = Object.entries(pats).filter(([, p]) => p.status === 'pendente');
     const allSelected = pendentes.length > 0 && pendentes.every(([id]) => _patSelIds.has(id));
     if (allSelected) {
@@ -5976,16 +5970,16 @@ async function levantarSelectedPats() {
     const worker = _patSelWorker;
 
     openConfirmModal({
-        icon: '✅',
+        icon: 'âœ…',
         title: `Levantar ${ids.length} PAT${ids.length > 1 ? 's' : ''}?`,
-        desc: `Serão marcadas como levantadas por ${worker}. As que têm guia de transporte descontam stock.`,
+        desc: `SerÃ£o marcadas como levantadas por ${worker}. As que tÃªm guia de transporte descontam stock.`,
         onConfirm: async () => {
             // Mostrar feedback imediato
             const levBtn = document.getElementById('pat-levantar-btn');
             if (levBtn) { levBtn.disabled = true; levBtn.textContent = 'A processar...'; }
             try {
                 const ts = Date.now();
-                // Calcula novas quantidades de stock antes de lançar os pedidos
+                // Calcula novas quantidades de stock antes de lanÃ§ar os pedidos
                 // agrupa por id de produto para evitar PATCHes duplicados
                 const stockPatches = {}; // { stockId: { baseQty, delta } }
                 for (const id of ids) {
@@ -6007,7 +6001,7 @@ async function levantarSelectedPats() {
                     if (cache.stock.data?.[sid]) cache.stock.data[sid].quantidade = nextQty;
                 });
 
-                // Lança todos os PATCHes em paralelo
+                // LanÃ§a todos os PATCHes em paralelo
                 const patPromises = ids.map(id => {
                     const pat = _patCache.data?.[id];
                     if (!pat) return Promise.resolve();
@@ -6046,15 +6040,15 @@ async function levantarSelectedPats() {
     });
 }
 
-// ── Dar saída — apaga a PAT levantada imediatamente ─────
+// â”€â”€ Dar saÃ­da â€” apaga a PAT levantada imediatamente â”€â”€â”€â”€â”€
 async function darSaidaPat(id) {
     const pat = _patCache.data?.[id];
     openConfirmModal({
-        icon: '✅',
-        title: 'Dar saída a esta PAT?',
+        icon: 'âœ…',
+        title: 'Dar saÃ­da a esta PAT?',
         desc: pat?.separacao
-            ? 'A PAT vai para o histórico (15 dias). Guia de transporte concluída.'
-            : 'A PAT vai para o histórico onde ficará 15 dias.',
+            ? 'A PAT vai para o histÃ³rico (15 dias). Guia de transporte concluÃ­da.'
+            : 'A PAT vai para o histÃ³rico onde ficarÃ¡ 15 dias.',
         onConfirm: async () => {
             try {
                 const payload = { status: 'historico', saidaEm: Date.now() };
@@ -6065,8 +6059,8 @@ async function darSaidaPat(id) {
                 if (_patCache.data?.[id]) Object.assign(_patCache.data[id], payload);
                 renderPats();
                 updatePatCount();
-                showToast('Saída dada — PAT no histórico!');
-            } catch(_e) { showToast('Erro ao dar saída', 'error'); }
+                showToast('SaÃ­da dada â€” PAT no histÃ³rico!');
+            } catch(_e) { showToast('Erro ao dar saÃ­da', 'error'); }
         }
     });
 }
@@ -6077,11 +6071,11 @@ async function limparTabActual() {
         .filter(([, p]) => p.status === statusAlvo);
     if (!alvo.length) { showToast('Nada para limpar.', 'info'); return; }
 
-    const label = statusAlvo === 'historico' ? 'histórico' : 'levantadas';
+    const label = statusAlvo === 'historico' ? 'histÃ³rico' : 'levantadas';
     openConfirmModal({
-        icon: '🗑',
+        icon: 'ðŸ—‘',
         title: `Limpar ${alvo.length} registo${alvo.length > 1 ? 's' : ''}?`,
-        desc: `Remove todas as PATs do ${label}. Esta acção é irreversível.`,
+        desc: `Remove todas as PATs do ${label}. Esta acÃ§Ã£o Ã© irreversÃ­vel.`,
         onConfirm: async () => {
             try {
                 for (const [id] of alvo) {
@@ -6095,7 +6089,7 @@ async function limparTabActual() {
     });
 }
 
-// ── Editar referências de uma PAT (modo levantar) ────────────────────────
+// â”€â”€ Editar referÃªncias de uma PAT (modo levantar) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let _patRefsId  = null;
 let _patRefsList = []; // {id|null, codigo, nome, quantidade}
 let _patRefsDDIdx = -1;
@@ -6136,12 +6130,12 @@ function patRefsSearch(val) {
 
     dd.innerHTML = '';
 
-    // Opção de adicionar manualmente se não há resultado exacto
+    // OpÃ§Ã£o de adicionar manualmente se nÃ£o hÃ¡ resultado exacto
     const exactMatch = Object.values(stock).some(i => (i.codigo||'').toLowerCase() === q);
     if (!exactMatch) {
         const manual = document.createElement('div');
         manual.className = 'pat-dd-option pat-dd-manual';
-        manual.innerHTML = `<span class="pat-dd-code">${escapeHtml(val.trim().toUpperCase())}</span><span class="pat-dd-name" style="color:var(--text-muted)">→ Adicionar manual</span>`;
+        manual.innerHTML = `<span class="pat-dd-code">${escapeHtml(val.trim().toUpperCase())}</span><span class="pat-dd-name" style="color:var(--text-muted)">â†’ Adicionar manual</span>`;
         manual.onmousedown = (e) => { e.preventDefault(); patRefsAddManual(val.trim()); };
         dd.appendChild(manual);
     }
@@ -6159,7 +6153,7 @@ function patRefsSearch(val) {
     });
 
     if (!matches.length && exactMatch) {
-        dd.innerHTML = '<div class="pat-dd-empty">Já adicionado</div>';
+        dd.innerHTML = '<div class="pat-dd-empty">JÃ¡ adicionado</div>';
     }
 }
 
@@ -6234,7 +6228,7 @@ function _renderRefsChips() {
             <input type="number" class="pat-chip-qty" value="${p.quantidade||1}" min="1"
                 onchange="patRefsSetQty('${escapeHtml(p.codigo)}', this.value)"
                 oninput="patRefsSetQty('${escapeHtml(p.codigo)}', this.value)">
-            <button class="pat-chip-remove" onclick="patRefsRemove('${escapeHtml(p.codigo)}')">✕</button>`;
+            <button class="pat-chip-remove" onclick="patRefsRemove('${escapeHtml(p.codigo)}')">âœ•</button>`;
         el.appendChild(chip);
     });
 }
@@ -6257,7 +6251,7 @@ async function savePatRefs() {
         if (_patCache.data?.[_patRefsId]) _patCache.data[_patRefsId].produtos = produtos;
         closePatRefsModal();
         renderPats();
-        showToast('Referências actualizadas!');
+        showToast('ReferÃªncias actualizadas!');
     } catch(_e) {
         showToast('Erro ao guardar', 'error');
         if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
@@ -6287,22 +6281,22 @@ function closePatModal() {
 }
 
 // =============================================
-// ANTHROPIC API KEY — gestão local
+// ANTHROPIC API KEY â€” gestÃ£o local
 // =============================================
 const ANTHROPIC_KEY_STORAGE  = 'hiperfrio-anthropic-key';
 
-// Chave Anthropic em sessionStorage (não persiste entre sessões nem é acessível
-// por outras abas — reduz exposição vs localStorage)
+// Chave Anthropic em sessionStorage (nÃ£o persiste entre sessÃµes nem Ã© acessÃ­vel
+// por outras abas â€” reduz exposiÃ§Ã£o vs localStorage)
 function _getAnthropicKey() {
     return sessionStorage.getItem(ANTHROPIC_KEY_STORAGE) || '';
 }
-// Migração única: mover chave antiga de localStorage para sessionStorage e limpar
+// MigraÃ§Ã£o Ãºnica: mover chave antiga de localStorage para sessionStorage e limpar
 (function _migrateAnthropicKey() {
     const old = localStorage.getItem(ANTHROPIC_KEY_STORAGE);
-    if (old) {
+    if (old && _isProxyUrl(old)) {
         sessionStorage.setItem(ANTHROPIC_KEY_STORAGE, old);
-        localStorage.removeItem(ANTHROPIC_KEY_STORAGE);
     }
+    localStorage.removeItem(ANTHROPIC_KEY_STORAGE);
 })();
 
 function _isProxyUrl(val) {
@@ -6311,18 +6305,17 @@ function _isProxyUrl(val) {
 
 function saveAnthropicKey() {
     const val = document.getElementById('inp-anthropic-key').value.trim();
-    if (val && !_isProxyUrl(val) && !val.startsWith('sk-ant-')) {
-        showToast('Valor inválido — introduz o URL do Worker (https://...) ou uma chave sk-ant-...', 'error');
+    if (val && !_isProxyUrl(val)) {
+        showToast('Valor invalido - introduz apenas o URL HTTPS do Worker/proxy.', 'error');
         return;
     }
     if (val) {
         sessionStorage.setItem(ANTHROPIC_KEY_STORAGE, val);
         document.getElementById('inp-anthropic-key').value = '';
-        const tipo = _isProxyUrl(val) ? 'Proxy configurado' : 'Chave configurada';
-        showToast(`${tipo} — OCR por foto usa agora Claude Vision ✓`, 'ok');
+        showToast('Proxy configurado - OCR por foto usa agora Claude Vision', 'ok');
     } else {
         sessionStorage.removeItem(ANTHROPIC_KEY_STORAGE);
-        showToast('Configuração removida — OCR volta ao modo local', 'ok');
+        showToast('ConfiguraÃ§Ã£o removida â€” OCR volta ao modo local', 'ok');
     }
     _updateOcrKeyStatus();
 }
@@ -6331,13 +6324,10 @@ function _updateOcrKeyStatus() {
     const val = _getAnthropicKey();
     let text, color;
     if (!val) {
-        text  = 'Não configurada — usa OCR local';
+        text  = 'Nao configurada - usa OCR local';
         color = '';
-    } else if (_isProxyUrl(val)) {
-        text  = `✓ Claude Vision activo (${new URL(val).hostname})`;
-        color = 'var(--ok, #16a34a)';
     } else {
-        text  = `✓ Claude Vision activo (${val.slice(0,10)}…)`;
+        text  = 'Claude Vision activo (' + new URL(val).hostname + ')';
         color = 'var(--ok, #16a34a)';
     }
     ['ocr-api-status', 'ocr-api-status-modal'].forEach(id => {
@@ -6349,7 +6339,7 @@ function _updateOcrKeyStatus() {
 function openOcrSettings() {
     _updateOcrKeyStatus();
     _loadOcrKeywordsInput();
-    // Pré-preenche o campo da chave
+    // Pre-preenche o campo do proxy
     const key = _getAnthropicKey();
     const inp = document.getElementById('inp-anthropic-key');
     if (inp && key) inp.value = key;
@@ -6366,17 +6356,11 @@ async function testAnthropicProxy() {
     if (!val) { showToast('Configura primeiro o URL do Worker', 'error'); return; }
 
     const btn = document.getElementById('btn-test-ocr');
-    if (btn) { btn.disabled = true; btn.textContent = '◷ A testar…'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'â—· A testarâ€¦'; }
 
     try {
-        const isProxy = _isProxyUrl(val);
-        const endpoint = isProxy ? val : 'https://api.anthropic.com/v1/messages';
+        const endpoint = val;
         const headers = { 'Content-Type': 'application/json' };
-        if (!isProxy) {
-            headers['x-api-key'] = val;
-            headers['anthropic-version'] = '2023-06-01';
-            headers['anthropic-dangerous-allow-browser'] = 'true';
-        }
 
         const resp = await fetch(endpoint, {
             method: 'POST',
@@ -6390,22 +6374,22 @@ async function testAnthropicProxy() {
 
         const data = await resp.json();
         if (data.content || data.id) {
-            showToast('✓ Ligação OK — Claude Vision pronto a usar!', 'ok');
+            showToast('âœ“ LigaÃ§Ã£o OK â€” Claude Vision pronto a usar!', 'ok');
         } else if (data.error) {
             showToast('Erro da API: ' + (data.error.message || JSON.stringify(data.error)), 'error');
         } else {
             showToast('Resposta inesperada: ' + JSON.stringify(data).slice(0, 80), 'error');
         }
     } catch(e) {
-        showToast('Falha na ligação: ' + (e.message || e), 'error');
+        showToast('Falha na ligaÃ§Ã£o: ' + (e.message || e), 'error');
         console.error('[testProxy]', e);
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = 'Testar ligação'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Testar ligaÃ§Ã£o'; }
     }
 }
 
 // =============================================
-// OCR KEYWORDS — palavras-chave de estabelecimento
+// OCR KEYWORDS â€” palavras-chave de estabelecimento
 // =============================================
 const OCR_KEYWORDS_KEY = 'hiperfrio-ocr-keywords';
 
@@ -6413,7 +6397,7 @@ function saveOcrKeywords() {
     const val = document.getElementById('inp-ocr-keywords').value.trim();
     if (val) localStorage.setItem(OCR_KEYWORDS_KEY, val);
     else localStorage.removeItem(OCR_KEYWORDS_KEY);
-    showToast('Palavras-chave guardadas ✓', 'ok');
+    showToast('Palavras-chave guardadas âœ“', 'ok');
 }
 
 function _getOcrKeywords() {
@@ -6427,7 +6411,7 @@ function _loadOcrKeywordsInput() {
 }
 
 // =============================================
-// PAT SCAN — câmara
+// PAT SCAN â€” cÃ¢mara
 // =============================================
 let _patScanStream = null;
 
@@ -6443,15 +6427,15 @@ async function patScanStartCamera() {
         document.getElementById('pat-scan-preview').style.display    = 'none';
         document.getElementById('pat-scan-row-load').style.display    = 'none';
         document.getElementById('pat-scan-row-capture').style.display = 'flex';
-        _patScanSetStatus('Câmara activa — aponta para o documento e captura', '');
+        _patScanSetStatus('CÃ¢mara activa â€” aponta para o documento e captura', '');
     } catch(e) {
-        // Câmara não disponível — mostrar botões de fallback (Galeria)
+        // CÃ¢mara nÃ£o disponÃ­vel â€” mostrar botÃµes de fallback (Galeria)
         document.getElementById('pat-scan-placeholder').style.display = 'flex';
         document.getElementById('pat-scan-row-load').style.display    = 'flex';
-        // Esconder botão câmara pois não está disponível
+        // Esconder botÃ£o cÃ¢mara pois nÃ£o estÃ¡ disponÃ­vel
         const camBtn = document.getElementById('pat-scan-cam-btn');
         if (camBtn) camBtn.style.display = 'none';
-        _patScanSetStatus('Câmara não disponível — usa a Galeria', 'error');
+        _patScanSetStatus('CÃ¢mara nÃ£o disponÃ­vel â€” usa a Galeria', 'error');
     }
 }
 
@@ -6472,11 +6456,11 @@ function patScanCapture() {
     patScanStopCamera();
     document.getElementById('pat-scan-row-capture').style.display = 'none';
     document.getElementById('pat-scan-row-analyse').style.display = 'flex';
-    // Auto-analisar se houver chave API configurada
+    // Auto-analisar se houver proxy OCR configurado
     if (_getAnthropicKey()) {
         patScanAnalyse();
     } else {
-        _patScanSetStatus('Foto capturada — clica em Analisar', '');
+        _patScanSetStatus('Foto capturada â€” clica em Analisar', '');
     }
 }
 
@@ -6489,7 +6473,7 @@ function patScanStopCamera() {
 }
 
 // =============================================
-// PAT SCAN — preenchimento por fotografia (OCR via Claude Vision)
+// PAT SCAN â€” preenchimento por fotografia (OCR via Claude Vision)
 // =============================================
 let _patScanB64  = null;
 let _patScanMime = 'image/jpeg';
@@ -6519,7 +6503,7 @@ function patScanFromFile(inp) {
         prev.style.display = 'block';
         document.getElementById('pat-scan-row-load').style.display = 'none';
         document.getElementById('pat-scan-row-analyse').style.display = 'flex';
-        _patScanSetStatus('Imagem carregada — clica em Analisar', '');
+        _patScanSetStatus('Imagem carregada â€” clica em Analisar', '');
     };
     r.readAsDataURL(f);
 }
@@ -6558,53 +6542,47 @@ async function patScanAnalyse() {
         let patNum = null, patConf = 0, estab = null, estabConf = 0;
 
         if (apiKey) {
-            // ── Modo Claude Vision (alta qualidade) ──────────────────────────
-            _patScanSetStatus('A analisar com Claude Vision…', 'loading');
+            // â”€â”€ Modo Claude Vision (alta qualidade) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            _patScanSetStatus('A analisar com Claude Visionâ€¦', 'loading');
 
             const keywords = _getOcrKeywords();
             const kwHint = keywords.length > 0
                 ? `\\n\\nPALAVRAS-CHAVE DE ESTABELECIMENTO (palavras que identificam o nome do cliente neste documento): ${keywords.map(k => '"' + k + '"').join(', ')}. Se encontrares uma linha que contenha alguma destas palavras, usa essa linha como nome do estabelecimento.`
                 : '';
 
-            const prompt = `És um sistema de OCR especializado em documentos de assistência técnica portugueses.
+            const prompt = `Ã‰s um sistema de OCR especializado em documentos de assistÃªncia tÃ©cnica portugueses.
 
-O documento pode ter qualquer formato: folha A4 impressa, papel térmico, recibo manuscrito, ou até uma fita com texto escrito à mão. Adapta-te ao formato que vês.
+O documento pode ter qualquer formato: folha A4 impressa, papel tÃ©rmico, recibo manuscrito, ou atÃ© uma fita com texto escrito Ã  mÃ£o. Adapta-te ao formato que vÃªs.
 
 Extrai os dois campos abaixo. Segue RIGOROSAMENTE estas regras:
 
-CAMPO 1 — pat_numero:
-- É um número com EXACTAMENTE 6 dígitos
-- Pode aparecer sozinho sem qualquer prefixo, ou precedido de "PAT", "OS", "N.º", "Ref." ou similar
-- Ignora qualquer número que não tenha exactamente 6 dígitos
+CAMPO 1 â€” pat_numero:
+- Ã‰ um nÃºmero com EXACTAMENTE 6 dÃ­gitos
+- Pode aparecer sozinho sem qualquer prefixo, ou precedido de "PAT", "OS", "N.Âº", "Ref." ou similar
+- Ignora qualquer nÃºmero que nÃ£o tenha exactamente 6 dÃ­gitos
 - Pode estar em qualquer zona do documento
-- Se não encontrares, devolve null
+- Se nÃ£o encontrares, devolve null
 
-CAMPO 2 — estabelecimento:
-- É o nome do local/cliente onde a assistência foi prestada
-- NUNCA tem prefixo ou label — aparece sozinho, sem "Cliente:", "Nome:" ou similar
-- Pode aparecer em qualquer posição relativamente ao número PAT: antes, depois, acima, abaixo
-- CADEIAS CONHECIDAS: o estabelecimento pertence quase sempre a uma destas cadeias — procura estas palavras-chave e extrai o nome completo que as acompanha:
-    • "Pingo Doce" ou "PDD" = Pingo Doce (ex: "PINGO DOCE BRAGA RETAIL", "PDD VIANA")
-    • "Continente" (ex: "CONTINENTE MODELO COIMBRA")
-    • "Recheio" (ex: "RECHEIO PORTO")
-- O nome completo inclui a palavra-chave da cadeia mais o identificador específico da loja
-- Devolve o nome em MAIÚSCULAS${kwHint}
-- Se não encontrares, devolve null
+CAMPO 2 â€” estabelecimento:
+- Ã‰ o nome do local/cliente onde a assistÃªncia foi prestada
+- NUNCA tem prefixo ou label â€” aparece sozinho, sem "Cliente:", "Nome:" ou similar
+- Pode aparecer em qualquer posiÃ§Ã£o relativamente ao nÃºmero PAT: antes, depois, acima, abaixo
+- CADEIAS CONHECIDAS: o estabelecimento pertence quase sempre a uma destas cadeias â€” procura estas palavras-chave e extrai o nome completo que as acompanha:
+    â€¢ "Pingo Doce" ou "PDD" = Pingo Doce (ex: "PINGO DOCE BRAGA RETAIL", "PDD VIANA")
+    â€¢ "Continente" (ex: "CONTINENTE MODELO COIMBRA")
+    â€¢ "Recheio" (ex: "RECHEIO PORTO")
+- O nome completo inclui a palavra-chave da cadeia mais o identificador especÃ­fico da loja
+- Devolve o nome em MAIÃšSCULAS${kwHint}
+- Se nÃ£o encontrares, devolve null
 
-CONFIANÇA:
-- pat_confianca: 0.0 a 1.0 (0.9+ = leste claramente, 0.5 = razoável, <0.4 = incerto)
+CONFIANÃ‡A:
+- pat_confianca: 0.0 a 1.0 (0.9+ = leste claramente, 0.5 = razoÃ¡vel, <0.4 = incerto)
 - estab_confianca: 0.0 a 1.0
 
-Responde APENAS com JSON válido, sem markdown, sem explicações:
+Responde APENAS com JSON vÃ¡lido, sem markdown, sem explicaÃ§Ãµes:
 {"pat_numero": "...", "estabelecimento": "...", "pat_confianca": 0.0, "estab_confianca": 0.0}`;
-            const isProxy = _isProxyUrl(apiKey);
-            const endpoint = isProxy ? apiKey : 'https://api.anthropic.com/v1/messages';
+            const endpoint = apiKey;
             const headers = { 'Content-Type': 'application/json' };
-            if (!isProxy) {
-                headers['x-api-key'] = apiKey;
-                headers['anthropic-version'] = '2023-06-01';
-                headers['anthropic-dangerous-allow-browser'] = 'true';
-            }
 
             const resp = await fetch(endpoint, {
                 method: 'POST',
@@ -6621,7 +6599,7 @@ Responde APENAS com JSON válido, sem markdown, sem explicações:
 
             if (!resp.ok) {
                 const e = await resp.json().catch(() => ({}));
-                if (resp.status === 401) throw new Error('Chave API inválida ou expirada — actualiza em Admin → Definições');
+                if (resp.status === 401) throw new Error('Proxy OCR invalido ou sem permissao - actualiza em Admin > Definicoes');
                 throw new Error(e?.error?.message || `HTTP ${resp.status}`);
             }
 
@@ -6635,8 +6613,8 @@ Responde APENAS com JSON válido, sem markdown, sem explicações:
             estabConf = result.estab_confianca || 0;
 
         } else {
-            // ── Modo Tesseract (OCR local, sem chave) ─────────────────────────
-            _patScanSetStatus('A carregar motor OCR…', 'loading');
+            // â”€â”€ Modo Tesseract (OCR local, sem chave) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            _patScanSetStatus('A carregar motor OCRâ€¦', 'loading');
             await loadTesseract();
 
             const dataUrl = `data:${_patScanMime};base64,${_patScanB64}`;
@@ -6645,38 +6623,38 @@ Responde APENAS com JSON válido, sem markdown, sem explicações:
                 logger: m => {
                     if (m.status === 'recognizing text') {
                         const pct = Math.round((m.progress || 0) * 100);
-                        _patScanSetStatus(`A reconhecer texto… ${pct}%`, 'loading');
+                        _patScanSetStatus(`A reconhecer textoâ€¦ ${pct}%`, 'loading');
                     }
                 }
             });
 
             const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
             const patRx = [
-                /(?:PAT|OS|N[º°.]?\s*(?:PAT|OS)?)\s*[:\-]?\s*(\d{4,8})/i,
+                /(?:PAT|OS|N[ÂºÂ°.]?\s*(?:PAT|OS)?)\s*[:\-]?\s*(\d{4,8})/i,
                 /\b(\d{5,8})\b/
             ];
             for (const rx of patRx) {
                 const m = text.match(rx);
                 if (m) { patNum = m[1]; patConf = rx === patRx[0] ? 0.75 : 0.45; break; }
             }
-            const skipWords = /^(PAT|OS|DATA|TÉCNICO|SERVIÇO|TEL|NIF|FAX|MORADA|RUA|AV|HORA|\d+)$/i;
+            const skipWords = /^(PAT|OS|DATA|TÃ‰CNICO|SERVIÃ‡O|TEL|NIF|FAX|MORADA|RUA|AV|HORA|\d+)$/i;
             const nameLines = lines.filter(l =>
                 l.length > 4 && l.length < 60 &&
                 !/^\d+$/.test(l) &&
                 !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(l) &&
                 !skipWords.test(l.split(/\s/)[0])
             );
-            const estabKw = nameLines.find(l => /CAFÉ|SNACK|BAR|REST|HOTEL|MINI|SUPER|MERCADO|LDA|SA\b|UNIP|POSTO/i.test(l));
+            const estabKw = nameLines.find(l => /CAFÃ‰|SNACK|BAR|REST|HOTEL|MINI|SUPER|MERCADO|LDA|SA\b|UNIP|POSTO/i.test(l));
             if (estabKw) { estab = estabKw.toUpperCase(); estabConf = 0.70; }
             else if (nameLines.length > 0) { estab = nameLines[0].toUpperCase(); estabConf = 0.40; }
         }
 
-        // ── Preenche resultado ────────────────────────────────────────────────
+        // â”€â”€ Preenche resultado â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         _patScanFill('ps-pat',   patNum, patConf,   'ps-pat-conf');
         _patScanFill('ps-estab', estab,  estabConf, 'ps-estab-conf');
         document.getElementById('pat-scan-result').style.display = 'flex';
         const mode = apiKey ? 'Claude Vision' : 'OCR local';
-        _patScanSetStatus(`✓ Análise concluída (${mode}) — revê e confirma`, 'ok');
+        _patScanSetStatus(`âœ“ AnÃ¡lise concluÃ­da (${mode}) â€” revÃª e confirma`, 'ok');
 
     } catch(e) {
         const msg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e)) || 'Erro desconhecido';
@@ -6705,15 +6683,15 @@ function patScanApply() {
 
     closePatScan();
 
-    // Abrir o modal (que limpa os campos) e só depois preencher
+    // Abrir o modal (que limpa os campos) e sÃ³ depois preencher
     const patModalOpen = document.getElementById('pat-modal').classList.contains('active');
     if (!patModalOpen) openPatModal();
 
-    // Preencher após o modal estar aberto (openPatModal tem setTimeout de 80ms para focus)
+    // Preencher apÃ³s o modal estar aberto (openPatModal tem setTimeout de 80ms para focus)
     setTimeout(() => {
         if (pat)   document.getElementById('pat-numero').value        = pat;
         if (estab) document.getElementById('pat-estabelecimento').value = estab;
-        showToast('Campos preenchidos — revê antes de guardar', 'info');
+        showToast('Campos preenchidos â€” revÃª antes de guardar', 'info');
     }, 100);
 }
 
@@ -6818,13 +6796,13 @@ function _renderPatChips() {
             <div class="pat-chip-controls">
                 <span class="pat-chip-stock-label">Stock: ${p.stockDisponivel}</span>
                 <div class="pat-chip-qty-wrap">
-                    <button class="pat-chip-qty-btn" onmousedown="event.preventDefault()" onclick="patQtyStep('${p.id}',-1)">−</button>
+                    <button class="pat-chip-qty-btn" onmousedown="event.preventDefault()" onclick="patQtyStep('${p.id}',-1)">âˆ’</button>
                     <input class="pat-chip-qty" type="number" min="1" value="${p.quantidade}"
                         onchange="patSetQty('${p.id}',this.value)"
                         onblur="patSetQty('${p.id}',this.value)">
                     <button class="pat-chip-qty-btn" onmousedown="event.preventDefault()" onclick="patQtyStep('${p.id}',1)">+</button>
                 </div>
-                <button class="pat-chip-remove" onclick="patRemoveProduct('${p.id}')" aria-label="Remover">×</button>
+                <button class="pat-chip-remove" onclick="patRemoveProduct('${p.id}')" aria-label="Remover">Ã—</button>
             </div>`;
         el.appendChild(chip);
     });
@@ -6846,18 +6824,18 @@ async function savePat() {
     const hint      = document.getElementById('pat-numero-hint');
 
     if (!/^\d{6}$/.test(numero)) {
-        hint.textContent = 'O Nº PAT deve ter exactamente 6 dígitos.';
+        hint.textContent = 'O NÂº PAT deve ter exactamente 6 dÃ­gitos.';
         hint.style.color = 'var(--danger)';
         document.getElementById('pat-numero').focus();
         return;
     }
     hint.textContent = '';
 
-    // Verificar duplicado — não permitir registar a mesma PAT duas vezes
+    // Verificar duplicado â€” nÃ£o permitir registar a mesma PAT duas vezes
     const patsExistentes = Object.values(_patCache.data || {});
     const duplicado = patsExistentes.find(p => p.numero === numero && p.status !== 'levantado');
     if (duplicado) {
-        hint.textContent = `PAT ${numero} já está registada (${duplicado.estabelecimento || 'sem estabelecimento'}).`;
+        hint.textContent = `PAT ${numero} jÃ¡ estÃ¡ registada (${duplicado.estabelecimento || 'sem estabelecimento'}).`;
         hint.style.color = 'var(--danger)';
         document.getElementById('pat-numero').focus();
         return;
@@ -6888,12 +6866,12 @@ async function savePat() {
             const r = await res.json();
             if (r?.name) _patCache.data[r.name] = payload;
         } else {
-            // offline — guarda com ID temporário para mostrar imediatamente
+            // offline â€” guarda com ID temporÃ¡rio para mostrar imediatamente
             _patCache.data[`_tmp_pat_${Date.now()}`] = payload;
         }
         closePatModal();
         renderPats();
-        showToast(res ? `PAT ${numero} registada!` : `PAT ${numero} guardada offline — sincroniza quando tiveres ligação`);
+        showToast(res ? `PAT ${numero} registada!` : `PAT ${numero} guardada offline â€” sincroniza quando tiveres ligaÃ§Ã£o`);
     } catch(_e) { showToast('Erro ao guardar pedido', 'error'); }
 }
 
@@ -6902,23 +6880,23 @@ async function marcarPatLevantado(id) {
     const separacao = !!pat?.separacao;
 
     const desc = separacao
-        ? 'Pedido com Separação de Material — o stock dos produtos será descontado automaticamente.'
-        : 'O pedido será removido dos pendentes. O stock não será alterado.';
+        ? 'Pedido com SeparaÃ§Ã£o de Material â€” o stock dos produtos serÃ¡ descontado automaticamente.'
+        : 'O pedido serÃ¡ removido dos pendentes. O stock nÃ£o serÃ¡ alterado.';
 
     openConfirmModal({
-        icon: '✅',
+        icon: 'âœ…',
         title: 'Marcar como levantado?',
         desc,
         onConfirm: async () => {
             try {
-                // 1 — Marca como levantado na Firebase (com suporte offline)
+                // 1 â€” Marca como levantado na Firebase (com suporte offline)
                 await apiFetch(`${BASE_URL}/pedidos/${id}.json`, {
                     method: 'PATCH',
                     body: JSON.stringify({ status: 'levantado', levantadoEm: Date.now() }),
                 });
                 if (_patCache.data?.[id]) _patCache.data[id].status = 'levantado';
 
-                // 2 — Se separação: desconta stock em paralelo via apiFetch (suporta offline)
+                // 2 â€” Se separaÃ§Ã£o: desconta stock em paralelo via apiFetch (suporta offline)
                 if (separacao && pat.produtos?.length) {
                     const patches = pat.produtos
                         .filter(p => p.id)
@@ -6937,9 +6915,9 @@ async function marcarPatLevantado(id) {
                     renderList();
                 }
 
-                // updatePatCount já faz fetch — evitar chamada dupla após renderPats
+                // updatePatCount jÃ¡ faz fetch â€” evitar chamada dupla apÃ³s renderPats
                 renderPats();
-                showToast(separacao ? 'Levantado — stock descontado!' : 'Pedido marcado como levantado!');
+                showToast(separacao ? 'Levantado â€” stock descontado!' : 'Pedido marcado como levantado!');
             } catch(_e) { showToast('Erro ao actualizar pedido', 'error'); }
         }
     });
@@ -6949,7 +6927,7 @@ async function apagarPat(id) {
     openConfirmModal({
         icon: '',
         title: 'Apagar pedido?',
-        desc: 'O pedido será eliminado permanentemente. O stock não é alterado.',
+        desc: 'O pedido serÃ¡ eliminado permanentemente. O stock nÃ£o Ã© alterado.',
         onConfirm: async () => {
             try {
                 await apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'DELETE' });
@@ -6964,13 +6942,13 @@ async function apagarPat(id) {
 
 function openPatDetail(id, pat) {
     const dias      = _calcDias(pat.criadoEm);
-    const dataStr   = pat.criadoEm ? new Date(pat.criadoEm).toLocaleDateString('pt-PT') : '—';
+    const dataStr   = pat.criadoEm ? new Date(pat.criadoEm).toLocaleDateString('pt-PT') : 'â€”';
     const urgente   = dias >= 15;
     const separacao = !!pat.separacao;
     const body      = document.getElementById('pat-detail-body');
     body.innerHTML  = '';
 
-    // ── Helper: criar linha de detalhe ──────────────────────────────────
+    // â”€â”€ Helper: criar linha de detalhe â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function _row(lbl, val) {
         const d = document.createElement('div');
         d.className = 'pat-detail-row';
@@ -6983,14 +6961,14 @@ function openPatDetail(id, pat) {
         return d;
     }
 
-    // ── Header badges ────────────────────────────────────────────────────
+    // â”€â”€ Header badges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const hdr = document.createElement('div');
     hdr.className = 'pat-detail-header';
 
     const badge = document.createElement('span');
     badge.className   = 'pat-badge' + (urgente ? ' pat-badge-urgente' : '');
     badge.style.cssText = 'font-size:1rem;padding:6px 14px';
-    badge.textContent = 'PAT ' + (pat.numero || '—');
+    badge.textContent = 'PAT ' + (pat.numero || 'â€”');
     hdr.appendChild(badge);
 
     if (pat.clienteNumero) {
@@ -7009,15 +6987,15 @@ function openPatDetail(id, pat) {
     }
     body.appendChild(hdr);
 
-    // ── Linhas de informação ─────────────────────────────────────────────
-    if (pat.clienteNumero) body.appendChild(_row('Nº Cliente', pat.clienteNumero));
-    body.appendChild(_row('Estabelecimento', pat.estabelecimento || 'Não especificado'));
+    // â”€â”€ Linhas de informaÃ§Ã£o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    if (pat.clienteNumero) body.appendChild(_row('NÂº Cliente', pat.clienteNumero));
+    body.appendChild(_row('Estabelecimento', pat.estabelecimento || 'NÃ£o especificado'));
     body.appendChild(_row('Criado em', dataStr));
-    body.appendChild(_row('Desconto stock', separacao ? '✅ Sim (ao levantar)' : '⊘ Não'));
-    body.appendChild(_row('Estado', (urgente ? '🔴 Urgente' : '🟡 Pendente') + ' (' + (dias === 0 ? 'hoje' : `${dias}d`) + ')'));
+    body.appendChild(_row('Desconto stock', separacao ? 'âœ… Sim (ao levantar)' : 'âŠ˜ NÃ£o'));
+    body.appendChild(_row('Estado', (urgente ? 'ðŸ”´ Urgente' : 'ðŸŸ¡ Pendente') + ' (' + (dias === 0 ? 'hoje' : `${dias}d`) + ')'));
     if (pat.funcionario) body.appendChild(_row('Levantado por', pat.funcionario));
 
-    // ── Produtos ─────────────────────────────────────────────────────────
+    // â”€â”€ Produtos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (pat.produtos?.length) {
         const lbl = document.createElement('div');
         lbl.className   = 'pat-detail-lbl';
@@ -7037,7 +7015,7 @@ function openPatDetail(id, pat) {
             name.textContent = p.nome || '';
             const qty = document.createElement('span');
             qty.className   = 'pat-detail-qty';
-            qty.textContent = '× ' + (p.quantidade || 1);
+            qty.textContent = 'Ã— ' + (p.quantidade || 1);
             row.appendChild(code); row.appendChild(name); row.appendChild(qty);
             prodsDiv.appendChild(row);
         });
@@ -7050,7 +7028,7 @@ function openPatDetail(id, pat) {
         body.appendChild(empty);
     }
 
-    // ── Acções ───────────────────────────────────────────────────────────
+    // â”€â”€ AcÃ§Ãµes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const actions = document.createElement('div');
     actions.className = 'pat-detail-actions';
 
@@ -7081,12 +7059,12 @@ function closePatDetail() {
     document.getElementById('pat-detail-modal').classList.remove('active');
 }
 
-// ══════════════════════════════════════════════════════════════════════════
-// ENCOMENDAS A FORNECEDOR  (REST API — mesmo padrão do resto da app)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ENCOMENDAS A FORNECEDOR  (REST API â€” mesmo padrÃ£o do resto da app)
 // Firebase: /encomendas/{id}
 //   num, fornecedor, data, obs, estado, ts
 //   linhas: { "0": {ref, nome, qtd, recebido}, ... }
-// ══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const ENC_URL = `${BASE_URL}/encomendas`;
 
@@ -7098,7 +7076,7 @@ let _encEditId  = null;
 let _encEntradaId   = null;
 let _encEntradaLIdx = null;
 
-// ── Carregar dados ────────────────────────────────────────────────────────
+// â”€â”€ Carregar dados â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function loadEncomendas(force = false) {
     if (!force && _encDataTs && (Date.now() - _encDataTs < ENC_TTL)) {
         renderEncList();
@@ -7117,18 +7095,18 @@ async function loadEncomendas(force = false) {
 
 // Carrega quando navega para a view
 
-// ══════════════════════════════════════════════════════════════════════════
-// RELATÓRIO MENSAL
-// Firebase: /relatorios/{YYYY-MM} — snapshot mensal guardado automaticamente
-//           /movimentos/{id}      — log de movimentos de stock
-// ══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// RELATÃ“RIO MENSAL
+// Firebase: /relatorios/{YYYY-MM} â€” snapshot mensal guardado automaticamente
+//           /movimentos/{id}      â€” log de movimentos de stock
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const REL_URL = `${BASE_URL}/relatorios`;
 const MOV_URL = `${BASE_URL}/movimentos`;
 
-let _relMesOffset = 0; // 0 = mês actual, -1 = anterior, etc.
+let _relMesOffset = 0; // 0 = mÃªs actual, -1 = anterior, etc.
 
-// ── Utilitários de data ────────────────────────────────────────────────────
+// â”€â”€ UtilitÃ¡rios de data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function _mesKey(offset = 0) {
     const d = new Date();
     d.setMonth(d.getMonth() + offset);
@@ -7136,7 +7114,7 @@ function _mesKey(offset = 0) {
 }
 function _mesLabel(key) {
     const [y, m] = key.split('-');
-    const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+    const nomes = ['Janeiro','Fevereiro','MarÃ§o','Abril','Maio','Junho',
                    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     return `${nomes[parseInt(m)-1]} ${y}`;
 }
@@ -7147,7 +7125,7 @@ function _mesRange(key) {
     return { ini, fim };
 }
 
-// ── Registar movimento de stock ───────────────────────────────────────────
+// â”€â”€ Registar movimento de stock â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // tipo: 'saida_pat' | 'saida_manual' | 'remocao'
 async function registarMovimento(tipo, itemId, codigo, nome, quantidade) {
     if (!itemId && !codigo) return;
@@ -7164,26 +7142,26 @@ async function registarMovimento(tipo, itemId, codigo, nome, quantidade) {
         .catch(e => console.warn('[Movimentos] falha ao registar:', e?.message));
 }
 
-// ── Snapshot mensal ────────────────────────────────────────────────────────
+// â”€â”€ Snapshot mensal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function _buildSnapshot(mesKey) {
     const { ini, fim } = _mesRange(mesKey);
 
-    // Fetch movimentos do mês
+    // Fetch movimentos do mÃªs
     const movUrl = await authUrl(`${MOV_URL}.json?orderBy="mes"&equalTo="${mesKey}"`);
     const movRes = await fetch(movUrl);
     const movData = movRes.ok ? (await movRes.json() || {}) : {};
 
-    // Fetch PATs (todas — pendentes, levantadas, histórico)
+    // Fetch PATs (todas â€” pendentes, levantadas, histÃ³rico)
     const pats = Object.values(_patCache.data || {});
 
-    // PATs criadas neste mês
+    // PATs criadas neste mÃªs
     const patsMes = pats.filter(p => p.criadoEm >= ini && p.criadoEm <= fim);
 
-    // PATs levantadas neste mês
+    // PATs levantadas neste mÃªs
     const patsLevantadas = pats.filter(p =>
         p.levantadoEm && p.levantadoEm >= ini && p.levantadoEm <= fim);
 
-    // Duração média (criação → levantamento, só levantadas com ambos os campos)
+    // DuraÃ§Ã£o mÃ©dia (criaÃ§Ã£o â†’ levantamento, sÃ³ levantadas com ambos os campos)
     let duracaoMedia = null;
     const comDuracao = patsLevantadas.filter(p => p.criadoEm && p.levantadoEm);
     if (comDuracao.length) {
@@ -7192,27 +7170,27 @@ async function _buildSnapshot(mesKey) {
         duracaoMedia = Math.round(totalDias / comDuracao.length);
     }
 
-    // PATs pendentes incluídas na média parcial
+    // PATs pendentes incluÃ­das na mÃ©dia parcial
     const pendentes = pats.filter(p => p.status === 'pendente' && p.criadoEm >= ini);
     const pendentesMedia = pendentes.length
         ? pendentes.reduce((acc, p) => acc + _calcDias(p.criadoEm), 0) / pendentes.length
         : 0;
 
-    // Duração média combinada
+    // DuraÃ§Ã£o mÃ©dia combinada
     const totalN = comDuracao.length + pendentes.length;
     const mediaGlobal = totalN > 0
         ? Math.round((comDuracao.reduce((a,p) => a + _calcDias(p.criadoEm, p.levantadoEm),0)
             + pendentes.reduce((a,p) => a + _calcDias(p.criadoEm), 0)) / totalN)
         : null;
 
-    // Por funcionário
+    // Por funcionÃ¡rio
     const porFunc = {};
     patsLevantadas.forEach(p => {
-        const f = p.funcionario || 'Sem funcionário';
+        const f = p.funcionario || 'Sem funcionÃ¡rio';
         porFunc[f] = (porFunc[f] || 0) + 1;
     });
 
-    // Top 5 referências saídas (movimentos)
+    // Top 5 referÃªncias saÃ­das (movimentos)
     const refCount = {};
     Object.values(movData).forEach(m => {
         if (!m.codigo) return;
@@ -7241,7 +7219,7 @@ async function _buildSnapshot(mesKey) {
         .slice(0, 6)
         .map(([nome, count]) => ({ nome, count }));
 
-    // Top clientes (estabelecimentos) com mais PATs no mês
+    // Top clientes (estabelecimentos) com mais PATs no mÃªs
     const clienteCount = {};
     patsMes.forEach(p => {
         const nome = (p.estabelecimento || 'Sem estabelecimento').trim();
@@ -7253,7 +7231,7 @@ async function _buildSnapshot(mesKey) {
         .sort((a, b) => b.total - a.total)
         .slice(0, 5);
 
-    // Ferramentas com mais dias fora do armazém no mês
+    // Ferramentas com mais dias fora do armazÃ©m no mÃªs
     const ferrDias = [];
     Object.values(ferrData).forEach(t => {
         if (!t.nome) return;
@@ -7265,16 +7243,16 @@ async function _buildSnapshot(mesKey) {
         hist.forEach(ev => {
             const evTs = ev.data ? new Date(ev.data).getTime() : 0;
             if (ev.acao === 'atribuida') {
-                // Conta só se a atribuição foi dentro ou antes do mês
+                // Conta sÃ³ se a atribuiÃ§Ã£o foi dentro ou antes do mÃªs
                 lastAtrib = Math.max(evTs, ini);
             } else if (ev.acao === 'devolvida' && lastAtrib) {
-                // Conta dias dentro do intervalo do mês
+                // Conta dias dentro do intervalo do mÃªs
                 const devTs = Math.min(evTs, fim);
                 if (devTs > lastAtrib) diasFora += Math.round((devTs - lastAtrib) / 86400000);
                 lastAtrib = null;
             }
         });
-        // Se ainda está alocada no fim do mês, conta até fim do mês
+        // Se ainda estÃ¡ alocada no fim do mÃªs, conta atÃ© fim do mÃªs
         if (lastAtrib && t.status === 'alocada') {
             diasFora += Math.round((fim - lastAtrib) / 86400000);
         }
@@ -7297,9 +7275,9 @@ async function _buildSnapshot(mesKey) {
     };
 }
 
-// _calcDias unificada — ver definição global no topo do ficheiro
+// _calcDias unificada â€” ver definiÃ§Ã£o global no topo do ficheiro
 
-// ── Guardar snapshot ──────────────────────────────────────────────────────
+// â”€â”€ Guardar snapshot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function _guardarSnapshot(mesKey) {
     try {
         const snap = await _buildSnapshot(mesKey);
@@ -7307,70 +7285,76 @@ async function _guardarSnapshot(mesKey) {
             method: 'PUT',
             body: JSON.stringify(snap),
         });
-        console.warn(`[Relatório] snapshot guardado: ${mesKey}`);
+        console.warn(`[RelatÃ³rio] snapshot guardado: ${mesKey}`);
         return snap;
     } catch(e) {
-        console.warn('[Relatório] falha ao guardar snapshot:', e?.message);
+        console.warn('[RelatÃ³rio] falha ao guardar snapshot:', e?.message);
         return null;
     }
 }
 
-// ── Auto-fechar mês no dia 1 ──────────────────────────────────────────────
+// â”€â”€ Auto-fechar mÃªs no dia 1 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const _REL_LAST_CLOSE_KEY = 'hiperfrio-rel-last-close';
 async function _autoFecharMesSeNecessario() {
     const today = new Date();
-    if (today.getDate() !== 1) return; // só no dia 1
+    if (today.getDate() !== 1) return; // sÃ³ no dia 1
     const mesAnterior = _mesKey(-1);
     const lastClose   = localStorage.getItem(_REL_LAST_CLOSE_KEY);
-    if (lastClose === mesAnterior) return; // já fechado
+    if (lastClose === mesAnterior) return; // jÃ¡ fechado
 
-    // Verificar se já existe snapshot no Firebase
+    // Verificar se jÃ¡ existe snapshot no Firebase
     try {
         const url = await authUrl(`${REL_URL}/${mesAnterior}.json`);
         const res = await fetch(url);
         const existing = res.ok ? await res.json() : null;
-        if (!existing) await _guardarSnapshot(mesAnterior);
-        localStorage.setItem(_REL_LAST_CLOSE_KEY, mesAnterior);
+        let closedOk = !!existing;
+        if (!existing) {
+            const saved = await _guardarSnapshot(mesAnterior);
+            closedOk = !!saved;
+        }
+        if (closedOk) {
+            localStorage.setItem(_REL_LAST_CLOSE_KEY, mesAnterior);
+        }
     } catch(e) {
-        console.warn('[Relatório] auto-fechar falhou:', e?.message);
+        console.warn('[RelatÃ³rio] auto-fechar falhou:', e?.message);
     }
 }
 
-// ── Guardar antes de apagar PATs expiradas ────────────────────────────────
+// â”€â”€ Guardar antes de apagar PATs expiradas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function _relSalvarPatAntesDeApagar(pat) {
     if (!pat?.criadoEm) return;
     const mesKey = (() => {
         const d = new Date(pat.levantadoEm || pat.saidaEm || pat.criadoEm);
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
     })();
-    // Verifica se snapshot do mês já existe — se não, gera
+    // Verifica se snapshot do mÃªs jÃ¡ existe â€” se nÃ£o, gera
     try {
         const url = await authUrl(`${REL_URL}/${mesKey}.json`);
         const res = await fetch(url);
         const existing = res.ok ? await res.json() : null;
         if (!existing) await _guardarSnapshot(mesKey);
-    } catch(e) { /* silencioso — não bloquear apagar */ }
+    } catch(e) { /* silencioso â€” nÃ£o bloquear apagar */ }
 }
 
-// ── Fechar mês manualmente ────────────────────────────────────────────────
+// â”€â”€ Fechar mÃªs manualmente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function relFecharMes() {
     const mesKey = _mesKey(_relMesOffset);
     const btn = document.getElementById('rel-fechar-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'A guardar...'; }
     const snap = await _guardarSnapshot(mesKey);
-    if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v14a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Fechar mês'; }
-    if (snap) { showToast(`Relatório de ${_mesLabel(mesKey)} guardado!`); renderRelatorio(); }
-    else       { showToast('Erro ao guardar relatório', 'error'); }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v14a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Fechar mÃªs'; }
+    if (snap) { showToast(`RelatÃ³rio de ${_mesLabel(mesKey)} guardado!`); renderRelatorio(); }
+    else       { showToast('Erro ao guardar relatÃ³rio', 'error'); }
 }
 
-// ── Navegação de mês ──────────────────────────────────────────────────────
+// â”€â”€ NavegaÃ§Ã£o de mÃªs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function relMoveMonth(delta) {
     _relMesOffset += delta;
-    if (_relMesOffset > 0) _relMesOffset = 0; // não ir para o futuro
+    if (_relMesOffset > 0) _relMesOffset = 0; // nÃ£o ir para o futuro
     renderRelatorio();
 }
 
-// ── Renderizar relatório ──────────────────────────────────────────────────
+// â”€â”€ Renderizar relatÃ³rio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function renderRelatorio() {
     const mesKey  = _mesKey(_relMesOffset);
     const lblEl   = document.getElementById('rel-month-label');
@@ -7379,12 +7363,12 @@ async function renderRelatorio() {
     if (lblEl) lblEl.textContent = _mesLabel(mesKey);
     if (!content) return;
 
-    // Botão fechar mês — só no mês actual
+    // BotÃ£o fechar mÃªs â€” sÃ³ no mÃªs actual
     const btnFechar = document.getElementById('rel-fechar-btn');
     if (btnFechar) btnFechar.style.display = _relMesOffset === 0 ? 'inline-flex' : 'none';
 
-    content.innerHTML = '<div class="rel-loading">A carregar relatório...</div>';
-    if (strip) { ['rel-sum-pats','rel-sum-dur','rel-sum-saidas'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '—'; }); }
+    content.innerHTML = '<div class="rel-loading">A carregar relatÃ³rio...</div>';
+    if (strip) { ['rel-sum-pats','rel-sum-dur','rel-sum-saidas'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = 'â€”'; }); }
 
     // Fetch snapshot
     let snap = null;
@@ -7396,7 +7380,7 @@ async function renderRelatorio() {
     if (!snap && _relMesOffset === 0) snap = await _buildSnapshot(mesKey);
 
     if (!snap) {
-        content.innerHTML = `<div class="rel-empty">Sem dados para ${_mesLabel(mesKey)}.<br><small>Gerado automaticamente no dia 1 do mês seguinte.</small></div>`;
+        content.innerHTML = `<div class="rel-empty">Sem dados para ${_mesLabel(mesKey)}.<br><small>Gerado automaticamente no dia 1 do mÃªs seguinte.</small></div>`;
         return;
     }
 
@@ -7408,24 +7392,24 @@ async function renderRelatorio() {
         snapAnt = res2.ok ? await res2.json() : null;
     } catch(e) {}
 
-    // ── Actualizar summary strip com animação ───────────────────────────
+    // â”€â”€ Actualizar summary strip com animaÃ§Ã£o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const totalSaidas = (snap.top5 || []).reduce((a, b) => a + (b.qty || 0), 0);
     _relAnimCount('rel-sum-pats',   snap.totalPats ?? 0);
     _relAnimCount('rel-sum-saidas', totalSaidas);
     const durEl = document.getElementById('rel-sum-dur');
-    if (durEl) durEl.textContent = snap.duracaoMedia != null ? snap.duracaoMedia + 'd' : '—';
+    if (durEl) durEl.textContent = snap.duracaoMedia != null ? snap.duracaoMedia + 'd' : 'â€”';
 
     content.innerHTML = '';
 
-    // ── helpers ──────────────────────────────────────────────────────────
+    // â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function _trend(val, ant, invertido = false, unidade = '') {
         if (ant == null || val == null) return '';
         const diff = val - ant;
-        if (Math.abs(diff) < 0.05) return `<div class="rel-kpi-chip chip-neu">= igual ao mês ant.</div>`;
+        if (Math.abs(diff) < 0.05) return `<div class="rel-kpi-chip chip-neu">= igual ao mÃªs ant.</div>`;
         const up = diff > 0, bom = up !== invertido;
         const cls = bom ? 'chip-up' : 'chip-dn';
-        const ico = up ? '▲' : '▼';
-        return `<div class="rel-kpi-chip ${cls}">${ico} ${Math.abs(diff)}${unidade} vs mês ant.</div>`;
+        const ico = up ? 'â–²' : 'â–¼';
+        return `<div class="rel-kpi-chip ${cls}">${ico} ${Math.abs(diff)}${unidade} vs mÃªs ant.</div>`;
     }
 
     function _card(content_html, delay_class = '') {
@@ -7443,7 +7427,7 @@ async function renderRelatorio() {
         return `<div class="rel-empty-inline">${msg}</div>`;
     }
 
-    // ── 1: KPI Cards ────────────────────────────────────────────────────
+    // â”€â”€ 1: KPI Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const kpiCard = document.createElement('div');
     kpiCard.className = 'rel-card';
     kpiCard.style.padding = '10px';
@@ -7454,21 +7438,21 @@ async function renderRelatorio() {
                 <div class="rel-kpi-bg-icon"><svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2"><path d="M14 2H6a2 2 0 0 0-2 2v16h16V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
                 <div class="rel-kpi-lbl">PATs registadas</div>
                 <div class="rel-kpi-num" id="kpi-pats">0</div>
-                <div class="rel-kpi-sub">${snap.levantadas ?? 0} levant. · ${snap.pendentes ?? 0} pend.</div>
+                <div class="rel-kpi-sub">${snap.levantadas ?? 0} levant. Â· ${snap.pendentes ?? 0} pend.</div>
                 ${_trend(snap.totalPats, snapAnt?.totalPats)}
             </div>
             <div class="rel-kpi-dark rel-kpi-forest">
                 <div class="rel-kpi-bg-icon"><svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                <div class="rel-kpi-lbl">Duração média</div>
-                <div class="rel-kpi-num">${snap.duracaoMedia != null ? snap.duracaoMedia + 'd' : '—'}</div>
-                <div class="rel-kpi-sub">criação → levantamento</div>
+                <div class="rel-kpi-lbl">DuraÃ§Ã£o mÃ©dia</div>
+                <div class="rel-kpi-num">${snap.duracaoMedia != null ? snap.duracaoMedia + 'd' : 'â€”'}</div>
+                <div class="rel-kpi-sub">criaÃ§Ã£o â†’ levantamento</div>
                 ${_trend(snap.duracaoMedia, snapAnt?.duracaoMedia, true, 'd')}
             </div>
         </div>`;
     content.appendChild(kpiCard);
     setTimeout(() => _relAnimCount('kpi-pats', snap.totalPats ?? 0, 900), 100);
 
-    // ── 2: Insight automático ────────────────────────────────────────────
+    // â”€â”€ 2: Insight automÃ¡tico â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const insightMsg = _relBuildInsight(snap);
     if (insightMsg) {
         const ins = document.createElement('div');
@@ -7478,13 +7462,13 @@ async function renderRelatorio() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             </div>
             <div class="rel-insight-body">
-                <div class="rel-insight-lbl">Alerta automático</div>
+                <div class="rel-insight-lbl">Alerta automÃ¡tico</div>
                 <div class="rel-insight-msg">${escapeHtml(insightMsg)}</div>
             </div>`;
         content.appendChild(ins);
     }
 
-    // ── 3: Donut — distribuição PATs ─────────────────────────────────────
+    // â”€â”€ 3: Donut â€” distribuiÃ§Ã£o PATs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const donutCard = document.createElement('div');
     donutCard.className = 'rel-card';
     const totalPats = snap.totalPats || 0;
@@ -7493,7 +7477,7 @@ async function renderRelatorio() {
     const pendentes  = snap.pendentes  || 0;
     const historico  = Math.max(0, totalPats - levantadas - pendentes);
     donutCard.innerHTML = `
-        ${_cardHdr('Distribuição de PATs', _mesLabel(mesKey))}
+        ${_cardHdr('DistribuiÃ§Ã£o de PATs', _mesLabel(mesKey))}
         <div class="rel-donut-wrap">
             <div class="rel-donut-canvas">
                 <canvas id="rel-donut" width="110" height="110" class="rel-gauge-canvas"></canvas>
@@ -7506,12 +7490,12 @@ async function renderRelatorio() {
                 <div class="rel-leg-row"><div class="rel-leg-left"><div class="rel-leg-dot" style="background:#1e3a5f"></div>Levantadas</div><span class="rel-leg-val">${levantadas}</span></div>
                 <div class="rel-leg-row"><div class="rel-leg-left"><div class="rel-leg-dot" style="background:#2563eb"></div>Com guia</div><span class="rel-leg-val">${comGuia}</span></div>
                 <div class="rel-leg-row"><div class="rel-leg-left"><div class="rel-leg-dot" style="background:#f59e0b"></div>Pendentes</div><span class="rel-leg-val">${pendentes}</span></div>
-                <div class="rel-leg-row"><div class="rel-leg-left"><div class="rel-leg-dot" style="background:#e2e8f0"></div>Histórico</div><span class="rel-leg-val">${historico}</span></div>
+                <div class="rel-leg-row"><div class="rel-leg-left"><div class="rel-leg-dot" style="background:#e2e8f0"></div>HistÃ³rico</div><span class="rel-leg-val">${historico}</span></div>
             </div>
         </div>`;
     content.appendChild(donutCard);
 
-    // ── 4: Top Clientes ──────────────────────────────────────────────────
+    // â”€â”€ 4: Top Clientes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const cliCard = document.createElement('div');
     cliCard.className = 'rel-card';
     const cliLen = snap.topClientes?.length || 0;
@@ -7537,13 +7521,13 @@ async function renderRelatorio() {
             list.appendChild(row);
         });
         cliCard.appendChild(list);
-    } else { cliCard.innerHTML += _emptyInline('Sem PATs registadas este mês'); }
+    } else { cliCard.innerHTML += _emptyInline('Sem PATs registadas este mÃªs'); }
     content.appendChild(cliCard);
 
-    // ── 5: Top referências ───────────────────────────────────────────────
+    // â”€â”€ 5: Top referÃªncias â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const refsCard = document.createElement('div');
     refsCard.className = 'rel-card';
-    refsCard.innerHTML = _cardHdr('Top referências saídas', 'unidades', 'rel-pill-blue');
+    refsCard.innerHTML = _cardHdr('Top referÃªncias saÃ­das', 'unidades', 'rel-pill-blue');
     if (snap.top5?.length) {
         const blist = document.createElement('div');
         blist.className = 'rel-bar-list';
@@ -7555,7 +7539,7 @@ async function renderRelatorio() {
             el.className = 'rel-bar-row';
             el.innerHTML = `
                 <div class="rel-bar-meta">
-                    <span class="rel-bar-name">${escapeHtml(item.codigo)}${item.nome ? ' — ' + escapeHtml(item.nome) : ''}</span>
+                    <span class="rel-bar-name">${escapeHtml(item.codigo)}${item.nome ? ' â€” ' + escapeHtml(item.nome) : ''}</span>
                     <span class="rel-bar-val" style="color:${colors[i]}">${item.qty} un.</span>
                 </div>
                 <div class="rel-bar-track">
@@ -7564,14 +7548,14 @@ async function renderRelatorio() {
             blist.appendChild(el);
         });
         refsCard.appendChild(blist);
-    } else { refsCard.innerHTML += _emptyInline('Sem movimentos registados este mês'); }
+    } else { refsCard.innerHTML += _emptyInline('Sem movimentos registados este mÃªs'); }
     content.appendChild(refsCard);
 
-    // ── 6: Ferramentas dias fora ─────────────────────────────────────────
+    // â”€â”€ 6: Ferramentas dias fora â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const ferrCard = document.createElement('div');
     ferrCard.className = 'rel-card';
     const diasMes = new Date(_mesRange(mesKey).fim).getDate();
-    ferrCard.innerHTML = _cardHdr('Dias fora do armazém', diasMes + ' dias no mês', 'rel-pill-amber');
+    ferrCard.innerHTML = _cardHdr('Dias fora do armazÃ©m', diasMes + ' dias no mÃªs', 'rel-pill-amber');
     if (snap.topFerrDias?.length) {
         const blist2 = document.createElement('div');
         blist2.className = 'rel-bar-list';
@@ -7586,7 +7570,7 @@ async function renderRelatorio() {
             el.innerHTML = `
                 <div class="rel-bar-meta">
                     <span class="rel-bar-name">${escapeHtml(t.nome)}</span>
-                    <span class="rel-bar-val" style="color:${valColor}">${t.dias}d · ${pct}%</span>
+                    <span class="rel-bar-val" style="color:${valColor}">${t.dias}d Â· ${pct}%</span>
                 </div>
                 <div class="rel-bar-track">
                     <div class="rel-bar-fill" data-w="${pct}" style="background:${color}"></div>
@@ -7594,10 +7578,10 @@ async function renderRelatorio() {
             blist2.appendChild(el);
         });
         ferrCard.appendChild(blist2);
-    } else { ferrCard.innerHTML += _emptyInline('Sem dados de alocação registados'); }
+    } else { ferrCard.innerHTML += _emptyInline('Sem dados de alocaÃ§Ã£o registados'); }
     content.appendChild(ferrCard);
 
-    // ── 7: Ferramentas mais requisitadas ─────────────────────────────────
+    // â”€â”€ 7: Ferramentas mais requisitadas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (snap.topFerr?.length) {
         const ferrReqCard = document.createElement('div');
         ferrReqCard.className = 'rel-card';
@@ -7612,7 +7596,7 @@ async function renderRelatorio() {
             el.innerHTML = `
                 <div class="rel-bar-meta">
                     <span class="rel-bar-name">${escapeHtml(t.nome)}</span>
-                    <span class="rel-bar-val" style="color:#1e3a5f">${t.count}× requisitada${t.count > 1 ? 's' : ''}</span>
+                    <span class="rel-bar-val" style="color:#1e3a5f">${t.count}Ã— requisitada${t.count > 1 ? 's' : ''}</span>
                 </div>
                 <div class="rel-bar-track">
                     <div class="rel-bar-fill" data-w="${pct}" style="background:#1e3a5f"></div>
@@ -7623,13 +7607,13 @@ async function renderRelatorio() {
         content.appendChild(ferrReqCard);
     }
 
-    // ── 8: PATs por funcionário (gauges) ─────────────────────────────────
+    // â”€â”€ 8: PATs por funcionÃ¡rio (gauges) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (snap.porFunc && Object.keys(snap.porFunc).length) {
         const funcCard = document.createElement('div');
         funcCard.className = 'rel-card';
         const totalLev = Object.values(snap.porFunc).reduce((a, b) => a + b, 0) || 1;
         const funcEntries = Object.entries(snap.porFunc).sort((a, b) => b[1] - a[1]).slice(0, 4);
-        funcCard.innerHTML = _cardHdr('PATs por funcionário', totalLev + ' levantadas', 'rel-pill-green');
+        funcCard.innerHTML = _cardHdr('PATs por funcionÃ¡rio', totalLev + ' levantadas', 'rel-pill-green');
         const gaugeRow = document.createElement('div');
         gaugeRow.className = 'rel-gauge-row';
         const gColors = ['#1e3a5f','#2563eb','#f59e0b','#16a34a'];
@@ -7647,7 +7631,7 @@ async function renderRelatorio() {
         funcCard.appendChild(gaugeRow);
         content.appendChild(funcCard);
 
-        // Desenhar gauges após DOM insert
+        // Desenhar gauges apÃ³s DOM insert
         setTimeout(() => {
             funcEntries.forEach(([nome, val], i) => {
                 const pct = Math.round((val / totalLev) * 100);
@@ -7656,7 +7640,7 @@ async function renderRelatorio() {
         }, 200);
     }
 
-    // ── Animar barras + donut ────────────────────────────────────────────
+    // â”€â”€ Animar barras + donut â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     setTimeout(() => {
         content.querySelectorAll('.rel-bar-fill[data-w]').forEach((bar, i) => {
             setTimeout(() => { bar.style.width = bar.dataset.w + '%'; }, i * 70);
@@ -7684,7 +7668,7 @@ async function renderRelatorio() {
     }, 150);
 }
 
-// ── Contador animado ──────────────────────────────────────────────────────
+// â”€â”€ Contador animado â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function _relAnimCount(elId, target, dur = 800) {
     const el = document.getElementById(elId);
     if (!el || !target) return;
@@ -7698,7 +7682,7 @@ function _relAnimCount(elId, target, dur = 800) {
     requestAnimationFrame(step);
 }
 
-// ── Gauge canvas ──────────────────────────────────────────────────────────
+// â”€â”€ Gauge canvas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function _relDrawGauge(canvasId, pct, color, delayMs = 0) {
     setTimeout(() => {
         const c = document.getElementById(canvasId);
@@ -7741,26 +7725,26 @@ function _relDrawGauge(canvasId, pct, color, delayMs = 0) {
     }, delayMs);
 }
 
-// ── Insight automático ────────────────────────────────────────────────────
+// â”€â”€ Insight automÃ¡tico â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function _relBuildInsight(snap) {
     if (snap.topFerrDias?.length) {
         const top = snap.topFerrDias[0];
         const diasMes = 30;
         const pct = Math.round((top.dias / diasMes) * 100);
-        if (pct >= 80) return `"${top.nome}" esteve fora do armazém ${pct}% do mês (${top.dias} dias). Considera adquirir uma segunda unidade.`;
+        if (pct >= 80) return `"${top.nome}" esteve fora do armazÃ©m ${pct}% do mÃªs (${top.dias} dias). Considera adquirir uma segunda unidade.`;
     }
     if (snap.duracaoMedia != null && snap.duracaoMedia > 10) {
-        return `Duração média das PATs está em ${snap.duracaoMedia} dias — acima do recomendado. Verifica pendências em aberto.`;
+        return `DuraÃ§Ã£o mÃ©dia das PATs estÃ¡ em ${snap.duracaoMedia} dias â€” acima do recomendado. Verifica pendÃªncias em aberto.`;
     }
     if (snap.pendentes > 5) {
-        return `${snap.pendentes} PATs ainda pendentes no final do mês. Garante que estão atribuídas a um técnico.`;
+        return `${snap.pendentes} PATs ainda pendentes no final do mÃªs. Garante que estÃ£o atribuÃ­das a um tÃ©cnico.`;
     }
     return null;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // Desktop layout: sidebar visível, bottom nav escondido
+    // Desktop layout: sidebar visÃ­vel, bottom nav escondido
     function applyDesktopLayout() {
         const isDesktop = window.innerWidth >= 768;
         const bottomNav = document.getElementById('bottom-nav');
@@ -7812,7 +7796,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', applyDesktopLayout);
 });
 
-// ── Render lista ──────────────────────────────────────────────────────────
+// â”€â”€ Render lista â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function renderEncList() {
     const wrap = document.getElementById('enc-list');
     if (!wrap) return;
@@ -7849,7 +7833,7 @@ function renderEncList() {
         const recebido = linhas.reduce((s, l) => s + Math.min(parseFloat(l.recebido) || 0, parseFloat(l.qtd) || 0), 0);
         const pct      = total > 0 ? Math.round(recebido / total * 100) : 0;
         const estadoLabel = { pendente: 'Pendente', parcial: 'Parcial', recebida: 'Recebida' }[enc.estado] || 'Pendente';
-        const dataFmt  = enc.data ? enc.data.split('-').reverse().join('/') : '—';
+        const dataFmt  = enc.data ? enc.data.split('-').reverse().join('/') : 'â€”';
 
         // Card
         const card = document.createElement('div');
@@ -7863,10 +7847,10 @@ function renderEncList() {
         const left = document.createElement('div');
         const num  = document.createElement('div');
         num.className   = 'enc-card-num';
-        num.textContent = 'Encomenda Nº ' + (enc.num || '—');
+        num.textContent = 'Encomenda NÂº ' + (enc.num || 'â€”');
         const forn = document.createElement('div');
         forn.className   = 'enc-card-forn';
-        forn.textContent = enc.fornecedor || '—';
+        forn.textContent = enc.fornecedor || 'â€”';
         left.appendChild(num);
         left.appendChild(forn);
 
@@ -7911,7 +7895,7 @@ function encFilterSet(btn, filter) {
     renderEncList();
 }
 
-// ── Calculadora de Stock por Peso ─────────────────────────────────────────
+// â”€â”€ Calculadora de Stock por Peso â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function openWeightCalc() {
     weightCalcReset();
@@ -7946,7 +7930,7 @@ function weightCalcUpdate() {
     // Mostrar peso por unidade
     if (sampleUnits > 0 && sampleWeight > 0) {
         const unitGrams = sampleWeight / sampleUnits;
-        unitWeightEl.textContent = `≈ ${unitGrams % 1 === 0 ? unitGrams : unitGrams.toFixed(2)} g por unidade`;
+        unitWeightEl.textContent = `â‰ˆ ${unitGrams % 1 === 0 ? unitGrams : unitGrams.toFixed(2)} g por unidade`;
     } else {
         unitWeightEl.textContent = '';
     }
@@ -7960,15 +7944,15 @@ function weightCalcUpdate() {
 
         resultValEl.textContent = rounded.toLocaleString('pt-PT');
         resultSubEl.textContent = exact
-            ? `${totalWeight}g ÷ ${unitGrams % 1 === 0 ? unitGrams : unitGrams.toFixed(2)}g = ${rounded} unidades exactas`
-            : `${totalWeight}g ÷ ${unitGrams.toFixed(2)}g = ${units.toFixed(2)} → arredondado para ${rounded}`;
+            ? `${totalWeight}g Ã· ${unitGrams % 1 === 0 ? unitGrams : unitGrams.toFixed(2)}g = ${rounded} unidades exactas`
+            : `${totalWeight}g Ã· ${unitGrams.toFixed(2)}g = ${units.toFixed(2)} â†’ arredondado para ${rounded}`;
         resultEl.style.display = 'flex';
     } else {
         resultEl.style.display = 'none';
     }
 }
 
-// ── Importar PDF de encomenda via Claude ───────────────────────────────────
+// â”€â”€ Importar PDF de encomenda via Claude â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function encImportPdf(inp) {
     const file = inp.files[0];
@@ -7977,18 +7961,18 @@ async function encImportPdf(inp) {
 
     const apiKey = _getAnthropicKey();
     if (!apiKey) {
-        showToast('Configura o Worker em Definições → Leitura por fotografia', 'error');
+        showToast('Configura o Worker em DefiniÃ§Ãµes â†’ Leitura por fotografia', 'error');
         return;
     }
 
     const label = document.getElementById('enc-pdf-label');
     const originalHTML = label ? label.innerHTML : '';
     if (label) {
-        label.innerHTML = '◷';
+        label.innerHTML = 'â—·';
         label.style.pointerEvents = 'none';
         label.style.opacity = '0.6';
     }
-    showToast('A analisar PDF…', 'info');
+    showToast('A analisar PDFâ€¦', 'info');
 
     try {
         const b64 = await new Promise((res, rej) => {
@@ -8000,22 +7984,22 @@ async function encImportPdf(inp) {
 
         const prompt = `Analisa este documento PDF de encomenda a fornecedor.
 
-Extrai os seguintes campos e responde APENAS com JSON válido, sem markdown:
+Extrai os seguintes campos e responde APENAS com JSON vÃ¡lido, sem markdown:
 
 {
-  "numero": "número da encomenda (alfanumérico) ou null",
-  "fornecedor": "nome do fornecedor em MAIÚSCULAS ou null",
+  "numero": "nÃºmero da encomenda (alfanumÃ©rico) ou null",
+  "fornecedor": "nome do fornecedor em MAIÃšSCULAS ou null",
   "linhas": [
-    { "ref": "referência do produto ou string vazia", "nome": "designação do produto em MAIÚSCULAS", "qtd": número }
+    { "ref": "referÃªncia do produto ou string vazia", "nome": "designaÃ§Ã£o do produto em MAIÃšSCULAS", "qtd": nÃºmero }
   ]
 }
 
 REGRAS:
-- numero: procura campos "N.º Encomenda", "Ordem de Compra", "OC", "PO", "Ref."
-- fornecedor: quem fornece os produtos — procura "Fornecedor", "Supplier", "Para", "A/C"
-- linhas: extrai TODAS as linhas de produtos com referência, designação e quantidade encomendada
-- qtd deve ser número inteiro — usa coluna "Qtd", "Quantidade", "Qty" ou similar
-- Se qtd não existir num produto, usa 1
+- numero: procura campos "N.Âº Encomenda", "Ordem de Compra", "OC", "PO", "Ref."
+- fornecedor: quem fornece os produtos â€” procura "Fornecedor", "Supplier", "Para", "A/C"
+- linhas: extrai TODAS as linhas de produtos com referÃªncia, designaÃ§Ã£o e quantidade encomendada
+- qtd deve ser nÃºmero inteiro â€” usa coluna "Qtd", "Quantidade", "Qty" ou similar
+- Se qtd nÃ£o existir num produto, usa 1
 - Responde APENAS com o JSON`;
 
         const isProxy  = _isProxyUrl(apiKey);
@@ -8042,7 +8026,7 @@ REGRAS:
 
         if (!resp.ok) {
             const e = await resp.json().catch(() => ({}));
-            if (resp.status === 401) throw new Error('Chave API inválida — actualiza em Definições');
+            if (resp.status === 401) throw new Error('Proxy OCR invalido ou sem permissao - actualiza em Admin > Definicoes');
             throw new Error(e?.error?.message || `HTTP ${resp.status}`);
         }
 
@@ -8062,7 +8046,7 @@ REGRAS:
         }
 
         const n = result.linhas?.length || 0;
-        showToast(`PDF importado — ${n} produto${n !== 1 ? 's' : ''} encontrado${n !== 1 ? 's' : ''}. Revê antes de guardar`, 'ok');
+        showToast(`PDF importado â€” ${n} produto${n !== 1 ? 's' : ''} encontrado${n !== 1 ? 's' : ''}. RevÃª antes de guardar`, 'ok');
 
     } catch(e) {
         showToast('Erro ao importar PDF: ' + (e?.message || e), 'error');
@@ -8076,7 +8060,7 @@ REGRAS:
     }
 }
 
-// ── Modal criar ───────────────────────────────────────────────────────────
+// â”€â”€ Modal criar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function openNovaEncomenda() {
     _encEditId = null;
     document.getElementById('enc-modal-title').textContent = 'Nova Encomenda';
@@ -8100,9 +8084,9 @@ function encAddLinha(ref = '', nome = '', qtd = '') {
     div.className = 'enc-linha';
     div.innerHTML = `
         <input class="blue-input enc-linha-ref"  type="text"   placeholder="Ref."       value="${escapeHtml(String(ref))}"  autocomplete="off" spellcheck="false">
-        <input class="blue-input enc-linha-nome" type="text"   placeholder="Designação" value="${escapeHtml(String(nome))}" autocomplete="off" spellcheck="false" oninput="this.value=this.value.toUpperCase()">
+        <input class="blue-input enc-linha-nome" type="text"   placeholder="DesignaÃ§Ã£o" value="${escapeHtml(String(nome))}" autocomplete="off" spellcheck="false" oninput="this.value=this.value.toUpperCase()">
         <input class="blue-input enc-linha-qtd"  type="number" placeholder="Qtd."       value="${qtd}" min="0" step="0.01">
-        <button class="enc-linha-del" onclick="this.closest('.enc-linha').remove()">✕</button>`;
+        <button class="enc-linha-del" onclick="this.closest('.enc-linha').remove()">âœ•</button>`;
     wrap.appendChild(div);
 }
 
@@ -8112,7 +8096,7 @@ async function saveEncomenda() {
     const forn = document.getElementById('enc-fornecedor').value.trim();
     const obs  = document.getElementById('enc-obs').value.trim();
 
-    if (!num)  { showToast('Indica o número da encomenda', 'error'); return; }
+    if (!num)  { showToast('Indica o nÃºmero da encomenda', 'error'); return; }
     if (!forn) { showToast('Indica o fornecedor', 'error'); return; }
 
     const linhasEls = document.querySelectorAll('#enc-linhas-wrap .enc-linha');
@@ -8133,7 +8117,7 @@ async function saveEncomenda() {
     try {
         const res = await apiFetch(`${ENC_URL}.json`, { method: 'POST', body: JSON.stringify(payload) });
         if (res) { const r = await res.json(); if (r?.name) _encData[r.name] = payload; }
-        showToast('Encomenda criada ✓', 'ok');
+        showToast('Encomenda criada âœ“', 'ok');
         closeEncModal();
         renderEncList();
         loadEncomendas(true);
@@ -8142,16 +8126,16 @@ async function saveEncomenda() {
     }
 }
 
-// ── Detalhe ───────────────────────────────────────────────────────────────
+// â”€â”€ Detalhe â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function openEncDetail(id) {
     const enc = _encData[id];
     if (!enc) return;
     _encEditId = id;
 
-    const dataFmt = enc.data ? enc.data.split('-').reverse().join('/') : '—';
-    document.getElementById('enc-detail-title').textContent = `Encomenda Nº ${enc.num || '—'}`;
+    const dataFmt = enc.data ? enc.data.split('-').reverse().join('/') : 'â€”';
+    document.getElementById('enc-detail-title').textContent = `Encomenda NÂº ${enc.num || 'â€”'}`;
     document.getElementById('enc-detail-sub').textContent   =
-        `${enc.fornecedor || '—'} · ${dataFmt}${enc.obs ? ' · ' + enc.obs : ''}`;
+        `${enc.fornecedor || 'â€”'} Â· ${dataFmt}${enc.obs ? ' Â· ' + enc.obs : ''}`;
 
     const linhas = enc.linhas || {};
     document.getElementById('enc-detail-linhas').innerHTML = Object.entries(linhas).map(([idx, l]) => {
@@ -8164,7 +8148,7 @@ function openEncDetail(id) {
             <div class="enc-detail-linha-top">
                 <div style="flex:1;min-width:0">
                     ${l.ref ? `<span class="enc-detail-ref">${escapeHtml(l.ref)}</span> ` : ''}
-                    <span class="enc-detail-nome">${escapeHtml(l.nome || '—')}</span>
+                    <span class="enc-detail-nome">${escapeHtml(l.nome || 'â€”')}</span>
                 </div>
                 <div class="enc-detail-qty">${recebido}/${qtd}</div>
             </div>
@@ -8176,7 +8160,7 @@ function openEncDetail(id) {
             </div>
             <button class="enc-entrada-btn ${done ? 'enc-entrada-btn-done' : ''}"
                 ${done ? 'disabled' : `onclick="openEntradaModal('${id}',${idx})"`}>
-                ${done ? '✓ Totalmente recebido' : '↓ Dar entrada'}
+                ${done ? 'âœ“ Totalmente recebido' : 'â†“ Dar entrada'}
             </button>
         </div>`;
     }).join('');
@@ -8193,9 +8177,9 @@ async function deleteEncomenda() {
     if (!_encEditId) return;
     const enc = _encData[_encEditId];
     openConfirmModal({
-        icon: '🗑',
+        icon: 'ðŸ—‘',
         title: 'Apagar encomenda?',
-        desc: `Encomenda Nº ${enc?.num} será apagada permanentemente.`,
+        desc: `Encomenda NÂº ${enc?.num} serÃ¡ apagada permanentemente.`,
         onConfirm: async () => {
             try {
                 await apiFetch(`${ENC_URL}/${_encEditId}.json`, { method: 'DELETE' });
@@ -8212,7 +8196,7 @@ async function deleteEncomenda() {
     });
 }
 
-// ── Dar entrada ───────────────────────────────────────────────────────────
+// â”€â”€ Dar entrada â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function openEntradaModal(encId, lIdx) {
     _encEntradaId   = encId;
     _encEntradaLIdx = lIdx;
@@ -8220,12 +8204,12 @@ function openEntradaModal(encId, lIdx) {
     if (!l) return;
     const falta = (parseFloat(l.qtd) || 0) - (parseFloat(l.recebido) || 0);
     document.getElementById('enc-entrada-desc').textContent =
-        `${l.ref ? '[' + l.ref + '] ' : ''}${l.nome} — faltam ${falta} unidades`;
+        `${l.ref ? '[' + l.ref + '] ' : ''}${l.nome} â€” faltam ${falta} unidades`;
     const inp = document.getElementById('enc-entrada-qty');
     inp.value = falta;
     inp.max   = falta;
     document.getElementById('enc-entrada-info').textContent =
-        `Já recebido: ${parseFloat(l.recebido) || 0} · Encomendado: ${parseFloat(l.qtd) || 0}`;
+        `JÃ¡ recebido: ${parseFloat(l.recebido) || 0} Â· Encomendado: ${parseFloat(l.qtd) || 0}`;
     document.getElementById('enc-entrada-modal').classList.add('active');
     focusModal('enc-entrada-modal');
     setTimeout(() => inp.focus(), 100);
@@ -8237,7 +8221,7 @@ function closeEntradaModal() {
 
 async function confirmarEntrada() {
     const qty = parseFloat(document.getElementById('enc-entrada-qty').value);
-    if (isNaN(qty) || qty <= 0) { showToast('Quantidade inválida', 'error'); return; }
+    if (isNaN(qty) || qty <= 0) { showToast('Quantidade invÃ¡lida', 'error'); return; }
 
     const enc = _encData[_encEntradaId];
     const l   = enc?.linhas?.[_encEntradaLIdx];
@@ -8261,7 +8245,7 @@ async function confirmarEntrada() {
             _encData[_encEntradaId].linhas[_encEntradaLIdx].recebido = novoRecebido;
             _encData[_encEntradaId].estado = novoEstado;
         }
-        showToast(`Entrada de ${qty} confirmada ✓`, 'ok');
+        showToast(`Entrada de ${qty} confirmada âœ“`, 'ok');
         closeEntradaModal();
         renderEncList();
         openEncDetail(_encEntradaId);
@@ -8278,3 +8262,5 @@ function _calcEstado(linhas) {
     if (arr.some(l => (parseFloat(l.recebido) || 0) > 0)) return 'parcial';
     return 'pendente';
 }
+
+
