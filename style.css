@@ -6071,7 +6071,8 @@ body.is-offline #app-layout {
     overflow: hidden;
 }
 .map-pin-sheet.open {
-    display: flex;
+    display: flex !important;
+    flex-direction: column !important;
 }
 @keyframes sheetSlideUp {
     from { transform: translateY(100%); opacity: 0; }
