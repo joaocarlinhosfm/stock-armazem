@@ -37,7 +37,7 @@
         const queue = queueLoad();
         const countEl = document.getElementById('offline-pending-count');
         if (countEl) {
-            countEl.textContent = queue.length > 0 ? `${queue.length} alteraÃ§Ã£o(Ãµes) pendente(s)` : '';
+            countEl.textContent = queue.length > 0 ? `${queue.length} alteraalteração(ões) pendente(s)` : '';
             countEl.style.display = queue.length > 0 ? 'inline' : 'none';
         }
     }
@@ -85,7 +85,7 @@
         if (failed.length < queue.length) {
             const synced = queue.length - failed.length;
             if (typeof window.showToast === 'function') {
-                window.showToast(`${synced} alteraÃ§Ã£o(Ãµes) sincronizada(s)`);
+                window.showToast(`${synced} alteraalteração(ões) sincronizada(s)`);
             }
             try {
                 state.config.onSyncSuccess();
