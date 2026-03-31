@@ -5700,6 +5700,57 @@ async function importClientesExcel(input) {
 }
 
 // ── Exportar Excel de clientes ─────────────────────────────────────────────
+async function limparTodasCoordenadas() {
+    const data = await _fetchClientes(true);
+    const comCoords = Object.entries(data || {}).filter(([, c]) => c.lat != null || c.lng != null);
+
+    if (comCoords.length === 0) {
+        showToast('Nenhum cliente tem coordenadas guardadas', 'error');
+        return;
+    }
+
+    openConfirmModal({
+        icon: '🗑',
+        title: 'Limpar todas as localizações?',
+        desc: `Vai apagar as coordenadas de ${comCoords.length} cliente${comCoords.length !== 1 ? 's' : ''}. Também vai limpar a geocode-cache. Esta acção não pode ser desfeita.`,
+        onConfirm: async () => {
+            let ok = 0;
+            let erros = 0;
+
+            // 1. Apagar coords de cada cliente
+            for (const [id] of comCoords) {
+                try {
+                    await apiFetch(`${BASE_URL}/clientes/${id}.json`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ lat: null, lng: null })
+                    });
+                    if (_clientesCache.data?.[id]) {
+                        _clientesCache.data[id].lat = null;
+                        _clientesCache.data[id].lng = null;
+                    }
+                    ok++;
+                } catch(_e) { erros++; }
+            }
+
+            // 2. Apagar geocode-cache inteira
+            try {
+                await apiFetch(`${BASE_URL}/geocode-cache.json`, { method: 'DELETE' });
+                // Limpar cache em memória
+                Object.keys(_geocodeCache).forEach(k => delete _geocodeCache[k]);
+                _geocodeCacheLoaded = false;
+            } catch(_e) { console.warn('[limpar] erro ao apagar geocode-cache:', _e?.message); }
+
+            renderClientesList();
+            if (erros === 0) {
+                showToast(`${ok} localização${ok !== 1 ? 'ões' : ''} apagada${ok !== 1 ? 's' : ''}`);
+            } else {
+                showToast(`${ok} apagadas, ${erros} com erro`, 'error');
+            }
+        }
+    });
+}
+
 async function exportClientesExcel() {
     try {
         await _ensureXLSX();

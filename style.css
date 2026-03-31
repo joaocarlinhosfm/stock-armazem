@@ -6613,3 +6613,20 @@ body.is-offline #app-layout {
 }
 .clientes-group-header:first-of-type { margin-top: 0; }
 
+.clientes-clearloc-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #fca5a5;
+    background: #fef2f2;
+    color: #dc2626;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.clientes-clearloc-btn:hover { background: #fee2e2; }
+
