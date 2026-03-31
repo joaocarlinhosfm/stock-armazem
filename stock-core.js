@@ -14,10 +14,12 @@
     async function readServerStockQty(id, fallbackQty = 0) {
         if (!navigator.onLine) return fallbackQty;
         try {
-            const url = await state.config.authUrl(`${window.BASE_URL}/stock/${id}/quantidade.json`);
+            const url = await state.config.authUrl(`${window.BASE_URL}/stock/${id}.json`);
             const res = await fetch(url);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const qty = await res.json();
+            const data = await res.json();
+            // data pode ser o objecto completo {quantidade, codigo, ...} ou null
+            const qty = data?.quantidade ?? data;
             const parsed = typeof qty === 'number' ? qty : parseFloat(qty);
             return Number.isFinite(parsed) ? parsed : fallbackQty;
         } catch (e) {
