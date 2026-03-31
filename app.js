@@ -4008,60 +4008,106 @@ let _patMapMarkers = [];    // markers actuais
 let _patMapOpen    = false;
 
 // ── Geocoding cache — Firebase /geocode-cache/ ────────────────────────────
-// Estrutura: { "pingo doce esmoriz": { lat, lng, ts }, ... }
-// Cache em memória para a sessão actual (evita re-fetch do Firebase)
+// Fonte de verdade principal: /clientes/{id}.lat + .lng
+// Cache secundária: /geocode-cache/{key} para nomes sem cliente correspondente
 const _geocodeCache = {};         // memória: key → {lat,lng} | null
-let   _geocodeCacheLoaded = false; // flag: já carregámos do Firebase?
+let   _geocodeCacheLoaded = false;
 
 const GEOCODE_CACHE_URL = `${BASE_URL}/geocode-cache.json`;
 
 function _normEstabKey(nome) {
-    return String(nome || '').trim().toLowerCase();
+    return String(nome || '')
+        .trim()
+        .toLowerCase()
+        .replace(/-\s*\d+\s*$/, '')   // remove " - 524" no fim
+        .replace(/\s+\d+\s*$/, '')     // remove número solto
+        .replace(/[()]/g, '')
+        .trim();
 }
 
 function _firebaseGeocodeKey(key) {
-    return _normEstabKey(key).replace(/[.#$\/\[\]]/g, '_');
+    return key.replace(/[.#$\/\[\]\s]/g, '_');
 }
 
+// Encontrar cliente correspondente a um nome de estabelecimento
+function _findClienteByEstab(nome, clienteNumero = '') {
+    const clientes = _clientesCache.data || {};
+    const key = _normEstabKey(nome);
+
+    // 1. Por número de cliente (mais fiável)
+    if (clienteNumero) {
+        const byNum = Object.entries(clientes).find(([, c]) =>
+            String(c.numero || '').trim() === String(clienteNumero).trim()
+        );
+        if (byNum) return byNum;
+    }
+
+    // 2. Por nome normalizado (com remoção de sufixos)
+    const byNome = Object.entries(clientes).find(([, c]) =>
+        _normEstabKey(c.nome) === key
+    );
+    if (byNome) return byNome;
+
+    // 3. Por nome parcial (nome do cliente contido no nome do PAT ou vice-versa)
+    const byPartial = Object.entries(clientes).find(([, c]) => {
+        const ck = _normEstabKey(c.nome);
+        return ck.length > 4 && (key.includes(ck) || ck.includes(key));
+    });
+    return byPartial || null;
+}
+
+// Guardar coords no cliente Firebase + geocode-cache
 async function _persistEstabCoords(nome, coords, clienteNumero = '') {
     const key = _normEstabKey(nome);
     if (!key || coords?.lat == null || coords?.lng == null) return;
 
-    _geocodeCache[key] = { lat: coords.lat, lng: coords.lng };
-    _saveGeocodeCacheEntry(key, coords);
+    const lat = parseFloat(coords.lat);
+    const lng = parseFloat(coords.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-    const clientes = _clientesCache.data || await _fetchClientes();
-    const clienteMatch = Object.entries(clientes).find(([, c]) => {
-        const sameNumero = clienteNumero && String(c.numero || '').trim() === String(clienteNumero).trim();
-        const sameNome = _normEstabKey(c.nome) === key;
-        return sameNumero || sameNome;
-    });
+    // Actualizar memória
+    _geocodeCache[key] = { lat, lng };
+
+    // Guardar na geocode-cache Firebase (sempre)
+    const fbKey = _firebaseGeocodeKey(key);
+    try {
+        const url = await authUrl(`${BASE_URL}/geocode-cache/${encodeURIComponent(fbKey)}.json`);
+        fetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat, lng, ts: Date.now() })
+        }).catch(() => {});
+    } catch(_e) {}
+
+    // Guardar nas coordenadas do cliente (fonte de verdade)
+    const clienteMatch = _findClienteByEstab(nome, clienteNumero);
     if (!clienteMatch) {
-        console.warn('[geocache] sem cliente correspondente para persistir coords:', { nome, clienteNumero });
+        console.log('[geocache] sem cliente para:', nome, '— coords só na geocode-cache');
         return;
     }
 
     const [clienteId, cliente] = clienteMatch;
-    const lat = parseFloat(coords.lat);
-    const lng = parseFloat(coords.lng);
     const oldLat = parseFloat(cliente.lat);
     const oldLng = parseFloat(cliente.lng);
-    const changed = !Number.isFinite(oldLat) || !Number.isFinite(oldLng)
-        || Math.abs(oldLat - lat) > 0.000001
-        || Math.abs(oldLng - lng) > 0.000001;
-    if (!changed) return;
+    const unchanged = Number.isFinite(oldLat) && Number.isFinite(oldLng)
+        && Math.abs(oldLat - lat) < 0.000001
+        && Math.abs(oldLng - lng) < 0.000001;
+    if (unchanged) return;
 
+    // Actualizar cache local
     if (_clientesCache.data?.[clienteId]) {
         _clientesCache.data[clienteId] = { ..._clientesCache.data[clienteId], lat, lng };
     }
+    // Guardar no Firebase
     try {
         await apiFetch(`${BASE_URL}/clientes/${clienteId}.json`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ lat, lng })
         });
-    } catch (e) {
-        console.warn('[geocache] falha ao guardar coords no cliente:', clienteId, e?.message);
+        console.log('[geocache] coords guardadas no cliente:', clienteId, `(${lat}, ${lng})`);
+    } catch(e) {
+        console.warn('[geocache] falha ao guardar no cliente:', clienteId, e?.message);
     }
 }
 
@@ -4077,45 +4123,44 @@ function _getMapPendingPatsForEstab(nome) {
 
 // Carrega toda a cache do Firebase para memória (1 fetch, feito uma vez)
 async function _loadGeocodeCache() {
-    if (_geocodeCacheLoaded) return;
-    try {
-        const url = await authUrl(GEOCODE_CACHE_URL);
-        const res = await fetch(url);
-        if (!res.ok) {
-            console.warn(`[geocache] HTTP ${res.status} — a continuar sem cache Firebase`);
-            // 401 = rules não publicadas ainda; continua sem cache (geocodifica tudo)
-            _geocodeCacheLoaded = true;
-            return;
+    // ── Passo 1: Clientes — sempre frescos, nunca em cache ────────────────
+    // São a fonte de verdade. Se o utilizador editar coords na administração,
+    // a próxima abertura do mapa reflecte sempre as coords actualizadas.
+    const clientes = await _fetchClientes(true); // force=true para ir sempre à Firebase
+    Object.values(clientes).forEach(c => {
+        if (c.lat != null && c.lng != null && c.nome) {
+            const key = _normEstabKey(c.nome);
+            if (key) _geocodeCache[key] = { lat: parseFloat(c.lat), lng: parseFloat(c.lng) };
         }
-        const data = await res.json();
-        if (data && typeof data === 'object') {
-            Object.entries(data).forEach(([k, v]) => {
-                const rawKey = _normEstabKey(v?.keyOriginal || k);
-                if (!rawKey) return;
-                _geocodeCache[rawKey] = (v && v.lat != null && v.lng != null) ? { lat: v.lat, lng: v.lng } : null;
-            });
-            console.log(`[geocache] ${Object.keys(_geocodeCache).length} entradas carregadas`);
-        } else {
-            console.log('[geocache] cache vazia (primeira utilização)');
-        }
-    } catch(e) {
-        console.warn('[geocache] erro ao carregar:', e);
-    }
-    _geocodeCacheLoaded = true;
-}
+    });
 
-// Persiste uma entrada na cache Firebase (fire-and-forget, ignora erros de rules)
-async function _saveGeocodeCacheEntry(key, coords) {
-    try {
-        const safeKey = _firebaseGeocodeKey(key);
-        const url = await authUrl(`${BASE_URL}/geocode-cache/${encodeURIComponent(safeKey)}.json`);
-        const payload = coords
-            ? JSON.stringify({ keyOriginal: key, lat: coords.lat, lng: coords.lng, ts: Date.now() })
-            : JSON.stringify(null);
-        fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: payload })
-            .then(r => { if (!r.ok) console.warn(`[geocache] save ${r.status} para "${key}"`); })
-            .catch(e => console.warn('[geocache] save erro:', e));
-    } catch(e) { console.warn('[geocache] saveEntry:', e); }
+    // ── Passo 2: geocode-cache Firebase — só carregada uma vez por sessão ──
+    // Só preenche estabelecimentos sem cliente correspondente (ex: novos locais).
+    // Nunca sobrescreve as coords dos clientes.
+    if (!_geocodeCacheLoaded) {
+        try {
+            const url = await authUrl(GEOCODE_CACHE_URL);
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && typeof data === 'object') {
+                    Object.entries(data).forEach(([k, v]) => {
+                        const rawKey = _normEstabKey(v?.keyOriginal || k.replace(/_/g, ' '));
+                        if (!rawKey || _geocodeCache[rawKey] !== undefined) return; // clientes têm prioridade
+                        _geocodeCache[rawKey] = (v?.lat != null && v?.lng != null)
+                            ? { lat: v.lat, lng: v.lng } : null;
+                    });
+                }
+            } else {
+                console.warn(`[geocache] HTTP ${res.status}`);
+            }
+        } catch(e) {
+            console.warn('[geocache] erro ao carregar geocode-cache:', e?.message);
+        }
+        _geocodeCacheLoaded = true;
+    }
+
+    console.log(`[geocache] ${Object.keys(_geocodeCache).length} localizações (clientes sempre frescos)`);
 }
 
 // Atraso entre pedidos Nominatim (1 req/s conforme ToS)
@@ -4124,23 +4169,24 @@ function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 async function _geocodeEstab(nome, saveToFirebase = true, clienteNumero = '') {
     const key = _normEstabKey(nome);
 
-    // 1. Verificar se o cliente tem coordenadas manuais na Firebase
-    const clientes = _clientesCache.data || {};
-    const clienteMatch = Object.values(clientes).find(c =>
-        ((clienteNumero && String(c.numero || '').trim() === String(clienteNumero).trim())
-            || _normEstabKey(c.nome) === key)
-        && c.lat != null && c.lng != null
-    );
+    // 1. SEMPRE verificar coords do cliente primeiro (fonte de verdade)
+    //    Não usar cache em memória para isto — pode estar desactualizada
+    const clienteMatch = _findClienteByEstab(nome, clienteNumero);
     if (clienteMatch) {
-        const coords = { lat: parseFloat(clienteMatch.lat), lng: parseFloat(clienteMatch.lng) };
-        _geocodeCache[key] = coords;
-        return coords;
+        const [, c] = clienteMatch;
+        if (c.lat != null && c.lng != null) {
+            const coords = { lat: parseFloat(c.lat), lng: parseFloat(c.lng) };
+            _geocodeCache[key] = coords; // actualizar memória com valor fresco
+            return coords;
+        }
+        // Cliente existe mas sem coords — não usar geocode-cache,
+        // ir directamente ao Nominatim e guardar no cliente
+    } else {
+        // Sem cliente → usar geocode-cache como fallback rápido
+        if (_geocodeCache[key] !== undefined) return _geocodeCache[key];
     }
 
-    // 2. Cache em memória (sessão ou Firebase pré-carregado)
-    if (_geocodeCache[key] !== undefined) return _geocodeCache[key];
-
-    // 2. Nominatim — estratégia multi-tentativa
+    // 3. Nominatim — estratégia multi-tentativa
     const cleaned = nome
         .replace(/-\s*\d+\s*$/, '')
         .replace(/\s+\d+\s*$/, '')
@@ -4148,7 +4194,7 @@ async function _geocodeEstab(nome, saveToFirebase = true, clienteNumero = '') {
         .trim();
 
     const words = cleaned.split(/\s+/).filter(w => w.length > 2);
-    const stopWords = ['PINGO','DOCE','CONTINENTE','JUMBO','LIDL','ALDI','MERCADONA','BP','GALP','REPSOL','DISCOUNT','ARMAZEM','GERAL','HIPERFRIO','SUPERMERCADO','MINIPRECO','INTERMARCHE','SHOPPING','RECHEIO'];
+    const stopWords = ['PINGO','DOCE','CONTINENTE','JUMBO','LIDL','ALDI','MERCADONA','BP','GALP','REPSOL','DISCOUNT','ARMAZEM','GERAL','HIPERFRIO','SUPERMERCADO','MINIPRECO','INTERMARCHE','SHOPPING','RECHEIO','LECLERC'];
     const localWords = words.filter(w => !stopWords.includes(w.toUpperCase()));
 
     const queries = [
@@ -4171,7 +4217,9 @@ async function _geocodeEstab(nome, saveToFirebase = true, clienteNumero = '') {
             if (data && data.length > 0) {
                 const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
                 if (saveToFirebase) {
-                    await _persistEstabCoords(nome, result, clienteNumero || clienteMatch?.numero || '');
+                    // Guardar no cliente E na geocode-cache
+                    const num = clienteNumero || clienteMatch?.[1]?.numero || '';
+                    await _persistEstabCoords(nome, result, num);
                 } else {
                     _geocodeCache[key] = result;
                 }
@@ -4181,8 +4229,16 @@ async function _geocodeEstab(nome, saveToFirebase = true, clienteNumero = '') {
         await _sleep(800);
     }
 
+    // Não encontrado — guardar null para não repetir tentativa
     _geocodeCache[key] = null;
-    if (saveToFirebase) _saveGeocodeCacheEntry(key, null);
+    if (saveToFirebase) {
+        const fbKey = _firebaseGeocodeKey(key);
+        try {
+            const url = await authUrl(`${BASE_URL}/geocode-cache/${encodeURIComponent(fbKey)}.json`);
+            fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keyOriginal: key, lat: null, lng: null, ts: Date.now() }) }).catch(() => {});
+        } catch(_e) {}
+    }
     return null;
 }
 
@@ -5518,13 +5574,11 @@ async function saveEditCliente() {
         const previousKey = _normEstabKey(previousNome);
         if (previousKey && previousKey !== cacheKey) {
             delete _geocodeCache[previousKey];
-            _saveGeocodeCacheEntry(previousKey, null);
         }
         if (payload.lat != null && payload.lng != null && cacheKey) {
-            await _persistEstabCoords(nome, { lat: payload.lat, lng: payload.lng }, numero);
+            _geocodeCache[cacheKey] = { lat: payload.lat, lng: payload.lng };
         } else if (cacheKey) {
             _geocodeCache[cacheKey] = null;
-            _saveGeocodeCacheEntry(cacheKey, null);
         }
         closeEditClienteModal();
         renderClientesList();
