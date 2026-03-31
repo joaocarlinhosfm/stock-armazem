@@ -6462,6 +6462,17 @@ async function limparTabActual() {
         desc: `Remove todas as PATs do ${label}. Esta acção é irreversível.`,
         onConfirm: async () => {
             try {
+                // Guardar snapshots de todos os meses afectados ANTES de apagar
+                const mesesVistos = new Set();
+                for (const [, pat] of alvo) {
+                    const d = new Date(pat.levantadoEm || pat.saidaEm || pat.criadoEm || Date.now());
+                    d.setDate(1);
+                    const mk = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                    if (!mesesVistos.has(mk)) {
+                        mesesVistos.add(mk);
+                        await _relSalvarPatAntesDeApagar(pat);
+                    }
+                }
                 for (const [id] of alvo) {
                     await apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'DELETE' });
                     delete _patCache.data[id];
@@ -7411,6 +7422,9 @@ async function apagarPat(id) {
         desc: 'O pedido será eliminado permanentemente. O stock não é alterado.',
         onConfirm: async () => {
             try {
+                const pat = _patCache.data?.[id];
+                // Guardar snapshot antes de apagar — garante que a PAT é contada no relatório
+                if (pat) await _relSalvarPatAntesDeApagar(pat);
                 await apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'DELETE' });
                 if (_patCache.data) delete _patCache.data[id];
                 renderPats();
@@ -7586,10 +7600,12 @@ const REL_URL = `${BASE_URL}/relatorios`;
 const MOV_URL = `${BASE_URL}/movimentos`;
 
 let _relMesOffset = 0; // 0 = mês actual, -1 = anterior, etc.
+let _relDonutChart = null; // instância Chart.js — destruída antes de recriar
 
 // ── Utilitários de data ────────────────────────────────────────────────────
 function _mesKey(offset = 0) {
     const d = new Date();
+    d.setDate(1); // evita rollover: 31 Jan + 1 mês = 3 Mar sem este fix
     d.setMonth(d.getMonth() + offset);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
@@ -7652,12 +7668,12 @@ async function _buildSnapshot(mesKey) {
     }
 
     // PATs pendentes incluídas na média parcial
-    const pendentes = pats.filter(p => p.status === 'pendente' && p.criadoEm >= ini);
-    const pendentesMedia = pendentes.length
-        ? pendentes.reduce((acc, p) => acc + _calcDias(p.criadoEm), 0) / pendentes.length
-        : 0;
+    // Filtro correcto: qualquer PAT que não esteja levantada nem em histórico
+    const pendentes = pats.filter(p =>
+        p.status !== 'levantado' && p.status !== 'historico' && p.criadoEm >= ini
+    );
 
-    // Duração média combinada
+    // Duração média combinada (levantadas do mês + pendentes ainda em aberto)
     const totalN = comDuracao.length + pendentes.length;
     const mediaGlobal = totalN > 0
         ? Math.round((comDuracao.reduce((a,p) => a + _calcDias(p.criadoEm, p.levantadoEm),0)
@@ -7745,6 +7761,7 @@ async function _buildSnapshot(mesKey) {
         mes:           mesKey,
         totalPats:     patsMes.length,
         levantadas:    patsLevantadas.length,
+        comGuia:       patsLevantadas.filter(p => !!p.separacao).length,
         pendentes:     pendentes.length,
         duracaoMedia:  mediaGlobal,
         porFunc,
@@ -7800,14 +7817,21 @@ async function _relSalvarPatAntesDeApagar(pat) {
     if (!pat?.criadoEm) return;
     const mesKey = (() => {
         const d = new Date(pat.levantadoEm || pat.saidaEm || pat.criadoEm);
+        d.setDate(1);
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
     })();
-    // Verifica se snapshot do mês já existe — se não, gera
+    const mesCorrente = _mesKey(0);
     try {
-        const url = await authUrl(`${REL_URL}/${mesKey}.json`);
-        const res = await fetch(url);
-        const existing = res.ok ? await res.json() : null;
-        if (!existing) await _guardarSnapshot(mesKey);
+        // Mês corrente: snapshot sempre regenerado (PATs ainda podem mudar)
+        // Meses anteriores: só guardar se não existir snapshot
+        if (mesKey === mesCorrente) {
+            await _guardarSnapshot(mesKey);
+        } else {
+            const url = await authUrl(`${REL_URL}/${mesKey}.json`);
+            const res = await fetch(url);
+            const existing = res.ok ? await res.json() : null;
+            if (!existing) await _guardarSnapshot(mesKey);
+        }
     } catch(e) { /* silencioso — não bloquear apagar */ }
 }
 
@@ -7946,9 +7970,9 @@ async function renderRelatorio() {
     // ── 3: Donut — distribuição PATs ─────────────────────────────────────
     const donutCard = document.createElement('div');
     donutCard.className = 'rel-card';
-    const totalPats = snap.totalPats || 0;
+    const totalPats  = snap.totalPats  || 0;
     const levantadas = snap.levantadas || 0;
-    const comGuia   = (snap.topClientes || []).reduce((a, c) => a + (c.comGuia || 0), 0);
+    const comGuia    = snap.comGuia    ?? (snap.topClientes || []).reduce((a, c) => a + (c.comGuia || 0), 0);
     const pendentes  = snap.pendentes  || 0;
     const historico  = Math.max(0, totalPats - levantadas - pendentes);
     donutCard.innerHTML = `
@@ -8120,10 +8144,11 @@ async function renderRelatorio() {
         content.querySelectorAll('.rel-bar-fill[data-w]').forEach((bar, i) => {
             setTimeout(() => { bar.style.width = bar.dataset.w + '%'; }, i * 70);
         });
-        // Donut Chart.js
+        // Donut Chart.js — destruir instância anterior para evitar flickering
         const donutCanvas = document.getElementById('rel-donut');
         if (donutCanvas && window.Chart) {
-            new Chart(donutCanvas, {
+            if (_relDonutChart) { _relDonutChart.destroy(); _relDonutChart = null; }
+            _relDonutChart = new Chart(donutCanvas, {
                 type: 'doughnut',
                 data: {
                     datasets: [{
@@ -8146,7 +8171,8 @@ async function renderRelatorio() {
 // ── Contador animado ──────────────────────────────────────────────────────
 function _relAnimCount(elId, target, dur = 800) {
     const el = document.getElementById(elId);
-    if (!el || !target) return;
+    if (!el || target == null) return;
+    if (target === 0) { el.textContent = '0'; return; }
     const start = performance.now();
     const step  = ts => {
         const p    = Math.min((ts - start) / dur, 1);
@@ -8204,7 +8230,9 @@ function _relDrawGauge(canvasId, pct, color, delayMs = 0) {
 function _relBuildInsight(snap) {
     if (snap.topFerrDias?.length) {
         const top = snap.topFerrDias[0];
-        const diasMes = 30;
+        // Dias reais do mês a partir do mesKey — não hardcoded a 30
+        const [y, m] = (snap.mes || _mesKey(0)).split('-').map(Number);
+        const diasMes = new Date(y, m, 0).getDate(); // dia 0 do mês seguinte = último dia do mês
         const pct = Math.round((top.dias / diasMes) * 100);
         if (pct >= 80) return `"${top.nome}" esteve fora do armazém ${pct}% do mês (${top.dias} dias). Considera adquirir uma segunda unidade.`;
     }
