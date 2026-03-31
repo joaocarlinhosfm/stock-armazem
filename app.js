@@ -1027,10 +1027,10 @@ async function renderDashboard(force = false) {
         stats: (() => {
             try {
                 const pats     = Object.values(_patCache.data || {});
-                const urgentes = pats.filter(p => p.status !== 'levantado' && p.criadoEm && _calcDias(p.criadoEm) > 15).length;
+                const urgentes = pats.filter(p => p.status !== 'levantado' && p.criadoEm && _calcDias(p.criadoEm) > 20).length;
                 const hoje     = pats.filter(p => p.status !== 'levantado' && p.criadoEm && _calcDias(p.criadoEm) === 0).length;
                 const result   = [{ label: 'Pendentes', value: patPendentes, color: patPendentes > 0 ? '#7c3aed' : '#64748b' }];
-                if (urgentes > 0) result.push({ label: '+15 dias', value: urgentes, color: '#dc2626' });
+                if (urgentes > 0) result.push({ label: '+20 dias', value: urgentes, color: '#dc2626' });
                 if (hoje > 0)     result.push({ label: 'Hoje', value: hoje, color: '#16a34a' });
                 return result;
             } catch(_e) {
@@ -1068,7 +1068,7 @@ async function renderDashboard(force = false) {
 
         patEntries.forEach(([id, pat]) => {
             const dias = _calcDias(pat.criadoEm);
-            const urgente = dias >= 15;
+            const urgente = dias >= 20;
             const row = document.createElement('div');
             row.className = 'dv2-pat-row' + (urgente ? ' dv2-pat-row--urgente' : '');
             row.onclick = () => openPatDetail(id, pat);
@@ -4416,7 +4416,7 @@ function _renderMapPinSheet(pats) {
     const patsEl   = document.getElementById('map-pin-pats');
 
     const nome     = pats[0][1].estabelecimento || '—';
-    const urgentes = pats.filter(([, p]) => _calcDias(p.criadoEm) >= 15);
+    const urgentes = pats.filter(([, p]) => _calcDias(p.criadoEm) >= 20);
     const comGuia  = pats.filter(([, p]) => !!p.separacao);
 
     // Header — nome em destaque
@@ -4450,7 +4450,7 @@ function _renderMapPinSheet(pats) {
         // Múltiplas — resumo + expandir ao clicar
         pats.forEach(([id, pat]) => {
             const dias    = _calcDias(pat.criadoEm);
-            const urgente = dias >= 15;
+            const urgente = dias >= 20;
             const diasLbl = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
             const isExpanded = _mapPinExpanded === id;
 
@@ -4487,7 +4487,7 @@ function _renderMapPinSheet(pats) {
 
 function _buildPatDetail([id, pat], allPats) {
     const dias    = _calcDias(pat.criadoEm);
-    const urgente = dias >= 15;
+    const urgente = dias >= 20;
     const prods   = pat.produtos || [];
 
     const detail = document.createElement('div');
@@ -4695,7 +4695,7 @@ async function openPatMap() {
     function _addMarker(estabKey, items) {
         const coords = _geocodeCache[estabKey];
         if (!coords) return false;
-        const urgente   = items.some(([, p]) => _calcDias(p.criadoEm) >= 15);
+        const urgente   = items.some(([, p]) => _calcDias(p.criadoEm) >= 20);
         const separacao = items.some(([, p]) => !!p.separacao);
         const nomeEstab = items[0][1].estabelecimento || '';
         const chainIcon = _getChainIcon(nomeEstab);
@@ -5856,7 +5856,7 @@ function showDupPopover(badge, estabNorm) {
         ${pats.map(([, p]) => {
             const dias = _calcDias(p.criadoEm);
             const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
-            const urgente = dias >= 15;
+            const urgente = dias >= 20;
             return `<div class="dup-pop-row">
                 <span class="dup-pop-pat ${urgente ? 'dup-pop-urgente' : ''}">PAT ${escapeHtml(p.numero || '—')}</span>
                 <span class="dup-pop-dias">${diasLabel}</span>
@@ -5936,7 +5936,7 @@ async function renderPats() {
         });
 
         // Count bar com urgentes
-        const urgentes = entries.filter(([, p]) => _calcDias(p.criadoEm) >= 15).length;
+        const urgentes = entries.filter(([, p]) => _calcDias(p.criadoEm) >= 20).length;
         const countBar = document.createElement('div');
         countBar.className = 'pat-count-bar';
         countBar.innerHTML = `<span class="pat-count-lbl">${entries.length} pedido${entries.length !== 1 ? 's' : ''} pendente${entries.length !== 1 ? 's' : ''}</span>`
@@ -5990,7 +5990,7 @@ function _buildPatCard(id, pat, tab, estabCount) {
     const isSelected = _patSelMode && _patSelIds.has(id);
 
     const dias    = _calcDias(pat.criadoEm);
-    const urgente = tab === 'pendentes' && dias >= 15;
+    const urgente = tab === 'pendentes' && dias >= 20;
     const nomeNorm = (pat.estabelecimento || '').trim().toLowerCase();
 
     // Classes do card
@@ -7328,7 +7328,7 @@ async function apagarPat(id) {
 function openPatDetail(id, pat) {
     const dias      = _calcDias(pat.criadoEm);
     const dataStr   = pat.criadoEm ? new Date(pat.criadoEm).toLocaleDateString('pt-PT') : '—';
-    const urgente   = dias >= 15;
+    const urgente   = dias >= 20;
     const separacao = !!pat.separacao;
     const body      = document.getElementById('pat-detail-body');
     body.innerHTML  = '';
