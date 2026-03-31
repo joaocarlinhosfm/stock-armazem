@@ -5426,100 +5426,184 @@ function patClientKeydown(e) {
 
 // ── Lista de clientes no Admin ─────────────────────────────────────────────
 async function renderClientesList() {
-    const list = document.getElementById('clientes-list');
-    if (!list) return;
-    list.innerHTML = '<div class="pat-loading">A carregar...</div>';
-    const data    = await _fetchClientes(true);
+    const container = document.getElementById('clientes-list');
+    if (!container) return;
+    container.innerHTML = '<div class="pat-loading">A carregar...</div>';
+    const data = await _fetchClientes(true);
 
-    // Extrair a cadeia principal do nome (primeira palavra significativa)
     function _cadeia(nome) {
         return (nome || '').trim().split(/\s+/)[0].toUpperCase();
     }
 
     const entries = Object.entries(data || {})
         .sort(([, a], [, b]) => {
-            const cadA = _cadeia(a.nome);
-            const cadB = _cadeia(b.nome);
-            // 1. Agrupar por cadeia (ex: PINGO, CONTINENTE, RECHEIO...)
+            const cadA = _cadeia(a.nome), cadB = _cadeia(b.nome);
             const cadCmp = cadA.localeCompare(cadB, 'pt');
             if (cadCmp !== 0) return cadCmp;
-            // 2. Dentro da mesma cadeia: com localização primeiro
             const locA = (a.lat != null && a.lng != null) ? 0 : 1;
             const locB = (b.lat != null && b.lng != null) ? 0 : 1;
             if (locA !== locB) return locA - locB;
-            // 3. Por nome completo
             return (a.nome || '').localeCompare(b.nome || '', 'pt');
         });
 
     if (entries.length === 0) {
-        list.innerHTML = '<div class="empty-msg">Nenhum cliente. Usa o botão acima para importar.</div>';
+        container.innerHTML = '<div class="empty-msg">Nenhum cliente. Usa o botão acima para importar.</div>';
         return;
     }
-    list.innerHTML = '';
 
-    // Totais no topo
-    const comLoc = entries.filter(([, c]) => c.lat != null && c.lng != null).length;
-    const total = document.createElement('div');
-    total.className   = 'clientes-total';
-    total.textContent = `${entries.length} clientes · ${comLoc} com localização`;
-    list.appendChild(total);
+    container.innerHTML = '';
+    const totalComLoc = entries.filter(([, c]) => c.lat != null && c.lng != null).length;
 
-    // Renderizar com cabeçalhos de grupo por cadeia
-    let lastCadeia = null;
+    // ── Stats ────────────────────────────────────────────────────────────
+    const stats = document.createElement('div');
+    stats.className = 'clientes-stats';
+    stats.innerHTML = `
+        <span class="clientes-stat"><span class="clientes-stat-num">${entries.length}</span> clientes</span>
+        <span class="clientes-stat-dot"></span>
+        <span class="clientes-stat"><span class="clientes-stat-num" style="color:#16a34a">${totalComLoc}</span> com localização</span>`;
+    container.appendChild(stats);
+
+    // ── Pesquisa ─────────────────────────────────────────────────────────
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'clientes-search-wrap';
+    searchWrap.innerHTML = `
+        <svg class="clientes-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="clientes-search-input" placeholder="Pesquisar por número ou nome..." id="clientes-search-inp">`;
+    container.appendChild(searchWrap);
+
+    // ── Área de grupos ────────────────────────────────────────────────────
+    const groupsArea = document.createElement('div');
+    groupsArea.id = 'clientes-groups-area';
+    container.appendChild(groupsArea);
+
+    // Agrupar por cadeia
+    const groups = {};
     entries.forEach(([id, c]) => {
-        const cadeia = _cadeia(c.nome);
-        if (cadeia !== lastCadeia) {
+        const k = _cadeia(c.nome);
+        if (!groups[k]) groups[k] = [];
+        groups[k].push([id, c]);
+    });
+
+    function _buildGroups(filter = '') {
+        const q = filter.trim().toLowerCase();
+        groupsArea.innerHTML = '';
+        let totalVisible = 0;
+
+        Object.entries(groups).forEach(([cadeia, items]) => {
+            const filtered = q
+                ? items.filter(([, c]) =>
+                    c.nome.toLowerCase().includes(q) ||
+                    String(c.numero || '').includes(q))
+                : items;
+            if (filtered.length === 0) return;
+            totalVisible += filtered.length;
+
+            const withLoc = filtered.filter(([, c]) => c.lat != null && c.lng != null).length;
+
+            // Wrapper do grupo
             const grp = document.createElement('div');
-            grp.className   = 'clientes-group-header';
-            grp.textContent = cadeia;
-            list.appendChild(grp);
-            lastCadeia = cadeia;
-        }
-        const row = document.createElement('div');
-        row.className = 'admin-list-row';
+            grp.className = 'clientes-group';
 
-        const lbl = document.createElement('span');
-        lbl.className   = 'admin-list-label clientes-list-label';
-        lbl.textContent = c.numero.padStart(3, '0') + '  ·  ' + c.nome;
+            // Header do grupo
+            const hdr = document.createElement('div');
+            hdr.className = 'clientes-group-header';
+            hdr.innerHTML = `
+                <span class="clientes-group-name">${cadeia}</span>
+                ${withLoc > 0 ? `<span class="clientes-group-loc visible"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>${withLoc}</span>` : ''}
+                <span class="clientes-group-count">${filtered.length}</span>
+                <span class="clientes-group-chevron"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></span>`;
 
-        // Badge de localização
-        const locBadge = document.createElement('span');
-        const hasCoords = c.lat && c.lng;
-        locBadge.className = `cliente-loc-badge ${hasCoords ? 'has-loc' : 'no-loc'}`;
-        locBadge.title = hasCoords ? `${c.lat}, ${c.lng}` : 'Sem localização';
-        locBadge.innerHTML = hasCoords
-            ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`
-            : `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
+            hdr.onclick = () => grp.classList.toggle('collapsed');
 
-        const edit = document.createElement('button');
-        edit.className   = 'admin-list-edit';
-        edit.title = 'Editar';
-        edit.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
-        edit.onclick = () => openEditClienteModal(id, c);
+            // Body com linhas
+            const body = document.createElement('div');
+            body.className = 'clientes-group-body';
 
-        const del = document.createElement('button');
-        del.className   = 'admin-list-delete';
-        del.innerHTML = '🗑';
-        del.onclick = () => openConfirmModal({
-            icon: '', title: 'Apagar cliente?',
-            desc: `${escapeHtml(c.numero)} — ${escapeHtml(c.nome)}`,
-            onConfirm: async () => {
-                try {
-                    await apiFetch(`${BASE_URL}/clientes/${id}.json`, { method: 'DELETE' });
-                    delete _clientesCache.data[id];
-                    renderClientesList();
-                    showToast('Cliente apagado');
-                } catch(_e) { showToast('Erro ao apagar', 'error'); }
-            }
+            filtered.forEach(([id, c]) => {
+                const hasCoords = c.lat != null && c.lng != null;
+                const row = document.createElement('div');
+                row.className = 'cliente-row';
+
+                const numEl = document.createElement('span');
+                numEl.className = 'cliente-row-num';
+                numEl.textContent = String(c.numero || '').padStart(3, '0');
+
+                const nomeWrap = document.createElement('div');
+                nomeWrap.style.cssText = 'display:flex;align-items:center;gap:6px;min-width:0;';
+
+                const dot = document.createElement('span');
+                dot.className = `cliente-loc-dot ${hasCoords ? 'has-loc' : 'no-loc'}`;
+                dot.title = hasCoords ? `${parseFloat(c.lat).toFixed(5)}, ${parseFloat(c.lng).toFixed(5)}` : 'Sem localização';
+
+                const nomeEl = document.createElement('span');
+                nomeEl.className = `cliente-row-nome${hasCoords ? '' : ' sem-loc'}`;
+                nomeEl.textContent = c.nome || '—';
+                nomeEl.title = c.nome || '';
+
+                nomeWrap.appendChild(dot);
+                nomeWrap.appendChild(nomeEl);
+
+                const actions = document.createElement('div');
+                actions.className = 'cliente-row-actions';
+
+                const editBtn = document.createElement('button');
+                editBtn.className = 'cliente-row-edit';
+                editBtn.title = 'Editar';
+                editBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+                editBtn.onclick = (e) => { e.stopPropagation(); openEditClienteModal(id, c); };
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'cliente-row-del';
+                delBtn.title = 'Apagar';
+                delBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>`;
+                delBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    openConfirmModal({
+                        icon: '', title: 'Apagar cliente?',
+                        desc: `${escapeHtml(c.numero)} — ${escapeHtml(c.nome)}`,
+                        onConfirm: async () => {
+                            try {
+                                await apiFetch(`${BASE_URL}/clientes/${id}.json`, { method: 'DELETE' });
+                                delete _clientesCache.data[id];
+                                renderClientesList();
+                                showToast('Cliente apagado');
+                            } catch(_e) { showToast('Erro ao apagar', 'error'); }
+                        }
+                    });
+                };
+
+                actions.appendChild(editBtn);
+                actions.appendChild(delBtn);
+                row.appendChild(numEl);
+                row.appendChild(nomeWrap);
+                row.appendChild(actions);
+                body.appendChild(row);
+            });
+
+            grp.appendChild(hdr);
+            grp.appendChild(body);
+            groupsArea.appendChild(grp);
         });
 
-        row.appendChild(lbl);
-        row.appendChild(locBadge);
-        row.appendChild(edit);
-        row.appendChild(del);
-        list.appendChild(row);
-    });
+        // Sem resultados
+        if (totalVisible === 0 && q) {
+            groupsArea.innerHTML = `<div class="clientes-empty-search">Nenhum cliente encontrado para "${escapeHtml(q)}"</div>`;
+        }
+    }
+
+    _buildGroups();
+
+    // Pesquisa em tempo real
+    const searchInp = document.getElementById('clientes-search-inp');
+    if (searchInp) {
+        let _st;
+        searchInp.addEventListener('input', e => {
+            clearTimeout(_st);
+            _st = setTimeout(() => _buildGroups(e.target.value), 180);
+        });
+    }
 }
+
 
 // ── Modal Editar Cliente ───────────────────────────────────────────────────
 function _ecInitials(nome) {
