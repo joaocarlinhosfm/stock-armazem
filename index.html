@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=1774868674">
+    <link rel="stylesheet" href="style.css?v=1774968866">
 
     <style id="sheet-critical">
     .map-pin-sheet {
@@ -140,6 +140,22 @@
         }
         .map-pin-sheet-handle { display: block; }
     }
+    /* Botão voltar do mapa — estilo explícito para não herdar default do browser */
+    .pat-map-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: transparent !important;
+        border: none !important;
+        color: var(--primary);
+        font-family: 'Inter', sans-serif;
+        font-size: 0.82rem;
+        font-weight: 700;
+        cursor: pointer;
+        padding: 2px 0;
+        -webkit-appearance: none;
+        appearance: none;
+    }
     </style>
 </head>
 <body>
@@ -227,8 +243,9 @@
                     </div>
                 </div>
                 <div class="ls-error" id="ls-error"></div>
-                <button type="submit" class="ls-btn" id="ls-submit-btn">
-                    <span id="ls-btn-text">Entrar</span>
+                <button type="submit" class="ls-btn" id="ls-submit-btn" disabled>
+                    <span id="ls-btn-text">A ligar...</span>
+                    <div class="ls-btn-spinner" id="ls-firebase-spinner" style="display:inline-block;margin-left:6px"></div>
                     <div class="ls-btn-spinner hidden" id="ls-spinner"></div>
                 </button>
             </form>
@@ -693,17 +710,9 @@
                     <strong>Coluna A:</strong> Nº &nbsp;·&nbsp; <strong>Coluna B:</strong> Nome</p>
                     <div class="clientes-btn-row">
                         <label class="btn-primary clientes-import-btn" for="clientes-xlsx-input">
-                            <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/></svg>
-                            Importar Excel / CSV
+                            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/></svg>
+                            Importar
                         </label>
-                        <button class="btn-secondary clientes-export-btn" onclick="exportClientesExcel()" title="Exportar lista de clientes para Excel">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            Exportar
-                        </button>
-                        <button class="btn-secondary clientes-clearloc-btn" onclick="limparTodasCoordenadas()" title="Apagar todas as coordenadas guardadas nos clientes">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-                            Limpar localizações
-                        </button>
                     </div>
                     <input type="file" id="clientes-xlsx-input" accept=".csv,.xlsx,.xls" style="display:none"
                         onchange="importClientesExcel(this)">
@@ -1366,16 +1375,31 @@
                 .then(cred => cred.user.getIdToken())
                 .then(token => {
                     window._firebaseUser = firebase.auth().currentUser;
+                    window._firebaseReady = true;
                     resolve(token);
+                    // Activar botão de login agora que Firebase está pronto
+                    const btn = document.getElementById('ls-submit-btn');
+                    const fbSpinner = document.getElementById('ls-firebase-spinner');
+                    const btnText = document.getElementById('ls-btn-text');
+                    if (btn) btn.disabled = false;
+                    if (fbSpinner) fbSpinner.style.display = 'none';
+                    if (btnText) btnText.textContent = 'Entrar';
                 })
                 .catch(err => {
                     console.error('Firebase Auth erro:', err.code, err.message);
+                    // Mesmo com erro, activar botão (pode funcionar offline)
+                    const btn2 = document.getElementById('ls-submit-btn');
+                    const fbSpinner2 = document.getElementById('ls-firebase-spinner');
+                    const btnText2 = document.getElementById('ls-btn-text');
+                    if (btn2) btn2.disabled = false;
+                    if (fbSpinner2) fbSpinner2.style.display = 'none';
+                    if (btnText2) btnText2.textContent = 'Entrar';
                     reject(err);
                 });
         });
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-    <script src="app.js?v=1774868674"></script>
+    <script src="app.js?v=1774968866"></script>
 
     <!-- Modal: PAT Scan OCR -->
     <div id="pat-scan-modal" class="modal-overlay" role="dialog" aria-modal="true">
