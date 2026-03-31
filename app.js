@@ -6039,6 +6039,7 @@ function _buildPatCard(id, pat, tab, estabCount) {
     actionsDiv.className = 'pat-card-actions';
     actionsDiv.onclick   = e => e.stopPropagation();
 
+    const EDIT_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
     const DEL_SVG = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
     const CHECK_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 
@@ -6049,6 +6050,11 @@ function _buildPatCard(id, pat, tab, estabCount) {
         btnRefs.onclick = e => { e.stopPropagation(); openPatRefsModal(id, pat); };
         actionsDiv.appendChild(btnRefs);
     } else if (tab === 'pendentes') {
+        const btnEdit = document.createElement('button');
+        btnEdit.className = 'pat-btn-edit';
+        btnEdit.innerHTML = EDIT_SVG;
+        btnEdit.title = 'Editar PAT';
+        btnEdit.onclick = () => openEditPat(id, pat);
         const btnLev = document.createElement('button');
         btnLev.className = 'pat-btn-levantado';
         btnLev.innerHTML = CHECK_SVG + ' Dar como levantado';
@@ -6057,9 +6063,15 @@ function _buildPatCard(id, pat, tab, estabCount) {
         btnDel.className = 'pat-btn-apagar';
         btnDel.innerHTML = DEL_SVG;
         btnDel.onclick = () => apagarPat(id);
+        actionsDiv.appendChild(btnEdit);
         actionsDiv.appendChild(btnLev);
         actionsDiv.appendChild(btnDel);
     } else if (tab === 'levantadas') {
+        const btnEdit = document.createElement('button');
+        btnEdit.className = 'pat-btn-edit';
+        btnEdit.innerHTML = EDIT_SVG;
+        btnEdit.title = 'Editar PAT';
+        btnEdit.onclick = () => openEditPat(id, pat);
         const btnSaida = document.createElement('button');
         btnSaida.className = 'pat-btn-guia';
         btnSaida.innerHTML = CHECK_SVG + ' Dar saída';
@@ -6068,6 +6080,7 @@ function _buildPatCard(id, pat, tab, estabCount) {
         btnDel.className = 'pat-btn-apagar';
         btnDel.innerHTML = DEL_SVG;
         btnDel.onclick = () => apagarPat(id);
+        actionsDiv.appendChild(btnEdit);
         actionsDiv.appendChild(btnSaida);
         actionsDiv.appendChild(btnDel);
     } else if (tab === 'historico') {
@@ -6483,20 +6496,74 @@ async function savePatRefs() {
 
 function openPatModal() {
     _patProducts = [];
-    document.getElementById('pat-numero').value = '';
-    document.getElementById('pat-cliente-num').value = '';
-    document.getElementById('pat-cliente-id').value  = '';
+    document.getElementById('pat-edit-id').value            = '';
+    document.getElementById('pat-numero').value              = '';
+    document.getElementById('pat-numero').readOnly           = false;
+    document.getElementById('pat-cliente-num').value         = '';
+    document.getElementById('pat-cliente-id').value          = '';
     document.getElementById('pat-client-dropdown').innerHTML = '';
-    document.getElementById('pat-estabelecimento').value = '';
-    _fetchClientes();
-    document.getElementById('pat-product-search').value = '';
+    document.getElementById('pat-estabelecimento').value     = '';
+    document.getElementById('pat-product-search').value      = '';
     document.getElementById('pat-product-dropdown').innerHTML = '';
-    document.getElementById('pat-product-chips').innerHTML = '';
-    document.getElementById('pat-numero-hint').textContent = '';
-    document.getElementById('pat-separacao').checked = false;
+    document.getElementById('pat-product-chips').innerHTML   = '';
+    document.getElementById('pat-numero-hint').textContent   = '';
+    document.getElementById('pat-separacao').checked         = false;
+    document.getElementById('pat-modal-title').textContent   = 'Novo Pedido';
+    _fetchClientes();
     document.getElementById('pat-modal').classList.add('active');
     focusModal('pat-modal');
     setTimeout(() => document.getElementById('pat-numero').focus(), 80);
+}
+
+async function openEditPat(id, pat) {
+    // Preencher o modal com os dados da PAT existente
+    _patProducts = (pat.produtos || []).map(p => ({ ...p }));
+
+    document.getElementById('pat-edit-id').value            = id;
+    document.getElementById('pat-modal-title').textContent  = `Editar PAT ${pat.numero || ''}`;
+    document.getElementById('pat-numero').value             = pat.numero || '';
+    document.getElementById('pat-numero').readOnly          = true; // nº PAT não pode ser alterado
+    document.getElementById('pat-numero-hint').textContent  = '';
+    document.getElementById('pat-separacao').checked        = !!pat.separacao;
+
+    // Cliente — tentar preencher clienteId se estiver em falta
+    let clienteId = pat.clienteId || '';
+    const clienteNum = pat.clienteNumero || '';
+    const estab      = pat.estabelecimento || '';
+
+    if (!clienteId && (clienteNum || estab)) {
+        // Tentar encontrar o clienteId automaticamente
+        await _fetchClientes();
+        const match = _findClienteByEstab(estab, clienteNum, '');
+        if (match) {
+            clienteId = match[0];
+            // Guardar na PAT para futuras utilizações
+            apiFetch(`${BASE_URL}/pedidos/${id}.json`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clienteId })
+            }).catch(() => {});
+            if (_patCache.data?.[id]) _patCache.data[id].clienteId = clienteId;
+            console.log('[editPat] clienteId preenchido automaticamente:', clienteId);
+        }
+    }
+
+    document.getElementById('pat-cliente-num').value         = clienteNum;
+    document.getElementById('pat-cliente-id').value          = clienteId;
+    document.getElementById('pat-client-dropdown').innerHTML = '';
+    document.getElementById('pat-estabelecimento').value     = estab;
+
+    // Renderizar chips de produtos
+    const chipsEl = document.getElementById('pat-product-chips');
+    chipsEl.innerHTML = '';
+    _patProducts.forEach(p => _addPatProductChip(p));
+    document.getElementById('pat-product-search').value      = '';
+    document.getElementById('pat-product-dropdown').innerHTML = '';
+
+    _fetchClientes();
+    document.getElementById('pat-modal').classList.add('active');
+    focusModal('pat-modal');
+    setTimeout(() => document.getElementById('pat-estabelecimento').focus(), 80);
 }
 
 function closePatModal() {
@@ -7057,12 +7124,14 @@ function patQtyStep(id, delta) {
 }
 
 async function savePat() {
-    const numero      = document.getElementById('pat-numero').value.trim();
-    const clienteNum  = document.getElementById('pat-cliente-num').value.trim();
-    const clienteId   = document.getElementById('pat-cliente-id').value.trim() || null;
-    const estab       = document.getElementById('pat-estabelecimento').value.trim().toUpperCase();
-    const separacao = document.getElementById('pat-separacao').checked;
-    const hint      = document.getElementById('pat-numero-hint');
+    const editId     = document.getElementById('pat-edit-id').value.trim();
+    const isEdit     = !!editId;
+    const numero     = document.getElementById('pat-numero').value.trim();
+    const clienteNum = document.getElementById('pat-cliente-num').value.trim();
+    const clienteId  = document.getElementById('pat-cliente-id').value.trim() || null;
+    const estab      = document.getElementById('pat-estabelecimento').value.trim().toUpperCase();
+    const separacao  = document.getElementById('pat-separacao').checked;
+    const hint       = document.getElementById('pat-numero-hint');
 
     if (!/^\d{6}$/.test(numero)) {
         hint.textContent = 'O Nº PAT deve ter exactamente 6 dígitos.';
@@ -7072,49 +7141,72 @@ async function savePat() {
     }
     hint.textContent = '';
 
-    // Verificar duplicado — não permitir registar a mesma PAT duas vezes
-    const patsExistentes = Object.values(_patCache.data || {});
-    const duplicado = patsExistentes.find(p => p.numero === numero && p.status !== 'levantado');
-    if (duplicado) {
-        hint.textContent = `PAT ${numero} já está registada (${duplicado.estabelecimento || 'sem estabelecimento'}).`;
-        hint.style.color = 'var(--danger)';
-        document.getElementById('pat-numero').focus();
-        return;
+    // Verificar duplicado — só na criação
+    if (!isEdit) {
+        const patsExistentes = Object.values(_patCache.data || {});
+        const duplicado = patsExistentes.find(p => p.numero === numero && p.status !== 'levantado');
+        if (duplicado) {
+            hint.textContent = `PAT ${numero} já está registada (${duplicado.estabelecimento || 'sem estabelecimento'}).`;
+            hint.style.color = 'var(--danger)';
+            document.getElementById('pat-numero').focus();
+            return;
+        }
     }
 
-    const payload = {
-        numero,
-        clienteNumero: clienteNum || null,
-        clienteId:     clienteId  || null,
-        estabelecimento: estab,
-        separacao,
-        produtos: _patProducts.map(p => ({
-            id: p.id,
-            codigo: p.codigo,
-            nome: p.nome,
-            quantidade: p.quantidade || 1
-        })),
-        status: 'pendente',
-        criadoEm: Date.now(),
-    };
-
-    try {
-        const res = await apiFetch(`${BASE_URL}/pedidos.json`, {
-            method: 'POST',
-            body: JSON.stringify(payload),
-        });
-        if (!_patCache.data) _patCache.data = {};
-        if (res) {
-            const r = await res.json();
-            if (r?.name) _patCache.data[r.name] = payload;
-        } else {
-            // offline — guarda com ID temporário para mostrar imediatamente
-            _patCache.data[`_tmp_pat_${Date.now()}`] = payload;
-        }
-        closePatModal();
-        renderPats();
-        showToast(res ? `PAT ${numero} registada!` : `PAT ${numero} guardada offline — sincroniza quando tiveres ligação`);
-    } catch(_e) { showToast('Erro ao guardar pedido', 'error'); }
+    if (isEdit) {
+        // ── Modo edição — PATCH só os campos editáveis ────────────────────
+        const patchPayload = {
+            clienteNumero:   clienteNum || null,
+            clienteId:       clienteId  || null,
+            estabelecimento: estab,
+            separacao,
+            produtos: _patProducts.map(p => ({
+                id: p.id, codigo: p.codigo, nome: p.nome, quantidade: p.quantidade || 1
+            })),
+        };
+        try {
+            await apiFetch(`${BASE_URL}/pedidos/${editId}.json`, {
+                method: 'PATCH',
+                body: JSON.stringify(patchPayload),
+            });
+            if (_patCache.data?.[editId]) {
+                _patCache.data[editId] = { ..._patCache.data[editId], ...patchPayload };
+            }
+            closePatModal();
+            renderPats();
+            showToast(`PAT ${numero} actualizada`);
+        } catch(_e) { showToast('Erro ao guardar edição', 'error'); }
+    } else {
+        // ── Modo criação — POST novo ───────────────────────────────────────
+        const payload = {
+            numero,
+            clienteNumero: clienteNum || null,
+            clienteId:     clienteId  || null,
+            estabelecimento: estab,
+            separacao,
+            produtos: _patProducts.map(p => ({
+                id: p.id, codigo: p.codigo, nome: p.nome, quantidade: p.quantidade || 1
+            })),
+            status: 'pendente',
+            criadoEm: Date.now(),
+        };
+        try {
+            const res = await apiFetch(`${BASE_URL}/pedidos.json`, {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            });
+            if (!_patCache.data) _patCache.data = {};
+            if (res) {
+                const r = await res.json();
+                if (r?.name) _patCache.data[r.name] = payload;
+            } else {
+                _patCache.data[`_tmp_pat_${Date.now()}`] = payload;
+            }
+            closePatModal();
+            renderPats();
+            showToast(res ? `PAT ${numero} registada!` : `PAT ${numero} guardada offline`);
+        } catch(_e) { showToast('Erro ao guardar pedido', 'error'); }
+    }
 }
 
 async function marcarPatLevantado(id) {

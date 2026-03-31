@@ -4424,6 +4424,21 @@ body.is-offline #app-layout {
     cursor: pointer;
     transition: background 0.13s;
 }
+.pat-btn-edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px; height: 30px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--input-fill);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    flex-shrink: 0;
+}
+.pat-btn-edit:hover { background: var(--primary-soft); color: var(--primary); }
+
 .pat-btn-apagar:active { background: rgba(239,68,68,0.16); }
 .pat-loading, .pat-empty { text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 32px 0; }
 
