@@ -4030,25 +4030,37 @@ function _firebaseGeocodeKey(key) {
 }
 
 // Encontrar cliente correspondente a um nome de estabelecimento
-function _findClienteByEstab(nome, clienteNumero = '') {
+function _findClienteByEstab(nome, clienteNumero = '', clienteId = '') {
     const clientes = _clientesCache.data || {};
     const key = _normEstabKey(nome);
 
-    // 1. Por número de cliente (mais fiável)
-    if (clienteNumero) {
-        const byNum = Object.entries(clientes).find(([, c]) =>
-            String(c.numero || '').trim() === String(clienteNumero).trim()
-        );
-        if (byNum) return byNum;
+    // 0. Por Firebase ID directo — o mais fiável (sem ambiguidade)
+    if (clienteId && clientes[clienteId]) {
+        return [clienteId, clientes[clienteId]];
     }
 
-    // 2. Por nome normalizado (com remoção de sufixos)
+    // 1. Por número + nome em conjunto (elimina ambiguidade de nº repetido)
+    if (clienteNumero) {
+        const byNumNome = Object.entries(clientes).find(([, c]) =>
+            String(c.numero || '').trim() === String(clienteNumero).trim() &&
+            _normEstabKey(c.nome) === key
+        );
+        if (byNumNome) return byNumNome;
+
+        // 1b. Só por número (quando há um único com esse nº)
+        const byNum = Object.entries(clientes).filter(([, c]) =>
+            String(c.numero || '').trim() === String(clienteNumero).trim()
+        );
+        if (byNum.length === 1) return byNum[0];
+    }
+
+    // 2. Por nome normalizado exacto
     const byNome = Object.entries(clientes).find(([, c]) =>
         _normEstabKey(c.nome) === key
     );
     if (byNome) return byNome;
 
-    // 3. Por nome parcial (nome do cliente contido no nome do PAT ou vice-versa)
+    // 3. Por nome parcial (último recurso)
     const byPartial = Object.entries(clientes).find(([, c]) => {
         const ck = _normEstabKey(c.nome);
         return ck.length > 4 && (key.includes(ck) || ck.includes(key));
@@ -4057,7 +4069,7 @@ function _findClienteByEstab(nome, clienteNumero = '') {
 }
 
 // Guardar coords no cliente Firebase + geocode-cache
-async function _persistEstabCoords(nome, coords, clienteNumero = '') {
+async function _persistEstabCoords(nome, coords, clienteNumero = '', clienteId = '') {
     const key = _normEstabKey(nome);
     if (!key || coords?.lat == null || coords?.lng == null) return;
 
@@ -4080,13 +4092,13 @@ async function _persistEstabCoords(nome, coords, clienteNumero = '') {
     } catch(_e) {}
 
     // Guardar nas coordenadas do cliente (fonte de verdade)
-    const clienteMatch = _findClienteByEstab(nome, clienteNumero);
+    const clienteMatch = _findClienteByEstab(nome, clienteNumero, clienteId);
     if (!clienteMatch) {
         console.log('[geocache] sem cliente para:', nome, '— coords só na geocode-cache');
         return;
     }
 
-    const [clienteId, cliente] = clienteMatch;
+    const [matchedId, cliente] = clienteMatch;
     const oldLat = parseFloat(cliente.lat);
     const oldLng = parseFloat(cliente.lng);
     const unchanged = Number.isFinite(oldLat) && Number.isFinite(oldLng)
@@ -4094,20 +4106,18 @@ async function _persistEstabCoords(nome, coords, clienteNumero = '') {
         && Math.abs(oldLng - lng) < 0.000001;
     if (unchanged) return;
 
-    // Actualizar cache local
-    if (_clientesCache.data?.[clienteId]) {
-        _clientesCache.data[clienteId] = { ..._clientesCache.data[clienteId], lat, lng };
+    if (_clientesCache.data?.[matchedId]) {
+        _clientesCache.data[matchedId] = { ..._clientesCache.data[matchedId], lat, lng };
     }
-    // Guardar no Firebase
     try {
-        await apiFetch(`${BASE_URL}/clientes/${clienteId}.json`, {
+        await apiFetch(`${BASE_URL}/clientes/${matchedId}.json`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ lat, lng })
         });
-        console.log('[geocache] coords guardadas no cliente:', clienteId, `(${lat}, ${lng})`);
+        console.log('[geocache] coords guardadas no cliente:', matchedId, `(${lat}, ${lng})`);
     } catch(e) {
-        console.warn('[geocache] falha ao guardar no cliente:', clienteId, e?.message);
+        console.warn('[geocache] falha ao guardar no cliente:', matchedId, e?.message);
     }
 }
 
@@ -4166,23 +4176,21 @@ async function _loadGeocodeCache() {
 // Atraso entre pedidos Nominatim (1 req/s conforme ToS)
 function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-async function _geocodeEstab(nome, saveToFirebase = true, clienteNumero = '') {
+async function _geocodeEstab(nome, saveToFirebase = true, clienteNumero = '', clienteId = '') {
     const key = _normEstabKey(nome);
 
     // 1. SEMPRE verificar coords do cliente primeiro (fonte de verdade)
-    //    Não usar cache em memória para isto — pode estar desactualizada
-    const clienteMatch = _findClienteByEstab(nome, clienteNumero);
+    const clienteMatch = _findClienteByEstab(nome, clienteNumero, clienteId);
     if (clienteMatch) {
         const [, c] = clienteMatch;
         if (c.lat != null && c.lng != null) {
             const coords = { lat: parseFloat(c.lat), lng: parseFloat(c.lng) };
-            _geocodeCache[key] = coords; // actualizar memória com valor fresco
+            _geocodeCache[key] = coords;
             return coords;
         }
-        // Cliente existe mas sem coords — não usar geocode-cache,
-        // ir directamente ao Nominatim e guardar no cliente
+        // Cliente existe mas sem coords → vai ao Nominatim e guarda no cliente correcto
     } else {
-        // Sem cliente → usar geocode-cache como fallback rápido
+        // Sem cliente → usar geocode-cache como fallback
         if (_geocodeCache[key] !== undefined) return _geocodeCache[key];
     }
 
@@ -4217,9 +4225,10 @@ async function _geocodeEstab(nome, saveToFirebase = true, clienteNumero = '') {
             if (data && data.length > 0) {
                 const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
                 if (saveToFirebase) {
-                    // Guardar no cliente E na geocode-cache
+                    // Guardar no cliente E na geocode-cache — usar clienteId para match exacto
                     const num = clienteNumero || clienteMatch?.[1]?.numero || '';
-                    await _persistEstabCoords(nome, result, num);
+                    const cid = clienteId     || clienteMatch?.[0]         || '';
+                    await _persistEstabCoords(nome, result, num, cid);
                 } else {
                     _geocodeCache[key] = result;
                 }
@@ -4758,7 +4767,11 @@ async function openPatMap() {
         const progressTxt = missing.length > 1 ? ` (${i + 1}/${missing.length})` : '';
         subtitleEl.textContent = `A localizar "${nomeOriginal}"...${progressTxt}`;
 
-        const coords = await _geocodeEstab(nomeOriginal, true, items[0]?.[1]?.clienteNumero || '');
+        const coords = await _geocodeEstab(
+            nomeOriginal, true,
+            items[0]?.[1]?.clienteNumero || '',
+            items[0]?.[1]?.clienteId     || ''
+        );
         if (!_patMapOpen) break;
         if (!coords) { failed++; continue; }
 
@@ -5305,17 +5318,25 @@ let _clienteDropdownIdx = -1;
 
 function patClientSearch(val) {
     _clienteDropdownIdx = -1;
+    document.getElementById('pat-cliente-id').value = ''; // limpar ao escrever
     const dd = document.getElementById('pat-client-dropdown');
     const q  = val.trim();
     if (!q) { dd.innerHTML = ''; _removeClientOutsideListener(); return; }
 
     const data = _clientesCache.data || {};
 
+    // Injectar _fbId em cada cliente para uso no dropdown
+    const dataComId = Object.entries(data).reduce((acc, [fbId, c]) => {
+        acc[fbId] = { ...c, _fbId: fbId };
+        return acc;
+    }, {});
+
     // Número exacto — verifica quantos clientes partilham esse NR
     if (/^\d{1,3}$/.test(q)) {
-        const exactMatches = Object.values(data).filter(c => c.numero === q);
+        const exactMatches = Object.values(dataComId).filter(c => c.numero === q);
         if (exactMatches.length === 1) {
             document.getElementById('pat-estabelecimento').value = exactMatches[0].nome;
+            document.getElementById('pat-cliente-id').value      = exactMatches[0]._fbId;
             dd.innerHTML = '';
             _removeClientOutsideListener();
             return;
@@ -5328,7 +5349,7 @@ function patClientSearch(val) {
     }
 
     // Sugestões parciais
-    const matches = Object.values(data)
+    const matches = Object.values(dataComId)
         .filter(c => c.numero.startsWith(q) || c.nome.toLowerCase().includes(q.toLowerCase()))
         .slice(0, 10);
 
@@ -5358,8 +5379,9 @@ function _renderClientDropdown(dd, matches, isExact) {
         opt.appendChild(codeEl); opt.appendChild(nameEl);
         opt.onmousedown = (e) => {
             e.preventDefault();
-            document.getElementById('pat-cliente-num').value    = c.numero;
-            document.getElementById('pat-estabelecimento').value = c.nome;
+            document.getElementById('pat-cliente-num').value     = c.numero;
+            document.getElementById('pat-estabelecimento').value  = c.nome;
+            document.getElementById('pat-cliente-id').value       = c._fbId || '';
             dd.innerHTML = '';
             _removeClientOutsideListener();
         };
@@ -6431,6 +6453,7 @@ function openPatModal() {
     _patProducts = [];
     document.getElementById('pat-numero').value = '';
     document.getElementById('pat-cliente-num').value = '';
+    document.getElementById('pat-cliente-id').value  = '';
     document.getElementById('pat-client-dropdown').innerHTML = '';
     document.getElementById('pat-estabelecimento').value = '';
     _fetchClientes();
@@ -7004,6 +7027,7 @@ function patQtyStep(id, delta) {
 async function savePat() {
     const numero      = document.getElementById('pat-numero').value.trim();
     const clienteNum  = document.getElementById('pat-cliente-num').value.trim();
+    const clienteId   = document.getElementById('pat-cliente-id').value.trim() || null;
     const estab       = document.getElementById('pat-estabelecimento').value.trim().toUpperCase();
     const separacao = document.getElementById('pat-separacao').checked;
     const hint      = document.getElementById('pat-numero-hint');
@@ -7029,6 +7053,7 @@ async function savePat() {
     const payload = {
         numero,
         clienteNumero: clienteNum || null,
+        clienteId:     clienteId  || null,
         estabelecimento: estab,
         separacao,
         produtos: _patProducts.map(p => ({
