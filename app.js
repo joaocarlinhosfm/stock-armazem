@@ -203,8 +203,9 @@ function applyRole(role) {
 // ──────────────────────────────────────────────────────────
 // SISTEMA DE LOGIN POR USERNAME + PASSWORD
 // ──────────────────────────────────────────────────────────
-const USERS_URL = `${BASE_URL}/config/users.json`;
-const USER_KEY  = 'hiperfrio-username';
+const USERS_URL      = `${BASE_URL}/config/users.json`;
+const USERS_BASE_URL = `${BASE_URL}/config/users`;
+const USER_KEY       = 'hiperfrio-username';
 
 // Hash SHA-256 da password (com salt diferente do PIN)
 // hashPassword — salt inclui o username para que o mesmo password gere hashes
@@ -389,7 +390,6 @@ async function handleLogin(e) {
 // ──────────────────────────────────────────────────────────
 // GESTÃO DE UTILIZADORES (Admin → tab Utilizadores)
 // ──────────────────────────────────────────────────────────
-const USERS_BASE_URL = `${BASE_URL}/config/users`;
 
 async function createUser() {
     if (!requireManagerAccess()) return;
@@ -544,8 +544,6 @@ async function bootApp() {
     _scheduleTokenRenewal();
     // Auto-fechar mês anterior se for dia 1
     _autoFecharMesSeNecessario();
-    // Pré-preencher campo de email do inventário nas Definições
-    setTimeout(_invLoadEmailField, 400);
     // Lança fetches em paralelo após ter token
     await Promise.all([
         renderList(),
@@ -2230,6 +2228,7 @@ async function deleteWorker(id) {
 // MODAL — entregar ferramenta
 // =============================================
 let toolToAllocate = null;
+let _toolLongPressTimer = null;
 
 async function openModal(id) {
     const data    = await fetchCollection('funcionarios');
@@ -2673,7 +2672,7 @@ function adminMobileOpen(tab) {
 
     if (tab === 'clientes')  renderClientesList();
     if (tab === 'users')     renderUsersList();
-    if (tab === 'settings')  { _updateOcrKeyStatus(); _loadOcrKeywordsInput(); }
+    if (tab === 'settings')  { _updateOcrKeyStatus(); _loadOcrKeywordsInput(); _loadInvEmailInput(); }
     if (tab === 'tools')     renderAdminTools();
     if (tab === 'workers')   renderWorkers();
 
@@ -2743,7 +2742,7 @@ function switchAdminTab(tab, animate = true) {
 
     if (tab === 'clientes') renderClientesList();
     if (tab === 'users')    renderUsersList();
-    if (tab === 'settings') { _updateOcrKeyStatus(); _loadOcrKeywordsInput(); }
+    if (tab === 'settings') { _updateOcrKeyStatus(); _loadOcrKeywordsInput(); _loadInvEmailInput(); }
     if (tab === 'relatorio') { renderRelatorio(); }
     if (tab === 'workers')  renderWorkers();
     if (tab === 'tools')    renderAdminTools();
@@ -3157,8 +3156,22 @@ function _invGetEmail() {
     return localStorage.getItem(INV_EMAIL_KEY) || '';
 }
 
-// Carrega o email guardado no campo das Definições ao arrancar
-function _invLoadEmailField() {
+function saveInvEmail() {
+    const val = (document.getElementById('inv-email-input')?.value || '').trim();
+    if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+        showToast('Email inválido', 'error');
+        return;
+    }
+    if (val) {
+        localStorage.setItem(INV_EMAIL_KEY, val);
+        showToast('Email guardado ✓');
+    } else {
+        localStorage.removeItem(INV_EMAIL_KEY);
+        showToast('Email removido');
+    }
+}
+
+function _loadInvEmailInput() {
     const el = document.getElementById('inv-email-input');
     if (el) el.value = _invGetEmail();
 }
@@ -5251,8 +5264,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.46';
-const SW_SCRIPT_URL = 'sw.js?v=6.46';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.47';
+const SW_SCRIPT_URL = 'sw.js?v=6.47';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados
@@ -5732,7 +5745,7 @@ async function importClientesExcel(input) {
     preview.innerHTML = '<div class="pat-loading">A processar ficheiro...</div>';
 
     try {
-        await _ensureXLSX();
+        await loadXlsx();
         const buf  = await file.arrayBuffer();
         const wb   = XLSX.read(buf, { type: 'array' });
         const ws   = wb.Sheets[wb.SheetNames[0]];
@@ -5837,7 +5850,7 @@ async function limparTodasCoordenadas() {
 
 async function exportClientesExcel() {
     try {
-        await _ensureXLSX();
+        await loadXlsx();
         const data    = await _fetchClientes(true);
         const entries = Object.entries(data || {})
             .sort((a, b) => Number(a[1].numero) - Number(b[1].numero));
@@ -6317,7 +6330,7 @@ function cancelLevantarMode() {
 function patSelToggleAll() {
     const pats = _patCache.data || {};
     // Só selecciona PATs pendentes (tab activo no modo levantar)
-    const pendentes = Object.entries(pats).filter(([, p]) => p.status === 'pendente');
+    const pendentes = Object.entries(pats).filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
     const allSelected = pendentes.length > 0 && pendentes.every(([id]) => _patSelIds.has(id));
     if (allSelected) {
         _patSelIds.clear();
@@ -6689,9 +6702,8 @@ async function openEditPat(id, pat) {
     document.getElementById('pat-estabelecimento').value     = estab;
 
     // Renderizar chips de produtos
-    const chipsEl = document.getElementById('pat-product-chips');
-    chipsEl.innerHTML = '';
-    _patProducts.forEach(p => _addPatProductChip(p));
+    document.getElementById('pat-product-chips').innerHTML = '';
+    _renderPatChips();
     document.getElementById('pat-product-search').value      = '';
     document.getElementById('pat-product-dropdown').innerHTML = '';
 

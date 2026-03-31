@@ -249,7 +249,7 @@
                     <div class="ls-btn-spinner hidden" id="ls-spinner"></div>
                 </button>
             </form>
-            <div class="ls-version">v5.93 · Hiperfrio</div>
+            <div class="ls-version">v6.47 · Hiperfrio</div>
         </div>
     </div>
 
@@ -810,6 +810,18 @@
                 </div>
 
                 <div class="settings-group-label">DADOS</div>
+                <div class="settings-item settings-item--email">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Email do Inventário</span>
+                        <span class="settings-item-desc">Destino ao enviar o relatório de inventário</span>
+                    </div>
+                    <div class="settings-email-wrap">
+                        <input type="email" id="inv-email-input" class="blue-input settings-email-input"
+                            placeholder="email@empresa.pt"
+                            autocomplete="email" autocorrect="off" autocapitalize="none" spellcheck="false">
+                        <button class="btn-settings-action" onclick="saveInvEmail()">Guardar</button>
+                    </div>
+                </div>
                 <div class="settings-item">
                     <div class="settings-item-info">
                         <span class="settings-item-title">Exportar Stock para CSV</span>

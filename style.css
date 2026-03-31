@@ -2943,6 +2943,21 @@ body.worker-mode .sort-dropdown-wrap { display: none; }
     z-index: 10;
     position: relative;
 }
+.settings-item--email {
+    flex-direction: column;
+    align-items: stretch;
+}
+.settings-email-wrap {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+}
+.settings-email-input {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.88rem;
+}
 
 /* Ocultar o admin-panel-header quando o painel está dentro do detalhe mobile
    (o título já é mostrado pelo admin-mobile-detail-title) */
