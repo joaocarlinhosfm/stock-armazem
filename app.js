@@ -5430,19 +5430,51 @@ async function renderClientesList() {
     if (!list) return;
     list.innerHTML = '<div class="pat-loading">A carregar...</div>';
     const data    = await _fetchClientes(true);
+
+    // Extrair a cadeia principal do nome (primeira palavra significativa)
+    function _cadeia(nome) {
+        return (nome || '').trim().split(/\s+/)[0].toUpperCase();
+    }
+
     const entries = Object.entries(data || {})
-        .sort((a, b) => Number(a[1].numero) - Number(b[1].numero));
+        .sort(([, a], [, b]) => {
+            const cadA = _cadeia(a.nome);
+            const cadB = _cadeia(b.nome);
+            // 1. Agrupar por cadeia (ex: PINGO, CONTINENTE, RECHEIO...)
+            const cadCmp = cadA.localeCompare(cadB, 'pt');
+            if (cadCmp !== 0) return cadCmp;
+            // 2. Dentro da mesma cadeia: com localização primeiro
+            const locA = (a.lat != null && a.lng != null) ? 0 : 1;
+            const locB = (b.lat != null && b.lng != null) ? 0 : 1;
+            if (locA !== locB) return locA - locB;
+            // 3. Por nome completo
+            return (a.nome || '').localeCompare(b.nome || '', 'pt');
+        });
+
     if (entries.length === 0) {
         list.innerHTML = '<div class="empty-msg">Nenhum cliente. Usa o botão acima para importar.</div>';
         return;
     }
     list.innerHTML = '';
+
+    // Totais no topo
+    const comLoc = entries.filter(([, c]) => c.lat != null && c.lng != null).length;
     const total = document.createElement('div');
     total.className   = 'clientes-total';
-    total.textContent = `${entries.length} clientes`;
+    total.textContent = `${entries.length} clientes · ${comLoc} com localização`;
     list.appendChild(total);
 
+    // Renderizar com cabeçalhos de grupo por cadeia
+    let lastCadeia = null;
     entries.forEach(([id, c]) => {
+        const cadeia = _cadeia(c.nome);
+        if (cadeia !== lastCadeia) {
+            const grp = document.createElement('div');
+            grp.className   = 'clientes-group-header';
+            grp.textContent = cadeia;
+            list.appendChild(grp);
+            lastCadeia = cadeia;
+        }
         const row = document.createElement('div');
         row.className = 'admin-list-row';
 

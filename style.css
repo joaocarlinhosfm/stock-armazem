@@ -6585,3 +6585,16 @@ body.is-offline #app-layout {
 }
 .ec-btn-save:hover { background: #1d4ed8; }
 
+/* ── Grupos de clientes na lista ─────────────────────────────────────────── */
+.clientes-group-header {
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    padding: 10px 4px 4px;
+    margin-top: 4px;
+    border-bottom: 1px solid var(--border);
+}
+.clientes-group-header:first-of-type { margin-top: 0; }
+
