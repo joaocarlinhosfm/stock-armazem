@@ -4,8 +4,6 @@
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
 // ── Recuperação automática de IndexedDB corrompido ─────────────────────────
-// O Firebase SDK usa IndexedDB internamente. Após deploys com Service Worker
-// inconsistente, o IndexedDB pode ficar corrompido. Detectamos e limpamos.
 (function _guardIDB() {
     const _origOpen = indexedDB.open.bind(indexedDB);
     indexedDB.open = function(name, version) {
@@ -13,20 +11,17 @@ const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase
         req.addEventListener('error', function(e) {
             if (e.target?.error?.name === 'UnknownError') {
                 console.warn('[IDB] corrupção detectada, a limpar e recarregar...');
-                // Limpar SW e caches, depois recarregar
                 Promise.all([
                     'caches' in window ? caches.keys().then(ks => Promise.all(ks.map(k => caches.delete(k)))) : Promise.resolve(),
                     'serviceWorker' in navigator ? navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister()))) : Promise.resolve(),
                     indexedDB.databases ? indexedDB.databases().then(dbs => Promise.all(dbs.map(db => indexedDB.deleteDatabase(db.name)))) : Promise.resolve(),
-                ]).then(() => {
-                    console.warn('[IDB] limpeza concluída, a recarregar...');
-                    window.location.reload(true);
-                });
+                ]).then(() => window.location.reload(true));
             }
         });
         return req;
     };
 })();
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // _calcDias(tsOrStr, tsEnd?) — dias de calendário entre dois pontos
@@ -604,11 +599,71 @@ async function fetchCollection(name, force = false) {
 function invalidateCache(name) { cache[name].lastFetch = 0; }
 
 // =============================================
-// OFFLINE SYNC — módulo externo (offline-sync.js)
+// FILA OFFLINE — localStorage persistente
 // =============================================
-HiperfrioOfflineSync.init({
-    authUrl: async url => authUrl(url),
-    onSyncSuccess: () => {
+const QUEUE_KEY = 'hiperfrio-offline-queue';
+let isSyncing   = false; // FIX: evita execuções paralelas de syncQueue
+
+function queueLoad() {
+    try {
+        const raw = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+        return _pruneQueue(raw); // PONTO 10: remove entradas expiradas
+    }
+    catch { return []; }
+}
+function queueSave(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }
+
+// PONTO 10: remove operações com mais de 7 dias da fila
+const QUEUE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+function _pruneQueue(q) {
+    const cutoff = Date.now() - QUEUE_TTL_MS;
+    return q.filter(op => !op.ts || op.ts > cutoff);
+}
+
+function queueAdd(op) {
+    // Regista Background Sync ao adicionar à fila
+    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+        navigator.serviceWorker.ready.then(sw => sw.sync.register('hiperfrio-sync')).catch(() => {});
+    }
+    // FIX: só aceita mutações na fila, nunca GETs
+    if (!op.method || op.method === 'GET') return;
+    op.ts = Date.now(); // timestamp para TTL
+    const q = _pruneQueue(queueLoad());
+    // Colapsar PATCHes repetidos ao mesmo URL
+    if (op.method === 'PATCH') {
+        const idx = q.findIndex(o => o.method === 'PATCH' && o.url === op.url);
+        if (idx !== -1) { q[idx] = op; } else { q.push(op); }
+    } else {
+        // FIX: ignorar operações em IDs temporários (_tmp_) para não enviar URLs inválidos
+        if (op.url && op.url.includes('/_tmp_')) return;
+        q.push(op);
+    }
+    queueSave(q);
+    updateOfflineBanner();
+}
+
+async function syncQueue() {
+    if (isSyncing) return; // FIX: protecção contra execuções paralelas
+    const q = queueLoad();
+    if (q.length === 0) return;
+    isSyncing = true;
+    const failed = [];
+    for (const op of q) {
+        try {
+            const opts = { method: op.method, headers: { 'Content-Type': 'application/json' } };
+            if (op.body) opts.body = op.body;
+            const signedUrl = await authUrl(op.url);
+            const res = await fetch(signedUrl, opts);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        } catch(_e) { console.warn('[Queue] falha ao sincronizar op:', op?.method, _e?.message); failed.push(op); }
+    }
+    queueSave(failed);
+    isSyncing = false;
+    updateOfflineBanner();
+    if (failed.length < q.length) {
+        const synced = q.length - failed.length;
+        showToast(`${synced} alteração(ões) sincronizada(s)`);
+        // Invalida cache e refresca para limpar _tmp_ IDs
         invalidateCache('stock');
         invalidateCache('ferramentas');
         invalidateCache('funcionarios');
@@ -616,10 +671,32 @@ HiperfrioOfflineSync.init({
         renderList(window._searchInputEl?.value || '', true);
         renderPats();
         updatePatCount();
-    },
-});
-const { queueLoad, queueSave, queueAdd, syncQueue, apiFetch, updateOfflineBanner } = HiperfrioOfflineSync;
+    }
+}
 
+// Wrapper fetch — se offline, coloca na fila
+async function apiFetch(url, opts = {}) {
+    const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    if (!navigator.onLine) {
+        queueAdd({ method: opts.method || 'GET', url, body: opts.body || null });
+        return null;
+    }
+    const signedUrl = await authUrl(url);
+    const res = await fetch(signedUrl, { ...opts, headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res;
+}
+
+function updateOfflineBanner() {
+    const isOffline = !navigator.onLine;
+    document.body.classList.toggle('is-offline', isOffline);
+    const q       = queueLoad();
+    const countEl = document.getElementById('offline-pending-count');
+    if (countEl) {
+        countEl.textContent   = q.length > 0 ? `${q.length} alteração(ões) pendente(s)` : '';
+        countEl.style.display = q.length > 0 ? 'inline' : 'none';
+    }
+}
 
 // =============================================
 // UI HELPERS
@@ -1591,16 +1668,38 @@ async function forceRefresh() {
 const _qtyTimers = {};
 const _qtyPendingBase = {};
 
-// Stock core — módulo externo (stock-core.js)
-HiperfrioStockCore.init({
-    authUrl: async url => authUrl(url),
-    apiFetch,
-    getCache: () => cache,
-});
-const _readServerStockQty   = (id, fb)           => HiperfrioStockCore.readServerStockQty(id, fb);
-const _commitStockDelta     = (id, base, final)   => HiperfrioStockCore.commitStockDelta(id, base, final);
-const _commitStockAbsolute  = (id, base, final)   => HiperfrioStockCore.commitStockAbsolute(id, base, final);
+async function _readServerStockQty(id, fallbackQty = 0) {
+    if (!navigator.onLine) return fallbackQty;
+    try {
+        const url = await authUrl(`${BASE_URL}/stock/${id}/quantidade.json`);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const qty = await res.json();
+        const parsed = typeof qty === 'number' ? qty : parseFloat(qty);
+        return Number.isFinite(parsed) ? parsed : fallbackQty;
+    } catch (e) {
+        console.warn('[Stock] fallback para cache local:', id, e?.message);
+        return fallbackQty;
+    }
+}
 
+async function _commitStockDelta(id, baseQty, finalQty) {
+    if (finalQty === undefined) return baseQty;
+    if (!navigator.onLine) {
+        await apiFetch(`${BASE_URL}/stock/${id}.json`, {
+            method: 'PATCH', body: JSON.stringify({ quantidade: finalQty })
+        });
+        return finalQty;
+    }
+
+    const delta = finalQty - baseQty;
+    const latestQty = await _readServerStockQty(id, cache.stock.data?.[id]?.quantidade ?? baseQty);
+    const mergedQty = Math.max(0, latestQty + delta);
+    await apiFetch(`${BASE_URL}/stock/${id}.json`, {
+        method: 'PATCH', body: JSON.stringify({ quantidade: mergedQty })
+    });
+    return mergedQty;
+}
 
 async function changeQtd(id, delta) {
     if (navigator.vibrate) navigator.vibrate(30);
