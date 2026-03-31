@@ -3,6 +3,31 @@
 // Confirmar que as rules não permitem leitura/escrita sem token válido.
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
+// ── Recuperação automática de IndexedDB corrompido ─────────────────────────
+// O Firebase SDK usa IndexedDB internamente. Após deploys com Service Worker
+// inconsistente, o IndexedDB pode ficar corrompido. Detectamos e limpamos.
+(function _guardIDB() {
+    const _origOpen = indexedDB.open.bind(indexedDB);
+    indexedDB.open = function(name, version) {
+        const req = _origOpen(name, version);
+        req.addEventListener('error', function(e) {
+            if (e.target?.error?.name === 'UnknownError') {
+                console.warn('[IDB] corrupção detectada, a limpar e recarregar...');
+                // Limpar SW e caches, depois recarregar
+                Promise.all([
+                    'caches' in window ? caches.keys().then(ks => Promise.all(ks.map(k => caches.delete(k)))) : Promise.resolve(),
+                    'serviceWorker' in navigator ? navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister()))) : Promise.resolve(),
+                    indexedDB.databases ? indexedDB.databases().then(dbs => Promise.all(dbs.map(db => indexedDB.deleteDatabase(db.name)))) : Promise.resolve(),
+                ]).then(() => {
+                    console.warn('[IDB] limpeza concluída, a recarregar...');
+                    window.location.reload(true);
+                });
+            }
+        });
+        return req;
+    };
+})();
+
 // ─────────────────────────────────────────────────────────────────────────────
 // _calcDias(tsOrStr, tsEnd?) — dias de calendário entre dois pontos
 // tsEnd opcional — se omitido usa hoje. Conta 1 dia a partir das 00:00.
