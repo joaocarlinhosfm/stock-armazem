@@ -5965,11 +5965,12 @@ body.is-offline #app-layout {
         align-items: flex-start;
     }
 
-    /* Sidebar: visível permanentemente à esquerda, fixa durante scroll */
+    /* Sidebar: fixa à esquerda, não rola com o conteúdo */
     #side-menu {
-        position: sticky;
-        top: 0;
+        position: fixed;
+        top: var(--header-h);
         left: 0 !important;
+        width: var(--sidebar-w);
         height: calc(100vh - var(--header-h));
         flex-shrink: 0;
         z-index: 100;
@@ -5985,8 +5986,9 @@ body.is-offline #app-layout {
 
     /* Theme switch no footer da sidebar */
 
-    /* Main: sem padding de bottom nav */
+    /* Main: margem esquerda para não ficar por baixo da sidebar fixa */
     #main-content {
+        margin-left: var(--sidebar-w);
         padding: 20px 32px;
         padding-bottom: 40px;
     }
