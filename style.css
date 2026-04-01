@@ -3275,7 +3275,7 @@ body.is-offline #app-layout {
     gap: 14px;
 }
 .dv3-greeting {
-    padding: 4px 0 6px;
+    padding: 10px 0 6px;
 }
 .dv3-greeting-top {
     display: flex;
@@ -6635,7 +6635,7 @@ body.is-offline #app-layout {
     .dv3-kpi      { padding: 20px; }
     .dv3-mini     { padding: 16px 14px; }
     .dv3-section  { padding: 20px; }
-    .dv3-greeting { padding: 6px 0 10px; }
+    .dv3-greeting { padding: 12px 0 10px; }
     .dv3-greeting-main { font-size: 1.25rem; }
 }
 
