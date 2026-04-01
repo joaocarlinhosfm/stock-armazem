@@ -166,7 +166,7 @@
     .sdc:hover{border-color:var(--primary);box-shadow:0 4px 16px rgba(37,99,235,.08)}.sdc:hover::before{opacity:1}
     .sdc-zero{border-color:#fca5a5}.sdc-zero::before{background:#dc2626;opacity:1}
     .sdc-low{border-color:#fcd34d}.sdc-low::before{background:#f59e0b;opacity:1}
-    .sdc-hdr{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;min-height:52px}
+    .sdc-hdr{display:flex;flex-direction:row;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px;min-height:52px}
     .sdc-badge{display:inline-block;align-self:flex-start;font-size:.6rem;font-weight:800;letter-spacing:.07em;padding:2px 8px;border-radius:4px;margin-bottom:2px}
     .sdc-badge-out{background:#fee2e2;color:#dc2626}.sdc-badge-low{background:#fef3c7;color:#b45309}
     .sdc-ref{font-size:.62rem;font-weight:700;color:var(--primary);letter-spacing:.05em;font-family:'DM Mono',monospace}
@@ -220,7 +220,7 @@
 .sdc:hover .sdc-actions{opacity:1}
 .sdc-zero{border-color:#fca5a5}.sdc-zero::before{background:#dc2626;opacity:1}
 .sdc-low{border-color:#fcd34d}.sdc-low::before{background:#f59e0b;opacity:1}
-.sdc-hdr{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;min-height:48px}
+.sdc-hdr{display:flex;flex-direction:row;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px;min-height:52px}
 .sdc-badge{display:inline-block;align-self:flex-start;font-size:.6rem;font-weight:800;letter-spacing:.07em;padding:2px 7px;border-radius:4px}
 .sdc-badge-out{background:#fee2e2;color:#dc2626}
 .sdc-badge-low{background:#fef3c7;color:#b45309}
@@ -292,8 +292,10 @@
 .img-result-thumb:hover{border-color:var(--primary)}
 .img-result-thumb.selected{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft)}
 .img-result-thumb img{width:100%;height:100%;object-fit:cover}
-.sdc-img-wrap{width:100%;height:100px;border-radius:8px;overflow:hidden;margin-bottom:10px;background:var(--bg);border:1px solid var(--border)}
-.sdc-img{width:100%;height:100%;object-fit:cover;display:block}
+.sdc-hdr{display:flex;flex-direction:row;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px;min-height:52px}
+.sdc-meta{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}
+.sdc-img-thumb{width:56px;height:56px;flex-shrink:0;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);background:var(--bg);align-self:flex-start}
+.sdc-img-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 </style>
 </head>
 <body>
@@ -978,6 +980,18 @@
                         <span class="settings-item-desc">Volta ao ecrã de seleção de acesso</span>
                     </div>
                     <button class="btn-settings-action" onclick="switchRole()">Trocar</button>
+                </div>
+
+                <div class="settings-group-label">MANUTENÇÃO</div>
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Limpar Referências Duplicadas</span>
+                        <span class="settings-item-desc" id="dedup-status">Verifica e remove produtos com a mesma referência</span>
+                    </div>
+                    <button class="btn-settings-action" id="dedup-btn" onclick="runDedup()">
+                        Varrer
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
                 </div>
 
                 <div class="settings-group-label">DADOS</div>

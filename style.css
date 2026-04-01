@@ -7063,10 +7063,19 @@ body.is-offline #app-layout {
 /* Header do card */
 .sdc-hdr {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
     margin-bottom: 10px;
     min-height: 52px;
+}
+.sdc-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
 }
 .sdc-badge {
     display: inline-block;
@@ -7381,16 +7390,18 @@ body.is-offline #app-layout {
 }
 
 /* Thumbnail no card desktop */
-.sdc-img-wrap {
-    width: 100%;
-    height: 100px;
+/* Thumbnail no canto superior direito do card */
+.sdc-img-thumb {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
     border-radius: 8px;
     overflow: hidden;
-    margin-bottom: 10px;
+    border: 1.5px solid var(--border);
     background: var(--bg);
-    border: 1px solid var(--border);
+    align-self: flex-start;
 }
-.sdc-img {
+.sdc-img-thumb img {
     width: 100%;
     height: 100%;
     object-fit: cover;

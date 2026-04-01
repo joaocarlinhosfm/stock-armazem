@@ -1813,19 +1813,6 @@ function _buildDesktopCard(id, item) {
     const hdr = document.createElement('div');
     hdr.className = 'sdc-hdr';
 
-    // Thumbnail da imagem (se existir)
-    if (item.imgUrl) {
-        const imgWrap = document.createElement('div');
-        imgWrap.className = 'sdc-img-wrap';
-        const img = document.createElement('img');
-        img.className = 'sdc-img';
-        img.src   = item.imgUrl;
-        img.alt   = item.nome || '';
-        img.onerror = () => { imgWrap.style.display = 'none'; };
-        imgWrap.appendChild(img);
-        card.appendChild(imgWrap);
-    }
-
     // Badge de alerta
     if (isZero) {
         const badge = document.createElement('span');
@@ -1854,6 +1841,19 @@ function _buildDesktopCard(id, item) {
     meta.appendChild(ref);
     meta.appendChild(nome);
     hdr.appendChild(meta);
+
+    // Thumbnail no canto superior direito (só se tiver imagem)
+    if (item.imgUrl) {
+        const imgThumb = document.createElement('div');
+        imgThumb.className = 'sdc-img-thumb';
+        const img = document.createElement('img');
+        img.src     = item.imgUrl;
+        img.alt     = item.nome || '';
+        img.onerror = () => { imgThumb.style.display = 'none'; };
+        imgThumb.appendChild(img);
+        hdr.appendChild(imgThumb);
+    }
+
     card.appendChild(hdr);
 
     // ── Localização ───────────────────────────────────────────────────────
@@ -7535,6 +7535,115 @@ function clearGimgKeys() {
     _updateGimgStatus();
     closeGimgSettings();
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// MANUTENÇÃO — Limpar referências duplicadas no stock
+// Lógica: agrupa todos os produtos por `codigo` (referência).
+// Quando há mais do que um produto com o mesmo codigo, mantém o que tem
+// mais informação (maior quantidade ou mais campos preenchidos) e apaga
+// os restantes via DELETE na Firebase.
+// ══════════════════════════════════════════════════════════════════════════
+async function runDedup() {
+    const btn    = document.getElementById('dedup-btn');
+    const status = document.getElementById('dedup-status');
+
+    if (btn) { btn.disabled = true; btn.textContent = 'A varrer...'; }
+    if (status) status.textContent = 'A ler base de dados…';
+
+    try {
+        // 1 — Lê o stock completo directamente do servidor (sempre fresco)
+        const url  = await authUrl(`${BASE_URL}/stock.json`);
+        const res  = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (!data || typeof data !== 'object') {
+            if (status) status.textContent = 'Base de dados vazia.';
+            return;
+        }
+
+        // 2 — Agrupa por código (normalizado: trim + uppercase)
+        const grupos = {}; // { codigo: [ [firebaseKey, itemObj], ... ] }
+        for (const [key, item] of Object.entries(data)) {
+            if (!item || typeof item !== 'object') continue;
+            const cod = (item.codigo || '').toString().trim().toUpperCase();
+            if (!cod) continue; // ignora produtos sem referência
+            if (!grupos[cod]) grupos[cod] = [];
+            grupos[cod].push([key, item]);
+        }
+
+        // 3 — Encontra grupos com duplicados
+        const duplicados = Object.entries(grupos).filter(([, arr]) => arr.length > 1);
+
+        if (duplicados.length === 0) {
+            if (status) status.textContent = 'Sem duplicados encontrados ✓';
+            showToast('Sem duplicados encontrados ✓', 'ok');
+            return;
+        }
+
+        // 4 — Mostra confirmação antes de apagar
+        const totalApagar = duplicados.reduce((acc, [, arr]) => acc + arr.length - 1, 0);
+        const linhas = duplicados.map(([cod, arr]) => {
+            // Escolhe o melhor: maior quantidade; empate → mais campos preenchidos
+            arr.sort((a, b) => {
+                const qa = a[1].quantidade || 0;
+                const qb = b[1].quantidade || 0;
+                if (qb !== qa) return qb - qa;
+                return Object.keys(b[1]).length - Object.keys(a[1]).length;
+            });
+            const [manterKey, manterItem] = arr[0];
+            const apagar = arr.slice(1);
+            return `• REF ${cod}: ${arr.length} entradas → manter "${manterItem.nome || manterKey}" (qty ${manterItem.quantidade ?? 0}), apagar ${apagar.length}`;
+        }).join('\n');
+
+        openConfirmModal({
+            icon: '🧹',
+            title: `Apagar ${totalApagar} produto${totalApagar > 1 ? 's' : ''} duplicado${totalApagar > 1 ? 's' : ''}?`,
+            desc: `Referências com duplicados (${duplicados.length}):\n\n${linhas}\n\nO produto com maior quantidade (ou mais informação) é mantido. Esta acção não pode ser desfeita.`,
+            onConfirm: async () => {
+                if (btn) btn.textContent = 'A apagar…';
+                if (status) status.textContent = `A apagar ${totalApagar} duplicado(s)…`;
+
+                let apagados = 0;
+                let erros    = 0;
+
+                for (const [, arr] of duplicados) {
+                    // arr já está ordenado: arr[0] = manter, arr[1..] = apagar
+                    for (const [key] of arr.slice(1)) {
+                        try {
+                            await apiFetch(`${BASE_URL}/stock/${key}.json`, { method: 'DELETE' });
+                            // Remove do cache local imediatamente
+                            if (cache.stock.data?.[key]) delete cache.stock.data[key];
+                            apagados++;
+                        } catch (e) {
+                            console.error('[dedup] Erro ao apagar', key, e);
+                            erros++;
+                        }
+                    }
+                }
+
+                // Invalida cache e re-renderiza
+                invalidateCache('stock');
+                await renderList('', true);
+
+                const msg = erros > 0
+                    ? `${apagados} duplicado(s) removido(s), ${erros} erro(s)`
+                    : `${apagados} duplicado(s) removido(s) ✓`;
+                if (status) status.textContent = msg;
+                showToast(msg, erros > 0 ? 'error' : 'ok');
+            }
+        });
+
+    } catch (e) {
+        console.error('[dedup] Erro:', e);
+        if (status) status.textContent = 'Erro: ' + (e?.message || e);
+        showToast('Erro ao varrer: ' + (e?.message || e), 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Varrer ›'; }
+    }
+}
+
+
 function _updateGimgStatus() {
     const key = _getSerpApiKey();
     const el = document.getElementById('gimg-api-status');
