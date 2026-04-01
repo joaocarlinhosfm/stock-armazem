@@ -7582,44 +7582,68 @@ const SERPAPI_ENDPOINT = 'https://serpapi.com/search.json';
 
 async function imgSearchAuto() {
     const btn    = document.getElementById('img-search-btn');
-    const codigo = document.getElementById('edit-codigo')?.value.trim();
-    const nome   = document.getElementById('edit-nome')?.value.trim();
-    const query  = [codigo, nome].filter(Boolean).join(' ');
+    const nome   = document.getElementById('edit-nome')?.value.trim();  // só o nome, sem referência
 
-    if (!query) { showToast('Preenche primeiro a referência ou nome', 'error'); return; }
+    if (!nome) { showToast('Preenche primeiro o nome do produto', 'error'); return; }
 
     const key = _getSerpApiKey();
+    console.log('[imgSearch] Iniciando pesquisa:', { nome, temChave: !!key });
+
     if (!key) {
-        // Sem chave: abre Google Images no browser para copiar URL manualmente
-        const encoded = encodeURIComponent(query + ' produto refrigeração HVAC');
+        // Sem chave: abre Google Images no browser
+        const encoded = encodeURIComponent(nome + ' produto refrigeração HVAC');
+        console.log('[imgSearch] Sem chave — a abrir browser:', encoded);
         window.open(`https://www.google.com/search?tbm=isch&q=${encoded}`, '_blank');
         showToast('Sem chave SerpApi — a abrir Google Images no browser', 'info');
         return;
     }
 
-    const SPIN_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="animation:dash-spin .7s linear infinite"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+    // Detecta se a chave é um URL de proxy (Cloudflare Worker)
+    // ou uma chave SerpApi directa (que vai falhar por CORS)
+    const isProxy = key.startsWith('http://') || key.startsWith('https://');
+    console.log('[imgSearch] Modo:', isProxy ? 'proxy' : 'directo (CORS pode falhar)');
+
+    const SPIN_SVG   = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="animation:dash-spin .7s linear infinite"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
     const SEARCH_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
 
     btn.disabled = true;
     btn.innerHTML = SPIN_SVG + ' A pesquisar...';
 
     try {
-        const q   = encodeURIComponent(query + ' refrigeração HVAC produto');
-        const url = `${SERPAPI_ENDPOINT}?engine=google_images&q=${q}&num=6&safe=active&api_key=${key}`;
+        const q = encodeURIComponent(nome + ' HVAC refrigeração');
+        let url;
+
+        if (isProxy) {
+            // Proxy Cloudflare Worker — passa o query como parâmetro
+            url = `${key}?q=${q}`;
+            console.log('[imgSearch] URL proxy:', url);
+        } else {
+            // Chamada directa SerpApi (pode falhar por CORS no browser)
+            url = `${SERPAPI_ENDPOINT}?engine=google_images&q=${q}&num=6&safe=active&api_key=${key}`;
+            console.log('[imgSearch] URL directa SerpApi (sem proxy):', SERPAPI_ENDPOINT);
+            console.warn('[imgSearch] AVISO: chamada directa ao SerpApi falha por CORS no browser. Configura um Cloudflare Worker como proxy.');
+        }
+
+        console.log('[imgSearch] A fazer fetch...');
         const res = await _fetchWithTimeout(url, {}, 12000);
+        console.log('[imgSearch] Resposta recebida:', res.status, res.statusText);
 
         if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
+            const errText = await res.text().catch(() => '');
+            console.error('[imgSearch] Erro HTTP:', res.status, errText);
             if (res.status === 401) throw new Error('Chave SerpApi inválida — verifica em Definições');
-            if (res.status === 429) throw new Error('Quota mensal esgotada (250 pesquisas/mês no plano gratuito)');
-            throw new Error(err?.error || `HTTP ${res.status}`);
+            if (res.status === 429) throw new Error('Quota esgotada (250 pesquisas/mês no plano gratuito)');
+            throw new Error(`HTTP ${res.status}: ${errText.slice(0, 100)}`);
         }
 
         const data  = await res.json();
-        const items = (data.images_results || []).slice(0, 6);
+        console.log('[imgSearch] Dados recebidos — imagens:', data.images_results?.length ?? 0, 'erro:', data.error);
 
+        if (data.error) throw new Error(data.error);
+
+        const items = (data.images_results || []).slice(0, 6);
         if (items.length === 0) {
-            showToast('Sem resultados — tenta outro termo ou cola um URL', 'error');
+            showToast('Sem resultados — tenta outro nome ou cola um URL', 'error');
             return;
         }
 
@@ -7627,11 +7651,12 @@ async function imgSearchAuto() {
         const resultsEl = document.getElementById('img-search-results');
         resultsEl.innerHTML = '';
         resultsEl.style.display = 'grid';
+        console.log('[imgSearch] A mostrar', items.length, 'resultados');
 
-        items.forEach(item => {
-            // SerpApi devolve thumbnail (miniatura) e original (imagem original)
+        items.forEach((item, i) => {
             const thumbUrl = item.thumbnail;
             const origUrl  = item.original;
+            console.log(`[imgSearch] item ${i}:`, { thumb: thumbUrl?.slice(0,60), orig: origUrl?.slice(0,60) });
 
             const wrap = document.createElement('div');
             wrap.className = 'img-result-thumb';
@@ -7640,11 +7665,15 @@ async function imgSearchAuto() {
             const img = document.createElement('img');
             img.src     = thumbUrl;
             img.alt     = item.title || '';
-            img.onerror = () => { wrap.style.display = 'none'; };
+            img.onerror = () => {
+                console.warn('[imgSearch] Falhou a carregar miniatura:', thumbUrl?.slice(0, 60));
+                wrap.style.display = 'none';
+            };
             img.onclick = () => {
-                // Guarda URL original (maior qualidade)
-                document.getElementById('edit-img-url').value = origUrl || thumbUrl;
-                imgUrlPreview(origUrl || thumbUrl);
+                const chosen = origUrl || thumbUrl;
+                console.log('[imgSearch] Imagem seleccionada:', chosen?.slice(0, 80));
+                document.getElementById('edit-img-url').value = chosen;
+                imgUrlPreview(chosen);
                 resultsEl.querySelectorAll('.img-result-thumb').forEach(t => t.classList.remove('selected'));
                 wrap.classList.add('selected');
             };
@@ -7653,7 +7682,17 @@ async function imgSearchAuto() {
         });
 
     } catch(e) {
-        showToast('Erro na pesquisa: ' + (e?.message || e), 'error');
+        console.error('[imgSearch] Excepção capturada:', e?.name, e?.message, e);
+        // Dica específica para o erro CORS
+        if (e?.message === 'Failed to fetch' || e?.name === 'TypeError') {
+            showToast('Erro CORS — precisas de um Cloudflare Worker como proxy. Ver consola.', 'error');
+            console.error('[imgSearch] ❌ CORS: o SerpApi bloqueia chamadas directas do browser.');
+            console.error('[imgSearch] ✅ SOLUÇÃO: cria um Cloudflare Worker gratuito que faça proxy ao SerpApi,');
+            console.error('[imgSearch]    depois em Definições cola o URL do Worker em vez da chave SerpApi.');
+            console.error('[imgSearch]    Código do Worker: https://developers.cloudflare.com/workers/');
+        } else {
+            showToast('Erro na pesquisa: ' + (e?.message || e), 'error');
+        }
     } finally {
         btn.disabled = false;
         btn.innerHTML = SEARCH_SVG + ' Pesquisar imagem';
