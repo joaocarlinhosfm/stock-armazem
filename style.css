@@ -5960,18 +5960,25 @@ body.is-offline #app-layout {
 .admin-mobile-menu-exit    { animation: adminSlideOut 0.18s ease both; }
 
 @media (min-width: 768px) {
-    #app-layout {
-        flex-direction: row;
-        align-items: flex-start;
+    /* Body e app-layout não scrollam — o scroll fica dentro do #main-content */
+    body {
+        overflow: hidden;
+        height: 100vh;
     }
 
-    /* Sidebar: fixa à esquerda, não rola com o conteúdo */
+    #app-layout {
+        flex-direction: row;
+        height: calc(100vh - var(--header-h));
+        overflow: hidden;
+    }
+
+    /* Sidebar: fixa visualmente porque o body não faz scroll */
     #side-menu {
-        position: fixed;
-        top: var(--header-h);
+        position: relative;
+        top: auto;
         left: 0 !important;
         width: var(--sidebar-w);
-        height: calc(100vh - var(--header-h));
+        height: 100%;
         flex-shrink: 0;
         z-index: 100;
         box-shadow: none;
@@ -5984,13 +5991,14 @@ body.is-offline #app-layout {
     #menu-overlay { display: none !important; }
     #bottom-nav { display: none !important; }
 
-    /* Theme switch no footer da sidebar */
-
-    /* Main: margem esquerda para não ficar por baixo da sidebar fixa */
+    /* Main: scroll acontece aqui, não no body */
     #main-content {
-        margin-left: var(--sidebar-w);
+        flex: 1;
+        height: 100%;
+        overflow-y: auto;
         padding: 20px 32px;
         padding-bottom: 40px;
+        min-width: 0;
     }
 
     /* Toasts no fundo do ecrã */
