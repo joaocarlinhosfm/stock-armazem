@@ -860,28 +860,98 @@ function nav(viewId) {
 }
 
 // =============================================
-// DASHBOARD — resumo no topo do stock
+// DASHBOARD — snapshot diário na Firebase
 // =============================================
-// PONTO 17: snapshot diário para tendência no dashboard
-const DASH_SNAPSHOT_KEY = 'hiperfrio-dash-snap';
-function _saveDashSnapshot(total, semStock, alocadas) {
-    const today = new Date().toISOString().slice(0,10);
-    const snap  = JSON.parse(localStorage.getItem(DASH_SNAPSHOT_KEY) || '{}');
-    if (snap.date !== today) {
-        snap.prev = snap.curr || null;
-        snap.curr = { date: today, total, semStock, alocadas };
-        snap.date = today;
-        localStorage.setItem(DASH_SNAPSHOT_KEY, JSON.stringify(snap));
+// Path: /dash-snapshots/{YYYY-MM-DD}
+// Guardado 1x por dia, partilhado entre todos os dispositivos.
+// Cleanup automático: mantém só os últimos 30 dias.
+
+const DASH_SNAP_URL     = `${BASE_URL}/dash-snapshots`;
+const _DASH_SNAP_WROTE_KEY = 'hiperfrio-dashsnap-wrote'; // localStorage: data do último write
+
+// Cache em memória para evitar fetches repetidos na mesma sessão
+let _dashSnapToday = null;
+let _dashSnapYesterday = null;
+let _dashSnapFetchedOn = null; // data em que foi feito o fetch
+
+function _dashToday() {
+    return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+}
+function _dashYesterday() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+}
+
+// Guarda snapshot do dia na Firebase — só 1x por dia por dispositivo,
+// mas qualquer dispositivo pode escrever se ainda não foi escrito hoje.
+async function _saveDashSnapshot(total, semStock, alocadas, patPendentes, encActivas) {
+    const today = _dashToday();
+    const lastWrote = localStorage.getItem(_DASH_SNAP_WROTE_KEY);
+    if (lastWrote === today) return; // já escrito hoje neste dispositivo
+    try {
+        const snap = { date: today, total, semStock, alocadas, patPendentes, encActivas, ts: Date.now() };
+        await apiFetch(`${DASH_SNAP_URL}/${today}.json`, {
+            method: 'PUT',
+            body:   JSON.stringify(snap),
+        });
+        localStorage.setItem(_DASH_SNAP_WROTE_KEY, today);
+        // Cleanup em background: apagar snapshots com mais de 30 dias
+        _pruneDashSnapshots().catch(() => {});
+    } catch(e) {
+        console.warn('[dashSnap] falha ao guardar:', e?.message);
     }
 }
-function _getDashTrend(field, currentVal) {
+
+// Carrega snapshots de hoje e ontem da Firebase (com cache em memória por sessão)
+async function _loadDashSnaps() {
+    const today = _dashToday();
+    if (_dashSnapFetchedOn === today && _dashSnapToday !== undefined) {
+        return { today: _dashSnapToday, yesterday: _dashSnapYesterday };
+    }
     try {
-        const snap = JSON.parse(localStorage.getItem(DASH_SNAPSHOT_KEY) || '{}');
-        if (!snap.prev) return null;
-        const diff = currentVal - snap.prev[field];
-        if (diff === 0) return null;
-        return diff;
-    } catch(_e) { return null; }
+        const [resT, resY] = await Promise.all([
+            fetch(await authUrl(`${DASH_SNAP_URL}/${today}.json`)),
+            fetch(await authUrl(`${DASH_SNAP_URL}/${_dashYesterday()}.json`)),
+        ]);
+        _dashSnapToday     = resT.ok ? await resT.json() : null;
+        _dashSnapYesterday = resY.ok ? await resY.json() : null;
+        _dashSnapFetchedOn = today;
+    } catch(e) {
+        _dashSnapToday = _dashSnapYesterday = null;
+    }
+    return { today: _dashSnapToday, yesterday: _dashSnapYesterday };
+}
+
+// Calcula a diferença entre valor actual e o snapshot de ontem.
+// Retorna null se não houver dados de comparação.
+function _getDashTrend(field, currentVal, snapYesterday) {
+    if (!snapYesterday || snapYesterday[field] == null || currentVal == null) return null;
+    const diff = currentVal - snapYesterday[field];
+    return diff === 0 ? null : diff;
+}
+
+// Apaga snapshots com mais de 30 dias — corre 1x por semana no máximo
+const _DASH_PRUNE_KEY = 'hiperfrio-dashsnap-pruned';
+async function _pruneDashSnapshots() {
+    const lastPrune = localStorage.getItem(_DASH_PRUNE_KEY) || '';
+    const weekAgo   = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    if (lastPrune >= weekAgo) return;
+    try {
+        const url  = await authUrl(`${DASH_SNAP_URL}.json`);
+        const res  = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data) return;
+        const cutoff = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+        const old    = Object.keys(data).filter(k => k < cutoff);
+        await Promise.allSettled(
+            old.map(k => apiFetch(`${DASH_SNAP_URL}/${k}.json`, { method: 'DELETE' }))
+        );
+        localStorage.setItem(_DASH_PRUNE_KEY, _dashToday());
+    } catch(e) {
+        console.warn('[dashSnap] prune error:', e?.message);
+    }
 }
 
 async function renderDashboard(force = false, showSpinner = false) {
@@ -892,12 +962,15 @@ async function renderDashboard(force = false, showSpinner = false) {
     document.getElementById('dv3-refresh-btn')?.classList.add('spinning');
 
     const ts = Date.now();
-    const [stockData, ferrData] = await Promise.all([
+    const [stockData, ferrData, , , snapData] = await Promise.all([
         fetchCollection('stock', force || ts > cache.stock.lastFetch + 60000),
         fetchCollection('ferramentas', force || ts > cache.ferramentas.lastFetch + 60000),
         _fetchPats(force || !_patCache.data),
         loadEncomendas(),
+        _loadDashSnaps(),
     ]);
+
+    const snapYesterday = snapData?.yesterday ?? null;
 
     const stockEntries    = Object.values(stockData || {});
     const ferraEntries    = Object.values(ferrData  || {});
@@ -911,7 +984,7 @@ async function renderDashboard(force = false, showSpinner = false) {
     const alocadasHaMuito = ferraEntries.filter(t =>
         t.status === 'alocada' && t.dataEntrega && _calcDias(t.dataEntrega) > ALERTA_DIAS
     );
-    _saveDashSnapshot(total, semStock, alocadas);
+    _saveDashSnapshot(total, semStock, alocadas, patPendentes, encActivas);
 
     // Encomendas
     const encEntries   = Object.values(_encData || {});
@@ -937,8 +1010,10 @@ async function renderDashboard(force = false, showSpinner = false) {
     const months   = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     const dateStr  = `${weekdays[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]}`;
 
-    // Trend vs dia anterior
-    const trendSemStock = _getDashTrend('semStock', semStock);
+    // Trend vs dia anterior (Firebase — partilhado entre dispositivos)
+    const trendSemStock   = _getDashTrend('semStock',    semStock,    snapYesterday);
+    const trendPats       = _getDashTrend('patPendentes',patPendentes,snapYesterday);
+    const trendEncomendas = _getDashTrend('encActivas',  encActivas,  snapYesterday);
 
     // ── Render ────────────────────────────────────────────────────────────
     el.innerHTML = '';
@@ -1006,6 +1081,7 @@ async function renderDashboard(force = false, showSpinner = false) {
             ${patUrgentes > 0 ? `<span class="dv3-chip dv3-chip-red">${patUrgentes} urgentes</span>` : ''}
             ${patComGuia  > 0 ? `<span class="dv3-chip dv3-chip-amber">${patComGuia} c/ guia</span>` : ''}
             ${patHoje     > 0 ? `<span class="dv3-chip dv3-chip-blue">${patHoje} hoje</span>` : ''}
+            ${trendPats !== null ? `<span class="dv3-chip ${trendPats > 0 ? 'dv3-chip-red' : 'dv3-chip-green'}">${trendPats > 0 ? '▲' : '▼'} ${Math.abs(trendPats)} vs ontem</span>` : ''}
             ${patPendentes === 0 ? `<span class="dv3-chip dv3-chip-green">Em dia</span>` : ''}
         </div>
         <div class="dv3-kpi-bar"><div class="dv3-kpi-bar-fill" style="width:${patPendentes > 0 ? Math.min(100, patPendentes * 8) : 0}%;background:${patUrgentes > 0 ? '#E24B4A' : '#1a56db'}"></div></div>`;
@@ -1038,17 +1114,21 @@ async function renderDashboard(force = false, showSpinner = false) {
 
     miniRow.appendChild(_miniKpi(
         'Encomendas', encActivas,
-        encParciais > 0
-            ? `<span style="color:#854F0B;font-weight:600">${encParciais} parcial${encParciais > 1 ? 'is' : ''}</span>`
-            : encPendentes > 0 ? `${encPendentes} pendente${encPendentes > 1 ? 's' : ''}` : 'Sem activas',
+        (() => {
+            if (trendEncomendas !== null)
+                return `<span style="color:${trendEncomendas > 0 ? '#185FA5' : '#3B6D11'};font-weight:600">${trendEncomendas > 0 ? '▲' : '▼'} ${Math.abs(trendEncomendas)} vs ontem</span>`;
+            if (encParciais > 0) return `<span style="color:#854F0B;font-weight:600">${encParciais} parcial${encParciais > 1 ? 'is' : ''}</span>`;
+            if (encPendentes > 0) return `${encPendentes} pendente${encPendentes > 1 ? 's' : ''}`;
+            return 'Sem activas';
+        })(),
         encActivas > 0 ? '#185FA5' : 'var(--text-main)',
         false,
         () => nav('view-encomendas')
     ));
 
     const trendHtml = trendSemStock !== null
-        ? `<span style="color:${trendSemStock > 0 ? '#A32D2D' : '#3B6D11'};font-weight:600">${trendSemStock > 0 ? '▲' : '▼'} ${Math.abs(trendSemStock)} hoje</span>`
-        : 'vs. ontem sem dados';
+        ? `<span style="color:${trendSemStock > 0 ? '#A32D2D' : '#3B6D11'};font-weight:600">${trendSemStock > 0 ? '▲' : '▼'} ${Math.abs(trendSemStock)} vs ontem</span>`
+        : semStock > 0 ? `${Math.round(semStock / total * 100)}% do inventário` : 'Tudo com stock';
 
     miniRow.appendChild(_miniKpi(
         'Sem stock', semStock,
