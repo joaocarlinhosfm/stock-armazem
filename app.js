@@ -1813,6 +1813,19 @@ function _buildDesktopCard(id, item) {
     const hdr = document.createElement('div');
     hdr.className = 'sdc-hdr';
 
+    // Thumbnail da imagem (se existir)
+    if (item.imgUrl) {
+        const imgWrap = document.createElement('div');
+        imgWrap.className = 'sdc-img-wrap';
+        const img = document.createElement('img');
+        img.className = 'sdc-img';
+        img.src   = item.imgUrl;
+        img.alt   = item.nome || '';
+        img.onerror = () => { imgWrap.style.display = 'none'; };
+        imgWrap.appendChild(img);
+        card.appendChild(imgWrap);
+    }
+
     // Badge de alerta
     if (isZero) {
         const badge = document.createElement('span');
@@ -2929,6 +2942,7 @@ function openEditModal(id, item) {
     const editGasAlert = document.getElementById('edit-gas-alerta');
     if (editGasMax)   editGasMax.value   = item.gasMax    != null ? item.gasMax    : '';
     if (editGasAlert) editGasAlert.value = item.gasAlerta != null ? item.gasAlerta : '';
+    _loadImgEdit(item.imgUrl || '');
     document.getElementById('edit-modal').classList.add('active');
     focusModal('edit-modal');
 }
@@ -3285,7 +3299,7 @@ function adminMobileOpen(tab) {
 
     if (tab === 'clientes')  renderClientesList();
     if (tab === 'users')     renderUsersList();
-    if (tab === 'settings')  { _updateOcrKeyStatus(); _loadOcrKeywordsInput(); _loadInvEmailInput(); }
+    if (tab === 'settings')  { _updateOcrKeyStatus(); _updateGimgStatus(); _loadOcrKeywordsInput(); _loadInvEmailInput(); }
     if (tab === 'tools')     renderAdminTools();
     if (tab === 'workers')   renderWorkers();
 
@@ -3355,7 +3369,7 @@ function switchAdminTab(tab, animate = true) {
 
     if (tab === 'clientes') renderClientesList();
     if (tab === 'users')    renderUsersList();
-    if (tab === 'settings') { _updateOcrKeyStatus(); _loadOcrKeywordsInput(); _loadInvEmailInput(); }
+    if (tab === 'settings') { _updateOcrKeyStatus(); _updateGimgStatus(); _loadOcrKeywordsInput(); _loadInvEmailInput(); }
     if (tab === 'relatorio') { renderRelatorio(); }
     if (tab === 'workers')  renderWorkers();
     if (tab === 'tools')    renderAdminTools();
@@ -5676,6 +5690,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'timeline-modal',     close: closeToolTimeline },
             { id: 'edit-tool-modal',    close: closeEditToolModal },
             { id: 'modal-edit-cliente', close: closeEditClienteModal },
+            { id: 'gimg-settings-modal',close: closeGimgSettings },
         ];
         for (const { id, close } of modals) {
             if (document.getElementById(id)?.classList.contains('active')) { close(); break; }
@@ -5884,6 +5899,10 @@ document.addEventListener('DOMContentLoaded', () => {
             updated.gasMax    = null;
             updated.gasAlerta = null;
         }
+        // Imagem do produto — URL ou null
+        const imgUrlVal = document.getElementById('edit-img-url')?.value.trim();
+        updated.imgUrl = imgUrlVal || null;
+
         const _oldQtyEdit = cache.stock.data?.[id]?.quantidade ?? 0;
         cache.stock.data[id] = { ...cache.stock.data[id], ...updated };
         btn.textContent = 'A guardar...';
@@ -7481,8 +7500,167 @@ function closeOcrSettings() {
     document.getElementById('ocr-settings-modal').classList.remove('active');
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// IMAGENS DE PRODUTOS — Google Custom Search + URL manual
+// ══════════════════════════════════════════════════════════════════════════
+// ── SerpApi Image Search ─────────────────────────────────────────────────
+// Gratuito: 250 pesquisas/mês, sem cartão de crédito
+// Documenta: serpapi.com/google-images-api
+const GIMG_KEY_STORAGE = 'hiperfrio-serpapi-key'; // localStorage key
 
-// ── Helper: fetch com timeout para chamadas à API Anthropic ──────────────────
+function _getSerpApiKey() {
+    return localStorage.getItem(GIMG_KEY_STORAGE) || '';
+}
+
+function openGimgSettings() {
+    const keyInp = document.getElementById('gimg-api-key-input');
+    if (keyInp) keyInp.value = _getSerpApiKey();
+    document.getElementById('gimg-settings-modal')?.classList.add('active');
+    focusModal('gimg-settings-modal');
+}
+function closeGimgSettings() {
+    document.getElementById('gimg-settings-modal')?.classList.remove('active');
+}
+function saveGimgKeys() {
+    const key = document.getElementById('gimg-api-key-input')?.value.trim();
+    if (!key) { showToast('Cola a chave SerpApi', 'error'); return; }
+    localStorage.setItem(GIMG_KEY_STORAGE, key);
+    showToast('Chave SerpApi guardada ✓');
+    _updateGimgStatus();
+    closeGimgSettings();
+}
+function clearGimgKeys() {
+    localStorage.removeItem(GIMG_KEY_STORAGE);
+    showToast('Chave removida');
+    _updateGimgStatus();
+    closeGimgSettings();
+}
+function _updateGimgStatus() {
+    const key = _getSerpApiKey();
+    const el = document.getElementById('gimg-api-status');
+    if (el) el.textContent = key
+        ? 'SerpApi configurada — pesquisa automática activa'
+        : 'Não configurada — configura o SerpApi para pesquisa automática';
+}
+
+// ── Pré-visualização ao colar URL manual ─────────────────────────────────
+function imgUrlPreview(url) {
+    const thumb       = document.getElementById('img-edit-thumb');
+    const placeholder = document.getElementById('img-edit-placeholder');
+    const clearBtn    = document.getElementById('img-clear-btn');
+    if (!thumb) return;
+    if (url && url.startsWith('http')) {
+        thumb.src             = url;
+        thumb.style.display   = 'block';
+        if (placeholder) placeholder.style.display = 'none';
+        if (clearBtn)    clearBtn.style.display     = 'inline-flex';
+    } else {
+        thumb.style.display   = 'none';
+        if (placeholder) placeholder.style.display = 'flex';
+        if (clearBtn)    clearBtn.style.display     = 'none';
+    }
+}
+
+function imgClear() {
+    const inp = document.getElementById('edit-img-url');
+    if (inp) inp.value = '';
+    imgUrlPreview('');
+    document.getElementById('img-search-results').style.display = 'none';
+}
+
+// Carrega imgUrl no modal quando se abre editar produto
+function _loadImgEdit(imgUrl) {
+    const inp = document.getElementById('edit-img-url');
+    if (inp) inp.value = imgUrl || '';
+    imgUrlPreview(imgUrl || '');
+    document.getElementById('img-search-results').style.display = 'none';
+}
+
+// ── Pesquisa automática SerpApi Google Images ────────────────────────────
+// Documentação: https://serpapi.com/images-results
+const SERPAPI_ENDPOINT = 'https://serpapi.com/search.json';
+
+async function imgSearchAuto() {
+    const btn    = document.getElementById('img-search-btn');
+    const codigo = document.getElementById('edit-codigo')?.value.trim();
+    const nome   = document.getElementById('edit-nome')?.value.trim();
+    const query  = [codigo, nome].filter(Boolean).join(' ');
+
+    if (!query) { showToast('Preenche primeiro a referência ou nome', 'error'); return; }
+
+    const key = _getSerpApiKey();
+    if (!key) {
+        // Sem chave: abre Google Images no browser para copiar URL manualmente
+        const encoded = encodeURIComponent(query + ' produto refrigeração HVAC');
+        window.open(`https://www.google.com/search?tbm=isch&q=${encoded}`, '_blank');
+        showToast('Sem chave SerpApi — a abrir Google Images no browser', 'info');
+        return;
+    }
+
+    const SPIN_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="animation:dash-spin .7s linear infinite"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+    const SEARCH_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+
+    btn.disabled = true;
+    btn.innerHTML = SPIN_SVG + ' A pesquisar...';
+
+    try {
+        const q   = encodeURIComponent(query + ' refrigeração HVAC produto');
+        const url = `${SERPAPI_ENDPOINT}?engine=google_images&q=${q}&num=6&safe=active&api_key=${key}`;
+        const res = await _fetchWithTimeout(url, {}, 12000);
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            if (res.status === 401) throw new Error('Chave SerpApi inválida — verifica em Definições');
+            if (res.status === 429) throw new Error('Quota mensal esgotada (250 pesquisas/mês no plano gratuito)');
+            throw new Error(err?.error || `HTTP ${res.status}`);
+        }
+
+        const data  = await res.json();
+        const items = (data.images_results || []).slice(0, 6);
+
+        if (items.length === 0) {
+            showToast('Sem resultados — tenta outro termo ou cola um URL', 'error');
+            return;
+        }
+
+        // Grelha de miniaturas clicáveis
+        const resultsEl = document.getElementById('img-search-results');
+        resultsEl.innerHTML = '';
+        resultsEl.style.display = 'grid';
+
+        items.forEach(item => {
+            // SerpApi devolve thumbnail (miniatura) e original (imagem original)
+            const thumbUrl = item.thumbnail;
+            const origUrl  = item.original;
+
+            const wrap = document.createElement('div');
+            wrap.className = 'img-result-thumb';
+            wrap.title     = item.title || '';
+
+            const img = document.createElement('img');
+            img.src     = thumbUrl;
+            img.alt     = item.title || '';
+            img.onerror = () => { wrap.style.display = 'none'; };
+            img.onclick = () => {
+                // Guarda URL original (maior qualidade)
+                document.getElementById('edit-img-url').value = origUrl || thumbUrl;
+                imgUrlPreview(origUrl || thumbUrl);
+                resultsEl.querySelectorAll('.img-result-thumb').forEach(t => t.classList.remove('selected'));
+                wrap.classList.add('selected');
+            };
+            wrap.appendChild(img);
+            resultsEl.appendChild(wrap);
+        });
+
+    } catch(e) {
+        showToast('Erro na pesquisa: ' + (e?.message || e), 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = SEARCH_SVG + ' Pesquisar imagem';
+    }
+}
+
+
 // Evita que o utilizador fique com o botão bloqueado para sempre se a API não responder.
 function _fetchWithTimeout(url, opts, timeoutMs = 30000) {
     const controller = new AbortController();
