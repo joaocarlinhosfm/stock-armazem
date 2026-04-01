@@ -1146,7 +1146,7 @@ header h1 { display: none; }
 /* MAIN CONTENT */
 #main-content { 
     flex: 1;
-    padding: 12px 10px;
+    padding: 16px 14px;
     /* pill: 62px min-height + 10px bottom gap + 10px folga */
     padding-bottom: calc(62px + 22px + env(safe-area-inset-bottom));
     width: 100%;
@@ -3272,7 +3272,7 @@ body.is-offline #app-layout {
     padding: 0 0 96px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 14px;
 }
 .dv3-greeting {
     padding: 4px 0 6px;
@@ -3333,13 +3333,13 @@ body.is-offline #app-layout {
 .dv3-kpi-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 12px;
 }
 .dv3-kpi {
     background: var(--card-bg);
     border: 0.5px solid var(--border);
     border-radius: 14px;
-    padding: 14px;
+    padding: 16px;
     cursor: pointer;
     transition: opacity .15s;
 }
@@ -3397,13 +3397,13 @@ body.is-offline #app-layout {
 .dv3-mini-row {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    gap: 8px;
+    gap: 10px;
 }
 .dv3-mini {
     background: var(--card-bg);
     border: 0.5px solid var(--border);
     border-radius: 12px;
-    padding: 11px 10px;
+    padding: 13px 12px;
     cursor: pointer;
     transition: opacity .15s;
 }
@@ -3433,7 +3433,7 @@ body.is-offline #app-layout {
     background: var(--card-bg);
     border: 0.5px solid var(--border);
     border-radius: 14px;
-    padding: 14px;
+    padding: 16px;
 }
 .dv3-section-hdr {
     display: flex;
@@ -6622,6 +6622,21 @@ body.is-offline #app-layout {
 /* Sheet handle escondido no desktop */
 @media (min-width: 768px) {
     .map-pin-sheet-handle { display: none; }
+}
+
+/* ── Dashboard — espaçamento desktop ──────────────────────────────────────── */
+@media (min-width: 768px) {
+    .dash-v3 {
+        gap: 20px;
+        padding-bottom: 60px;
+    }
+    .dv3-kpi-row  { gap: 16px; }
+    .dv3-mini-row { gap: 14px; }
+    .dv3-kpi      { padding: 20px; }
+    .dv3-mini     { padding: 16px 14px; }
+    .dv3-section  { padding: 20px; }
+    .dv3-greeting { padding: 6px 0 10px; }
+    .dv3-greeting-main { font-size: 1.25rem; }
 }
 
 /* ── Clientes Admin ──────────────────────────────────────────────────────── */
