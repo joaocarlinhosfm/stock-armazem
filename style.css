@@ -755,15 +755,6 @@ body {
     min-height: 100vh; 
 }
 
-@media (min-width: 768px) {
-    body {
-        overflow: hidden;
-        height: 100vh;
-        min-height: unset;
-        padding-top: 0;
-    }
-}
-
 /* APP LAYOUT */
 
 /* ══════════════════════════════════════════════════════════
@@ -776,12 +767,20 @@ body {
 }
 
 @media (min-width: 768px) {
-    #app-layout {
-        flex-direction: row;
+    /* Body ocupa exatamente a janela — o scroll fica só no #main-content */
+    body {
+        overflow: hidden;
         height: 100vh;
         min-height: unset;
+        /* padding-top mantém-se: empurra o #app-layout para baixo do header fixo */
+    }
+
+    #app-layout {
+        flex-direction: row;
+        /* height descontando o header que já foi compensado pelo padding-top do body */
+        height: calc(100vh - var(--header-h));
+        min-height: unset;
         overflow: hidden;
-        padding-top: var(--header-h);
     }
 }
 
