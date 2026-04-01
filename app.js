@@ -180,20 +180,21 @@ function applyRole(role) {
         badge.onclick = () => openSwitchRoleModal();
         document.querySelector('.header-titles')?.appendChild(badge);
     }
-    const savedUser = localStorage.getItem('hiperfrio-username') || '';
-    const displayName = savedUser || (role === 'worker' ? 'Funcionário' : 'Gestor');
+    const savedUser   = localStorage.getItem('hiperfrio-username') || '';
+    const displayName = localStorage.getItem('hiperfrio-displayname') || '';
+    const displayLabel = displayName || savedUser || (role === 'worker' ? 'Funcionário' : 'Gestor');
     if (role === 'worker') {
-        badge.textContent = `${displayName} ▾`;
+        badge.textContent = `${displayLabel} ▾`;
         badge.className   = 'role-badge-worker';
     } else {
-        badge.textContent = `${displayName} ▾`;
+        badge.textContent = `${displayLabel} ▾`;
         badge.className   = 'role-badge-manager';
     }
 
     // Footer da sidebar — username + role
     const footerUser = document.getElementById('menu-footer-username');
     const footerRole = document.getElementById('menu-footer-role');
-    if (footerUser) footerUser.textContent = displayName;
+    if (footerUser) footerUser.textContent = displayLabel;
     if (footerRole) footerRole.textContent = role === 'worker' ? 'Operador' : 'Gestor';
 
     // Esconde o ecrã de seleção
@@ -322,6 +323,7 @@ async function handleLogin(e) {
                     const role = session.role || 'worker';
                     localStorage.setItem(ROLE_KEY, role);
                     localStorage.setItem(USER_KEY, username);
+                    if (session.displayName) localStorage.setItem('hiperfrio-displayname', session.displayName);
                     applyRole(role);
                     bootApp();
                     return;
@@ -357,13 +359,16 @@ async function handleLogin(e) {
         }
 
         // Login bem sucedido — guardar sessão offline segura (só verifier, nunca dados Firebase)
-        const role = userObj.role || 'worker';
+        const role        = userObj.role || 'worker';
+        const displayName = userObj.displayName || '';
         const verifier = await _offlineVerifier(username, password);
-        localStorage.setItem('hiperfrio-session', JSON.stringify({ username, role, verifier, ts: Date.now() }));
+        localStorage.setItem('hiperfrio-session', JSON.stringify({ username, role, displayName, verifier, ts: Date.now() }));
         // Limpar qualquer cache antiga com dados sensíveis
         localStorage.removeItem('hiperfrio-users-cache');
         localStorage.setItem(ROLE_KEY, role);
         localStorage.setItem(USER_KEY, username);
+        if (displayName) localStorage.setItem('hiperfrio-displayname', displayName);
+        else             localStorage.removeItem('hiperfrio-displayname');
 
         showError('');
         const card = document.querySelector('.ls-card');
@@ -393,9 +398,10 @@ async function handleLogin(e) {
 
 async function createUser() {
     if (!requireManagerAccess()) return;
-    const nameRaw  = document.getElementById('new-user-name')?.value.trim().toLowerCase();
-    const role     = document.getElementById('new-user-role')?.value;
-    const password = document.getElementById('new-user-pass')?.value;
+    const nameRaw     = document.getElementById('new-user-name')?.value.trim().toLowerCase();
+    const role        = document.getElementById('new-user-role')?.value;
+    const password    = document.getElementById('new-user-pass')?.value;
+    const displayName = document.getElementById('new-user-displayname')?.value.trim() || '';
 
     if (!nameRaw)    { showToast('Indica o nome de utilizador', 'error'); return; }
     if (!password || password.length < 4) { showToast('Password deve ter pelo menos 4 caracteres', 'error'); return; }
@@ -415,10 +421,13 @@ async function createUser() {
             }
         }
 
+        const userData = { role, passwordHash: pwHash, createdAt: Date.now() };
+        if (displayName) userData.displayName = displayName;
+
         const saveRes = await fetch(url, {
             method:  'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ role, passwordHash: pwHash, createdAt: Date.now() })
+            body:    JSON.stringify(userData)
         });
         if (!saveRes.ok) {
             const err = await saveRes.json().catch(() => ({}));
@@ -428,9 +437,11 @@ async function createUser() {
 
         // Invalida cache
         localStorage.removeItem('hiperfrio-users-cache');
-    localStorage.removeItem('hiperfrio-session');
+        localStorage.removeItem('hiperfrio-session');
         document.getElementById('new-user-name').value = '';
         document.getElementById('new-user-pass').value = '';
+        const dnEl = document.getElementById('new-user-displayname');
+        if (dnEl) dnEl.value = '';
         showToast(`Utilizador "${nameRaw}" criado`);
         renderUsersList();
     } catch (e) {
@@ -454,14 +465,15 @@ async function renderUsersList() {
         }
 
         el.innerHTML = Object.entries(users).map(([name, u]) => {
-            const safeName = escapeHtml(name);
+            const safeName    = escapeHtml(name);
+            const safeDisplay = escapeHtml(u.displayName || '');
             return `
             <div class="admin-list-row" style="gap:10px;">
                 <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-                    <span style="font-size:1.3rem">${u.role === 'manager' ? 'G' : 'F'}</span>
+                    <span style="font-size:1.3rem">${u.role === 'manager' ? '👔' : '🔧'}</span>
                     <div style="min-width:0;">
-                        <div style="font-weight:700;font-size:0.9rem;color:var(--text-main)">${safeName}</div>
-                        <div style="font-size:0.72rem;color:var(--text-muted)">${u.role === 'manager' ? 'Gestor' : 'Funcionário'}</div>
+                        <div style="font-weight:700;font-size:0.9rem;color:var(--text-main)">${safeDisplay || safeName}</div>
+                        <div style="font-size:0.72rem;color:var(--text-muted)">${safeName} · ${u.role === 'manager' ? 'Gestor' : 'Funcionário'}</div>
                     </div>
                 </div>
                 <button class="btn-danger-sm" onclick="deleteUser('${safeName}')">🗑</button>
@@ -507,8 +519,9 @@ function switchRole() {
     Object.keys(cache).forEach(k => { cache[k].data = null; cache[k].lastFetch = 0; });
     // Para renovação de token
     clearTimeout(_tokenRenewalTimer);
-    // Limpa username
+    // Limpa username e displayname
     localStorage.removeItem('hiperfrio-username');
+    localStorage.removeItem('hiperfrio-displayname');
     localStorage.removeItem('hiperfrio-users-cache');
     localStorage.removeItem('hiperfrio-session');
     // Limpa campos do login
@@ -871,21 +884,19 @@ function _getDashTrend(field, currentVal) {
     } catch(_e) { return null; }
 }
 
-async function renderDashboard(force = false) {
+async function renderDashboard(force = false, showSpinner = false) {
     const el = document.getElementById('dashboard');
     if (!el) return;
 
     const refreshBtn = document.getElementById('btn-dash-refresh');
     if (refreshBtn) refreshBtn.classList.add('spinning');
 
-    el.innerHTML = '';
-    el.className = 'dashboard-v2';
-
     const ts = Date.now();
     const [stockData, ferrData] = await Promise.all([
         fetchCollection('stock', force || ts > cache.stock.lastFetch + 60000),
         fetchCollection('ferramentas', force || ts > cache.ferramentas.lastFetch + 60000),
         _fetchPats(force || !_patCache.data),
+        loadEncomendas(),
     ]);
 
     const stockEntries    = Object.values(stockData || {});
@@ -898,220 +909,188 @@ async function renderDashboard(force = false) {
     const patPendentes    = _getPatPendingCount();
     const ALERTA_DIAS     = 7;
     const alocadasHaMuito = ferraEntries.filter(t =>
-        t.status === 'alocada' && t.dataEntrega &&
-        _calcDias(t.dataEntrega) > ALERTA_DIAS
+        t.status === 'alocada' && t.dataEntrega && _calcDias(t.dataEntrega) > ALERTA_DIAS
     );
     _saveDashSnapshot(total, semStock, alocadas);
 
-    // Subtítulo com hora de actualização
+    // Encomendas
+    const encEntries   = Object.values(_encData || {});
+    const encPendentes = encEntries.filter(e => e.estado === 'pendente').length;
+    const encParciais  = encEntries.filter(e => e.estado === 'parcial').length;
+    const encActivas   = encPendentes + encParciais;
+
+    // PATs: urgentes e com guia
+    const allPats     = Object.entries(_patCache.data || {});
+    const patsPend    = allPats.filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
+    const patUrgentes = patsPend.filter(([, p]) => p.criadoEm && _calcDias(p.criadoEm) >= 20).length;
+    const patComGuia  = patsPend.filter(([, p]) => !!p.separacao).length;
+    const patHoje     = patsPend.filter(([, p]) => p.criadoEm && _calcDias(p.criadoEm) === 0).length;
+
+    // Saudação contextual
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Bom dia' : hour < 19 ? 'Boa tarde' : 'Boa noite';
+    const displayName = localStorage.getItem('hiperfrio-displayname') ||
+                        localStorage.getItem('hiperfrio-username') || '';
+    const now = new Date();
+    const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+    const weekdays = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    const months   = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const dateStr  = `${weekdays[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]}`;
+
+    // Trend vs dia anterior
+    const trendSemStock = _getDashTrend('semStock', semStock);
+
+    // ── Render ────────────────────────────────────────────────────────────
+    el.innerHTML = '';
+    el.className = 'dash-v3';
+
+    const esc = escapeHtml;
+
+    // ── Subtítulo header externo
     const subEl = document.getElementById('dash-subtitle');
-    if (subEl) {
-        const now = new Date();
-        subEl.textContent = `Actualizado às ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+    if (subEl) subEl.textContent = `Actualizado às ${timeStr}`;
+
+    // ── Saudação
+    const greetDiv = document.createElement('div');
+    greetDiv.className = 'dv3-greeting';
+    greetDiv.innerHTML = `
+        <div class="dv3-greeting-main">${esc(greeting)}${displayName ? ', ' + esc(displayName.split(' ')[0]) : ''}</div>
+        <div class="dv3-greeting-sub">${esc(dateStr)}</div>`;
+    el.appendChild(greetDiv);
+
+    // ── Alert strip (só se houver urgências)
+    if (patUrgentes > 0) {
+        const alert = document.createElement('div');
+        alert.className = 'dv3-alert';
+        alert.onclick   = () => nav('view-pedidos');
+        alert.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>${patUrgentes} PAT${patUrgentes > 1 ? 's' : ''} com +20 dias sem levantar</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-left:auto"><polyline points="9 18 15 12 9 6"/></svg>`;
+        el.appendChild(alert);
     }
 
-    // ── helper: cria um metric card ──────────────────────────────────────────
-    function _metricCard({ label, value, sub, accent, icon, warn, alert, onClick, progress, stats }) {
-        const card = document.createElement('div');
-        card.className = 'dv2-card' + (warn ? ' dv2-card--warn' : '') + (alert ? ' dv2-card--alert' : '');
-        card.style.setProperty('--card-accent', accent || 'var(--primary)');
-        if (onClick) { card.style.cursor = 'pointer'; card.onclick = onClick; }
+    // ── KPI grande row: Stock + PATs
+    const kpiRow = document.createElement('div');
+    kpiRow.className = 'dv3-kpi-row';
 
-        const top = document.createElement('div');
-        top.className = 'dv2-card-top';
+    // KPI: Stock
+    const stockPct = total > 0 ? Math.round(comStock / total * 100) : 100;
+    const kpiStock = document.createElement('div');
+    kpiStock.className = 'dv3-kpi';
+    kpiStock.onclick   = () => nav('view-search');
+    kpiStock.innerHTML = `
+        <div class="dv3-kpi-label">Stock</div>
+        <div class="dv3-kpi-val">${total}</div>
+        <div class="dv3-kpi-chips">
+            <span class="dv3-chip dv3-chip-green">${comStock} c/ stock</span>
+            ${semStock > 0 ? `<span class="dv3-chip dv3-chip-red">${semStock} vazios</span>` : ''}
+        </div>
+        <div class="dv3-kpi-bar"><div class="dv3-kpi-bar-fill" style="width:${stockPct}%;background:#639922"></div></div>`;
+    kpiRow.appendChild(kpiStock);
 
-        const labelEl = document.createElement('span');
-        labelEl.className   = 'dv2-card-label';
-        labelEl.textContent = label;
+    // KPI: PATs
+    const kpiPat = document.createElement('div');
+    kpiPat.className = 'dv3-kpi' + (patUrgentes > 0 ? ' dv3-kpi-warn' : '');
+    kpiPat.onclick   = () => nav('view-pedidos');
+    kpiPat.innerHTML = `
+        <div class="dv3-kpi-label">PATs pendentes</div>
+        <div class="dv3-kpi-val">${patPendentes}</div>
+        <div class="dv3-kpi-chips">
+            ${patUrgentes > 0 ? `<span class="dv3-chip dv3-chip-red">${patUrgentes} urgentes</span>` : ''}
+            ${patComGuia  > 0 ? `<span class="dv3-chip dv3-chip-amber">${patComGuia} c/ guia</span>` : ''}
+            ${patHoje     > 0 ? `<span class="dv3-chip dv3-chip-blue">${patHoje} hoje</span>` : ''}
+            ${patPendentes === 0 ? `<span class="dv3-chip dv3-chip-green">Em dia</span>` : ''}
+        </div>
+        <div class="dv3-kpi-bar"><div class="dv3-kpi-bar-fill" style="width:${patPendentes > 0 ? Math.min(100, patPendentes * 8) : 0}%;background:${patUrgentes > 0 ? '#E24B4A' : '#1a56db'}"></div></div>`;
+    kpiRow.appendChild(kpiPat);
+    el.appendChild(kpiRow);
 
-        const iconEl = document.createElement('span');
-        iconEl.className = 'dv2-card-icon';
-        const _dashIcons = {
-            box:   '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z"/><path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>',
-            list:  '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>',
-            check: '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>',
-            clock: '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>',
-            doc:   '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>',
-        };
-        iconEl.innerHTML = _dashIcons[icon] || icon;
+    // ── KPI mini row: Ferramentas, Encomendas, Sem stock
+    const miniRow = document.createElement('div');
+    miniRow.className = 'dv3-mini-row';
 
-        top.appendChild(labelEl);
-        top.appendChild(iconEl);
-
-        const valEl = document.createElement('div');
-        valEl.className   = 'dv2-card-value';
-        valEl.textContent = value;
-
-        // trend dia anterior
-        const trend = _getDashTrend(label === 'Produtos' ? 'total' : label === 'Sem stock' ? 'semStock' : label === 'Ferramentas' ? 'alocadas' : null, typeof value === 'number' ? value : null);
-        if (trend !== null && trend !== undefined) {
-            const tr = document.createElement('span');
-            // Para stock: mais produtos = bom (verde); para sem-stock: mais = mau (vermelho)
-            const isGood = label === 'Sem stock' ? trend < 0 : trend > 0;
-            tr.className   = 'dv2-trend ' + (isGood ? 'dv2-trend--good' : 'dv2-trend--bad');
-            tr.textContent = (trend > 0 ? '+' : '') + trend;
-            valEl.appendChild(tr);
-        }
-
-        card.appendChild(top);
-        card.appendChild(valEl);
-
-        // barra de progresso opcional
-        if (progress !== undefined && progress !== null) {
-            const barWrap = document.createElement('div');
-            barWrap.className = 'dv2-progress';
-            const barFill = document.createElement('div');
-            barFill.className = 'dv2-progress-fill';
-            barFill.style.width = Math.min(100, Math.round(progress * 100)) + '%';
-            barWrap.appendChild(barFill);
-            card.appendChild(barWrap);
-        }
-
-        // stats individuais
-        if (stats && stats.length > 0) {
-            const statsEl = document.createElement('div');
-            statsEl.className = 'dv2-stats';
-            stats.forEach(s => {
-                const pill = document.createElement('span');
-                pill.className = 'dv2-stat-pill';
-                pill.innerHTML = `<span class="dv2-stat-val" style="color:${s.color}">${escapeHtml(String(s.value))}</span><span class="dv2-stat-lbl">${escapeHtml(s.label)}</span>`;
-                statsEl.appendChild(pill);
-            });
-            card.appendChild(statsEl);
-        }
-
-        return card;
+    function _miniKpi(label, val, sub, color, warn, onClick) {
+        const d = document.createElement('div');
+        d.className = 'dv3-mini' + (warn ? ' dv3-mini-warn' : '');
+        if (onClick) d.onclick = onClick;
+        d.innerHTML = `<div class="dv3-mini-label">${esc(label)}</div>
+            <div class="dv3-mini-val" style="color:${color}">${esc(String(val))}</div>
+            <div class="dv3-mini-sub">${sub}</div>`;
+        return d;
     }
 
-    // ── GRID 2×2 ─────────────────────────────────────────────────────────────
-    const grid = document.createElement('div');
-    grid.className = 'dv2-grid';
-
-    grid.appendChild(_metricCard({
-        label: 'Produtos', value: total, icon: 'box',
-        sub: `${comStock} com stock · ${semStock} esgotados`,
-        accent: '#2563eb',
-        progress: total > 0 ? comStock / total : 1,
-        onClick: () => nav('view-search'),
-        stats: [
-            { label: 'Com stock', value: comStock, color: '#16a34a' },
-            { label: 'Esgotados', value: semStock, color: semStock > 0 ? '#dc2626' : '#16a34a' },
-        ],
-    }));
-
-    grid.appendChild(_metricCard({
-        label: 'Sem stock', value: semStock, icon: semStock > 0 ? '' : '✅',
-        sub: semStock > 0 ? `${Math.round(semStock/total*100)}% do inventário` : 'Tudo com stock',
-        accent: semStock > 0 ? '#dc2626' : '#16a34a',
-        warn: semStock > 0,
-        progress: total > 0 ? semStock / total : 0,
-        onClick: semStock > 0 ? () => { _pendingZeroFilter = true; nav('view-search'); } : null,
-        stats: semStock > 0 ? [
-            { label: '% inventário', value: Math.round(semStock/total*100) + '%', color: '#dc2626' },
-        ] : [
-            { label: 'Total produtos', value: total, color: '#16a34a' },
-        ],
-    }));
-
-    grid.appendChild(_metricCard({
-        label: 'Ferramentas', value: `${alocadas}/${totalFerr}`, icon: '',
-        sub: alocadasHaMuito.length > 0
-            ? `! ${alocadasHaMuito.length} há +${ALERTA_DIAS}d`
+    miniRow.appendChild(_miniKpi(
+        'Ferramentas', `${alocadas}/${totalFerr}`,
+        alocadasHaMuito.length > 0
+            ? `<span style="color:#A32D2D;font-weight:600">${alocadasHaMuito.length} em atraso</span>`
             : alocadas === 0 ? 'Todas em armazém' : `${totalFerr - alocadas} em armazém`,
-        accent: alocadasHaMuito.length > 0 ? '#f59e0b' : '#2563eb',
-        warn: alocadasHaMuito.length > 0,
-        progress: totalFerr > 0 ? alocadas / totalFerr : 0,
-        onClick: () => nav('view-tools'),
-        stats: [
-            { label: 'Em armazém', value: totalFerr - alocadas, color: '#16a34a' },
-            { label: 'Alocadas', value: alocadas, color: alocadas > 0 ? '#f59e0b' : '#64748b' },
-            ...(alocadasHaMuito.length > 0 ? [{ label: `+${ALERTA_DIAS}d fora`, value: alocadasHaMuito.length, color: '#dc2626' }] : []),
-        ],
-    }));
+        alocadasHaMuito.length > 0 ? '#BA7517' : 'var(--text-main)',
+        alocadasHaMuito.length > 0,
+        () => nav('view-tools')
+    ));
 
-    grid.appendChild(_metricCard({
-        label: 'PATs', value: patPendentes, icon: '≡',
-        sub: patPendentes === 0 ? 'Sem pendentes' : patPendentes === 1 ? '1 pedido pendente' : `${patPendentes} pedidos pendentes`,
-        accent: patPendentes > 0 ? '#7c3aed' : '#16a34a',
-        onClick: () => nav('view-pedidos'),
-        stats: (() => {
-            try {
-                const pats     = Object.values(_patCache.data || {});
-                const urgentes = pats.filter(p => p.status !== 'levantado' && p.criadoEm && _calcDias(p.criadoEm) > 20).length;
-                const hoje     = pats.filter(p => p.status !== 'levantado' && p.criadoEm && _calcDias(p.criadoEm) === 0).length;
-                const result   = [{ label: 'Pendentes', value: patPendentes, color: patPendentes > 0 ? '#7c3aed' : '#64748b' }];
-                if (urgentes > 0) result.push({ label: '+20 dias', value: urgentes, color: '#dc2626' });
-                if (hoje > 0)     result.push({ label: 'Hoje', value: hoje, color: '#16a34a' });
-                return result;
-            } catch(_e) {
-                return [{ label: 'Pendentes', value: patPendentes, color: patPendentes > 0 ? '#7c3aed' : '#64748b' }];
-            }
-        })(),
-    }));
+    miniRow.appendChild(_miniKpi(
+        'Encomendas', encActivas,
+        encParciais > 0
+            ? `<span style="color:#854F0B;font-weight:600">${encParciais} parcial${encParciais > 1 ? 'is' : ''}</span>`
+            : encPendentes > 0 ? `${encPendentes} pendente${encPendentes > 1 ? 's' : ''}` : 'Sem activas',
+        encActivas > 0 ? '#185FA5' : 'var(--text-main)',
+        false,
+        () => nav('view-encomendas')
+    ));
 
-    el.appendChild(grid);
+    const trendHtml = trendSemStock !== null
+        ? `<span style="color:${trendSemStock > 0 ? '#A32D2D' : '#3B6D11'};font-weight:600">${trendSemStock > 0 ? '▲' : '▼'} ${Math.abs(trendSemStock)} hoje</span>`
+        : 'vs. ontem sem dados';
 
-    // ── SECÇÃO: Últimas PATs ─────────────────────────────────────────────────
-    const patEntries = Object.entries(_patCache.data || {})
-        .filter(([, p]) => p.status !== 'levantado')
-        .sort((a, b) => (b[1].criadoEm || 0) - (a[1].criadoEm || 0))
-        .slice(0, 4);
+    miniRow.appendChild(_miniKpi(
+        'Sem stock', semStock,
+        trendHtml,
+        semStock > 0 ? '#E24B4A' : '#639922',
+        semStock > 5,
+        semStock > 0 ? () => { _pendingZeroFilter = true; nav('view-search'); } : null
+    ));
+
+    el.appendChild(miniRow);
+
+    // ── Secção: PATs pendentes (as mais urgentes primeiro)
+    const patEntries = patsPend
+        .sort((a, b) => _calcDias(b[1].criadoEm) - _calcDias(a[1].criadoEm))
+        .slice(0, 5);
 
     if (patEntries.length > 0) {
-        const sec = document.createElement('div');
-        sec.className = 'dv2-section';
-
-        const hdr = document.createElement('div');
-        hdr.className = 'dv2-section-hdr';
-        const hdrTitle = document.createElement('span');
-        hdrTitle.textContent = 'Últimas PATs';
-        const hdrLink = document.createElement('button');
-        hdrLink.className   = 'dv2-section-link';
-        hdrLink.textContent = 'Ver todas →';
-        hdrLink.onclick     = () => nav('view-pedidos');
-        hdr.appendChild(hdrTitle);
-        hdr.appendChild(hdrLink);
-        sec.appendChild(hdr);
-
+        const sec = _dv3Section('PATs pendentes', 'Ver todas →', () => nav('view-pedidos'));
         const list = document.createElement('div');
-        list.className = 'dv2-pat-list';
+        list.className = 'dv3-list';
 
         patEntries.forEach(([id, pat]) => {
-            const dias = _calcDias(pat.criadoEm);
+            const dias    = _calcDias(pat.criadoEm);
             const urgente = dias >= 20;
             const row = document.createElement('div');
-            row.className = 'dv2-pat-row' + (urgente ? ' dv2-pat-row--urgente' : '');
-            row.onclick = () => openPatDetail(id, pat);
+            row.className = 'dv3-list-row';
+            row.onclick   = () => openPatDetail(id, pat);
 
-            // Barra lateral colorida
-            const bar = document.createElement('div');
-            bar.className = 'dv2-pat-bar';
-
-            const left = document.createElement('div');
-            left.className = 'dv2-pat-left';
+            const accent = document.createElement('div');
+            accent.className = 'dv3-list-accent';
+            accent.style.background = urgente ? '#E24B4A' : '#1a56db';
 
             const info = document.createElement('div');
-            info.className = 'dv2-pat-info';
+            info.className = 'dv3-list-info';
+            info.innerHTML = `
+                <div class="dv3-list-primary">
+                    <span class="dv3-mono">PAT ${esc(pat.numero || '—')}</span>
+                    ${pat.separacao ? '<span class="dv3-chip dv3-chip-amber" style="font-size:9px;padding:1px 5px">Guia</span>' : ''}
+                </div>
+                <div class="dv3-list-secondary">${esc(pat.estabelecimento || 'Sem estabelecimento')}</div>`;
 
-            const num = document.createElement('span');
-            num.className   = 'dv2-pat-num';
-            num.textContent = `PAT ${escapeHtml(pat.numero || '—')}`;
+            const age = document.createElement('span');
+            age.className   = 'dv3-list-age' + (urgente ? ' dv3-list-age-urg' : '');
+            age.textContent = dias === 0 ? 'Hoje' : dias === 1 ? '1d' : `${dias}d`;
 
-            const estab = document.createElement('span');
-            estab.className   = 'dv2-pat-estab';
-            estab.textContent = pat.estabelecimento || 'Sem estabelecimento';
-
-            info.appendChild(num);
-            info.appendChild(estab);
-            left.appendChild(bar);
-            left.appendChild(info);
-
-            const right = document.createElement('span');
-            right.className   = 'dv2-pat-age' + (urgente ? ' dv2-pat-age--urgente' : '');
-            right.textContent = dias === 0 ? 'Hoje' : dias === 1 ? '1d' : `${dias}d`;
-
-            row.appendChild(left);
-            row.appendChild(right);
+            row.appendChild(accent);
+            row.appendChild(info);
+            row.appendChild(age);
             list.appendChild(row);
         });
 
@@ -1119,29 +1098,15 @@ async function renderDashboard(force = false) {
         el.appendChild(sec);
     }
 
-    // ── SECÇÃO: Ferramentas por colaborador ──────────────────────────────────
+    // ── Secção: Ferramentas em campo
     const alocadasList = ferraEntries
         .filter(t => t.status === 'alocada' && t.colaborador)
-        .sort((a, b) => (a.colaborador || '').localeCompare(b.colaborador || '', 'pt'));
+        .sort((a, b) => _calcDias(b.dataEntrega||0) - _calcDias(a.dataEntrega||0));
 
     if (alocadasList.length > 0) {
-        const sec2 = document.createElement('div');
-        sec2.className = 'dv2-section';
-
-        const hdr2 = document.createElement('div');
-        hdr2.className = 'dv2-section-hdr';
-        const hdr2Title = document.createElement('span');
-        hdr2Title.textContent = 'Ferramentas em uso';
-        const hdr2Link = document.createElement('button');
-        hdr2Link.className   = 'dv2-section-link';
-        hdr2Link.textContent = 'Painel →';
-        hdr2Link.onclick     = () => nav('view-tools');
-        hdr2.appendChild(hdr2Title);
-        hdr2.appendChild(hdr2Link);
-        sec2.appendChild(hdr2);
-
+        const sec2 = _dv3Section('Ferramentas em campo', 'Painel →', () => nav('view-tools'));
         const list2 = document.createElement('div');
-        list2.className = 'dv2-ferr-list';
+        list2.className = 'dv3-list';
 
         // Agrupa por colaborador
         const porColab = {};
@@ -1152,35 +1117,21 @@ async function renderDashboard(force = false) {
         });
 
         Object.entries(porColab).forEach(([colab, tools]) => {
-            const dias_max = Math.max(...tools.map(t =>
-                t.dataEntrega ? _calcDias(t.dataEntrega) : 0
-            ));
-            const overdue = dias_max >= ALERTA_DIAS;
+            const dias_max = Math.max(...tools.map(t => t.dataEntrega ? _calcDias(t.dataEntrega) : 0));
+            const overdue  = dias_max >= ALERTA_DIAS;
+            const initials = colab.trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase();
 
             const row = document.createElement('div');
-            row.className = 'dv2-ferr-row' + (overdue ? ' dv2-ferr-row--overdue' : '');
+            row.className = 'dv3-list-row';
             row.onclick   = () => nav('view-tools');
 
-            const left2 = document.createElement('div');
-            left2.className = 'dv2-ferr-left';
-
-            const name = document.createElement('span');
-            name.className   = 'dv2-ferr-name';
-            name.textContent = colab;
-
-            const toolNames = document.createElement('span');
-            toolNames.className   = 'dv2-ferr-tools';
-            toolNames.textContent = tools.map(t => t.nome).join(' · ');
-
-            left2.appendChild(name);
-            left2.appendChild(toolNames);
-
-            const badge = document.createElement('span');
-            badge.className   = 'dv2-ferr-badge' + (overdue ? ' dv2-ferr-badge--overdue' : '');
-            badge.textContent = tools.length === 1 ? '1 ferr.' : `${tools.length} ferr.`;
-
-            row.appendChild(left2);
-            row.appendChild(badge);
+            row.innerHTML = `
+                <div class="dv3-avatar">${esc(initials)}</div>
+                <div class="dv3-list-info">
+                    <div class="dv3-list-primary">${esc(colab)}</div>
+                    <div class="dv3-list-secondary">${esc(tools.map(t => t.nome).join(' · '))}</div>
+                </div>
+                <span class="dv3-badge ${overdue ? 'dv3-badge-warn' : 'dv3-badge-ok'}">${dias_max}d fora</span>`;
             list2.appendChild(row);
         });
 
@@ -1188,8 +1139,92 @@ async function renderDashboard(force = false) {
         el.appendChild(sec2);
     }
 
+    // ── Secção: Encomendas activas
+    const encActivas2 = Object.entries(_encData || {})
+        .filter(([, e]) => e.estado === 'pendente' || e.estado === 'parcial')
+        .sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0))
+        .slice(0, 3);
+
+    if (encActivas2.length > 0) {
+        const sec3 = _dv3Section('Encomendas em curso', 'Ver todas →', () => nav('view-encomendas'));
+        const list3 = document.createElement('div');
+        list3.className = 'dv3-list';
+
+        encActivas2.forEach(([, enc]) => {
+            const linhas   = Object.values(enc.linhas || {});
+            const total    = linhas.reduce((s, l) => s + (parseFloat(l.qtd) || 0), 0);
+            const recebido = linhas.reduce((s, l) => s + Math.min(parseFloat(l.recebido) || 0, parseFloat(l.qtd) || 0), 0);
+            const pct      = total > 0 ? Math.round(recebido / total * 100) : 0;
+            const isParcial = enc.estado === 'parcial';
+
+            const row = document.createElement('div');
+            row.className = 'dv3-list-row dv3-list-row-col';
+
+            row.innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+                    <span class="dv3-list-primary dv3-mono" style="font-size:12px">Enc. ${esc(enc.num||'—')} · ${esc(enc.fornecedor||'—')}</span>
+                    <span class="dv3-chip ${isParcial ? 'dv3-chip-amber' : 'dv3-chip-blue'}" style="font-size:9px">${isParcial ? 'Parcial' : 'Pendente'}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px">
+                    <div class="dv3-enc-bar"><div class="dv3-enc-bar-fill" style="width:${pct}%"></div></div>
+                    <span class="dv3-mono" style="font-size:10px;color:var(--text-muted);flex-shrink:0">${pct}%</span>
+                </div>`;
+            list3.appendChild(row);
+        });
+
+        sec3.appendChild(list3);
+        el.appendChild(sec3);
+    }
+
+    // ── Secção: Barra de saúde do inventário
+    if (total > 0) {
+        const sec4 = _dv3Section('Saúde do inventário', null, null);
+        const pctOk = Math.round(comStock / total * 100);
+
+        sec4.innerHTML += `
+            <div class="dv3-health-bar-wrap">
+                <div class="dv3-health-bar">
+                    <div style="width:${pctOk}%;background:#639922;border-radius:3px 0 0 3px;height:100%"></div>
+                    <div style="width:${100 - pctOk}%;background:#E24B4A;border-radius:0 3px 3px 0;height:100%"></div>
+                </div>
+            </div>
+            <div class="dv3-health-legend">
+                <div class="dv3-health-item">
+                    <div class="dv3-health-dot" style="background:#639922"></div>
+                    <span>${comStock} com stock (${pctOk}%)</span>
+                </div>
+                <div class="dv3-health-item">
+                    <div class="dv3-health-dot" style="background:#E24B4A"></div>
+                    <span>${semStock} esgotados</span>
+                </div>
+            </div>`;
+        el.appendChild(sec4);
+    }
+
     if (refreshBtn) refreshBtn.classList.remove('spinning');
 }
+
+// helper: cria secção com header
+function _dv3Section(title, linkText, linkFn) {
+    const sec = document.createElement('div');
+    sec.className = 'dv3-section';
+    const hdr = document.createElement('div');
+    hdr.className = 'dv3-section-hdr';
+    const t = document.createElement('span');
+    t.className   = 'dv3-section-title';
+    t.textContent = title;
+    hdr.appendChild(t);
+    if (linkText && linkFn) {
+        const l = document.createElement('button');
+        l.className   = 'dv3-section-link';
+        l.textContent = linkText;
+        l.onclick     = linkFn;
+        hdr.appendChild(l);
+    }
+    sec.appendChild(hdr);
+    return sec;
+}
+
 
 // =============================================
 // ORDENAÇÃO DO STOCK
