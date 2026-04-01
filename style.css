@@ -766,24 +766,6 @@ body {
     min-height: calc(100vh - var(--header-h));
 }
 
-@media (min-width: 768px) {
-    /* Body ocupa exatamente a janela — o scroll fica só no #main-content */
-    body {
-        overflow: hidden;
-        height: 100vh;
-        min-height: unset;
-        /* padding-top mantém-se: empurra o #app-layout para baixo do header fixo */
-    }
-
-    #app-layout {
-        flex-direction: row;
-        /* height descontando o header que já foi compensado pelo padding-top do body */
-        height: calc(100vh - var(--header-h));
-        min-height: unset;
-        overflow: hidden;
-    }
-}
-
 
 /* HEADER */
 header {
@@ -5978,39 +5960,33 @@ body.is-offline #app-layout {
 .admin-mobile-menu-exit    { animation: adminSlideOut 0.18s ease both; }
 
 @media (min-width: 768px) {
-    /* Sidebar: estática no fluxo, a altura é 100% do #app-layout que não faz scroll */
+    /* Sidebar fixa — não participa no scroll da página */
     #side-menu {
-        position: relative;
-        top: auto;
+        position: fixed;
+        top: var(--header-h);
         left: 0 !important;
         width: var(--sidebar-w);
-        height: 100%;
+        height: calc(100vh - var(--header-h));
+        overflow-y: auto;
         flex-shrink: 0;
         z-index: 100;
         box-shadow: none;
         transition: none;
-        overflow-y: auto;
     }
 
     /* Esconder controlos mobile */
-    #close-menu { display: none; }
-    #menu-overlay { display: none !important; }
-    #bottom-nav { display: none !important; }
+    #close-menu    { display: none; }
+    #menu-overlay  { display: none !important; }
+    #bottom-nav    { display: none !important; }
 
-    /* Main: todo o scroll acontece aqui */
+    /* Main: empurrado para a direita da sidebar, scroll normal da página */
     #main-content {
-        flex: 1;
-        height: 100%;
-        overflow-y: auto;
-        padding: 20px 32px;
-        padding-bottom: 40px;
-        min-width: 0;
+        margin-left: var(--sidebar-w);
+        padding: 20px 32px 40px;
+        width: auto;
     }
 
-    /* Toasts no fundo do ecrã */
-    #toast-container {
-        bottom: 20px;
-    }
+    #toast-container { bottom: 20px; }
 }
 
 /* =============================================
