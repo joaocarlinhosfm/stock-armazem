@@ -799,7 +799,12 @@ function nav(viewId) {
     }
 
     if (viewId === 'view-search') {
-        renderList().then(() => {
+        // Limpa a pesquisa ao navegar para o stock (desktop e mobile)
+        if (window._searchInputEl) {
+            window._searchInputEl.value = '';
+            document.getElementById('inp-search-clear')?.classList.add('hidden');
+        }
+        renderList('', true).then(() => {
             if (_zeroFilterActive) filterZeroStock();
             if (_pendingZeroFilter) { _pendingZeroFilter = false; filterZeroStock(); }
         });
