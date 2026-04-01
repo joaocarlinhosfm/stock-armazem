@@ -7034,7 +7034,7 @@ body.is-offline #app-layout {
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 14px;
-    padding: 16px;
+    padding: 12px 14px;
     display: flex;
     flex-direction: column;
     gap: 0;
@@ -7067,13 +7067,12 @@ body.is-offline #app-layout {
     align-items: flex-start;
     justify-content: space-between;
     gap: 8px;
-    margin-bottom: 10px;
-    min-height: 52px;
+    margin-bottom: 8px;
 }
 .sdc-meta {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
     flex: 1;
     min-width: 0;
 }
@@ -7113,11 +7112,10 @@ body.is-offline #app-layout {
     background: #e0f2fe;
     color: #0369a1;
     border: 1.5px solid #7dd3fc;
-    padding: 3px 10px;
+    padding: 2px 8px;
     border-radius: 50px;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     font-weight: 700;
-    margin-bottom: 8px;
     align-self: flex-start;
     font-family: 'DM Mono', monospace;
 }
@@ -7144,7 +7142,7 @@ body.is-offline #app-layout {
     align-items: flex-end;
     justify-content: space-between;
     margin-top: auto;
-    padding-top: 10px;
+    padding-top: 8px;
     border-top: 1px solid var(--border);
 }
 .sdc-stock-label {
