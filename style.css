@@ -3248,9 +3248,36 @@ body.is-offline #app-layout {
 .dv3-greeting {
     padding: 4px 0 6px;
 }
+.dv3-greeting-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+.dv3-refresh-btn {
+    width: 32px;
+    height: 32px;
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: opacity .15s;
+}
+.dv3-refresh-btn:hover { opacity: .7; }
+.dv3-refresh-btn.spinning svg {
+    animation: dash-spin .7s linear infinite;
+}
+@keyframes dash-spin {
+    to { transform: rotate(360deg); }
+}
 .dv3-greeting-main {
-    font-size: 1.15rem;
-    font-weight: 700;
+    font-size: 1.1rem;
+    font-weight: 600;
     color: var(--text-main);
     line-height: 1.2;
 }
@@ -3268,8 +3295,8 @@ body.is-offline #app-layout {
     border-radius: 10px;
     padding: 10px 14px;
     cursor: pointer;
-    font-size: 0.8rem;
-    font-weight: 600;
+    font-size: 0.82rem;
+    font-weight: 500;
     color: #A32D2D;
     transition: opacity .15s;
 }
@@ -3293,10 +3320,10 @@ body.is-offline #app-layout {
     background: #FCEBEB;
 }
 .dv3-kpi-label {
-    font-size: 0.68rem;
-    font-weight: 700;
+    font-size: 0.7rem;
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: .06em;
+    letter-spacing: .05em;
     color: var(--text-muted);
     margin-bottom: 4px;
 }
@@ -3317,8 +3344,8 @@ body.is-offline #app-layout {
     min-height: 20px;
 }
 .dv3-chip {
-    font-size: 0.65rem;
-    font-weight: 700;
+    font-size: 0.67rem;
+    font-weight: 600;
     padding: 2px 6px;
     border-radius: 4px;
     white-space: nowrap;
@@ -3354,10 +3381,10 @@ body.is-offline #app-layout {
 .dv3-mini:hover { opacity: .85; }
 .dv3-mini-warn { border-color: #F09595; }
 .dv3-mini-label {
-    font-size: 0.62rem;
-    font-weight: 700;
+    font-size: 0.65rem;
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: .05em;
+    letter-spacing: .04em;
     color: var(--text-muted);
     margin-bottom: 3px;
 }
@@ -3386,15 +3413,15 @@ body.is-offline #app-layout {
     margin-bottom: 10px;
 }
 .dv3-section-title {
-    font-size: 0.68rem;
-    font-weight: 700;
+    font-size: 0.7rem;
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: .06em;
+    letter-spacing: .04em;
     color: var(--text-muted);
 }
 .dv3-section-link {
     font-size: 0.72rem;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--primary);
     background: none;
     border: none;
@@ -3424,7 +3451,7 @@ body.is-offline #app-layout {
 .dv3-list-info { flex: 1; min-width: 0; }
 .dv3-list-primary {
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--text-main);
     display: flex;
     align-items: center;
@@ -3445,7 +3472,7 @@ body.is-offline #app-layout {
     color: var(--text-muted);
     flex-shrink: 0;
 }
-.dv3-list-age-urg { color: #A32D2D; font-weight: 700; }
+.dv3-list-age-urg { color: #A32D2D; font-weight: 600; }
 .dv3-avatar {
     width: 28px;
     height: 28px;
@@ -3453,15 +3480,15 @@ body.is-offline #app-layout {
     background: #E6F1FB;
     color: #0C447C;
     font-size: 0.65rem;
-    font-weight: 700;
+    font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
 }
 .dv3-badge {
-    font-size: 0.65rem;
-    font-weight: 700;
+    font-size: 0.67rem;
+    font-weight: 600;
     padding: 2px 7px;
     border-radius: 5px;
     flex-shrink: 0;

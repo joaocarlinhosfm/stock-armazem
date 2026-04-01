@@ -888,8 +888,8 @@ async function renderDashboard(force = false, showSpinner = false) {
     const el = document.getElementById('dashboard');
     if (!el) return;
 
-    const refreshBtn = document.getElementById('btn-dash-refresh');
-    if (refreshBtn) refreshBtn.classList.add('spinning');
+    el.classList.add('dv3-loading');
+    document.getElementById('dv3-refresh-btn')?.classList.add('spinning');
 
     const ts = Date.now();
     const [stockData, ferrData] = await Promise.all([
@@ -946,16 +946,22 @@ async function renderDashboard(force = false, showSpinner = false) {
 
     const esc = escapeHtml;
 
-    // ── Subtítulo header externo
-    const subEl = document.getElementById('dash-subtitle');
-    if (subEl) subEl.textContent = `Actualizado às ${timeStr}`;
-
-    // ── Saudação
+    // ── Saudação com botão refresh integrado
     const greetDiv = document.createElement('div');
     greetDiv.className = 'dv3-greeting';
     greetDiv.innerHTML = `
-        <div class="dv3-greeting-main">${esc(greeting)}${displayName ? ', ' + esc(displayName.split(' ')[0]) : ''}</div>
-        <div class="dv3-greeting-sub">${esc(dateStr)}</div>`;
+        <div class="dv3-greeting-top">
+            <div>
+                <div class="dv3-greeting-main">${esc(greeting)}${displayName ? ', ' + esc(displayName.split(' ')[0]) : ''}</div>
+                <div class="dv3-greeting-sub">${esc(dateStr)} &middot; actualizado às ${esc(timeStr)}</div>
+            </div>
+            <button class="dv3-refresh-btn" id="dv3-refresh-btn" onclick="renderDashboard(true, true)" title="Actualizar" aria-label="Actualizar dashboard">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                    <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+            </button>
+        </div>`;
     el.appendChild(greetDiv);
 
     // ── Alert strip (só se houver urgências)
@@ -1201,7 +1207,9 @@ async function renderDashboard(force = false, showSpinner = false) {
         el.appendChild(sec4);
     }
 
-    if (refreshBtn) refreshBtn.classList.remove('spinning');
+    el.classList.remove('dv3-loading');
+    // Retirar animação do botão refresh interno
+    document.getElementById('dv3-refresh-btn')?.classList.remove('spinning');
 }
 
 // helper: cria secção com header
