@@ -1259,6 +1259,13 @@ function _drawGasCylSvg(g) {
     const pctText = Math.round(p * 100);
     const cid     = 'gc' + g.id.replace(/[^a-z0-9]/gi,'') + pctText;
 
+    // Cores fixas para garantir visibilidade em tema claro e escuro
+    const bodyFill   = '#DDE4F0';  // cinzento-azulado — visível sobre branco
+    const bodyStroke = '#9BAAC4';  // borda com contraste suficiente
+    const capFill    = '#B8C5DA';  // pescoço mais escuro
+    const topFill    = '#9BAAC4';  // topo ainda mais escuro
+    const textFill   = p > 0.18 ? '#ffffff' : '#4A5A72';
+
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', W);
     svg.setAttribute('height', H);
@@ -1266,13 +1273,13 @@ function _drawGasCylSvg(g) {
     svg.id = 'gc-svg-' + g.id;
     svg.innerHTML = `
         <defs><clipPath id="${cid}"><rect x="3" y="${bodyY}" width="${W-6}" height="${bodyH}" rx="${rx}"/></clipPath></defs>
-        <rect x="${(W-neckW)/2}" y="${capH}" width="${neckW}" height="${neckH}" rx="4" fill="var(--border)" stroke="var(--border)" stroke-width="0.5"/>
-        <rect x="${(W-neckW+4)/2}" y="2" width="${neckW-4}" height="${capH}" rx="3" fill="var(--border)"/>
-        <rect x="3" y="${bodyY}" width="${W-6}" height="${bodyH}" rx="${rx}" fill="var(--card-bg)" stroke="var(--border)" stroke-width="0.5"/>
-        ${p > 0 ? `<rect x="3" y="${fillY}" width="${W-6}" height="${fillH+6}" rx="${rx}" fill="${fill}" opacity="0.85" clip-path="url(#${cid})"/>` : ''}
+        <rect x="${(W-neckW)/2}" y="${capH}" width="${neckW}" height="${neckH}" rx="4" fill="${capFill}" stroke="${bodyStroke}" stroke-width="0.5"/>
+        <rect x="${(W-neckW+4)/2}" y="2" width="${neckW-4}" height="${capH}" rx="3" fill="${topFill}"/>
+        <rect x="3" y="${bodyY}" width="${W-6}" height="${bodyH}" rx="${rx}" fill="${bodyFill}" stroke="${bodyStroke}" stroke-width="1"/>
+        ${p > 0 ? `<rect x="3" y="${fillY}" width="${W-6}" height="${fillH+6}" rx="${rx}" fill="${fill}" opacity="0.92" clip-path="url(#${cid})"/>` : ''}
         <text x="${W/2}" y="${bodyY + bodyH/2 + 1}" text-anchor="middle" dominant-baseline="middle"
             font-size="11" font-weight="500" font-family="'DM Mono','Courier New',monospace"
-            fill="${low ? '#A32D2D' : 'var(--text-muted)'}">
+            fill="${textFill}">
             ${pctText}%
         </text>`;
     return svg;
