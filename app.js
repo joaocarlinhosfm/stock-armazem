@@ -1599,6 +1599,12 @@ function getSortedEntries(entries) {
 // Filtra stock para mostrar apenas produtos com quantidade 0
 function filterZeroStock() {
     _zeroFilterActive = true;
+    // Desktop: usa o sistema de tabs nativo
+    if (_stockDesktopActive()) {
+        _desktopFilter = 'zero';
+        _setDesktopFilter('zero');
+        return;
+    }
     const listEl = document.getElementById('stock-list');
     if (!listEl) return;
     const wrappers = listEl.querySelectorAll('.swipe-wrapper[data-id]');
@@ -1690,6 +1696,256 @@ function _itemMatchesFilter(item, filterLower, filterUpper) {
         || (item.notas || '').toLowerCase().includes(filterLower);
 }
 
+
+// ══════════════════════════════════════════════════════════════════════════
+// STOCK — VISTA DESKTOP (>= 768px)
+// Layout em grid 3 colunas com cards informativos.
+// Mobile mantém o swipe-wrapper inalterado.
+// ══════════════════════════════════════════════════════════════════════════
+
+let _desktopFilter = 'all'; // 'all' | 'stock' | 'zero' | 'nolocal'
+
+function _stockDesktopActive() {
+    return window.innerWidth >= 768;
+}
+
+// Reconstrói o header desktop com KPIs e filtros por tab
+function _renderDesktopHeader(data) {
+    const entries = Object.values(data || {});
+    const total   = entries.length;
+    const semStock = entries.filter(i => (i.quantidade || 0) === 0).length;
+    const comStock = total - semStock;
+    const semLocal = entries.filter(i => !i.localizacao).length;
+
+    let hdr = document.getElementById('stock-desktop-hdr');
+    if (!hdr) {
+        hdr = document.createElement('div');
+        hdr.id = 'stock-desktop-hdr';
+        hdr.className = 'sdh';
+        const listEl = document.getElementById('stock-list');
+        listEl?.parentNode.insertBefore(hdr, listEl);
+    }
+
+    hdr.innerHTML = `
+        <div class="sdh-top">
+            <div class="sdh-meta">
+                <h1 class="sdh-title">Catálogo de Produtos</h1>
+                <p class="sdh-sub">Gestão de stock em tempo real · ${new Date().toLocaleDateString('pt-PT', {weekday:'long', day:'numeric', month:'long'})}</p>
+            </div>
+            <div class="sdh-kpis">
+                <div class="sdh-kpi">
+                    <span class="sdh-kpi-label">Total itens</span>
+                    <span class="sdh-kpi-val">${total.toLocaleString('pt-PT')}</span>
+                </div>
+                <div class="sdh-kpi sdh-kpi-warn">
+                    <span class="sdh-kpi-label">Sem stock</span>
+                    <span class="sdh-kpi-val ${semStock > 0 ? 'sdh-kpi-red' : 'sdh-kpi-green'}">${semStock}</span>
+                </div>
+            </div>
+        </div>
+        <div class="sdh-tabs">
+            <button class="sdh-tab ${_desktopFilter==='all'    ? 'sdh-tab-active' : ''}" onclick="_setDesktopFilter('all')">
+                Todos os itens <span class="sdh-tab-count">${total}</span>
+            </button>
+            <button class="sdh-tab ${_desktopFilter==='stock'  ? 'sdh-tab-active' : ''}" onclick="_setDesktopFilter('stock')">
+                Em Stock <span class="sdh-tab-count sdh-tab-count-green">${comStock}</span>
+            </button>
+            <button class="sdh-tab ${_desktopFilter==='zero'   ? 'sdh-tab-active' : ''}" onclick="_setDesktopFilter('zero')">
+                Sem Stock <span class="sdh-tab-count sdh-tab-count-red">${semStock}</span>
+            </button>
+            <button class="sdh-tab ${_desktopFilter==='nolocal'? 'sdh-tab-active' : ''}" onclick="_setDesktopFilter('nolocal')">
+                Sem Posição <span class="sdh-tab-count">${semLocal}</span>
+            </button>
+        </div>`;
+}
+
+function _setDesktopFilter(f) {
+    _desktopFilter = f;
+    // Re-aplica visibilidade nos cards existentes sem re-render completo
+    const listEl = document.getElementById('stock-list');
+    if (!listEl) return;
+    const q = window._searchInputEl?.value?.toLowerCase() || '';
+    const data = cache.stock.data || {};
+    listEl.querySelectorAll('.sdc-wrapper[data-id]').forEach(w => {
+        const id   = w.dataset.id;
+        const item = data[id];
+        if (!item) { w.style.display = 'none'; return; }
+        const passFilter = _desktopFilterMatch(item);
+        const passSearch = !q || _itemMatchesFilter(item, q, q.toUpperCase());
+        w.style.display = (passFilter && passSearch) ? '' : 'none';
+    });
+    // Actualiza tabs activos
+    document.querySelectorAll('.sdh-tab').forEach(t => {
+        const f2 = t.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+        t.classList.toggle('sdh-tab-active', f2 === _desktopFilter);
+    });
+}
+
+function _desktopFilterMatch(item) {
+    switch (_desktopFilter) {
+        case 'stock':   return (item.quantidade || 0) > 0;
+        case 'zero':    return (item.quantidade || 0) === 0;
+        case 'nolocal': return !item.localizacao;
+        default:        return true;
+    }
+}
+
+// Constrói um card desktop para um item do stock
+function _buildDesktopCard(id, item) {
+    const qty    = item.quantidade || 0;
+    const isZero = qty === 0;
+    const isLow  = !isZero && qty <= 5; // alerta para quantidades muito baixas
+    const unidade = item.unidade && item.unidade !== 'un' ? item.unidade : 'un';
+
+    const wrapper = document.createElement('div');
+    wrapper.className  = 'sdc-wrapper';
+    wrapper.dataset.id = id;
+
+    const card = document.createElement('div');
+    card.className = 'sdc' + (isZero ? ' sdc-zero' : isLow ? ' sdc-low' : '');
+
+    // ── Header do card ────────────────────────────────────────────────────
+    const hdr = document.createElement('div');
+    hdr.className = 'sdc-hdr';
+
+    // Badge de alerta
+    if (isZero) {
+        const badge = document.createElement('span');
+        badge.className   = 'sdc-badge sdc-badge-out';
+        badge.textContent = 'SEM STOCK';
+        hdr.appendChild(badge);
+    } else if (isLow) {
+        const badge = document.createElement('span');
+        badge.className   = 'sdc-badge sdc-badge-low';
+        badge.textContent = 'BAIXO';
+        hdr.appendChild(badge);
+    }
+
+    // Ref + Nome
+    const meta = document.createElement('div');
+    meta.className = 'sdc-meta';
+
+    const ref = document.createElement('div');
+    ref.className   = 'sdc-ref';
+    ref.textContent = 'REF: ' + (item.codigo || '—').toUpperCase();
+
+    const nome = document.createElement('div');
+    nome.className   = 'sdc-nome';
+    nome.textContent = (item.nome || '').toUpperCase();
+
+    meta.appendChild(ref);
+    meta.appendChild(nome);
+    hdr.appendChild(meta);
+    card.appendChild(hdr);
+
+    // ── Localização ───────────────────────────────────────────────────────
+    if (item.localizacao) {
+        const loc = document.createElement('div');
+        loc.className = 'sdc-loc';
+        loc.innerHTML = `<svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>`;
+        loc.appendChild(document.createTextNode(' ' + item.localizacao.toUpperCase()));
+        card.appendChild(loc);
+    }
+
+    // ── Notas ─────────────────────────────────────────────────────────────
+    if (item.notas) {
+        const notas = document.createElement('div');
+        notas.className   = 'sdc-notas';
+        notas.textContent = item.notas;
+        card.appendChild(notas);
+    }
+
+    // ── Stock actual + controlo de quantidade ─────────────────────────────
+    const foot = document.createElement('div');
+    foot.className = 'sdc-foot';
+
+    const stockInfo = document.createElement('div');
+    stockInfo.className = 'sdc-stock-info';
+
+    const stockLabel = document.createElement('div');
+    stockLabel.className   = 'sdc-stock-label';
+    stockLabel.textContent = 'ESTOQUE ATUAL';
+
+    const stockVal = document.createElement('div');
+    stockVal.className = 'sdc-stock-val' + (isZero ? ' sdc-stock-zero' : '');
+    stockVal.innerHTML = `<span class="sdc-qty" id="sdcqty-${id}">${fmtQty(qty, item.unidade)}</span>`;
+
+    stockInfo.appendChild(stockLabel);
+    stockInfo.appendChild(stockVal);
+
+    const controls = document.createElement('div');
+    controls.className = 'sdc-controls';
+
+    const btnM = document.createElement('button');
+    btnM.className   = 'sdc-btn-qty';
+    btnM.textContent = '−';
+    btnM.disabled    = qty === 0;
+    btnM.id          = `sdcbtnm-${id}`;
+    btnM.onclick     = (e) => { e.stopPropagation(); changeQtd(id, -1); _syncDesktopQty(id); };
+
+    const qtyDisplay = document.createElement('span');
+    qtyDisplay.className   = 'sdc-qty-display';
+    qtyDisplay.id          = `sdcdisp-${id}`;
+    qtyDisplay.textContent = qty;
+
+    const btnP = document.createElement('button');
+    btnP.className   = 'sdc-btn-qty';
+    btnP.textContent = '+';
+    btnP.id          = `sdcbtnp-${id}`;
+    btnP.onclick     = (e) => { e.stopPropagation(); changeQtd(id, 1); _syncDesktopQty(id); };
+
+    controls.appendChild(btnM);
+    controls.appendChild(qtyDisplay);
+    controls.appendChild(btnP);
+
+    foot.appendChild(stockInfo);
+    foot.appendChild(controls);
+    card.appendChild(foot);
+
+    // ── Acções (editar / apagar) — só para gestores ───────────────────────
+    if (currentRole === 'manager') {
+        const actions = document.createElement('div');
+        actions.className = 'sdc-actions';
+
+        const btnEdit = document.createElement('button');
+        btnEdit.className   = 'sdc-action-btn sdc-action-edit';
+        btnEdit.innerHTML   = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg> Editar';
+        btnEdit.onclick     = (e) => { e.stopPropagation(); openEditModal(id, item); };
+
+        const btnDel = document.createElement('button');
+        btnDel.className    = 'sdc-action-btn sdc-action-del';
+        btnDel.innerHTML    = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Apagar';
+        btnDel.onclick      = (e) => { e.stopPropagation(); openDeleteModal(id, item); };
+
+        actions.appendChild(btnEdit);
+        actions.appendChild(btnDel);
+        card.appendChild(actions);
+    }
+
+    wrapper.appendChild(card);
+    return wrapper;
+}
+
+// Sincroniza o display de qty no card desktop após changeQtd
+function _syncDesktopQty(id) {
+    setTimeout(() => {
+        const qty = cache.stock.data?.[id]?.quantidade ?? 0;
+        const item = cache.stock.data?.[id];
+        const disp = document.getElementById(`sdcdisp-${id}`);
+        const qtyEl = document.getElementById(`sdcqty-${id}`);
+        const btnM  = document.getElementById(`sdcbtnm-${id}`);
+        const wrapper = document.querySelector(`.sdc-wrapper[data-id="${id}"]`);
+        const card  = wrapper?.querySelector('.sdc');
+        if (disp) disp.textContent = qty;
+        if (qtyEl && item) qtyEl.textContent = fmtQty(qty, item.unidade);
+        if (btnM)  btnM.disabled = qty === 0;
+        if (card) {
+            card.classList.toggle('sdc-zero', qty === 0);
+            card.classList.toggle('sdc-low',  qty > 0 && qty <= 5);
+        }
+    }, 700); // após o debounce do changeQtd
+}
+
 async function renderList(filter = '', force = false) {
     const listEl = document.getElementById('stock-list');
     if (!listEl) return;
@@ -1698,6 +1954,54 @@ async function renderList(filter = '', force = false) {
 
     const data    = await fetchCollection('stock', force);
     const entries = Object.entries(data);
+
+
+    // ── Vista Desktop — grid de cards ─────────────────────────────────────
+    if (_stockDesktopActive()) {
+        _renderDesktopHeader(data);
+        listEl.className = 'stock-grid';
+
+        // Re-render por filtro/pesquisa sem destruir os cards
+        const existingDesktop = listEl.querySelectorAll('.sdc-wrapper[data-id]');
+        if (existingDesktop.length > 0 && !force) {
+            const q = filter.toLowerCase();
+            existingDesktop.forEach(w => {
+                const id   = w.dataset.id;
+                const item = data[id];
+                if (!item) { w.style.display = 'none'; return; }
+                const passFilter = _desktopFilterMatch(item);
+                const passSearch = !q || _itemMatchesFilter(item, q, filter.toUpperCase());
+                w.style.display = (passFilter && passSearch) ? '' : 'none';
+            });
+            return;
+        }
+
+        listEl.innerHTML = '';
+        if (entries.length === 0) {
+            listEl.innerHTML = '<div class="empty-msg">Nenhum produto registado.</div>';
+            return;
+        }
+
+        const filterLowerD = filter.toLowerCase();
+        getSortedEntries(entries).forEach(([id, item]) => {
+            const passFilter = _desktopFilterMatch(item);
+            const passSearch = _itemMatchesFilter(item, filterLowerD, filter.toUpperCase());
+            const card = _buildDesktopCard(id, item);
+            card.style.display = (passFilter && passSearch) ? '' : 'none';
+            listEl.appendChild(card);
+        });
+
+        if (_pendingZeroFilter) {
+            _pendingZeroFilter = false;
+            _desktopFilter = 'zero';
+            _setDesktopFilter('zero');
+        }
+        return;
+    }
+
+    // ── Vista Mobile — swipe cards ────────────────────────────────────────
+    listEl.className = '';
+    document.getElementById('stock-desktop-hdr')?.remove();
 
     // Se DOM já tem cards (re-render por filtro), apenas faz show/hide
     const existingCards = listEl.querySelectorAll('.swipe-wrapper[data-id]');
@@ -5388,6 +5692,17 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('online', async () => {
         updateOfflineBanner();
         await syncQueue();
+    });
+
+    // Re-render stock ao redimensionar (desktop ↔ mobile)
+    let _resizeTimer = null;
+    window.addEventListener('resize', () => {
+        clearTimeout(_resizeTimer);
+        _resizeTimer = setTimeout(() => {
+            if (document.getElementById('view-search')?.classList.contains('active')) {
+                renderList(window._searchInputEl?.value || '', true);
+            }
+        }, 250);
     });
 
     // Renovação de token ao voltar ao foco — protege sessões longas no Android
