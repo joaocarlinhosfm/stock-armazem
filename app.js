@@ -1060,6 +1060,9 @@ async function renderDashboard(force = false, showSpinner = false) {
 
     el.appendChild(miniRow);
 
+    // ── Secção: Gases refrigerantes (produtos com unidade kg)
+    _renderGasCard(stockData, el);
+
     // ── Secção: PATs pendentes (as mais urgentes primeiro)
     const patEntries = patsPend
         .sort((a, b) => _calcDias(b[1].criadoEm) - _calcDias(a[1].criadoEm))
@@ -1211,6 +1214,157 @@ async function renderDashboard(force = false, showSpinner = false) {
     // Retirar animação do botão refresh interno
     document.getElementById('dv3-refresh-btn')?.classList.remove('spinning');
 }
+
+// ── Gas card helpers ─────────────────────────────────────────────────────────
+// Lê MAX e ALERTA das notas do produto.
+// Sintaxe nas notas: "MAX:50 ALERTA:10" (valores em kg)
+// Exemplo: produto R404A com notas "MAX:50 ALERTA:8 Gás refrigerante"
+
+// Detecta automaticamente todos os produtos com unidade 'kg'
+function _getGasItems(stockData) {
+    return Object.entries(stockData || {})
+        .filter(([, item]) => item.unidade === 'kg')
+        .map(([id, item]) => {
+            const qty  = item.quantidade || 0;
+            // gasMax: usa campo dedicado, senão máximo histórico local, senão qty*1.5
+            const maxKey  = 'hiperfrio-gasmax-' + id;
+            let   maxHist = parseFloat(localStorage.getItem(maxKey) || '0');
+            if (qty > maxHist) { maxHist = qty; localStorage.setItem(maxKey, qty); }
+            const maxVal  = (item.gasMax != null && item.gasMax > 0)
+                ? item.gasMax
+                : (maxHist > 0 ? maxHist : Math.max(qty, 1));
+            // gasAlerta: usa campo dedicado, senão 20% do máximo
+            const alertVal = (item.gasAlerta != null && item.gasAlerta > 0)
+                ? item.gasAlerta
+                : Math.round(maxVal * 0.20 * 10) / 10;
+            return {
+                id,
+                name:    (item.codigo || item.nome || id).toUpperCase(),
+                qty,
+                max:     maxVal,
+                alertAt: alertVal,
+            };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt'));
+}
+
+function _drawGasCylSvg(g) {
+    const W=44, H=96, capH=10, neckW=16, neckH=10;
+    const bodyY = capH + neckH, bodyH = H - bodyY - 2, rx = 7;
+    const p       = Math.max(0, Math.min(1, g.qty / g.max));
+    const fillH   = Math.round((bodyH - 6) * p);
+    const fillY   = bodyY + (bodyH - 6) - fillH + 3;
+    const low     = g.qty <= g.alertAt;
+    const fill    = low ? '#E24B4A' : '#185FA5';
+    const pctText = Math.round(p * 100);
+    const cid     = 'gc' + g.id.replace(/[^a-z0-9]/gi,'') + pctText;
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.id = 'gc-svg-' + g.id;
+    svg.innerHTML = `
+        <defs><clipPath id="${cid}"><rect x="3" y="${bodyY}" width="${W-6}" height="${bodyH}" rx="${rx}"/></clipPath></defs>
+        <rect x="${(W-neckW)/2}" y="${capH}" width="${neckW}" height="${neckH}" rx="4" fill="var(--border)" stroke="var(--border)" stroke-width="0.5"/>
+        <rect x="${(W-neckW+4)/2}" y="2" width="${neckW-4}" height="${capH}" rx="3" fill="var(--border)"/>
+        <rect x="3" y="${bodyY}" width="${W-6}" height="${bodyH}" rx="${rx}" fill="var(--card-bg)" stroke="var(--border)" stroke-width="0.5"/>
+        ${p > 0 ? `<rect x="3" y="${fillY}" width="${W-6}" height="${fillH+6}" rx="${rx}" fill="${fill}" opacity="0.85" clip-path="url(#${cid})"/>` : ''}
+        <text x="${W/2}" y="${bodyY + bodyH/2 + 1}" text-anchor="middle" dominant-baseline="middle"
+            font-size="11" font-weight="500" font-family="'DM Mono','Courier New',monospace"
+            fill="${low ? '#A32D2D' : 'var(--text-muted)'}">
+            ${pctText}%
+        </text>`;
+    return svg;
+}
+
+function _renderGasCard(stockData, el) {
+    const gases = _getGasItems(stockData);
+    if (gases.length === 0) return; // sem produtos kg — não mostra o card
+
+    const lowGases = gases.filter(g => g.qty <= g.alertAt);
+    const totalKg  = gases.reduce((s, g) => s + g.qty, 0);
+    const fmtKg    = v => (Math.round(v * 10) / 10).toFixed(1);
+
+    const sec = _dv3Section('Gases refrigerantes', 'Ver stock →', () => {
+        _pendingZeroFilter = false;
+        nav('view-search');
+    });
+    sec.id = 'dv3-gas-section';
+
+    // Badge de alerta no header
+    if (lowGases.length > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'dv3-chip dv3-chip-red';
+        badge.style.cssText = 'font-size:9px;margin-left:6px;';
+        badge.textContent = lowGases.length === 1
+            ? lowGases[0].name + ' baixo'
+            : `${lowGases.length} gases baixos`;
+        sec.querySelector('.dv3-section-hdr').insertBefore(badge, sec.querySelector('.dv3-section-link'));
+    }
+
+    // Sub-info
+    const subInfo = document.createElement('div');
+    subInfo.style.cssText = 'font-size:11px;color:var(--text-muted);margin-bottom:12px;';
+    subInfo.textContent = `${gases.length} tipo${gases.length !== 1 ? 's' : ''} · ${fmtKg(totalKg)} kg total`;
+    sec.appendChild(subInfo);
+
+    // Cilindros
+    const cylRow = document.createElement('div');
+    cylRow.style.cssText = 'display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;';
+
+    gases.forEach(g => {
+        const low = g.qty <= g.alertAt;
+        const item = document.createElement('div');
+        item.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;width:60px;cursor:pointer;';
+        item.onclick = () => nav('view-search');
+
+        item.appendChild(_drawGasCylSvg(g));
+
+        const nm = document.createElement('div');
+        nm.style.cssText = 'font-size:11px;font-weight:500;color:var(--text-main);text-align:center;';
+        nm.textContent = g.name;
+
+        const qt = document.createElement('div');
+        qt.style.cssText = 'font-size:10px;font-family:"DM Mono","Courier New",monospace;color:var(--text-muted);text-align:center;';
+        qt.textContent = fmtKg(g.qty) + ' kg';
+
+        item.appendChild(nm);
+        item.appendChild(qt);
+
+        if (low) {
+            const al = document.createElement('div');
+            al.style.cssText = 'font-size:9px;font-weight:600;padding:1px 6px;border-radius:3px;background:#FCEBEB;color:#A32D2D;';
+            al.textContent = 'Baixo';
+            item.appendChild(al);
+        }
+        cylRow.appendChild(item);
+    });
+    sec.appendChild(cylRow);
+
+    // Barras horizontais
+    const barsDiv = document.createElement('div');
+    barsDiv.style.cssText = 'border-top:0.5px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px;';
+
+    gases.forEach(g => {
+        const p   = Math.max(0, Math.min(1, g.qty / g.max));
+        const low = g.qty <= g.alertAt;
+        const bar = document.createElement('div');
+        bar.style.cssText = 'display:flex;align-items:center;gap:8px;';
+        bar.innerHTML = `
+            <span style="font-size:11px;color:var(--text-muted);width:52px;flex-shrink:0;">${g.name}</span>
+            <div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
+                <div style="height:100%;border-radius:3px;width:${Math.round(p*100)}%;background:${low?'#E24B4A':'#185FA5'};transition:width .3s;"></div>
+            </div>
+            <span style="font-size:11px;font-family:'DM Mono','Courier New',monospace;width:46px;text-align:right;flex-shrink:0;color:${low?'#A32D2D':'var(--text-muted)'};font-weight:${low?'600':'400'};">
+                ${fmtKg(g.qty)} kg
+            </span>`;
+        barsDiv.appendChild(bar);
+    });
+    sec.appendChild(barsDiv);
+    el.appendChild(sec);
+}
+
 
 // helper: cria secção com header
 function _dv3Section(title, linkText, linkFn) {
@@ -2371,6 +2525,11 @@ function openEditModal(id, item) {
     document.getElementById('edit-qtd').value    = item.quantidade ?? 0;
     setUnitSelector('edit', item.unidade || 'un');
     document.getElementById('edit-notas').value  = item.notas || '';
+    // Campos de gás — só populados se unidade for kg
+    const editGasMax   = document.getElementById('edit-gas-max');
+    const editGasAlert = document.getElementById('edit-gas-alerta');
+    if (editGasMax)   editGasMax.value   = item.gasMax    != null ? item.gasMax    : '';
+    if (editGasAlert) editGasAlert.value = item.gasAlerta != null ? item.gasAlerta : '';
     document.getElementById('edit-modal').classList.add('active');
     focusModal('edit-modal');
 }
@@ -3125,6 +3284,7 @@ function closeDupModal() {
 // Fonte única de verdade para unidades — adicionar aqui para afectar toda a app
 const UNITS = [
     { value: 'un', label: 'Unidade',     short: 'Unidade' },
+    { value: 'kg', label: 'Quilos (kg)', short: 'kg'      },
     { value: 'L',  label: 'Litros (L)',  short: 'Litros'  },
     { value: 'm',  label: 'Metros (m)',  short: 'm'       },
     { value: 'm2', label: 'Metros² (m²)',short: 'm²'      },
@@ -3177,6 +3337,9 @@ function selectUnit(prefix, unit) {
     document.querySelectorAll(`#${prefix}-unit-menu .unit-option`).forEach(btn => {
         btn.classList.toggle('active', btn.dataset.unit === unit);
     });
+    // Show/hide gas fields — only visible when kg is selected
+    const gasFields = document.getElementById(`${prefix}-gas-fields`);
+    if (gasFields) gasFields.style.display = unit === 'kg' ? '' : 'none';
     // Close menu
     document.getElementById(`${prefix}-unit-menu`)?.classList.remove('open');
     document.getElementById(`${prefix}-unit-btn`)?.classList.remove('active');
@@ -3190,6 +3353,9 @@ function setUnitSelector(prefix, unit) {
     document.querySelectorAll(`#${prefix}-unit-menu .unit-option`).forEach(btn => {
         btn.classList.toggle('active', btn.dataset.unit === val);
     });
+    // Show/hide gas fields
+    const gasFields = document.getElementById(`${prefix}-gas-fields`);
+    if (gasFields) gasFields.style.display = val === 'kg' ? '' : 'none';
 }
 
 // Formata quantidade — só mostra unidade se não for "un"
@@ -5209,14 +5375,21 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const btn    = e.target.querySelector('button[type=submit]');
         const codigo = document.getElementById('inp-codigo').value.trim().toUpperCase();
+        const unidade = document.getElementById('inp-unidade').value || 'un';
         const payload = {
             nome:        document.getElementById('inp-nome').value.trim().toUpperCase(),
             localizacao: document.getElementById('inp-loc').value.trim().replace(/\s+/g,'').toUpperCase(),
             quantidade:  parseFloat(document.getElementById('inp-qtd').value) || 0,
-            unidade:     document.getElementById('inp-unidade').value || 'un',
+            unidade,
             notas:       document.getElementById('inp-notas')?.value.trim() || '',
             codigo,
         };
+        if (unidade === 'kg') {
+            const gMax   = parseFloat(document.getElementById('inp-gas-max')?.value);
+            const gAlert = parseFloat(document.getElementById('inp-gas-alerta')?.value);
+            if (!isNaN(gMax)   && gMax   > 0) payload.gasMax    = gMax;
+            if (!isNaN(gAlert) && gAlert > 0) payload.gasAlerta = gAlert;
+        }
         const doSave = async () => {
             btn.disabled = true;
             try {
@@ -5239,14 +5412,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn    = e.target.querySelector('button[type=submit]');
         const codigo = document.getElementById('bulk-codigo').value.trim().toUpperCase();
         const zona   = document.getElementById('bulk-loc').value.trim().replace(/\s+/g,'').toUpperCase();
+        const unidade = document.getElementById('bulk-unidade').value || 'un';
         const payload = {
             localizacao: zona,
             codigo,
             nome:       document.getElementById('bulk-nome').value.trim().toUpperCase(),
             quantidade: parseFloat(document.getElementById('bulk-qtd').value) || 0,
-            unidade:    document.getElementById('bulk-unidade').value || 'un',
+            unidade,
             notas:      document.getElementById('bulk-notas')?.value.trim() || '',
         };
+        if (unidade === 'kg') {
+            const gMax   = parseFloat(document.getElementById('bulk-gas-max')?.value);
+            const gAlert = parseFloat(document.getElementById('bulk-gas-alerta')?.value);
+            if (!isNaN(gMax)   && gMax   > 0) payload.gasMax    = gMax;
+            if (!isNaN(gAlert) && gAlert > 0) payload.gasAlerta = gAlert;
+        }
         const doSave = async () => {
             btn.disabled = true;
             try {
@@ -5272,17 +5452,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // Form: Editar Produto
     document.getElementById('form-edit')?.addEventListener('submit', async e => {
         e.preventDefault();
-        const id  = document.getElementById('edit-id').value;
-        const btn = e.target.querySelector('button[type=submit]');
-        btn.disabled = true;
+        const id      = document.getElementById('edit-id').value;
+        const btn     = e.target.querySelector('button[type=submit]');
+        const unidade = document.getElementById('edit-unidade').value || 'un';
+        btn.disabled  = true;
         const updated = {
             codigo:      document.getElementById('edit-codigo').value.trim().toUpperCase(),
             nome:        document.getElementById('edit-nome').value.trim().toUpperCase(),
             localizacao: document.getElementById('edit-loc').value.trim().replace(/\s+/g,'').toUpperCase(),
             quantidade:  parseFloat(document.getElementById('edit-qtd').value) || 0,
-            unidade:     document.getElementById('edit-unidade').value || 'un',
+            unidade,
             notas:       document.getElementById('edit-notas')?.value.trim() || '',
         };
+        if (unidade === 'kg') {
+            const gMax   = parseFloat(document.getElementById('edit-gas-max')?.value);
+            const gAlert = parseFloat(document.getElementById('edit-gas-alerta')?.value);
+            updated.gasMax    = (!isNaN(gMax)   && gMax   > 0) ? gMax    : null;
+            updated.gasAlerta = (!isNaN(gAlert) && gAlert > 0) ? gAlert  : null;
+        } else {
+            // Limpar campos de gás se unidade mudou de kg para outra
+            updated.gasMax    = null;
+            updated.gasAlerta = null;
+        }
         const _oldQtyEdit = cache.stock.data?.[id]?.quantidade ?? 0;
         cache.stock.data[id] = { ...cache.stock.data[id], ...updated };
         btn.textContent = 'A guardar...';

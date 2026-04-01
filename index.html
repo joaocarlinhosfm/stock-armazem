@@ -539,6 +539,7 @@
                             </button>
                             <div class="unit-menu" id="inp-unit-menu">
                                 <button type="button" class="unit-option active" data-unit="un"  onclick="selectUnit('inp','un')">Unidade</button>
+                                <button type="button" class="unit-option"        data-unit="kg"  onclick="selectUnit('inp','kg')">Quilos (kg)</button>
                                 <button type="button" class="unit-option"        data-unit="L"   onclick="selectUnit('inp','L')">Litros (L)</button>
                                 <button type="button" class="unit-option"        data-unit="m"   onclick="selectUnit('inp','m')">Metros (m)</button>
                                 <button type="button" class="unit-option"        data-unit="m2"  onclick="selectUnit('inp','m2')">Metros² (m²)</button>
@@ -546,6 +547,19 @@
                         </div>
                         <input type="hidden" id="inp-unidade" value="un">
                     </div>
+                </div>
+                <div class="form-group gas-fields" id="inp-gas-fields" style="display:none">
+                    <div class="gas-fields-row">
+                        <div class="gas-field">
+                            <label for="inp-gas-max">MÁX. (kg)</label>
+                            <input type="number" id="inp-gas-max" class="blue-input" min="0" step="0.1" inputmode="decimal" placeholder="ex: 50">
+                        </div>
+                        <div class="gas-field">
+                            <label for="inp-gas-alerta">ALERTA (kg)</label>
+                            <input type="number" id="inp-gas-alerta" class="blue-input" min="0" step="0.1" inputmode="decimal" placeholder="ex: 10">
+                        </div>
+                    </div>
+                    <span class="form-hint">Nível máximo e limiar de alerta para o card de gases no dashboard</span>
                 </div>
                 <div class="form-group"><label for="inp-notas">NOTAS (opcional)</label><textarea id="inp-notas" class="blue-input textarea-input" placeholder="Observações, estado, localização alternativa..." rows="2" oninput="this.value=this.value.toUpperCase()"></textarea></div>
                 <button type="submit" class="btn-primary">Gravar Produto</button>
@@ -576,6 +590,7 @@
                             </button>
                             <div class="unit-menu" id="bulk-unit-menu">
                                 <button type="button" class="unit-option active" data-unit="un"  onclick="selectUnit('bulk','un')">Unidade</button>
+                                <button type="button" class="unit-option"        data-unit="kg"  onclick="selectUnit('bulk','kg')">Quilos (kg)</button>
                                 <button type="button" class="unit-option"        data-unit="L"   onclick="selectUnit('bulk','L')">Litros (L)</button>
                                 <button type="button" class="unit-option"        data-unit="m"   onclick="selectUnit('bulk','m')">Metros (m)</button>
                                 <button type="button" class="unit-option"        data-unit="m2"  onclick="selectUnit('bulk','m2')">Metros² (m²)</button>
@@ -583,6 +598,19 @@
                         </div>
                         <input type="hidden" id="bulk-unidade" value="un">
                     </div>
+                </div>
+                <div class="form-group gas-fields" id="bulk-gas-fields" style="display:none">
+                    <div class="gas-fields-row">
+                        <div class="gas-field">
+                            <label for="bulk-gas-max">MÁX. (kg)</label>
+                            <input type="number" id="bulk-gas-max" class="blue-input" min="0" step="0.1" inputmode="decimal" placeholder="ex: 50">
+                        </div>
+                        <div class="gas-field">
+                            <label for="bulk-gas-alerta">ALERTA (kg)</label>
+                            <input type="number" id="bulk-gas-alerta" class="blue-input" min="0" step="0.1" inputmode="decimal" placeholder="ex: 10">
+                        </div>
+                    </div>
+                    <span class="form-hint">Nível máximo e limiar de alerta para o card de gases no dashboard</span>
                 </div>
                 <div class="form-group"><label for="bulk-notas">NOTAS (opcional)</label><textarea id="bulk-notas" class="blue-input textarea-input" placeholder="Observações..." rows="2" oninput="this.value=this.value.toUpperCase()"></textarea></div>
                 <button type="submit" class="btn-primary">Adicionar ao Lote</button>
@@ -1142,6 +1170,7 @@
                             </button>
                             <div class="unit-menu" id="edit-unit-menu">
                                 <button type="button" class="unit-option active" data-unit="un"  onclick="selectUnit('edit','un')">Unidade</button>
+                                <button type="button" class="unit-option"        data-unit="kg"  onclick="selectUnit('edit','kg')">Quilos (kg)</button>
                                 <button type="button" class="unit-option"        data-unit="L"   onclick="selectUnit('edit','L')">Litros (L)</button>
                                 <button type="button" class="unit-option"        data-unit="m"   onclick="selectUnit('edit','m')">Metros (m)</button>
                                 <button type="button" class="unit-option"        data-unit="m2"  onclick="selectUnit('edit','m2')">Metros² (m²)</button>
@@ -1149,6 +1178,19 @@
                         </div>
                         <input type="hidden" id="edit-unidade" value="un">
                     </div>
+                </div>
+                <div class="form-group gas-fields" id="edit-gas-fields" style="display:none">
+                    <div class="gas-fields-row">
+                        <div class="gas-field">
+                            <label for="edit-gas-max">MÁX. (kg)</label>
+                            <input type="number" id="edit-gas-max" class="blue-input" min="0" step="0.1" inputmode="decimal" placeholder="ex: 50">
+                        </div>
+                        <div class="gas-field">
+                            <label for="edit-gas-alerta">ALERTA (kg)</label>
+                            <input type="number" id="edit-gas-alerta" class="blue-input" min="0" step="0.1" inputmode="decimal" placeholder="ex: 10">
+                        </div>
+                    </div>
+                    <span class="form-hint">Nível máximo e limiar de alerta para o card de gases no dashboard</span>
                 </div>
                 <div class="form-group">
                     <label for="edit-notas">NOTAS</label>
