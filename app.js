@@ -984,13 +984,13 @@ async function renderDashboard(force = false, showSpinner = false) {
     const alocadasHaMuito = ferraEntries.filter(t =>
         t.status === 'alocada' && t.dataEntrega && _calcDias(t.dataEntrega) > ALERTA_DIAS
     );
-    _saveDashSnapshot(total, semStock, alocadas, patPendentes, encActivas);
-
     // Encomendas
     const encEntries   = Object.values(_encData || {});
     const encPendentes = encEntries.filter(e => e.estado === 'pendente').length;
     const encParciais  = encEntries.filter(e => e.estado === 'parcial').length;
     const encActivas   = encPendentes + encParciais;
+
+    _saveDashSnapshot(total, semStock, alocadas, patPendentes, encActivas);
 
     // PATs: urgentes e com guia
     const allPats     = Object.entries(_patCache.data || {});
