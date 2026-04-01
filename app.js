@@ -479,13 +479,19 @@ async function deleteUser(username) {
         showToast('Não podes eliminar a tua própria conta', 'error');
         return;
     }
-    if (!confirm(`Eliminar utilizador "${username}"?`)) return;
-    const url = await authUrl(`${USERS_BASE_URL}/${username}.json`);
-    await fetch(url, { method: 'DELETE' });
-    localStorage.removeItem('hiperfrio-users-cache');
-    localStorage.removeItem('hiperfrio-session');
-    showToast(`Utilizador "${username}" eliminado`);
-    renderUsersList();
+    openConfirmModal({
+        icon: '👤',
+        title: 'Eliminar utilizador?',
+        desc: `"${username}" será removido permanentemente.`,
+        onConfirm: async () => {
+            const url = await authUrl(`${USERS_BASE_URL}/${username}.json`);
+            await fetch(url, { method: 'DELETE' });
+            localStorage.removeItem('hiperfrio-users-cache');
+            localStorage.removeItem('hiperfrio-session');
+            showToast(`Utilizador "${username}" eliminado`);
+            renderUsersList();
+        }
+    });
 }
 
 // Trocar de perfil — sem reload para ser mais rápido
@@ -542,15 +548,18 @@ async function bootApp() {
         console.warn('bootApp: sem token, continua offline');
     }
     _scheduleTokenRenewal();
-    // Auto-fechar mês anterior se for dia 1
-    _autoFecharMesSeNecessario();
     // Lança fetches em paralelo após ter token
     await Promise.all([
         renderList(),
         fetchCollection('ferramentas'),
         fetchCollection('funcionarios'),
         _fetchClientes(),
+        _fetchPats(),       // necessário para _autoFecharMesSeNecessario ter cache quente
     ]).catch(e => console.warn('bootApp fetch error:', e));
+    // Auto-fechar mês anterior se for dia 1 — só depois dos dados carregados
+    _autoFecharMesSeNecessario();
+    // Limpeza automática de movimentos antigos (>90 dias) — background, não bloqueia
+    _pruneMovimentos().catch(() => {});
     updateOfflineBanner();
     // Navega para o dashboard como vista inicial
     nav('view-dashboard');
@@ -646,17 +655,20 @@ async function syncQueue() {
     if (q.length === 0) return;
     isSyncing = true;
     const failed = [];
-    for (const op of q) {
-        try {
-            const opts = { method: op.method, headers: { 'Content-Type': 'application/json' } };
-            if (op.body) opts.body = op.body;
-            const signedUrl = await authUrl(op.url);
-            const res = await fetch(signedUrl, opts);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        } catch(_e) { console.warn('[Queue] falha ao sincronizar op:', op?.method, _e?.message); failed.push(op); }
+    try {
+        for (const op of q) {
+            try {
+                const opts = { method: op.method, headers: { 'Content-Type': 'application/json' } };
+                if (op.body) opts.body = op.body;
+                const signedUrl = await authUrl(op.url);
+                const res = await fetch(signedUrl, opts);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            } catch(_e) { console.warn('[Queue] falha ao sincronizar op:', op?.method, _e?.message); failed.push(op); }
+        }
+        queueSave(failed);
+    } finally {
+        isSyncing = false; // garante reset mesmo se ocorrer excepção inesperada
     }
-    queueSave(failed);
-    isSyncing = false;
     updateOfflineBanner();
     if (failed.length < q.length) {
         const synced = q.length - failed.length;
@@ -4167,9 +4179,12 @@ async function _loadGeocodeCache() {
             if (res.ok) {
                 const data = await res.json();
                 if (data && typeof data === 'object') {
+                    const GEOCODE_RETRY_MS = 7 * 24 * 60 * 60 * 1000; // retentar nulos após 7 dias
                     Object.entries(data).forEach(([k, v]) => {
                         const rawKey = _normEstabKey(v?.keyOriginal || k.replace(/_/g, ' '));
                         if (!rawKey || _geocodeCache[rawKey] !== undefined) return; // clientes têm prioridade
+                        // Entradas null com mais de 7 dias são ignoradas — serão retentadas pelo Nominatim
+                        if (v?.lat == null && v?.ts && (Date.now() - v.ts) > GEOCODE_RETRY_MS) return;
                         _geocodeCache[rawKey] = (v?.lat != null && v?.lng != null)
                             ? { lat: v.lat, lng: v.lng } : null;
                     });
@@ -5074,6 +5089,24 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('online', async () => {
         updateOfflineBanner();
         await syncQueue();
+    });
+
+    // Renovação de token ao voltar ao foco — protege sessões longas no Android
+    // quando a PWA fica em background e o setTimeout de 45min não disparou
+    document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState !== 'visible') return;
+        if (!window._firebaseUser) return;
+        const now = Date.now();
+        // Renovar se o token expirou ou está a menos de 10min de expirar
+        if (_authTokenExp - now < 10 * 60 * 1000) {
+            try {
+                _authToken = await window._firebaseUser.getIdToken(true);
+                _authTokenExp = now + 3_500_000;
+                _scheduleTokenRenewal(); // re-agenda o timer
+            } catch(e) { console.warn('[Auth] falha ao renovar no visibilitychange:', e.message); }
+        }
+        // Sincronizar fila offline se houver ligação
+        if (navigator.onLine) syncQueue().catch(() => {});
     });
 
     // Background Sync
@@ -7601,6 +7634,54 @@ const MOV_URL = `${BASE_URL}/movimentos`;
 
 let _relMesOffset = 0; // 0 = mês actual, -1 = anterior, etc.
 let _relDonutChart = null; // instância Chart.js — destruída antes de recriar
+
+// ── Limpeza automática de movimentos antigos ──────────────────────────────
+// Corre em background no arranque. Apaga movimentos com >90 dias — os snapshots
+// mensais já foram gerados, por isso os relatórios antigos não são afectados.
+// Usa um timestamp local para não repetir a limpeza mais de uma vez por semana.
+const _PRUNE_MOV_KEY     = 'hiperfrio-prune-mov-ts';
+const _PRUNE_MOV_FREQ_MS = 7 * 24 * 60 * 60 * 1000;  // só limpa 1x por semana
+const _PRUNE_MOV_TTL_MS  = 90 * 24 * 60 * 60 * 1000; // apaga movimentos >90 dias
+
+async function _pruneMovimentos() {
+    if (!navigator.onLine) return;
+    const lastRun = parseInt(localStorage.getItem(_PRUNE_MOV_KEY) || '0');
+    if (Date.now() - lastRun < _PRUNE_MOV_FREQ_MS) return; // já correu esta semana
+
+    try {
+        // Busca todos os movimentos (sem filtro — precisamos dos IDs para apagar)
+        const url  = await authUrl(`${MOV_URL}.json`);
+        const res  = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data || typeof data !== 'object') return;
+
+        const cutoff  = Date.now() - _PRUNE_MOV_TTL_MS;
+        const expirados = Object.entries(data)
+            .filter(([, m]) => m?.ts && m.ts < cutoff)
+            .map(([id]) => id);
+
+        if (expirados.length === 0) {
+            localStorage.setItem(_PRUNE_MOV_KEY, Date.now().toString());
+            return;
+        }
+
+        // Apaga em lotes de 20 para não sobrecarregar a Firebase
+        const BATCH = 20;
+        for (let i = 0; i < expirados.length; i += BATCH) {
+            const lote = expirados.slice(i, i + BATCH);
+            await Promise.allSettled(
+                lote.map(id => apiFetch(`${MOV_URL}/${id}.json`, { method: 'DELETE' }))
+            );
+            if (i + BATCH < expirados.length) await new Promise(r => setTimeout(r, 300));
+        }
+
+        localStorage.setItem(_PRUNE_MOV_KEY, Date.now().toString());
+        console.log(`[pruneMovimentos] ${expirados.length} movimentos apagados`);
+    } catch(e) {
+        console.warn('[pruneMovimentos] erro:', e?.message);
+    }
+}
 
 // ── Utilitários de data ────────────────────────────────────────────────────
 function _mesKey(offset = 0) {
