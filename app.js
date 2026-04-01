@@ -496,12 +496,15 @@ async function deleteUser(username) {
         title: 'Eliminar utilizador?',
         desc: `"${username}" será removido permanentemente.`,
         onConfirm: async () => {
-            const url = await authUrl(`${USERS_BASE_URL}/${username}.json`);
-            await fetch(url, { method: 'DELETE' });
-            localStorage.removeItem('hiperfrio-users-cache');
-            localStorage.removeItem('hiperfrio-session');
-            showToast(`Utilizador "${username}" eliminado`);
-            renderUsersList();
+            try {
+                await apiFetch(`${USERS_BASE_URL}/${username}.json`, { method: 'DELETE' });
+                localStorage.removeItem('hiperfrio-users-cache');
+                localStorage.removeItem('hiperfrio-session');
+                showToast(`Utilizador "${username}" eliminado`);
+                renderUsersList();
+            } catch(e) {
+                showToast('Erro ao eliminar utilizador: ' + (e?.message || e), 'error');
+            }
         }
     });
 }
@@ -7158,6 +7161,16 @@ function closeOcrSettings() {
     document.getElementById('ocr-settings-modal').classList.remove('active');
 }
 
+
+// ── Helper: fetch com timeout para chamadas à API Anthropic ──────────────────
+// Evita que o utilizador fique com o botão bloqueado para sempre se a API não responder.
+function _fetchWithTimeout(url, opts, timeoutMs = 30000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(url, { ...opts, signal: controller.signal })
+        .finally(() => clearTimeout(timer));
+}
+
 async function testAnthropicProxy() {
     const val = _getAnthropicKey();
     if (!val) { showToast('Configura primeiro o URL do Worker', 'error'); return; }
@@ -7175,7 +7188,7 @@ async function testAnthropicProxy() {
             headers['anthropic-dangerous-allow-browser'] = 'true';
         }
 
-        const resp = await fetch(endpoint, {
+        const resp = await _fetchWithTimeout(endpoint, {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -7183,7 +7196,7 @@ async function testAnthropicProxy() {
                 max_tokens: 10,
                 messages: [{ role: 'user', content: 'Hi' }]
             })
-        });
+        }, 15000); // timeout mais curto para o teste
 
         const data = await resp.json();
         if (data.content || data.id) {
@@ -7403,7 +7416,7 @@ Responde APENAS com JSON válido, sem markdown, sem explicações:
                 headers['anthropic-dangerous-allow-browser'] = 'true';
             }
 
-            const resp = await fetch(endpoint, {
+            const resp = await _fetchWithTimeout(endpoint, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
@@ -7476,7 +7489,8 @@ Responde APENAS com JSON válido, sem markdown, sem explicações:
         _patScanSetStatus(`✓ Análise concluída (${mode}) — revê e confirma`, 'ok');
 
     } catch(e) {
-        const msg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e)) || 'Erro desconhecido';
+        const isTimeout = e?.name === 'AbortError';
+        const msg = isTimeout ? 'Tempo esgotado (30s) — tenta novamente com boa ligação' : (e?.message || (typeof e === 'string' ? e : JSON.stringify(e)) || 'Erro desconhecido');
         _patScanSetStatus('Erro: ' + msg, 'error');
         console.error('[patScan]', e);
     } finally {
@@ -7654,14 +7668,40 @@ async function savePat() {
     hint.textContent = '';
 
     // Verificar duplicado — só na criação
+    // Verifica primeiro no cache local (rápido), depois confirma na Firebase
+    // para proteger contra dois utilizadores a criar a mesma PAT em simultâneo.
     if (!isEdit) {
         const patsExistentes = Object.values(_patCache.data || {});
-        const duplicado = patsExistentes.find(p => p.numero === numero && p.status !== 'levantado');
-        if (duplicado) {
-            hint.textContent = `PAT ${numero} já está registada (${duplicado.estabelecimento || 'sem estabelecimento'}).`;
+        const duplicadoLocal = patsExistentes.find(p => p.numero === numero && p.status !== 'levantado');
+        if (duplicadoLocal) {
+            hint.textContent = `PAT ${numero} já está registada (${duplicadoLocal.estabelecimento || 'sem estabelecimento'}).`;
             hint.style.color = 'var(--danger)';
             document.getElementById('pat-numero').focus();
             return;
+        }
+        // Confirmação remota — protege contra race condition multi-utilizador
+        if (navigator.onLine) {
+            try {
+                const checkUrl = await authUrl(`${BASE_URL}/pedidos.json?orderBy="numero"&equalTo="${numero}"`);
+                const checkRes = await fetch(checkUrl);
+                if (checkRes.ok) {
+                    const remote = await checkRes.json();
+                    if (remote && typeof remote === 'object') {
+                        const remoteActive = Object.values(remote).find(p => p.status !== 'levantado');
+                        if (remoteActive) {
+                            hint.textContent = `PAT ${numero} já está registada por outro utilizador.`;
+                            hint.style.color = 'var(--danger)';
+                            document.getElementById('pat-numero').focus();
+                            // Actualiza cache local com o que o servidor tem
+                            _patCache.lastFetch = 0;
+                            return;
+                        }
+                    }
+                }
+            } catch(e) {
+                console.warn('[savePat] verificação remota de duplicado falhou:', e?.message);
+                // Não bloquear — continua com a verificação local
+            }
         }
     }
 
@@ -7723,6 +7763,11 @@ async function savePat() {
 
 async function marcarPatLevantado(id) {
     const pat = _patCache.data?.[id];
+    if (!pat) return;
+    // Protecção contra duplo-clique: verificar se já está levantado no cache local
+    if (pat.status === 'levantado') {
+        showToast('PAT já foi levantada', 'error'); return;
+    }
     const separacao = !!pat?.separacao;
 
     const desc = separacao
@@ -7735,23 +7780,32 @@ async function marcarPatLevantado(id) {
         desc,
         onConfirm: async () => {
             try {
+                // Marca no cache local IMEDIATAMENTE — protege contra duplo clique
+                // Um segundo marcarPatLevantado verá status='levantado' e sairá
+                if (_patCache.data?.[id]) _patCache.data[id].status = 'levantado';
+
                 // 1 — Marca como levantado na Firebase (com suporte offline)
                 await apiFetch(`${BASE_URL}/pedidos/${id}.json`, {
                     method: 'PATCH',
                     body: JSON.stringify({ status: 'levantado', levantadoEm: Date.now() }),
                 });
-                if (_patCache.data?.[id]) _patCache.data[id].status = 'levantado';
 
-                // 2 — Se separação: desconta stock em paralelo via apiFetch (suporta offline)
+                // 2 — Se separação: desconta stock com delta seguro (multi-utilizador)
+                // Usa _commitStockDelta que lê o valor ACTUAL do servidor antes de escrever,
+                // evitando sobreposição quando outro utilizador alterou o stock entretanto.
                 if (separacao && pat.produtos?.length) {
                     const patches = pat.produtos
                         .filter(p => p.id)
                         .map(p => {
-                            const atual = cache.stock.data?.[p.id]?.quantidade ?? 0;
-                            const novaQty = Math.max(0, atual - (p.quantidade || 1));
-                            if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = novaQty;
-                            registarMovimento('saida_pat', p.id, p.codigo, p.nome, p.quantidade || 1);
-                            return _commitStockDelta(p.id, atual, novaQty)
+                            const qtdPat = p.quantidade || 1;
+                            // Optimistic update no cache local para feedback imediato
+                            const cacheAtual = cache.stock.data?.[p.id]?.quantidade ?? 0;
+                            const cacheNova  = Math.max(0, cacheAtual - qtdPat);
+                            if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = cacheNova;
+                            registarMovimento('saida_pat', p.id, p.codigo, p.nome, qtdPat);
+                            // _commitStockDelta lê o valor real do servidor e aplica o delta
+                            // baseQty = cacheAtual, finalQty = cacheNova → delta = -qtdPat
+                            return _commitStockDelta(p.id, cacheAtual, cacheNova)
                                 .then(savedQty => {
                                     if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = savedQty;
                                 })
@@ -8916,7 +8970,7 @@ REGRAS:
             headers['anthropic-dangerous-allow-browser'] = 'true';
         }
 
-        const resp = await fetch(endpoint, {
+        const resp = await _fetchWithTimeout(endpoint, {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -9132,7 +9186,29 @@ async function confirmarEntrada() {
     const l   = enc?.linhas?.[_encEntradaLIdx];
     if (!l) return;
 
-    const novoRecebido = Math.min((parseFloat(l.recebido) || 0) + qty, parseFloat(l.qtd) || 0);
+    // Lê o valor ACTUAL do servidor antes de somar — protege contra dois utilizadores
+    // a dar entrada na mesma linha ao mesmo tempo (o segundo sobrescreveria o primeiro).
+    let recebidoActual = parseFloat(l.recebido) || 0;
+    if (navigator.onLine) {
+        try {
+            const remoteUrl = await authUrl(`${ENC_URL}/${_encEntradaId}/linhas/${_encEntradaLIdx}/recebido.json`);
+            const remoteRes = await fetch(remoteUrl);
+            if (remoteRes.ok) {
+                const remoteVal = await remoteRes.json();
+                if (typeof remoteVal === 'number' && !isNaN(remoteVal)) {
+                    recebidoActual = remoteVal;
+                    // Actualiza cache local com valor real
+                    if (_encData[_encEntradaId]?.linhas?.[_encEntradaLIdx]) {
+                        _encData[_encEntradaId].linhas[_encEntradaLIdx].recebido = recebidoActual;
+                    }
+                }
+            }
+        } catch(e) {
+            console.warn('[confirmarEntrada] falha ao ler valor actual:', e?.message);
+        }
+    }
+
+    const novoRecebido = Math.min(recebidoActual + qty, parseFloat(l.qtd) || 0);
     const novasLinhas  = { ...(enc.linhas || {}) };
     novasLinhas[_encEntradaLIdx] = { ...l, recebido: novoRecebido };
     const novoEstado   = _calcEstado(novasLinhas);
