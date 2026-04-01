@@ -755,6 +755,15 @@ body {
     min-height: 100vh; 
 }
 
+@media (min-width: 768px) {
+    body {
+        overflow: hidden;
+        height: 100vh;
+        min-height: unset;
+        padding-top: 0;
+    }
+}
+
 /* APP LAYOUT */
 
 /* ══════════════════════════════════════════════════════════
@@ -764,6 +773,16 @@ body {
 #app-layout {
     display: flex;
     min-height: calc(100vh - var(--header-h));
+}
+
+@media (min-width: 768px) {
+    #app-layout {
+        flex-direction: row;
+        height: 100vh;
+        min-height: unset;
+        overflow: hidden;
+        padding-top: var(--header-h);
+    }
 }
 
 
@@ -5960,19 +5979,7 @@ body.is-offline #app-layout {
 .admin-mobile-menu-exit    { animation: adminSlideOut 0.18s ease both; }
 
 @media (min-width: 768px) {
-    /* Body e app-layout não scrollam — o scroll fica dentro do #main-content */
-    body {
-        overflow: hidden;
-        height: 100vh;
-    }
-
-    #app-layout {
-        flex-direction: row;
-        height: calc(100vh - var(--header-h));
-        overflow: hidden;
-    }
-
-    /* Sidebar: fixa visualmente porque o body não faz scroll */
+    /* Sidebar: estática no fluxo, a altura é 100% do #app-layout que não faz scroll */
     #side-menu {
         position: relative;
         top: auto;
@@ -5991,7 +5998,7 @@ body.is-offline #app-layout {
     #menu-overlay { display: none !important; }
     #bottom-nav { display: none !important; }
 
-    /* Main: scroll acontece aqui, não no body */
+    /* Main: todo o scroll acontece aqui */
     #main-content {
         flex: 1;
         height: 100%;
