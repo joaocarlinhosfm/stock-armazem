@@ -7416,12 +7416,15 @@ body.is-offline #app-layout {
    POPUP DE DETALHE DO PRODUTO — mobile tap
    ══════════════════════════════════════════════════════════════════════════ */
 
-.pdm-content {
-    padding: 0;
+/* Sobrepõe o .modal-content base (que tem padding:25px e text-align:center) */
+.modal-content.pdm-content {
+    padding: 0 !important;
+    text-align: left !important;
     overflow: hidden;
     border-radius: 20px;
     max-width: 340px;
     width: calc(100% - 32px);
+    position: relative; /* para o botão fechar absolute */
 }
 
 /* Botão fechar */
@@ -7433,16 +7436,17 @@ body.is-offline #app-layout {
     height: 32px;
     border-radius: 50%;
     border: none;
-    background: rgba(0,0,0,.12);
+    background: rgba(0,0,0,.35);
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    z-index: 2;
+    z-index: 10;
     transition: background .12s;
+    backdrop-filter: blur(4px);
 }
-.pdm-close:hover { background: rgba(0,0,0,.25); }
+.pdm-close:hover { background: rgba(0,0,0,.55); }
 
 /* Imagem */
 .pdm-img-wrap {
@@ -7450,7 +7454,7 @@ body.is-offline #app-layout {
     height: 180px;
     overflow: hidden;
     background: var(--bg);
-    position: relative;
+    flex-shrink: 0;
 }
 .pdm-img-wrap img {
     width: 100%;
@@ -7461,98 +7465,101 @@ body.is-offline #app-layout {
 
 /* Cabeçalho */
 .pdm-header {
-    padding: 14px 16px 10px;
+    padding: 14px 16px 12px;
     border-bottom: 1px solid var(--border);
 }
 .pdm-ref {
-    font-size: 0.62rem;
+    font-size: 0.62rem !important;
     font-weight: 700;
-    color: var(--primary);
+    color: var(--primary) !important;
     letter-spacing: .06em;
     font-family: 'DM Mono', monospace;
-    margin-bottom: 3px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
 }
 .pdm-nome {
-    font-size: 1rem;
+    font-size: 1rem !important;
     font-weight: 800;
-    color: var(--text-main);
-    line-height: 1.2;
+    color: var(--text-main) !important;
+    line-height: 1.25;
     letter-spacing: -.01em;
+    text-align: left !important;
 }
 
 /* Grelha de campos */
 .pdm-grid {
     display: flex;
     flex-direction: column;
-    gap: 0;
 }
 .pdm-field {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 16px;
+    padding: 11px 16px;
     border-bottom: 1px solid var(--border);
     gap: 12px;
 }
 .pdm-label {
-    font-size: 0.72rem;
+    font-size: 0.7rem !important;
     font-weight: 600;
-    color: var(--text-muted);
+    color: var(--text-muted) !important;
     text-transform: uppercase;
-    letter-spacing: .04em;
+    letter-spacing: .05em;
     flex-shrink: 0;
+    text-align: left !important;
 }
 .pdm-value {
-    font-size: 0.88rem;
+    font-size: 0.88rem !important;
     font-weight: 700;
-    color: var(--text-main);
+    color: var(--text-main) !important;
     text-align: right;
     font-family: 'DM Mono', monospace;
 }
 .pdm-qty {
-    font-size: 1.3rem;
-    font-weight: 800;
+    font-size: 1.4rem !important;
+    font-weight: 800 !important;
+    color: var(--primary) !important;
 }
-.pdm-qty-zero { color: #dc2626; }
+.pdm-qty-zero { color: #dc2626 !important; }
 
 /* Acções */
 .pdm-actions {
     display: flex;
     gap: 8px;
-    padding: 12px 16px;
+    padding: 12px 16px 14px;
 }
 .pdm-btn-edit,
 .pdm-btn-del {
     flex: 1;
-    display: inline-flex;
+    display: inline-flex !important;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 10px;
+    padding: 11px;
     border-radius: 10px;
     font-family: 'Inter', sans-serif;
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
-    border: 1.5px solid var(--border);
     transition: all .12s;
+    text-align: center !important;
 }
 .pdm-btn-edit {
     background: var(--primary-soft);
-    color: var(--primary);
-    border-color: var(--primary);
+    color: var(--primary) !important;
+    border: 1.5px solid var(--primary);
 }
-.pdm-btn-edit:hover { background: var(--primary); color: #fff; }
+.pdm-btn-edit:hover  { background: var(--primary); color: #fff !important; }
 .pdm-btn-del {
     background: #fee2e2;
-    color: #dc2626;
-    border-color: #fca5a5;
+    color: #dc2626 !important;
+    border: 1.5px solid #fca5a5;
 }
-.pdm-btn-del:hover { background: #dc2626; color: #fff; }
+.pdm-btn-del:hover { background: #dc2626; color: #fff !important; }
 
 /* Dark mode */
-.dark-mode .pdm-close { background: rgba(255,255,255,.15); }
-.dark-mode .pdm-close:hover { background: rgba(255,255,255,.25); }
-.dark-mode .pdm-img-wrap { background: #0f172a; }
-.dark-mode .pdm-btn-edit { background: rgba(37,99,235,.15); border-color: #3b82f6; color: #60a5fa; }
-.dark-mode .pdm-btn-del  { background: rgba(220,38,38,.15);  border-color: #f87171; color: #f87171; }
+.dark-mode .pdm-close      { background: rgba(255,255,255,.2); }
+.dark-mode .pdm-close:hover { background: rgba(255,255,255,.35); }
+.dark-mode .pdm-img-wrap   { background: #0f172a; }
+.dark-mode .pdm-btn-edit   { background: rgba(37,99,235,.18); border-color: #3b82f6; color: #60a5fa !important; }
+.dark-mode .pdm-btn-del    { background: rgba(220,38,38,.18); border-color: #f87171; color: #f87171 !important; }
