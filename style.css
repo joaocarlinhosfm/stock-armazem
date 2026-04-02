@@ -7411,3 +7411,148 @@ body.is-offline #app-layout {
 .dark-mode .img-edit-preview { background: #0f172a; border-color: #334155; }
 .dark-mode .img-result-thumb { background: #0f172a; }
 .dark-mode .sdc-img-wrap     { background: #0f172a; border-color: #334155; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   POPUP DE DETALHE DO PRODUTO — mobile tap
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.pdm-content {
+    padding: 0;
+    overflow: hidden;
+    border-radius: 20px;
+    max-width: 340px;
+    width: calc(100% - 32px);
+}
+
+/* Botão fechar */
+.pdm-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,.12);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+    transition: background .12s;
+}
+.pdm-close:hover { background: rgba(0,0,0,.25); }
+
+/* Imagem */
+.pdm-img-wrap {
+    width: 100%;
+    height: 180px;
+    overflow: hidden;
+    background: var(--bg);
+    position: relative;
+}
+.pdm-img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Cabeçalho */
+.pdm-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+}
+.pdm-ref {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: .06em;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 3px;
+}
+.pdm-nome {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text-main);
+    line-height: 1.2;
+    letter-spacing: -.01em;
+}
+
+/* Grelha de campos */
+.pdm-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.pdm-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+}
+.pdm-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    flex-shrink: 0;
+}
+.pdm-value {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-main);
+    text-align: right;
+    font-family: 'DM Mono', monospace;
+}
+.pdm-qty {
+    font-size: 1.3rem;
+    font-weight: 800;
+}
+.pdm-qty-zero { color: #dc2626; }
+
+/* Acções */
+.pdm-actions {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+}
+.pdm-btn-edit,
+.pdm-btn-del {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px;
+    border-radius: 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid var(--border);
+    transition: all .12s;
+}
+.pdm-btn-edit {
+    background: var(--primary-soft);
+    color: var(--primary);
+    border-color: var(--primary);
+}
+.pdm-btn-edit:hover { background: var(--primary); color: #fff; }
+.pdm-btn-del {
+    background: #fee2e2;
+    color: #dc2626;
+    border-color: #fca5a5;
+}
+.pdm-btn-del:hover { background: #dc2626; color: #fff; }
+
+/* Dark mode */
+.dark-mode .pdm-close { background: rgba(255,255,255,.15); }
+.dark-mode .pdm-close:hover { background: rgba(255,255,255,.25); }
+.dark-mode .pdm-img-wrap { background: #0f172a; }
+.dark-mode .pdm-btn-edit { background: rgba(37,99,235,.15); border-color: #3b82f6; color: #60a5fa; }
+.dark-mode .pdm-btn-del  { background: rgba(220,38,38,.15);  border-color: #f87171; color: #f87171; }

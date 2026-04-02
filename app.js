@@ -2971,8 +2971,14 @@ document.addEventListener('mouseup', () => {
 });
 
 function attachSwipe(card, wrapper, id, item) {
-    // Funcionários não têm swipe — apenas leitura
-    if (currentRole === 'worker') return;
+    // Workers: tap simples abre popup de detalhe (sem swipe)
+    if (currentRole === 'worker') {
+        card.addEventListener('click', (e) => {
+            if (e.target.closest('.btn-qty')) return;
+            openProductDetail(id, item);
+        });
+        return;
+    }
     card.addEventListener('touchstart', e => {
         e.stopPropagation();
         _onSwipeStart(card, wrapper, id, item, e.touches[0].clientX, e.touches[0].clientY);
@@ -3033,6 +3039,9 @@ function _onSwipeEnd() {
         snapBack(_swipeCard);
         if      (_swipeCurrentX < -SWIPE_THRESHOLD) openDeleteModal(_swipeMeta.id, _swipeMeta.item);
         else if (_swipeCurrentX >  SWIPE_THRESHOLD) openEditModal(_swipeMeta.id, _swipeMeta.item);
+    } else if (_swipeIntent === null) {
+        // Tap puro (sem swipe) — abre popup de detalhe
+        openProductDetail(_swipeMeta.id, _swipeMeta.item);
     }
     _swipeCard = _swipeWrapper = _swipeMeta = null;
     _swipeIntent = null;
@@ -3043,6 +3052,74 @@ function snapBack(card) {
     card.style.transform = 'translateX(0)';
     card.addEventListener('transitionend', () => card.classList.remove('snap-back'), { once:true });
 }
+
+// ── Popup de detalhe do produto (mobile tap) ──────────────────────────────
+function openProductDetail(id, item) {
+    const data = cache.stock.data?.[id] || item; // usa dados mais recentes se disponível
+
+    // Imagem
+    const imgWrap = document.getElementById('pdm-img-wrap');
+    const img     = document.getElementById('pdm-img');
+    if (data.imgUrl) {
+        img.src = data.imgUrl;
+        img.alt = data.nome || '';
+        imgWrap.style.display = '';
+    } else {
+        imgWrap.style.display = 'none';
+    }
+
+    // Ref + nome
+    document.getElementById('pdm-ref').textContent  = 'REF: ' + (data.codigo || '—').toUpperCase();
+    document.getElementById('pdm-nome').textContent = (data.nome || '').toUpperCase();
+
+    // Localização
+    const locWrap = document.getElementById('pdm-loc-wrap');
+    if (data.localizacao) {
+        document.getElementById('pdm-loc').textContent = data.localizacao.toUpperCase();
+        locWrap.style.display = '';
+    } else {
+        locWrap.style.display = 'none';
+    }
+
+    // Quantidade
+    const qty = data.quantidade ?? 0;
+    const qtyEl = document.getElementById('pdm-qty');
+    qtyEl.textContent = fmtQty(qty, data.unidade);
+    qtyEl.className   = 'pdm-value pdm-qty' + (qty === 0 ? ' pdm-qty-zero' : '');
+
+    // Notas
+    const notasWrap = document.getElementById('pdm-notas-wrap');
+    if (data.notas) {
+        document.getElementById('pdm-notas').textContent = data.notas;
+        notasWrap.style.display = '';
+    } else {
+        notasWrap.style.display = 'none';
+    }
+
+    // Acções — só gestores
+    const actions = document.getElementById('pdm-actions');
+    if (currentRole === 'manager') {
+        actions.style.display = '';
+        document.getElementById('pdm-btn-edit').onclick = () => {
+            closeProductDetail();
+            openEditModal(id, data);
+        };
+        document.getElementById('pdm-btn-del').onclick = () => {
+            closeProductDetail();
+            openDeleteModal(id, data);
+        };
+    } else {
+        actions.style.display = 'none';
+    }
+
+    document.getElementById('product-detail-modal').classList.add('active');
+    focusModal('product-detail-modal');
+}
+
+function closeProductDetail() {
+    document.getElementById('product-detail-modal').classList.remove('active');
+}
+
 
 
 // =============================================
@@ -5692,6 +5769,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'edit-tool-modal',    close: closeEditToolModal },
             { id: 'modal-edit-cliente', close: closeEditClienteModal },
             { id: 'gimg-settings-modal',close: closeGimgSettings },
+            { id: 'product-detail-modal',close: closeProductDetail },
         ];
         for (const { id, close } of modals) {
             if (document.getElementById(id)?.classList.contains('active')) { close(); break; }
