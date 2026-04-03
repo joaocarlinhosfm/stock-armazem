@@ -6039,7 +6039,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.48';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.49';
 const SW_SCRIPT_URL = 'sw.js?v=6.48';
 
 if ('serviceWorker' in navigator) {
