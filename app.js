@@ -837,6 +837,10 @@ function nav(viewId) {
         const searchEl = document.getElementById('pat-search');
         if (searchEl) searchEl.value = '';
         renderPats();
+        // Desktop: carregar mapa no painel lateral automaticamente
+        if (window.innerWidth >= 768) {
+            setTimeout(() => _openPatMapPanel(), 200);
+        }
     }
     document.querySelectorAll('.menu-items li').forEach(li => li.classList.remove('active'));
     const sideMap = {
@@ -5308,9 +5312,17 @@ function centerMapOnPin() {
 }
 
 async function openPatMap() {
+    const isDesktop = window.innerWidth >= 768;
+
+    // ── Desktop: inicializa mapa no painel lateral inline ─────────────────
+    if (isDesktop) {
+        await _openPatMapPanel();
+        return;
+    }
+
+    // ── Mobile: comportamento original — navega para view-map ─────────────
     _patMapOpen = true;
 
-    // Navegar para a vista do mapa
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-map')?.classList.add('active');
     document.getElementById('main-content')?.classList.add('map-view-active');
@@ -5530,6 +5542,93 @@ async function openPatMap() {
 
     // Forçar Leaflet a recalcular dimensões
     setTimeout(() => _patMap && _patMap.invalidateSize(), 200);
+}
+
+// ── Mapa no painel lateral (desktop) ─────────────────────────────────────────
+let _patMapPanel     = null;  // instância Leaflet do painel
+let _patMapPanelMkrs = [];    // markers do painel
+
+async function _openPatMapPanel() {
+    const container  = document.getElementById('pat-map-panel-container');
+    const loadingEl  = document.getElementById('pat-map-panel-loading');
+    if (!container) return;
+
+    if (loadingEl) loadingEl.style.display = 'flex';
+
+    // Dimensionar o container
+    await _sleep(50);
+    const panelEl = document.getElementById('pat-col-right');
+    const headerEl = panelEl?.querySelector('.pat-map-panel-header');
+    const btnEl    = panelEl?.querySelector('.pat-map-panel-expand');
+    const availH   = (panelEl?.offsetHeight || 500)
+                   - (headerEl?.offsetHeight || 42)
+                   - (btnEl?.offsetHeight || 50)
+                   - 20;
+    container.style.height = Math.max(availH, 200) + 'px';
+
+    // Criar instância se não existe
+    const PT_BOUNDS = L.latLngBounds(L.latLng(30.0, -31.5), L.latLng(42.2, -6.2));
+    if (!_patMapPanel) {
+        _patMapPanel = L.map('pat-map-panel-container', {
+            center: [39.6, -8.0], zoom: 7,
+            minZoom: 5, maxZoom: 17,
+            maxBounds: PT_BOUNDS, maxBoundsViscosity: 1.0,
+            zoomControl: true,
+            attributionControl: false,
+        });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            subdomains: 'abcd', maxZoom: 20, minZoom: 5,
+        }).addTo(_patMapPanel);
+        _patMapPanel.fitBounds(PT_BOUNDS, { padding: [10, 10] });
+        _patMapPanel.on('click', () => { if (_markerJustClicked) { _markerJustClicked = false; return; } closeMapPinSheet(); });
+    } else {
+        _patMapPanelMkrs.forEach(m => m.remove());
+        _patMapPanelMkrs = [];
+    }
+
+    _patMapPanel.invalidateSize();
+
+    // Buscar PATs pendentes e colocar markers
+    await _loadGeocodeCache();
+    const pats     = await _fetchPats();
+    await _fetchClientes();
+    const pendentes = Object.entries(pats || {})
+        .filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
+
+    if (loadingEl) loadingEl.style.display = 'none';
+
+    const groups = {};
+    pendentes.forEach(([id, pat]) => {
+        const key = _normEstabKey(pat.estabelecimento);
+        if (!key) return;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push([id, pat]);
+    });
+
+    const bounds = [];
+    Object.entries(groups).forEach(([k, items]) => {
+        const coords = _geocodeCache[k];
+        if (!coords) return;
+        const urgente   = items.some(([, p]) => _calcDias(p.criadoEm) >= 20);
+        const separacao = items.some(([, p]) => !!p.separacao);
+        const nomeEstab = items[0][1].estabelecimento || '';
+        const chainIcon = _getChainIcon(nomeEstab);
+        const icon      = chainIcon || _makePinIcon(items.length, urgente, separacao);
+        const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMapPanel);
+        const _lat = coords.lat, _lng = coords.lng;
+        marker.on('click', () => {
+            const cur = _getMapPendingPatsForEstab(items[0]?.[1]?.estabelecimento || k);
+            if (cur.length === 0) { marker.remove(); _patMapPanelMkrs = _patMapPanelMkrs.filter(m => m !== marker); closeMapPinSheet(); return; }
+            _markerJustClicked = true;
+            openMapPinSheet(cur, { lat: _lat, lng: _lng });
+        });
+        _patMapPanelMkrs.push(marker);
+        bounds.push([coords.lat, coords.lng]);
+    });
+
+    if (bounds.length === 1) { _patMapPanel.setView(bounds[0], 13); }
+    else if (bounds.length > 1) { _patMapPanel.fitBounds(bounds, { padding: [20, 20] }); }
+    _patMapPanel.invalidateSize();
 }
 
 function closePatMap() {
@@ -6039,7 +6138,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.49';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.51';
 const SW_SCRIPT_URL = 'sw.js?v=6.48';
 
 if ('serviceWorker' in navigator) {
@@ -6855,17 +6954,228 @@ async function renderPats() {
 }
 
 function _buildPatCard(id, pat, tab, estabCount) {
-    const card = document.createElement('div');
-    const separacao = !!pat.separacao;
-    const isLev  = tab === 'levantadas';
-    const isHist = tab === 'historico';
-    const isSelected = _patSelMode && _patSelIds.has(id);
+    const isDesktop = window.innerWidth >= 768;
+    return isDesktop
+        ? _buildPatCardDesktop(id, pat, tab, estabCount)
+        : _buildPatCardMobile(id, pat, tab, estabCount);
+}
 
-    const dias    = _calcDias(pat.criadoEm);
-    const urgente = tab === 'pendentes' && dias >= 20;
-    const nomeNorm = (pat.estabelecimento || '').trim().toLowerCase();
+// ── SVGs partilhados ──────────────────────────────────────────────────────────
+const _PAT_EDIT_SVG  = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+const _PAT_DEL_SVG   = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
+const _PAT_CHECK_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const _PAT_ARR_SVG   = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+const _PAT_INFO_SVG  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>';
+
+// ── DESKTOP: layout flex row com accent, info, localização e acção ────────────
+function _buildPatCardDesktop(id, pat, tab, estabCount) {
+    const separacao  = !!pat.separacao;
+    const isLev      = tab === 'levantadas';
+    const isHist     = tab === 'historico';
+    const isSelected = _patSelMode && _patSelIds.has(id);
+    const dias       = _calcDias(pat.criadoEm);
+    const urgente    = tab === 'pendentes' && dias >= 20;
+    const nomeNorm   = (pat.estabelecimento || '').trim().toLowerCase();
+
+    // Cor do accent
+    let accentColor = 'var(--primary)';
+    if (urgente)   accentColor = '#dc2626';
+    if (separacao && !urgente) accentColor = '#d97706';
+    if (isLev)     accentColor = '#16a34a';
+    if (isHist)    accentColor = 'var(--text-muted)';
 
     // Classes do card
+    let cardClass = 'pat-card pat-card-desktop';
+    if (isSelected) cardClass += ' pat-card-selected';
+    if (isLev)      cardClass += ' pat-card-levantada';
+    if (isHist)     cardClass += ' pat-card-historico';
+    const card = document.createElement('div');
+    card.className = cardClass;
+
+    // ── Accent bar (flex, não absolute) ──────────────────────────────────
+    const accent = document.createElement('div');
+    accent.className = 'pat-card-accent';
+    accent.style.background = accentColor;
+    card.appendChild(accent);
+
+    // ── Body principal ────────────────────────────────────────────────────
+    const body = document.createElement('div');
+    body.className = 'pat-card-body-desktop';
+
+    // Top: badges + dias
+    const topRow = document.createElement('div');
+    topRow.className = 'pat-card-top';
+    const topLeft = document.createElement('div');
+    topLeft.className = 'pat-card-top-left';
+
+    // Checkbox selecção
+    if (_patSelMode) {
+        const cb = document.createElement('span');
+        cb.className = 'pat-sel-cb' + (isSelected ? ' checked' : '');
+        cb.innerHTML = isSelected ? _PAT_CHECK_SVG : '';
+        topLeft.appendChild(cb);
+    }
+
+    // Badge número PAT
+    const patBadge = document.createElement('span');
+    patBadge.className   = 'pat-badge' + (urgente ? ' pat-badge-urgente' : '');
+    patBadge.textContent = 'PAT ' + (pat.numero || '—');
+    topLeft.appendChild(patBadge);
+
+    // Tag separação / guia
+    if (separacao) {
+        const sepTag = document.createElement('span');
+        sepTag.className   = 'pat-sep-tag';
+        sepTag.textContent = 'Guia Transporte';
+        topLeft.appendChild(sepTag);
+    }
+
+    // Badge duplicados
+    if (tab === 'pendentes') {
+        const dupCount = estabCount[nomeNorm] || 0;
+        if (dupCount > 1) {
+            const dupBadge = document.createElement('span');
+            dupBadge.className     = 'pat-dup-badge';
+            dupBadge.dataset.estab = nomeNorm;
+            dupBadge.textContent   = `! ${dupCount} pedidos`;
+            topLeft.appendChild(dupBadge);
+        }
+    }
+
+    // Dias / data
+    const diasSpan = document.createElement('span');
+    diasSpan.className = 'pat-dias' + (urgente ? ' pat-dias-urgente' : '');
+    if (isHist && pat.saidaEm) {
+        diasSpan.textContent = new Date(pat.saidaEm).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+    } else if (isLev && pat.levantadoEm) {
+        diasSpan.textContent = new Date(pat.levantadoEm).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+    } else {
+        diasSpan.textContent = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
+    }
+    topRow.appendChild(topLeft);
+    topRow.appendChild(diasSpan);
+
+    // Estabelecimento
+    const estabDiv = document.createElement('div');
+    estabDiv.className   = 'pat-card-estab';
+    estabDiv.textContent = pat.estabelecimento || 'Sem estabelecimento';
+
+    // Meta: técnico + data criação
+    const metaRow = document.createElement('div');
+    metaRow.className = 'pat-card-meta';
+    const USER_SVG = '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>';
+    const CAL_SVG  = '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+    if (pat.funcionario || pat.criadoEm) {
+        if (pat.funcionario) metaRow.innerHTML += `<span>${USER_SVG} ${pat.funcionario}</span>`;
+        if (pat.criadoEm)   metaRow.innerHTML += `<span>${CAL_SVG} ${new Date(pat.criadoEm).toLocaleDateString('pt-PT')}</span>`;
+    }
+
+    // Produtos chips
+    const prodsDiv = document.createElement('div');
+    prodsDiv.className = 'pat-card-produtos';
+    (pat.produtos || []).forEach(p => {
+        const chip = document.createElement('span');
+        chip.className   = 'pat-prod-chip';
+        chip.textContent = (p.codigo || '?') + ' × ' + (p.quantidade || 1);
+        prodsDiv.appendChild(chip);
+    });
+
+    body.appendChild(topRow);
+    body.appendChild(estabDiv);
+    if (metaRow.children.length > 0 || metaRow.innerHTML) body.appendChild(metaRow);
+    if ((pat.produtos || []).length > 0) body.appendChild(prodsDiv);
+
+    card.appendChild(body);
+
+    // ── Localização ───────────────────────────────────────────────────────
+    if (pat.localidade || pat.morada) {
+        const locDiv = document.createElement('div');
+        locDiv.className = 'pat-card-loc';
+        locDiv.innerHTML = `<span class="pat-card-loc-label">Localização</span>
+                            <span class="pat-card-loc-val">${pat.localidade || pat.morada || ''}</span>`;
+        card.appendChild(locDiv);
+    }
+
+    // ── Acção ─────────────────────────────────────────────────────────────
+    const actionDiv = document.createElement('div');
+    actionDiv.className = 'pat-card-action';
+    actionDiv.onclick   = e => e.stopPropagation();
+
+    if (_patSelMode) {
+        const btnRefs = document.createElement('button');
+        btnRefs.className = 'pat-btn-refs';
+        btnRefs.innerHTML = _PAT_EDIT_SVG + ' Refs';
+        btnRefs.onclick = e => { e.stopPropagation(); openPatRefsModal(id, pat); };
+        actionDiv.appendChild(btnRefs);
+    } else if (tab === 'pendentes') {
+        const btnEdit = document.createElement('button');
+        btnEdit.className = 'pat-btn-edit';
+        btnEdit.innerHTML = _PAT_EDIT_SVG;
+        btnEdit.title     = 'Editar PAT';
+        btnEdit.onclick   = () => openEditPat(id, pat);
+        const btnLev = document.createElement('button');
+        btnLev.className = 'pat-btn-levantado';
+        btnLev.innerHTML = _PAT_CHECK_SVG + ' Levantar ' + _PAT_ARR_SVG;
+        btnLev.onclick   = () => marcarPatLevantado(id);
+        const btnDel = document.createElement('button');
+        btnDel.className = 'pat-btn-apagar';
+        btnDel.innerHTML = _PAT_DEL_SVG;
+        btnDel.onclick   = () => apagarPat(id);
+        actionDiv.appendChild(btnEdit);
+        actionDiv.appendChild(btnLev);
+        actionDiv.appendChild(btnDel);
+    } else if (tab === 'levantadas') {
+        const btnEdit = document.createElement('button');
+        btnEdit.className = 'pat-btn-edit';
+        btnEdit.innerHTML = _PAT_EDIT_SVG;
+        btnEdit.title     = 'Editar PAT';
+        btnEdit.onclick   = () => openEditPat(id, pat);
+        const btnSaida = document.createElement('button');
+        btnSaida.className = 'pat-btn-guia';
+        btnSaida.innerHTML = _PAT_INFO_SVG + ' Detalhes';
+        btnSaida.onclick   = () => darSaidaPat(id);
+        const btnDel = document.createElement('button');
+        btnDel.className = 'pat-btn-apagar';
+        btnDel.innerHTML = _PAT_DEL_SVG;
+        btnDel.onclick   = () => apagarPat(id);
+        actionDiv.appendChild(btnEdit);
+        actionDiv.appendChild(btnSaida);
+        actionDiv.appendChild(btnDel);
+    } else if (tab === 'historico') {
+        const btnDel = document.createElement('button');
+        btnDel.className = 'pat-btn-apagar';
+        btnDel.innerHTML = _PAT_DEL_SVG;
+        btnDel.onclick   = () => apagarPat(id);
+        actionDiv.appendChild(btnDel);
+    }
+
+    if (actionDiv.children.length > 0) card.appendChild(actionDiv);
+
+    card.onclick = e => {
+        if (_patSelMode) {
+            if (_patSelIds.has(id)) _patSelIds.delete(id); else _patSelIds.add(id);
+            _updateLevantarBtn();
+            renderPats();
+            return;
+        }
+        const badge = e.target.closest('.pat-dup-badge');
+        if (badge) { showDupPopover(badge, badge.dataset.estab); return; }
+        openPatDetail(id, pat);
+    };
+    return card;
+}
+
+// ── MOBILE: layout original com bar absolute e acções em baixo ────────────────
+function _buildPatCardMobile(id, pat, tab, estabCount) {
+    const card = document.createElement('div');
+    const separacao  = !!pat.separacao;
+    const isLev      = tab === 'levantadas';
+    const isHist     = tab === 'historico';
+    const isSelected = _patSelMode && _patSelIds.has(id);
+    const dias       = _calcDias(pat.criadoEm);
+    const urgente    = tab === 'pendentes' && dias >= 20;
+    const nomeNorm   = (pat.estabelecimento || '').trim().toLowerCase();
+
     let cardClass = 'pat-card';
     if (separacao && !urgente) cardClass += ' pat-card-separacao';
     if (urgente)               cardClass += ' pat-card-urgente';
@@ -6874,38 +7184,30 @@ function _buildPatCard(id, pat, tab, estabCount) {
     if (isSelected)            cardClass += ' pat-card-selected';
     card.className = cardClass;
 
-    // Barra lateral colorida
     const bar = document.createElement('div');
     bar.className = 'pat-card-bar';
     card.appendChild(bar);
 
-    // Body com padding
     const body = document.createElement('div');
     body.className = 'pat-card-body';
 
-    // Top row
     const cardTop = document.createElement('div');
     cardTop.className = 'pat-card-top';
     const cardTopLeft = document.createElement('div');
     cardTopLeft.className = 'pat-card-top-left';
 
-    // Checkbox selecção
     if (_patSelMode) {
         const cb = document.createElement('span');
         cb.className = 'pat-sel-cb' + (isSelected ? ' checked' : '');
-        cb.innerHTML = isSelected
-            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
-            : '';
+        cb.innerHTML = isSelected ? _PAT_CHECK_SVG : '';
         cardTopLeft.appendChild(cb);
     }
 
-    // Badge PAT número
     const patBadge = document.createElement('span');
     patBadge.className   = 'pat-badge' + (urgente ? ' pat-badge-urgente' : '');
     patBadge.textContent = 'PAT ' + (pat.numero || '—');
     cardTopLeft.appendChild(patBadge);
 
-    // Tag Guia Transporte
     if (separacao) {
         const sepTag = document.createElement('span');
         sepTag.className   = 'pat-sep-tag';
@@ -6913,7 +7215,6 @@ function _buildPatCard(id, pat, tab, estabCount) {
         cardTopLeft.appendChild(sepTag);
     }
 
-    // Badge duplicados
     if (tab === 'pendentes') {
         const dupCount = estabCount[nomeNorm] || 0;
         if (dupCount > 1) {
@@ -6925,7 +7226,6 @@ function _buildPatCard(id, pat, tab, estabCount) {
         }
     }
 
-    // Data / dias
     const diasSpan = document.createElement('span');
     diasSpan.className = 'pat-dias' + (urgente ? ' pat-dias-urgente' : '');
     if (isHist && pat.saidaEm) {
@@ -6936,18 +7236,15 @@ function _buildPatCard(id, pat, tab, estabCount) {
     } else if (isLev && pat.levantadoEm) {
         diasSpan.textContent = new Date(pat.levantadoEm).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
     } else {
-        const diasLabel = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
-        diasSpan.textContent = diasLabel;
+        diasSpan.textContent = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
     }
     cardTop.appendChild(cardTopLeft);
     cardTop.appendChild(diasSpan);
 
-    // Estabelecimento
     const estabDiv = document.createElement('div');
     estabDiv.className   = 'pat-card-estab';
     estabDiv.textContent = pat.estabelecimento || 'Sem estabelecimento';
 
-    // Produtos
     const prodsDiv = document.createElement('div');
     prodsDiv.className = 'pat-card-produtos';
     (pat.produtos || []).forEach(p => {
@@ -6957,60 +7254,55 @@ function _buildPatCard(id, pat, tab, estabCount) {
         prodsDiv.appendChild(chip);
     });
 
-    // Acções
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'pat-card-actions';
     actionsDiv.onclick   = e => e.stopPropagation();
 
-    const EDIT_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
-    const DEL_SVG = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
-    const CHECK_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-
     if (_patSelMode) {
         const btnRefs = document.createElement('button');
         btnRefs.className = 'pat-btn-refs';
-        btnRefs.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Refs';
+        btnRefs.innerHTML = _PAT_EDIT_SVG + ' Refs';
         btnRefs.onclick = e => { e.stopPropagation(); openPatRefsModal(id, pat); };
         actionsDiv.appendChild(btnRefs);
     } else if (tab === 'pendentes') {
         const btnEdit = document.createElement('button');
         btnEdit.className = 'pat-btn-edit';
-        btnEdit.innerHTML = EDIT_SVG;
-        btnEdit.title = 'Editar PAT';
-        btnEdit.onclick = () => openEditPat(id, pat);
+        btnEdit.innerHTML = _PAT_EDIT_SVG;
+        btnEdit.title     = 'Editar PAT';
+        btnEdit.onclick   = () => openEditPat(id, pat);
         const btnLev = document.createElement('button');
         btnLev.className = 'pat-btn-levantado';
-        btnLev.innerHTML = CHECK_SVG + ' Dar como levantado';
-        btnLev.onclick = () => marcarPatLevantado(id);
+        btnLev.innerHTML = _PAT_CHECK_SVG + ' Dar como levantado';
+        btnLev.onclick   = () => marcarPatLevantado(id);
         const btnDel = document.createElement('button');
         btnDel.className = 'pat-btn-apagar';
-        btnDel.innerHTML = DEL_SVG;
-        btnDel.onclick = () => apagarPat(id);
+        btnDel.innerHTML = _PAT_DEL_SVG;
+        btnDel.onclick   = () => apagarPat(id);
         actionsDiv.appendChild(btnEdit);
         actionsDiv.appendChild(btnLev);
         actionsDiv.appendChild(btnDel);
     } else if (tab === 'levantadas') {
         const btnEdit = document.createElement('button');
         btnEdit.className = 'pat-btn-edit';
-        btnEdit.innerHTML = EDIT_SVG;
-        btnEdit.title = 'Editar PAT';
-        btnEdit.onclick = () => openEditPat(id, pat);
+        btnEdit.innerHTML = _PAT_EDIT_SVG;
+        btnEdit.title     = 'Editar PAT';
+        btnEdit.onclick   = () => openEditPat(id, pat);
         const btnSaida = document.createElement('button');
         btnSaida.className = 'pat-btn-guia';
-        btnSaida.innerHTML = CHECK_SVG + ' Dar saída';
-        btnSaida.onclick = () => darSaidaPat(id);
+        btnSaida.innerHTML = _PAT_CHECK_SVG + ' Dar saída';
+        btnSaida.onclick   = () => darSaidaPat(id);
         const btnDel = document.createElement('button');
         btnDel.className = 'pat-btn-apagar';
-        btnDel.innerHTML = DEL_SVG;
-        btnDel.onclick = () => apagarPat(id);
+        btnDel.innerHTML = _PAT_DEL_SVG;
+        btnDel.onclick   = () => apagarPat(id);
         actionsDiv.appendChild(btnEdit);
         actionsDiv.appendChild(btnSaida);
         actionsDiv.appendChild(btnDel);
     } else if (tab === 'historico') {
         const btnDel = document.createElement('button');
         btnDel.className = 'pat-btn-apagar';
-        btnDel.innerHTML = DEL_SVG;
-        btnDel.onclick = () => apagarPat(id);
+        btnDel.innerHTML = _PAT_DEL_SVG;
+        btnDel.onclick   = () => apagarPat(id);
         actionsDiv.appendChild(btnDel);
     }
 

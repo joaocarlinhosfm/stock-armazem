@@ -4328,8 +4328,156 @@ body.is-offline #app-layout {
 }
 .pat-add-btn svg { flex-shrink: 0; }
 
-/* ── Vista pedidos ── */
+/* ── PAT card — layout DESKTOP (flex row) ── */
+.pat-card-desktop {
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+}
+.pat-card-accent {
+    width: 5px;
+    flex-shrink: 0;
+    border-radius: 14px 0 0 14px;
+}
+.pat-card-body-desktop {
+    flex: 1;
+    padding: 16px 18px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.pat-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+    flex-wrap: wrap;
+}
+.pat-card-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.pat-card-loc {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 16px 18px;
+    flex-shrink: 0;
+    min-width: 140px;
+    border-left: 1px solid var(--border);
+}
+.pat-card-loc-label {
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 3px;
+}
+.pat-card-loc-val {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-sub);
+    text-align: right;
+}
+/* ── PAT desktop two-column layout ── */
+.pat-desktop-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.pat-col-left  { display: flex; flex-direction: column; flex: 1; min-width: 0; overflow: hidden; }
+.pat-col-right { display: none; } /* oculto no mobile */
+
+@media (min-width: 768px) {
+    .pat-desktop-layout {
+        flex-direction: row;
+        height: calc(100vh - var(--header-h));
+        overflow: hidden;
+    }
+    .pat-col-left {
+        flex: 1;
+        min-width: 0;
+        overflow-y: auto;
+        border-right: 1px solid var(--border);
+    }
+    .pat-col-right {
+        display: flex;
+        flex-direction: column;
+        width: 290px;
+        flex-shrink: 0;
+        background: var(--card-bg);
+    }
+    /* Toolbar sticky no desktop */
+    .pat-toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+    }
+    /* Esconder botão mapa mobile no desktop */
+    .pat-map-btn-mobile { display: none !important; }
+}
+
+/* ── Painel de mapa lateral ── */
+.pat-map-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+.pat-map-panel-header {
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+.pat-map-panel-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.pat-map-panel-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex: 1;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+.pat-map-panel-container {
+    flex: 1;
+    min-height: 0;
+    background: #e8edf2;
+}
+.pat-map-panel-expand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    margin: 10px 12px;
+    padding: 9px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--primary);
+    background: transparent;
+    cursor: pointer;
+    font-family: 'DM Sans', 'Inter', sans-serif;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+/* ── Vista pedidos lista ── */
 .pat-list-wrap { padding: 12px 14px 100px; }
+@media (min-width: 768px) { .pat-list-wrap { padding: 16px 0 40px; } }
 
 /* ── Card de PAT pendente — compacto ── */
 /* ── PAT cards — redesign ── */

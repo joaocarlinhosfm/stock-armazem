@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=1775212185">
+    <link rel="stylesheet" href="style.css?v=1775252786">
 
     <style id="sheet-critical">/* v1775211637 */
     .map-pin-sheet {
@@ -550,61 +550,87 @@
         </div>
 
         <div id="view-pedidos" class="view">
-            <div class="pat-toolbar">
-                <div class="pat-toolbar-top">
-                    <h2 class="dash-view-title">Pedidos PAT</h2>
-                    <div class="pat-toolbar-actions">
-                        <!-- Levantar encomenda (novo) -->
-                        <button class="btn-icon-toolbar" id="btn-levantar-enc" onclick="openLevantarModal()" title="Levantar encomenda" aria-label="Levantar encomenda" data-manager-only>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M9 11l3 3L22 4"/>
-                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                            </svg>
-                        </button>
-                        <!-- Mapa de pedidos -->
-                        <button class="btn-icon-toolbar" onclick="openPatMap()" title="Ver pedidos no mapa" aria-label="Ver pedidos no mapa" id="btn-pat-map">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-                        </button>
-                        <!-- Câmera OCR -->
-                        <button class="btn-icon-toolbar" onclick="openPatScan()" title="Preencher PAT por fotografia" aria-label="Preencher PAT por fotografia" data-manager-only>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                        </button>
-                        <button class="btn-primary pat-add-btn" onclick="openPatModal()" data-manager-only aria-label="Novo Pedido PAT">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                            </svg>
-                            Novo Pedido
-                        </button>
+            <!-- Layout desktop: coluna esquerda (lista) + coluna direita (mapa) -->
+            <div class="pat-desktop-layout">
+
+              <!-- COLUNA ESQUERDA -->
+              <div class="pat-col-left">
+                <div class="pat-toolbar">
+                    <div class="pat-toolbar-top">
+                        <h2 class="dash-view-title">Pedidos PAT</h2>
+                        <div class="pat-toolbar-actions">
+                            <!-- Levantar encomenda (novo) -->
+                            <button class="btn-icon-toolbar" id="btn-levantar-enc" onclick="openLevantarModal()" title="Levantar encomenda" aria-label="Levantar encomenda" data-manager-only>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M9 11l3 3L22 4"/>
+                                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                                </svg>
+                            </button>
+                            <!-- Mapa de pedidos (mobile only — desktop tem painel lateral) -->
+                            <button class="btn-icon-toolbar pat-map-btn-mobile" onclick="openPatMap()" title="Ver pedidos no mapa" aria-label="Ver pedidos no mapa" id="btn-pat-map">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                            </button>
+                            <!-- Câmera OCR -->
+                            <button class="btn-icon-toolbar" onclick="openPatScan()" title="Preencher PAT por fotografia" aria-label="Preencher PAT por fotografia" data-manager-only>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                            </button>
+                            <button class="btn-primary pat-add-btn" onclick="openPatModal()" data-manager-only aria-label="Novo Pedido PAT">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                                </svg>
+                                Novo Pedido
+                            </button>
+                        </div>
                     </div>
-                </div>
-                <!-- Tabs Pendentes / Levantadas -->
-                <div class="pat-tabs" id="pat-tabs">
-                    <button class="pat-tab active" id="pat-tab-pendentes"  onclick="setPatTab('pendentes')">Pendentes</button>
-                    <button class="pat-tab" id="pat-tab-levantadas" onclick="setPatTab('levantadas')">Levantadas</button>
-                    <button class="pat-tab" id="pat-tab-historico"  onclick="setPatTab('historico')">Histórico</button>
-                </div>
-                <!-- Barra de seleção (modo levantar) -->
-                <div class="pat-sel-bar" id="pat-sel-bar" style="display:none">
-                    <span id="pat-sel-label" class="pat-sel-label">Seleciona as PATs de <strong id="pat-sel-worker"></strong></span>
-                    <div class="pat-sel-actions">
-                        <button class="pat-sel-all-btn" onclick="patSelToggleAll()">Sel. todas</button>
-                        <button class="btn-primary pat-levantar-btn" id="pat-levantar-btn" onclick="levantarSelectedPats()">Levantar 0</button>
-                        <button class="btn-cancel pat-sel-cancel" onclick="cancelLevantarMode()">✕</button>
+                    <!-- Tabs Pendentes / Levantadas -->
+                    <div class="pat-tabs" id="pat-tabs">
+                        <button class="pat-tab active" id="pat-tab-pendentes"  onclick="setPatTab('pendentes')">Pendentes</button>
+                        <button class="pat-tab" id="pat-tab-levantadas" onclick="setPatTab('levantadas')">Levantadas</button>
+                        <button class="pat-tab" id="pat-tab-historico"  onclick="setPatTab('historico')">Histórico</button>
                     </div>
+                    <!-- Barra de seleção (modo levantar) -->
+                    <div class="pat-sel-bar" id="pat-sel-bar" style="display:none">
+                        <span id="pat-sel-label" class="pat-sel-label">Seleciona as PATs de <strong id="pat-sel-worker"></strong></span>
+                        <div class="pat-sel-actions">
+                            <button class="pat-sel-all-btn" onclick="patSelToggleAll()">Sel. todas</button>
+                            <button class="btn-primary pat-levantar-btn" id="pat-levantar-btn" onclick="levantarSelectedPats()">Levantar 0</button>
+                            <button class="btn-cancel pat-sel-cancel" onclick="cancelLevantarMode()">✕</button>
+                        </div>
+                    </div>
+                    <!-- Sub-filtro guias (levantadas e histórico) -->
+                    <div class="pat-guia-filter" id="pat-guia-filter" style="display:none">
+                        <label class="pat-guia-toggle">
+                            <input type="checkbox" id="pat-guia-only" onchange="renderPats()">
+                            <span>Só com guia de transporte</span>
+                        </label>
+                        <button class="pat-guia-limpar-btn" id="pat-guia-limpar-btn" onclick="limparTabActual()">Limpar</button>
+                    </div>
+                    <input type="text" id="pat-search" class="blue-input pat-search-input"
+                        placeholder="Pesquisar por PAT ou estabelecimento..."
+                        oninput="patSearchFilter(this.value)" autocomplete="off">
                 </div>
-                <!-- Sub-filtro guias (levantadas e histórico) -->
-                <div class="pat-guia-filter" id="pat-guia-filter" style="display:none">
-                    <label class="pat-guia-toggle">
-                        <input type="checkbox" id="pat-guia-only" onchange="renderPats()">
-                        <span>Só com guia de transporte</span>
-                    </label>
-                    <button class="pat-guia-limpar-btn" id="pat-guia-limpar-btn" onclick="limparTabActual()">Limpar</button>
+                <div id="pat-list" class="pat-list-wrap"></div>
+              </div><!-- /pat-col-left -->
+
+              <!-- COLUNA DIREITA — Mapa (desktop only) -->
+              <div class="pat-col-right" id="pat-col-right">
+                <div class="pat-map-panel">
+                    <div class="pat-map-panel-header">
+                        <span class="pat-map-panel-label">Mapa de Localizações</span>
+                    </div>
+                    <div id="pat-map-panel-loading" class="pat-map-panel-loading">
+                        <div class="pat-map-spinner"></div>
+                        <span>A carregar mapa...</span>
+                    </div>
+                    <div id="pat-map-panel-container" class="pat-map-panel-container"></div>
+                    <button class="pat-map-panel-expand" onclick="openPatMap()">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                        Expandir Mapa
+                    </button>
                 </div>
-                <input type="text" id="pat-search" class="blue-input pat-search-input"
-                    placeholder="Pesquisar por PAT ou estabelecimento..."
-                    oninput="patSearchFilter(this.value)" autocomplete="off">
-            </div>
-            <div id="pat-list" class="pat-list-wrap"></div>
+              </div><!-- /pat-col-right -->
+
+            </div><!-- /pat-desktop-layout -->
         </div>
 
         <div id="view-encomendas" class="view">
