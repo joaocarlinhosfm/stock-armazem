@@ -6131,7 +6131,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.54';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.55';
 const SW_SCRIPT_URL = 'sw.js?v=6.48';
 
 if ('serviceWorker' in navigator) {
@@ -6891,7 +6891,7 @@ async function renderPats() {
 
     el.innerHTML = '';
 
-    // ── Pendentes: lista plana com count bar ────────────────────────────
+    // ── Pendentes: lista plana com KPI row ─────────────────────────────
     if (_patTab === 'pendentes') {
         const estabCount = {};
         entries.forEach(([, p]) => {
@@ -6899,13 +6899,41 @@ async function renderPats() {
             if (n) estabCount[n] = (estabCount[n] || 0) + 1;
         });
 
-        // Count bar com urgentes
         const urgentes = entries.filter(([, p]) => _calcDias(p.criadoEm) >= 20).length;
-        const countBar = document.createElement('div');
-        countBar.className = 'pat-count-bar';
-        countBar.innerHTML = `<span class="pat-count-lbl">${entries.length} pedido${entries.length !== 1 ? 's' : ''} pendente${entries.length !== 1 ? 's' : ''}</span>`
-            + (urgentes > 0 ? `<span class="pat-count-badge">${urgentes} urgente${urgentes !== 1 ? 's' : ''} (+15 dias)</span>` : '');
-        el.appendChild(countBar);
+        const isMobile = window.innerWidth < 768;
+
+        if (isMobile) {
+            // ── KPI row mobile: pills + botão Levantar várias ──────────────
+            const kpiRow = document.createElement('div');
+            kpiRow.className = 'pat-kpi-row';
+            kpiRow.id = 'pat-kpi-row';
+            kpiRow.innerHTML = `
+                <div class="pat-kpi-pill">
+                    <div class="pat-kpi-label">Total Pendentes</div>
+                    <div class="pat-kpi-val">${entries.length}</div>
+                </div>
+                <div class="pat-kpi-pill">
+                    <div class="pat-kpi-label">Atrasados</div>
+                    <div class="pat-kpi-val${urgentes > 0 ? ' danger' : ''}">${String(urgentes).padStart(2,'0')}</div>
+                </div>
+                <div class="pat-kpi-lev" id="pat-kpi-lev-btn">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="13" height="13"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                    Levantar várias
+                </div>`;
+            // Botão levantar várias abre o modal de selecção de funcionário
+            kpiRow.querySelector('#pat-kpi-lev-btn').onclick = (e) => {
+                e.stopPropagation();
+                openLevantarModal();
+            };
+            el.appendChild(kpiRow);
+        } else {
+            // ── Count bar desktop (mantém comportamento original) ──────────
+            const countBar = document.createElement('div');
+            countBar.className = 'pat-count-bar';
+            countBar.innerHTML = `<span class="pat-count-lbl">${entries.length} pedido${entries.length !== 1 ? 's' : ''} pendente${entries.length !== 1 ? 's' : ''}</span>`
+                + (urgentes > 0 ? `<span class="pat-count-badge">${urgentes} urgente${urgentes !== 1 ? 's' : ''} (+15 dias)</span>` : '');
+            el.appendChild(countBar);
+        }
 
         entries.forEach(([id, pat]) => el.appendChild(_buildPatCard(id, pat, 'pendentes', estabCount)));
         updatePatCount();

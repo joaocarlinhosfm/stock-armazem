@@ -4254,15 +4254,12 @@ body.is-offline #app-layout {
 
 /* Toolbar PAT — título + botão + pesquisa, tudo alinhado */
 .pat-toolbar {
-    padding: 16px 14px 10px;
+    padding: 10px 14px 12px;
     display: flex;
     flex-direction: column;
     gap: 10px;
     background: var(--card-bg);
     border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 50;
 }
 /* Alinha título do pat-toolbar com os outros */
 .pat-toolbar-top { padding: 0; }
@@ -4335,6 +4332,25 @@ body.is-offline #app-layout {
     width: fit-content;
 }
 .pat-add-btn svg { flex-shrink: 0; }
+/* Mobile: mostra "Novo", esconde "Novo Pedido" */
+.pat-add-label-desktop { display: none; }
+.pat-add-label-mobile  { display: inline; }
+@media (min-width: 768px) {
+    .pat-add-label-desktop { display: inline; }
+    .pat-add-label-mobile  { display: none; }
+}
+
+/* Título da toolbar PAT no mobile */
+.pat-toolbar-top .dash-view-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    flex: 1;
+    min-width: 0;
+}
+@media (min-width: 768px) {
+    .pat-toolbar-top .dash-view-title { font-size: 1.35rem; }
+}
 
 /* ── PAT card — layout DESKTOP (flex row) ── */
 .pat-card-desktop {
@@ -4520,7 +4536,7 @@ body.is-offline #app-layout {
 }
 .pat-map-panel-expand:hover { background: var(--primary-soft); }
 /* ── Vista pedidos lista ── */
-.pat-list-wrap { padding: 12px 14px 100px; }
+.pat-list-wrap { padding: 0 14px 100px; }
 @media (min-width: 768px) { .pat-list-wrap { padding: 16px 0 40px; } }
 
 /* ── Card de PAT pendente — compacto ── */
@@ -4836,6 +4852,54 @@ body.is-offline #app-layout {
     color: #dc2626;
     border: 1px solid rgba(220,38,38,0.20);
 }
+
+/* ── KPI row mobile (pills + levantar várias) ── */
+.pat-kpi-row {
+    display: flex;
+    gap: 8px;
+    padding: 10px 0 12px;
+}
+.pat-kpi-pill {
+    flex: 1;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    text-align: center;
+}
+.pat-kpi-label {
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.pat-kpi-val {
+    font-size: 1.3rem;
+    font-weight: 800;
+    font-family: 'DM Mono', monospace;
+    color: var(--primary);
+    margin-top: 1px;
+}
+.pat-kpi-val.danger { color: var(--danger); }
+.pat-kpi-lev {
+    flex: 1.2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    background: var(--primary-soft);
+    border: 1.5px dashed var(--primary-mid);
+    border-radius: 10px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--primary);
+    cursor: pointer;
+    padding: 6px 8px;
+    font-family: 'DM Sans', 'Inter', sans-serif;
+    transition: background 0.15s;
+}
+.pat-kpi-lev:hover { background: #dbeafe; }
 
 
 /* ── Modal PAT ── */
