@@ -6131,7 +6131,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.53';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.54';
 const SW_SCRIPT_URL = 'sw.js?v=6.48';
 
 if ('serviceWorker' in navigator) {
@@ -7208,12 +7208,9 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
     const cardTopLeft = document.createElement('div');
     cardTopLeft.className = 'pat-card-top-left';
 
-    if (_patSelMode) {
-        const cb = document.createElement('span');
-        cb.className = 'pat-sel-cb' + (isSelected ? ' checked' : '');
-        cb.innerHTML = isSelected ? _PAT_CHECK_SVG : '';
-        cardTopLeft.appendChild(cb);
-    }
+    // Checkbox selecção (sempre visível no mobile, à direita)
+    const cb = document.createElement('div');
+    cb.className = 'pat-sel-cb' + (isSelected ? ' checked' : '');
 
     const patBadge = document.createElement('span');
     patBadge.className   = 'pat-badge' + (urgente ? ' pat-badge-urgente' : '');
@@ -7251,7 +7248,8 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
         diasSpan.textContent = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
     }
     cardTop.appendChild(cardTopLeft);
-    cardTop.appendChild(diasSpan);
+    // Modo selecção: mostra checkbox; normal: mostra dias
+    cardTop.appendChild(_patSelMode ? cb : diasSpan);
 
     const estabDiv = document.createElement('div');
     estabDiv.className   = 'pat-card-estab';
