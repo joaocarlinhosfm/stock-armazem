@@ -6131,7 +6131,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.52';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.53';
 const SW_SCRIPT_URL = 'sw.js?v=6.48';
 
 if ('serviceWorker' in navigator) {
@@ -7257,6 +7257,14 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
     estabDiv.className   = 'pat-card-estab';
     estabDiv.textContent = pat.estabelecimento || 'Sem estabelecimento';
 
+    // Meta: técnico + data
+    const metaMobile = document.createElement('div');
+    metaMobile.className = 'pat-card-meta-mobile';
+    const _M_USER = '<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>';
+    const _M_CAL  = '<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+    if (pat.funcionario) metaMobile.innerHTML += `<span>${_M_USER} ${pat.funcionario}</span>`;
+    if (pat.criadoEm)    metaMobile.innerHTML += `<span>${_M_CAL} ${new Date(pat.criadoEm).toLocaleDateString('pt-PT')}</span>`;
+
     const prodsDiv = document.createElement('div');
     prodsDiv.className = 'pat-card-produtos';
     (pat.produtos || []).forEach(p => {
@@ -7265,6 +7273,8 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
         chip.textContent = (p.codigo || '?') + ' × ' + (p.quantidade || 1);
         prodsDiv.appendChild(chip);
     });
+
+    const MAP_SVG = '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>';
 
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'pat-card-actions';
@@ -7284,15 +7294,20 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
         btnEdit.onclick   = () => openEditPat(id, pat);
         const btnLev = document.createElement('button');
         btnLev.className = 'pat-btn-levantado';
-        btnLev.innerHTML = _PAT_CHECK_SVG + ' Dar como levantado';
+        btnLev.innerHTML = _PAT_CHECK_SVG + ' Levantar ' + _PAT_ARR_SVG;
         btnLev.onclick   = () => marcarPatLevantado(id);
         const btnDel = document.createElement('button');
         btnDel.className = 'pat-btn-apagar';
         btnDel.innerHTML = _PAT_DEL_SVG;
         btnDel.onclick   = () => apagarPat(id);
+        const btnMapa = document.createElement('button');
+        btnMapa.className = 'pat-btn-mapa';
+        btnMapa.innerHTML = MAP_SVG + (pat.localidade || pat.morada || 'Mapa');
+        btnMapa.onclick   = () => openPatMap();
         actionsDiv.appendChild(btnEdit);
         actionsDiv.appendChild(btnLev);
         actionsDiv.appendChild(btnDel);
+        actionsDiv.appendChild(btnMapa);
     } else if (tab === 'levantadas') {
         const btnEdit = document.createElement('button');
         btnEdit.className = 'pat-btn-edit';
@@ -7301,7 +7316,7 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
         btnEdit.onclick   = () => openEditPat(id, pat);
         const btnSaida = document.createElement('button');
         btnSaida.className = 'pat-btn-guia';
-        btnSaida.innerHTML = _PAT_CHECK_SVG + ' Dar saída';
+        btnSaida.innerHTML = _PAT_INFO_SVG + ' Detalhes';
         btnSaida.onclick   = () => darSaidaPat(id);
         const btnDel = document.createElement('button');
         btnDel.className = 'pat-btn-apagar';
@@ -7320,6 +7335,7 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
 
     body.appendChild(cardTop);
     body.appendChild(estabDiv);
+    if (metaMobile.innerHTML) body.appendChild(metaMobile);
     if ((pat.produtos || []).length > 0) body.appendChild(prodsDiv);
     if (actionsDiv.children.length > 0) body.appendChild(actionsDiv);
     card.appendChild(body);
