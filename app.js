@@ -5555,16 +5555,9 @@ async function _openPatMapPanel() {
 
     if (loadingEl) loadingEl.style.display = 'flex';
 
-    // Dimensionar o container
-    await _sleep(50);
-    const panelEl = document.getElementById('pat-col-right');
-    const headerEl = panelEl?.querySelector('.pat-map-panel-header');
-    const btnEl    = panelEl?.querySelector('.pat-map-panel-expand');
-    const availH   = (panelEl?.offsetHeight || 500)
-                   - (headerEl?.offsetHeight || 42)
-                   - (btnEl?.offsetHeight || 50)
-                   - 20;
-    container.style.height = Math.max(availH, 200) + 'px';
+    // Dimensionar o container — altura fixa 180px como no mockup
+    container.style.height = '180px';
+    container.style.width  = '100%';
 
     // Criar instância se não existe
     const PT_BOUNDS = L.latLngBounds(L.latLng(30.0, -31.5), L.latLng(42.2, -6.2));
@@ -6138,7 +6131,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 // REGISTO PWA
 // =============================================
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.51';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.52';
 const SW_SCRIPT_URL = 'sw.js?v=6.48';
 
 if ('serviceWorker' in navigator) {
@@ -7083,6 +7076,25 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
     body.appendChild(topRow);
     body.appendChild(estabDiv);
     if (metaRow.children.length > 0 || metaRow.innerHTML) body.appendChild(metaRow);
+
+    // Pills de progresso (Pendente → Com Guia → Separação)
+    if (tab === 'pendentes' || tab === 'levantadas') {
+        const stepsDiv = document.createElement('div');
+        stepsDiv.className = 'pat-steps';
+        const steps = [
+            { label: 'Pendente',  done: true },
+            { label: 'Com Guia',  done: separacao },
+            { label: 'Separação', done: separacao && isLev },
+        ];
+        steps.forEach(s => {
+            const pill = document.createElement('div');
+            pill.className = 'pat-step-pill ' + (s.done ? 'done' : 'pending');
+            pill.textContent = s.label;
+            stepsDiv.appendChild(pill);
+        });
+        body.appendChild(stepsDiv);
+    }
+
     if ((pat.produtos || []).length > 0) body.appendChild(prodsDiv);
 
     card.appendChild(body);

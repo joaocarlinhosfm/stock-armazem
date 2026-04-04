@@ -4341,19 +4341,19 @@ body.is-offline #app-layout {
 }
 .pat-card-body-desktop {
     flex: 1;
-    padding: 16px 18px;
+    padding: 13px 16px;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
 }
 .pat-card-meta {
     display: flex;
     align-items: center;
     gap: 14px;
-    font-size: 0.72rem;
+    font-size: 0.71rem;
     color: var(--text-muted);
-    margin-top: 2px;
+    margin-top: 3px;
     flex-wrap: wrap;
 }
 .pat-card-meta span {
@@ -4361,18 +4361,37 @@ body.is-offline #app-layout {
     align-items: center;
     gap: 4px;
 }
+/* Pills de progresso (Pendente / Com Guia / Separação) */
+.pat-steps {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+.pat-step-pill {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: 1.5px solid transparent;
+}
+.pat-step-pill.done    { background: var(--primary); color: #fff; border-color: var(--primary); }
+.pat-step-pill.pending { background: transparent; color: var(--text-muted); border-color: var(--border); }
 .pat-card-loc {
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: flex-end;
-    padding: 16px 18px;
+    padding: 13px 16px;
     flex-shrink: 0;
-    min-width: 140px;
+    min-width: 130px;
     border-left: 1px solid var(--border);
 }
 .pat-card-loc-label {
-    font-size: 0.58rem;
+    font-size: 0.56rem;
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -4380,10 +4399,20 @@ body.is-offline #app-layout {
     margin-bottom: 3px;
 }
 .pat-card-loc-val {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 600;
     color: var(--text-sub);
     text-align: right;
+}
+.pat-card-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 13px 16px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
 }
 /* ── PAT desktop two-column layout ── */
 .pat-desktop-layout {
@@ -4423,16 +4452,15 @@ body.is-offline #app-layout {
     .pat-map-btn-mobile { display: none !important; }
 }
 
-/* ── Painel de mapa lateral ── */
+/* ── Painel de mapa lateral — card fixo como no mockup ── */
 .pat-map-panel {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    overflow: hidden;
+    padding: 14px 14px 0;
 }
 .pat-map-panel-header {
-    padding: 12px 16px 10px;
-    border-bottom: 1px solid var(--border);
+    padding: 0 0 10px;
+    border-bottom: none;
     flex-shrink: 0;
 }
 .pat-map-panel-label {
@@ -4448,21 +4476,28 @@ body.is-offline #app-layout {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    flex: 1;
-    font-size: 0.75rem;
+    height: 180px;
+    font-size: 0.72rem;
     color: var(--text-muted);
+    background: var(--bg);
+    border-radius: 10px;
+    border: 1px solid var(--border);
 }
 .pat-map-panel-container {
-    flex: 1;
-    min-height: 0;
+    width: 100%;
+    height: 180px;
     background: #e8edf2;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-card);
 }
 .pat-map-panel-expand {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 7px;
-    margin: 10px 12px;
+    margin: 10px 0 0;
     padding: 9px;
     border: 1.5px solid var(--border);
     border-radius: 10px;
@@ -4475,6 +4510,7 @@ body.is-offline #app-layout {
     transition: background 0.15s;
     flex-shrink: 0;
 }
+.pat-map-panel-expand:hover { background: var(--primary-soft); }
 /* ── Vista pedidos lista ── */
 .pat-list-wrap { padding: 12px 14px 100px; }
 @media (min-width: 768px) { .pat-list-wrap { padding: 16px 0 40px; } }

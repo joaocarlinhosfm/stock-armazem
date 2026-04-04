@@ -1,9 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// SERVICE WORKER — Hiperfrio v6.51
+// SERVICE WORKER — Hiperfrio v6.52
 // Estratégia: network-first para tudo, sem pré-cache de app assets
 // Isto garante que os deploys chegam sempre sem ciclos de cache bloqueados
 // ─────────────────────────────────────────────────────────────────────────────
-const SW_VERSION = 'hiperfrio-v6.51';
+const SW_VERSION = 'hiperfrio-v6.52';
 
 // Apenas bibliotecas externas imutáveis ficam em cache
 const IMMUTABLE_ASSETS = [
