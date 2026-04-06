@@ -4975,10 +4975,11 @@ const _CHAIN_ICONS = [
     },
 ];
 
-function _getChainIcon(nomeEstab) {
+function _getChainIcon(nomeEstab, zoom) {
     const nome = (nomeEstab || '').trim();
     for (const chain of _CHAIN_ICONS) {
         if (!chain.match.test(nome)) continue;
+        if (zoom !== undefined) return _makeChainIconAtZoom(chain, zoom);
         const color = chain.color || '#334155';
 
         // Tudo em inline styles — evita qualquer conflito com o Leaflet
@@ -5056,23 +5057,34 @@ function _getChainIcon(nomeEstab) {
     return null;
 }
 
-function _makePinIcon(count, urgente, separacao) {
+// Calcula dimensões do pin para um dado nível de zoom
+// zoom 7 → 22px, zoom 10 → 32px (base), zoom 14 → 44px, zoom 17 → 54px
+function _pinSizeForZoom(zoom) {
+    const base = 32;
+    const scale = Math.pow(1.22, zoom - 10); // +22% por nível acima de 10
+    const w = Math.round(Math.max(18, Math.min(60, base * scale)));
+    const h = Math.round(w * 1.22);
+    return { w, h };
+}
+
+function _makePinIcon(count, urgente, separacao, zoom) {
     const color = urgente ? 'red' : separacao ? 'amber' : 'blue';
     const cls   = count > 1 ? 'cluster' : color;
+    const { w, h } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 10));
+    const holeR = Math.max(3, Math.round(w * 0.17));
 
-    // SVG de gota invertida (teardrop) com buraco branco no centro
     const countHtml = count > 1
-        ? `<div class="pat-pin-count">${count}</div>`
+        ? `<div class="pat-pin-count" style="font-size:${Math.max(8, Math.round(w*0.3))}px">${count}</div>`
         : '';
 
     const html = `
-        <div class="pat-pin ${cls}">
-            <svg viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
+        <div class="pat-pin ${cls}" style="width:${w}px;height:${h}px">
+            <svg viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg" style="width:${w}px;height:${h}px;display:block">
                 <path class="pat-pin-body"
                     d="M18 2 C9.163 2 2 9.163 2 18 C2 28.5 18 42 18 42 C18 42 34 28.5 34 18 C34 9.163 26.837 2 18 2 Z"
                     stroke="white" stroke-width="1.5"
                 />
-                <circle class="pat-pin-hole" cx="18" cy="17" r="6"/>
+                <circle class="pat-pin-hole" cx="18" cy="17" r="${holeR}"/>
             </svg>
             ${countHtml}
         </div>`;
@@ -5080,9 +5092,38 @@ function _makePinIcon(count, urgente, separacao) {
     return L.divIcon({
         className: '',
         html,
-        iconSize:    [36, 44],
-        iconAnchor:  [18, 44],
-        popupAnchor: [0, -46],
+        iconSize:    [w, h],
+        iconAnchor:  [Math.round(w/2), h],
+        popupAnchor: [0, -(h+2)],
+    });
+}
+
+function _makeChainIconAtZoom(chain, zoom) {
+    const { w, h } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 10));
+    const color = chain.color || '#334155';
+    const bg = w; // quadrado antes da rotação
+    const imgHtml = chain.icon
+        ? `<img style="width:100%;height:100%;object-fit:cover;transform:rotate(45deg);display:block;flex-shrink:0" src="${chain.icon}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">`
+        : '';
+    const fbDisplay = chain.icon ? 'none' : 'flex';
+    const fs = Math.max(8, Math.round(bg * 0.32));
+    const tailW = Math.round(bg * 0.2);
+    const tailH = Math.round(bg * 0.25);
+    const border = Math.max(2, Math.round(bg * 0.07));
+
+    const bgStyle = `position:absolute;top:0;left:0;width:${bg}px;height:${bg}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${color};border:${border}px solid #fff;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.25)`;
+    const fbStyle = `width:100%;height:100%;display:${fbDisplay};align-items:center;justify-content:center;transform:rotate(45deg);font-size:${fs}px;font-weight:900;color:#fff;font-family:DM Sans,sans-serif`;
+    const tailStyle = `position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:${tailW}px solid transparent;border-right:${tailW}px solid transparent;border-top:${tailH}px solid ${color}`;
+    const wrapStyle = `position:relative;width:${bg}px;height:${bg+tailH}px;cursor:pointer;filter:drop-shadow(0 2px 4px rgba(0,0,0,.30))`;
+
+    const html = `<div style="${wrapStyle}"><div style="${bgStyle}">${imgHtml}<div style="${fbStyle}">${chain.initials || '?'}</div></div><div style="${tailStyle}"></div></div>`;
+
+    return L.divIcon({
+        className: '',
+        html,
+        iconSize:    [bg, bg + tailH],
+        iconAnchor:  [Math.round(bg/2), bg + tailH],
+        popupAnchor: [0, -(bg + tailH + 2)],
     });
 }
 
@@ -5378,7 +5419,6 @@ async function expandPatMap() {
         attribution: '\u00a9 OpenStreetMap \u00a9 CARTO',
         subdomains: 'abcd', maxZoom: 20, minZoom: 6,
     }).addTo(_patMap);
-    _patMap.fitBounds(PT_BOUNDS, { padding: [20, 20] });
     _patMap.invalidateSize();
     _patMap.on('click', () => {
         if (_markerJustClicked) { _markerJustClicked = false; return; }
@@ -5422,8 +5462,14 @@ async function expandPatMap() {
         if (!coords) return false;
         const urgente   = items.some(([, p]) => _calcDias(p.criadoEm) >= 20);
         const separacao = items.some(([, p]) => !!p.separacao);
-        const icon = _getChainIcon(items[0][1].estabelecimento || '') || _makePinIcon(items.length, urgente, separacao);
-        const marker = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMap);
+        const nome      = items[0][1].estabelecimento || '';
+        const count     = items.length;
+        const z         = _patMap.getZoom();
+        const chain     = _CHAIN_ICONS.find(c => c.match.test(nome));
+        const icon      = chain ? _makeChainIconAtZoom(chain, z) : _makePinIcon(count, urgente, separacao, z);
+        const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMap);
+        // Guardar metadata para resize no zoom
+        marker._hipMeta = { estabKey, nome, count, urgente, separacao, chain: chain || null };
         const lat = coords.lat, lng = coords.lng;
         marker.on('click', () => {
             const cur = _getMapPendingPatsForEstab(items[0]?.[1]?.estabelecimento || estabKey);
@@ -5434,6 +5480,19 @@ async function expandPatMap() {
         _patMapMarkers.push(marker);
         return true;
     }
+
+    // Listener zoomend — atualiza tamanho de todos os pins
+    _patMap.on('zoomend', () => {
+        const z = _patMap.getZoom();
+        _patMapMarkers.forEach(m => {
+            const meta = m._hipMeta;
+            if (!meta) return;
+            const newIcon = meta.chain
+                ? _makeChainIconAtZoom(meta.chain, z)
+                : _makePinIcon(meta.count, meta.urgente, meta.separacao, z);
+            m.setIcon(newIcon);
+        });
+    });
 
     let geocoded = 0;
     const bounds = [];
@@ -5446,7 +5505,7 @@ async function expandPatMap() {
 
     if (geocoded > 0) {
         if (loadingEl) loadingEl.style.display = 'none';
-        if (bounds.length >= 1) _patMap.fitBounds(L.latLngBounds(bounds), { padding: [60, 60], maxZoom: 12 });
+        if (bounds.length >= 1) _patMap.fitBounds(L.latLngBounds(bounds), { padding: [50, 50], animate: true });
         if (subtitleEl) subtitleEl.textContent = geocoded + ' estabelecimento' + (geocoded !== 1 ? 's' : '') + ' no mapa';
         setTimeout(() => _patMap && _patMap.invalidateSize(), 200);
     }
@@ -5476,7 +5535,7 @@ async function expandPatMap() {
         _addMk(estabKey, items);
         if (loadingEl) loadingEl.style.display = 'none';
         geocoded++;
-        if (bounds.length >= 1) _patMap.fitBounds(L.latLngBounds(bounds), { padding: [60, 60], maxZoom: 12 });
+        if (bounds.length >= 1) _patMap.fitBounds(L.latLngBounds(bounds), { padding: [50, 50], animate: true });
     }
     if (subtitleEl) subtitleEl.textContent = geocoded + ' estabelecimento' + (geocoded !== 1 ? 's' : '') + ' no mapa';
     _renderMapPinSheet(pendentes);
