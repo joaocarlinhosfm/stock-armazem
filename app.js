@@ -6664,6 +6664,8 @@ async function importClientesExcel(input) {
 // ── Exportar Excel de clientes ─────────────────────────────────────────────
 
 
+const _patCache = { data: null, lastFetch: 0 };
+
 async function _fetchPats(force = false) {
     const now = Date.now();
     if (!force && _patCache.data && now - _patCache.lastFetch < 120000) return _patCache.data;
