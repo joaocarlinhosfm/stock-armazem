@@ -6,13 +6,13 @@ const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase
 // ── DOM HELPERS — evitam repetição de document.getElementById / createElement
 
 /** Atalho para document.getElementById — retorna null sem lançar erro */
-const $id = id => $id(id); // Isto define '$id'
+const $id = id => document.getElementById(id); // Isto define '$id'
 
 /** Cria um elemento e aplica propriedades de uma só vez.
  *  Exemplo: $el('div', { className: 'card', textContent: 'Olá' })
  */
 function $el(tag, props = {}) {
-    const el = $el(tag);
+    const el = document.createElement(tag);
     Object.assign(el, props);
     return el;
 }
@@ -6139,55 +6139,6 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         await saveEditTool();
     });
-
-    // Desktop layout: sidebar visível, bottom nav escondido
-    function applyDesktopLayout() {
-        const isDesktop = window.innerWidth >= 768;
-        const bottomNav = $id('bottom-nav');
-        const sideMenu  = $id('side-menu');
-        const appLayout = $id('app-layout');
-        if (isDesktop) {
-            if (bottomNav) bottomNav.style.display = 'none';
-            const fab = $id('fab-add');
-            if (fab) fab.style.display = 'none';
-            const closeBtn = $id('close-menu');
-            if (closeBtn) closeBtn.style.display = 'none';
-            if (sideMenu) {
-                sideMenu.style.position = 'relative';
-                sideMenu.style.left = '0';
-                sideMenu.style.top = '0';
-                sideMenu.style.height = 'calc(100vh - 60px)';
-                sideMenu.style.boxShadow = 'none';
-                sideMenu.style.zIndex = '100';
-                sideMenu.style.overflowY = 'auto';
-            }
-            if (appLayout) {
-                appLayout.style.flexDirection = 'row';
-                appLayout.style.alignItems = 'flex-start';
-            }
-        } else {
-            if (bottomNav) bottomNav.style.display = '';
-            const fab = $id('fab-add');
-            if (fab) fab.style.display = '';
-            const closeBtn = $id('close-menu');
-            if (closeBtn) closeBtn.style.display = '';
-            if (sideMenu) {
-                sideMenu.style.position = '';
-                sideMenu.style.left = '';
-                sideMenu.style.top = '';
-                sideMenu.style.height = '';
-                sideMenu.style.boxShadow = '';
-                sideMenu.style.zIndex = '';
-                sideMenu.style.overflowY = '';
-            }
-            if (appLayout) {
-                appLayout.style.flexDirection = '';
-                appLayout.style.alignItems = '';
-            }
-        }
-    }
-    applyDesktopLayout();
-    window.addEventListener('resize', applyDesktopLayout);
 });
 
 // =============================================
@@ -9332,6 +9283,59 @@ function _relBuildInsight(snap) {
     return null;
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+
+    // Desktop layout: sidebar visível, bottom nav escondido
+    function applyDesktopLayout() {
+        const isDesktop = window.innerWidth >= 768;
+        const bottomNav = $id('bottom-nav');
+        const sideMenu  = $id('side-menu');
+        const appLayout = $id('app-layout');
+
+        if (isDesktop) {
+            if (bottomNav) bottomNav.style.display = 'none';
+            const fab = $id('fab-add');
+            if (fab) fab.style.display = 'none';
+            const closeBtn = $id('close-menu');
+            if (closeBtn) closeBtn.style.display = 'none';
+            if (sideMenu) {
+                sideMenu.style.position = 'relative';
+                sideMenu.style.left = '0';
+                sideMenu.style.top = '0';
+                sideMenu.style.height = 'calc(100vh - 60px)';
+                sideMenu.style.boxShadow = 'none';
+                sideMenu.style.zIndex = '100';
+                sideMenu.style.overflowY = 'auto';
+            }
+            if (appLayout) {
+                appLayout.style.flexDirection = 'row';
+                appLayout.style.alignItems = 'flex-start';
+            }
+        } else {
+            if (bottomNav) bottomNav.style.display = '';
+            const fab = $id('fab-add');
+            if (fab) fab.style.display = '';
+            const closeBtn = $id('close-menu');
+            if (closeBtn) closeBtn.style.display = '';
+            if (sideMenu) {
+                sideMenu.style.position = '';
+                sideMenu.style.left = '';
+                sideMenu.style.top = '';
+                sideMenu.style.height = '';
+                sideMenu.style.boxShadow = '';
+                sideMenu.style.zIndex = '';
+                sideMenu.style.overflowY = '';
+            }
+            if (appLayout) {
+                appLayout.style.flexDirection = '';
+                appLayout.style.alignItems = '';
+            }
+        }
+    }
+
+    applyDesktopLayout();
+    window.addEventListener('resize', applyDesktopLayout);
+});
 
 // ── Render lista ──────────────────────────────────────────────────────────
 function renderEncList() {
