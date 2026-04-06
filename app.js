@@ -3,6 +3,34 @@
 // Confirmar que as rules não permitem leitura/escrita sem token válido.
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DOM HELPERS — evitam repetição de document.getElementById / createElement
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Atalho para document.getElementById — retorna null sem lançar erro */
+const $id = id => $id(id);
+
+/** Cria um elemento e aplica propriedades de uma só vez.
+ *  Exemplo: $el('div', { className: 'card', textContent: 'Olá' })
+ */
+function $el(tag, props = {}) {
+    const el = document.createElement(tag);
+    Object.assign(el, props);
+    return el;
+}
+
+/** Abre um modal: adiciona 'active' e foca o primeiro elemento focável.
+ *  Nota: focusModal está definido mais abaixo; este helper é apenas um atalho. */
+function modalOpen(id) {
+    $id(id)?.classList.add('active');
+    focusModal(id);
+}
+
+/** Fecha um modal: remove 'active' */
+function modalClose(id) {
+    $id(id)?.classList.remove('active');
+}
+
 // ── Recuperação automática de IndexedDB corrompido ─────────────────────────
 (function _guardIDB() {
     const _origOpen = indexedDB.open.bind(indexedDB);
@@ -66,7 +94,7 @@ function _debounce(fn, ms = 300) {
 // evitando atrasar o arranque da app em Android com rede lenta.
 function _loadScript(src) {
     return new Promise((resolve, reject) => {
-        const s = document.createElement('script');
+        const s = $el('script');
         s.src = src; s.onload = resolve; s.onerror = reject;
         document.head.appendChild(s);
     });
@@ -173,9 +201,9 @@ function applyRole(role) {
     document.body.classList.toggle('worker-mode', role === 'worker');
 
     // Badge no header — inserido dentro de .header-titles para não quebrar o flex layout
-    let badge = document.getElementById('role-badge');
+    let badge = $id('role-badge');
     if (!badge) {
-        badge = document.createElement('button');
+        badge = $el('button');
         badge.id      = 'role-badge';
         badge.onclick = () => openSwitchRoleModal();
         document.querySelector('.header-titles')?.appendChild(badge);
@@ -192,13 +220,13 @@ function applyRole(role) {
     }
 
     // Footer da sidebar — username + role
-    const footerUser = document.getElementById('menu-footer-username');
-    const footerRole = document.getElementById('menu-footer-role');
+    const footerUser = $id('menu-footer-username');
+    const footerRole = $id('menu-footer-role');
     if (footerUser) footerUser.textContent = displayLabel;
     if (footerRole) footerRole.textContent = role === 'worker' ? 'Operador' : 'Gestor';
 
     // Esconde o ecrã de seleção
-    document.getElementById('role-screen')?.classList.add('hidden');
+    $id('role-screen')?.classList.add('hidden');
 }
 
 // ──────────────────────────────────────────────────────────
@@ -257,7 +285,7 @@ async function loadUsers() {
 
 // Floating label — adiciona/remove classe has-value consoante o input tem conteúdo
 function lsFieldUpdate(input, fieldId) {
-    const field = document.getElementById(fieldId);
+    const field = $id(fieldId);
     if (!field) return;
     if (input.value.length > 0) {
         field.classList.add('has-value');
@@ -268,8 +296,8 @@ function lsFieldUpdate(input, fieldId) {
 
 // Toggle mostrar/esconder password
 function toggleLoginPassword() {
-    const inp  = document.getElementById('ls-password');
-    const icon = document.getElementById('ls-eye-icon');
+    const inp  = $id('ls-password');
+    const icon = $id('ls-eye-icon');
     const show = inp.type === 'password';
     inp.type = show ? 'text' : 'password';
     icon.innerHTML = show
@@ -281,10 +309,10 @@ function toggleLoginPassword() {
 async function handleLogin(e) {
     if (e) e.preventDefault();
 
-    const errEl  = document.getElementById('ls-error');
-    const btn    = document.getElementById('ls-submit-btn');
-    const btnText= document.getElementById('ls-btn-text');
-    const spinner= document.getElementById('ls-spinner');
+    const errEl  = $id('ls-error');
+    const btn    = $id('ls-submit-btn');
+    const btnText= $id('ls-btn-text');
+    const spinner= $id('ls-spinner');
 
     const showError = (msg) => {
         if (!errEl) return;
@@ -293,8 +321,8 @@ async function handleLogin(e) {
         else     errEl.classList.remove('visible');
     };
 
-    const username = (document.getElementById('ls-username')?.value || '').trim().toLowerCase();
-    const password =  document.getElementById('ls-password')?.value || '';
+    const username = ($id('ls-username')?.value || '').trim().toLowerCase();
+    const password = $id('ls-password')?.value || '';
 
     if (!username || !password) { showError('Preenche o utilizador e a password.'); return; }
 
@@ -398,10 +426,10 @@ async function handleLogin(e) {
 
 async function createUser() {
     if (!requireManagerAccess()) return;
-    const nameRaw     = document.getElementById('new-user-name')?.value.trim().toLowerCase();
-    const role        = document.getElementById('new-user-role')?.value;
-    const password    = document.getElementById('new-user-pass')?.value;
-    const displayName = document.getElementById('new-user-displayname')?.value.trim() || '';
+    const nameRaw     = $id('new-user-name')?.value.trim().toLowerCase();
+    const role        = $id('new-user-role')?.value;
+    const password    = $id('new-user-pass')?.value;
+    const displayName = $id('new-user-displayname')?.value.trim() || '';
 
     if (!nameRaw)    { showToast('Indica o nome de utilizador', 'error'); return; }
     if (!password || password.length < 4) { showToast('Password deve ter pelo menos 4 caracteres', 'error'); return; }
@@ -438,9 +466,9 @@ async function createUser() {
         // Invalida cache
         localStorage.removeItem('hiperfrio-users-cache');
         localStorage.removeItem('hiperfrio-session');
-        document.getElementById('new-user-name').value = '';
-        document.getElementById('new-user-pass').value = '';
-        const dnEl = document.getElementById('new-user-displayname');
+        $id('new-user-name').value = '';
+        $id('new-user-pass').value = '';
+        const dnEl = $id('new-user-displayname');
         if (dnEl) dnEl.value = '';
         showToast(`Utilizador "${nameRaw}" criado`);
         renderUsersList();
@@ -451,7 +479,7 @@ async function createUser() {
 
 async function renderUsersList() {
     if (!requireManagerAccess({ silent: true })) return;
-    const el = document.getElementById('users-list');
+    const el = $id('users-list');
     if (!el) return;
     el.innerHTML = '<div class="empty-msg">A carregar...</div>';
 
@@ -515,7 +543,7 @@ function switchRole() {
     localStorage.removeItem(ROLE_KEY);
     currentRole = null;
     // Remove badge
-    document.getElementById('role-badge')?.remove();
+    $id('role-badge')?.remove();
     // Repõe body classes
     document.body.classList.remove('worker-mode');
     // Invalida cache em memória
@@ -528,27 +556,27 @@ function switchRole() {
     localStorage.removeItem('hiperfrio-users-cache');
     localStorage.removeItem('hiperfrio-session');
     // Limpa campos do login
-    const u = document.getElementById('ls-username'); if (u) u.value = '';
-    const p = document.getElementById('ls-password'); if (p) p.value = '';
-    const e = document.getElementById('ls-error'); if (e) e.classList.remove('visible');
+    const u = $id('ls-username'); if (u) u.value = '';
+    const p = $id('ls-password'); if (p) p.value = '';
+    const e = $id('ls-error'); if (e) e.classList.remove('visible');
     // Mostra ecrã de login
-    const rs = document.getElementById('role-screen');
+    const rs = $id('role-screen');
     if (rs) { rs.style.opacity='0'; rs.style.transition='opacity 0s'; rs.classList.remove('hidden'); requestAnimationFrame(() => { rs.style.transition='opacity 0.3s'; rs.style.opacity='1'; }); }
     // Esconde todas as vistas
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     // Reset nav activo
     document.querySelectorAll('.menu-items li, .bottom-nav-item').forEach(b => b.classList.remove('active'));
     // Volta ao dashboard ao próximo login
-    document.getElementById('view-dashboard')?.classList.add('active');
-    document.getElementById('nav-dashboard')?.classList.add('active');
+    $id('view-dashboard')?.classList.add('active');
+    $id('nav-dashboard')?.classList.add('active');
 }
 
 function openSwitchRoleModal() {
-    document.getElementById('switch-role-modal')?.classList.add('active');
+    $id('switch-role-modal')?.classList.add('active');
     focusModal('switch-role-modal');
 }
 function closeSwitchRoleModal() {
-    document.getElementById('switch-role-modal')?.classList.remove('active');
+    $id('switch-role-modal')?.classList.remove('active');
 }
 
 function checkAdminAccess() {
@@ -717,7 +745,7 @@ function updateOfflineBanner() {
     const isOffline = !navigator.onLine;
     document.body.classList.toggle('is-offline', isOffline);
     const q       = queueLoad();
-    const countEl = document.getElementById('offline-pending-count');
+    const countEl = $id('offline-pending-count');
     if (countEl) {
         countEl.textContent   = q.length > 0 ? `${q.length} alteração(ões) pendente(s)` : '';
         countEl.style.display = q.length > 0 ? 'inline' : 'none';
@@ -728,13 +756,12 @@ function updateOfflineBanner() {
 // UI HELPERS
 // =============================================
 function showToast(msg, type = 'success') {
-    const container = document.getElementById('toast-container');
-    const t    = document.createElement('div');
-    t.className = 'toast';
+    const container = $id('toast-container');
+    const t = $el('div', { className: 'toast' });
     if (type === 'error') t.style.borderLeftColor = 'var(--danger)';
-    const icon = document.createElement('span');
+    const icon = $el('span');
     icon.textContent = type === 'success' ? '✅' : '✗';
-    const text = document.createElement('span');
+    const text = $el('span');
     text.textContent = msg;
     t.appendChild(icon);
     t.appendChild(text);
@@ -742,26 +769,26 @@ function showToast(msg, type = 'success') {
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
 }
 
-function setRefreshSpinning(s) { document.getElementById('btn-refresh')?.classList.toggle('spinning', s); }
+function setRefreshSpinning(s) { $id('btn-refresh')?.classList.toggle('spinning', s); }
 
 function toggleMenu() {
-    document.getElementById('side-menu').classList.toggle('open');
-    document.getElementById('menu-overlay')?.classList.toggle('active');
+    $id('side-menu').classList.toggle('open');
+    $id('menu-overlay')?.classList.toggle('active');
 }
 
 // ── Avatar dropdown (header) ──────────────────────────────
 function toggleAvatarMenu() {
-    const dd = document.getElementById('avatar-dropdown');
+    const dd = $id('avatar-dropdown');
     if (!dd) return;
     const isOpen = dd.classList.contains('open');
     isOpen ? closeAvatarMenu() : dd.classList.add('open');
 }
 function closeAvatarMenu() {
-    document.getElementById('avatar-dropdown')?.classList.remove('open');
+    $id('avatar-dropdown')?.classList.remove('open');
 }
 // Fecha ao clicar fora
 document.addEventListener('click', function(e) {
-    const wrap = document.getElementById('header-avatar-wrap');
+    const wrap = $id('header-avatar-wrap');
     if (wrap && !wrap.contains(e.target)) closeAvatarMenu();
 });
 
@@ -786,14 +813,14 @@ function nav(viewId) {
         'view-encomendas':'Encomendas',
         'view-map':       'Mapa PAT',
     };
-    const titleEl = document.getElementById('header-page-title');
+    const titleEl = $id('header-page-title');
     if (titleEl && pageTitles[viewId]) titleEl.textContent = pageTitles[viewId];
 
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.getElementById(viewId)?.classList.add('active');
+    $id(viewId)?.classList.add('active');
 
     // Desktop: admin precisa de padding 0 para o layout Windows Settings funcionar
-    const mainContent = document.getElementById('main-content');
+    const mainContent = $id('main-content');
     if (mainContent) {
         mainContent.classList.remove('admin-view-active');
     }
@@ -802,7 +829,7 @@ function nav(viewId) {
         // Limpa a pesquisa ao navegar para o stock (desktop e mobile)
         if (window._searchInputEl) {
             window._searchInputEl.value = '';
-            document.getElementById('inp-search-clear')?.classList.add('hidden');
+            $id('inp-search-clear')?.classList.add('hidden');
         }
         renderList('', true).then(() => {
             if (_zeroFilterActive) filterZeroStock();
@@ -810,17 +837,17 @@ function nav(viewId) {
         });
         // Reset barra de pesquisa ao navegar para o stock
         document.querySelector('.search-container')?.classList.remove('search-scrolled-away');
-        document.getElementById('search-peek-btn')?.classList.remove('visible');
+        $id('search-peek-btn')?.classList.remove('visible');
     }
     if (viewId === 'view-register') { // PONTO 19: limpa form ao navegar
-        const fa = document.getElementById('form-add');
-        if (fa) { fa.reset(); setUnitSelector('inp','un'); document.getElementById('inp-notas').value = ''; }
+        const fa = $id('form-add');
+        if (fa) { fa.reset(); setUnitSelector('inp','un'); $id('inp-notas').value = ''; }
     }
     if (viewId === 'view-bulk') {
         _bulkCount = 0; _updateBulkCounter();
         _refreshZoneDatalist(); // PONTO 16
         // PONTO 4: limpa zona se vazia para evitar confusão com lote anterior persistido pelo browser
-        const bulkLoc = document.getElementById('bulk-loc');
+        const bulkLoc = $id('bulk-loc');
         if (bulkLoc && !bulkLoc.value.trim()) bulkLoc.value = '';
     }
     if (viewId === 'view-tools')  renderTools();
@@ -834,7 +861,7 @@ function nav(viewId) {
     if (viewId === 'view-pedidos') {
         // Limpa pesquisa ao entrar na vista para não confundir ao voltar
         _patSearchQuery = '';
-        const searchEl = document.getElementById('pat-search');
+        const searchEl = $id('pat-search');
         if (searchEl) searchEl.value = '';
         renderPats();
         // Desktop: carregar mapa no painel lateral automaticamente
@@ -849,7 +876,7 @@ function nav(viewId) {
         'view-search':'nav-search','view-tools':'nav-tools','view-register':'nav-register',
         'view-bulk':'nav-bulk','view-admin':'nav-admin','view-encomendas':'nav-encomendas'
     };
-    document.getElementById(sideMap[viewId])?.classList.add('active');
+    $id(sideMap[viewId])?.classList.add('active');
 
     document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
     const bnavMap = {
@@ -858,15 +885,15 @@ function nav(viewId) {
         'view-pedidos':'bnav-pedidos',
         'view-encomendas':'bnav-encomendas'
     };
-    document.getElementById(bnavMap[viewId])?.classList.add('active');
+    $id(bnavMap[viewId])?.classList.add('active');
 
-    if (document.getElementById('side-menu')?.classList.contains('open')) toggleMenu();
+    if ($id('side-menu')?.classList.contains('open')) toggleMenu();
     window.scrollTo(0, 0);
     bnavAddClose(); // fecha o mini-menu ao navegar
     // Garante que o bottom nav pill está visível ao mudar de vista
-    document.getElementById('bottom-nav')?.classList.remove('bnav-hidden');
+    $id('bottom-nav')?.classList.remove('bnav-hidden');
     if (window.innerWidth < 768) {
-        const fab = document.getElementById('fab-add');
+        const fab = $id('fab-add');
         if (fab) fab.style.display = viewId === 'view-search' ? '' : 'none';
     }
 }
@@ -967,11 +994,11 @@ async function _pruneDashSnapshots() {
 }
 
 async function renderDashboard(force = false, showSpinner = false) {
-    const el = document.getElementById('dashboard');
+    const el = $id('dashboard');
     if (!el) return;
 
     el.classList.add('dv3-loading');
-    document.getElementById('dv3-refresh-btn')?.classList.add('spinning');
+    $id('dv3-refresh-btn')?.classList.add('spinning');
 
     const ts = Date.now();
     const [stockData, ferrData, , , snapData] = await Promise.all([
@@ -1034,8 +1061,7 @@ async function renderDashboard(force = false, showSpinner = false) {
     const esc = escapeHtml;
 
     // ── Saudação com botão refresh integrado
-    const greetDiv = document.createElement('div');
-    greetDiv.className = 'dv3-greeting';
+    const greetDiv = $el('div', { className: 'dv3-greeting' });
     greetDiv.innerHTML = `
         <div class="dv3-greeting-top">
             <div>
@@ -1053,8 +1079,7 @@ async function renderDashboard(force = false, showSpinner = false) {
 
     // ── Alert strip (só se houver urgências)
     if (patUrgentes > 0) {
-        const alert = document.createElement('div');
-        alert.className = 'dv3-alert';
+        const alert = $el('div', { className: 'dv3-alert' });
         alert.onclick   = () => nav('view-pedidos');
         alert.innerHTML = `
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -1064,13 +1089,11 @@ async function renderDashboard(force = false, showSpinner = false) {
     }
 
     // ── KPI grande row: Stock + PATs
-    const kpiRow = document.createElement('div');
-    kpiRow.className = 'dv3-kpi-row';
+    const kpiRow = $el('div', { className: 'dv3-kpi-row' });
 
     // KPI: Stock
     const stockPct = total > 0 ? Math.round(comStock / total * 100) : 100;
-    const kpiStock = document.createElement('div');
-    kpiStock.className = 'dv3-kpi';
+    const kpiStock = $el('div', { className: 'dv3-kpi' });
     kpiStock.onclick   = () => nav('view-search');
     kpiStock.innerHTML = `
         <div class="dv3-kpi-label">Stock</div>
@@ -1083,7 +1106,7 @@ async function renderDashboard(force = false, showSpinner = false) {
     kpiRow.appendChild(kpiStock);
 
     // KPI: PATs
-    const kpiPat = document.createElement('div');
+    const kpiPat = $el('div');
     kpiPat.className = 'dv3-kpi' + (patUrgentes > 0 ? ' dv3-kpi-warn' : '');
     kpiPat.onclick   = () => nav('view-pedidos');
     kpiPat.innerHTML = `
@@ -1101,11 +1124,10 @@ async function renderDashboard(force = false, showSpinner = false) {
     el.appendChild(kpiRow);
 
     // ── KPI mini row: Ferramentas, Encomendas, Sem stock
-    const miniRow = document.createElement('div');
-    miniRow.className = 'dv3-mini-row';
+    const miniRow = $el('div', { className: 'dv3-mini-row' });
 
     function _miniKpi(label, val, sub, color, warn, onClick) {
-        const d = document.createElement('div');
+        const d = $el('div');
         d.className = 'dv3-mini' + (warn ? ' dv3-mini-warn' : '');
         if (onClick) d.onclick = onClick;
         d.innerHTML = `<div class="dv3-mini-label">${esc(label)}</div>
@@ -1162,22 +1184,18 @@ async function renderDashboard(force = false, showSpinner = false) {
 
     if (patEntries.length > 0) {
         const sec = _dv3Section('PATs pendentes', 'Ver todas →', () => nav('view-pedidos'));
-        const list = document.createElement('div');
-        list.className = 'dv3-list';
+        const list = $el('div', { className: 'dv3-list' });
 
         patEntries.forEach(([id, pat]) => {
             const dias    = _calcDias(pat.criadoEm);
             const urgente = dias >= 20;
-            const row = document.createElement('div');
-            row.className = 'dv3-list-row';
+            const row = $el('div', { className: 'dv3-list-row' });
             row.onclick   = () => openPatDetail(id, pat);
 
-            const accent = document.createElement('div');
-            accent.className = 'dv3-list-accent';
+            const accent = $el('div', { className: 'dv3-list-accent' });
             accent.style.background = urgente ? '#E24B4A' : '#1a56db';
 
-            const info = document.createElement('div');
-            info.className = 'dv3-list-info';
+            const info = $el('div', { className: 'dv3-list-info' });
             info.innerHTML = `
                 <div class="dv3-list-primary">
                     <span class="dv3-mono">PAT ${esc(pat.numero || '—')}</span>
@@ -1185,7 +1203,7 @@ async function renderDashboard(force = false, showSpinner = false) {
                 </div>
                 <div class="dv3-list-secondary">${esc(pat.estabelecimento || 'Sem estabelecimento')}</div>`;
 
-            const age = document.createElement('span');
+            const age = $el('span');
             age.className   = 'dv3-list-age' + (urgente ? ' dv3-list-age-urg' : '');
             age.textContent = dias === 0 ? 'Hoje' : dias === 1 ? '1d' : `${dias}d`;
 
@@ -1206,8 +1224,7 @@ async function renderDashboard(force = false, showSpinner = false) {
 
     if (alocadasList.length > 0) {
         const sec2 = _dv3Section('Ferramentas em campo', 'Painel →', () => nav('view-tools'));
-        const list2 = document.createElement('div');
-        list2.className = 'dv3-list';
+        const list2 = $el('div', { className: 'dv3-list' });
 
         // Agrupa por colaborador
         const porColab = {};
@@ -1222,8 +1239,7 @@ async function renderDashboard(force = false, showSpinner = false) {
             const overdue  = dias_max >= ALERTA_DIAS;
             const initials = colab.trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase();
 
-            const row = document.createElement('div');
-            row.className = 'dv3-list-row';
+            const row = $el('div', { className: 'dv3-list-row' });
             row.onclick   = () => nav('view-tools');
 
             row.innerHTML = `
@@ -1248,8 +1264,7 @@ async function renderDashboard(force = false, showSpinner = false) {
 
     if (encActivas2.length > 0) {
         const sec3 = _dv3Section('Encomendas em curso', 'Ver todas →', () => nav('view-encomendas'));
-        const list3 = document.createElement('div');
-        list3.className = 'dv3-list';
+        const list3 = $el('div', { className: 'dv3-list' });
 
         encActivas2.forEach(([, enc]) => {
             const linhas   = Object.values(enc.linhas || {});
@@ -1258,8 +1273,7 @@ async function renderDashboard(force = false, showSpinner = false) {
             const pct      = total > 0 ? Math.round(recebido / total * 100) : 0;
             const isParcial = enc.estado === 'parcial';
 
-            const row = document.createElement('div');
-            row.className = 'dv3-list-row dv3-list-row-col';
+            const row = $el('div', { className: 'dv3-list-row dv3-list-row-col' });
 
             row.innerHTML = `
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
@@ -1304,7 +1318,7 @@ async function renderDashboard(force = false, showSpinner = false) {
 
     el.classList.remove('dv3-loading');
     // Retirar animação do botão refresh interno
-    document.getElementById('dv3-refresh-btn')?.classList.remove('spinning');
+    $id('dv3-refresh-btn')?.classList.remove('spinning');
 }
 
 // ── Gas card helpers ─────────────────────────────────────────────────────────
@@ -1393,8 +1407,7 @@ function _renderGasCard(stockData, el) {
 
     // Badge de alerta no header
     if (lowGases.length > 0) {
-        const badge = document.createElement('span');
-        badge.className = 'dv3-chip dv3-chip-red';
+        const badge = $el('span', { className: 'dv3-chip dv3-chip-red' });
         badge.style.cssText = 'font-size:9px;margin-left:6px;';
         badge.textContent = lowGases.length === 1
             ? lowGases[0].name + ' baixo'
@@ -1403,28 +1416,28 @@ function _renderGasCard(stockData, el) {
     }
 
     // Sub-info
-    const subInfo = document.createElement('div');
+    const subInfo = $el('div');
     subInfo.style.cssText = 'font-size:11px;color:var(--text-muted);margin-bottom:12px;';
     subInfo.textContent = `${gases.length} tipo${gases.length !== 1 ? 's' : ''} · ${fmtKg(totalKg)} kg total`;
     sec.appendChild(subInfo);
 
     // Cilindros
-    const cylRow = document.createElement('div');
+    const cylRow = $el('div');
     cylRow.style.cssText = 'display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;';
 
     gases.forEach(g => {
         const low = g.qty <= g.alertAt;
-        const item = document.createElement('div');
+        const item = $el('div');
         item.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;width:60px;cursor:pointer;';
         item.onclick = () => nav('view-search');
 
         item.appendChild(_drawGasCylSvg(g));
 
-        const nm = document.createElement('div');
+        const nm = $el('div');
         nm.style.cssText = 'font-size:11px;font-weight:500;color:var(--text-main);text-align:center;';
         nm.textContent = g.name;
 
-        const qt = document.createElement('div');
+        const qt = $el('div');
         qt.style.cssText = 'font-size:10px;font-family:"DM Mono","Courier New",monospace;color:var(--text-muted);text-align:center;';
         qt.textContent = fmtKg(g.qty) + ' kg';
 
@@ -1432,7 +1445,7 @@ function _renderGasCard(stockData, el) {
         item.appendChild(qt);
 
         if (low) {
-            const al = document.createElement('div');
+            const al = $el('div');
             al.style.cssText = 'font-size:9px;font-weight:600;padding:1px 6px;border-radius:3px;background:#FCEBEB;color:#A32D2D;';
             al.textContent = 'Baixo';
             item.appendChild(al);
@@ -1442,13 +1455,13 @@ function _renderGasCard(stockData, el) {
     sec.appendChild(cylRow);
 
     // Barras horizontais
-    const barsDiv = document.createElement('div');
+    const barsDiv = $el('div');
     barsDiv.style.cssText = 'border-top:0.5px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px;';
 
     gases.forEach(g => {
         const p   = Math.max(0, Math.min(1, g.qty / g.max));
         const low = g.qty <= g.alertAt;
-        const bar = document.createElement('div');
+        const bar = $el('div');
         bar.style.cssText = 'display:flex;align-items:center;gap:8px;';
         bar.innerHTML = `
             <span style="font-size:11px;color:var(--text-muted);width:52px;flex-shrink:0;">${g.name}</span>
@@ -1467,17 +1480,13 @@ function _renderGasCard(stockData, el) {
 
 // helper: cria secção com header
 function _dv3Section(title, linkText, linkFn) {
-    const sec = document.createElement('div');
-    sec.className = 'dv3-section';
-    const hdr = document.createElement('div');
-    hdr.className = 'dv3-section-hdr';
-    const t = document.createElement('span');
-    t.className   = 'dv3-section-title';
+    const sec = $el('div', { className: 'dv3-section' });
+    const hdr = $el('div', { className: 'dv3-section-hdr' });
+    const t = $el('span', { className: 'dv3-section-title' });
     t.textContent = title;
     hdr.appendChild(t);
     if (linkText && linkFn) {
-        const l = document.createElement('button');
-        l.className   = 'dv3-section-link';
+        const l = $el('button', { className: 'dv3-section-link' });
         l.textContent = linkText;
         l.onclick     = linkFn;
         hdr.appendChild(l);
@@ -1497,7 +1506,7 @@ let _toolsFilter = 'all';
 function toolsFilterSet(btn, filter) {
     _toolsFilter = filter;
     document.querySelectorAll('.tools-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
-    const search = document.getElementById('inp-tools-search');
+    const search = $id('inp-tools-search');
     if (search) search.value = '';
     renderTools();
 }
@@ -1505,9 +1514,9 @@ let _zeroFilterActive  = false; // zero-stock filter está activo (persiste entr
 
 // Menu de ordenação — criado no body para evitar clipping por stacking contexts
 function _getSortMenu() {
-    let menu = document.getElementById('sort-menu');
+    let menu = $id('sort-menu');
     if (!menu) {
-        menu = document.createElement('div');
+        menu = $el('div');
         menu.id        = 'sort-menu';
         menu.className = 'sort-menu';
         const options  = [
@@ -1518,7 +1527,7 @@ function _getSortMenu() {
             { val: 'local',    label: 'Localização'  },
         ];
         options.forEach(o => {
-            const btn = document.createElement('button');
+            const btn = $el('button');
             btn.className   = 'sort-option' + (o.val === _stockSort ? ' active' : '');
             btn.id          = `sort-${o.val}`;
             btn.textContent = o.label;
@@ -1531,7 +1540,7 @@ function _getSortMenu() {
 }
 
 function toggleSortMenu() {
-    const btn  = document.getElementById('sort-dropdown-btn');
+    const btn  = $id('sort-dropdown-btn');
     const menu = _getSortMenu();
     const isOpen = menu.classList.contains('open');
 
@@ -1555,25 +1564,25 @@ function toggleSortMenu() {
 }
 
 function _onOutsideSortClick(e) {
-    const wrap = document.getElementById('sort-dropdown-wrap');
-    const menu = document.getElementById('sort-menu');
+    const wrap = $id('sort-dropdown-wrap');
+    const menu = $id('sort-menu');
     if (!wrap?.contains(e.target) && !menu?.contains(e.target)) {
         _closeSortMenu();
     }
 }
 
 function _closeSortMenu() {
-    document.getElementById('sort-menu')?.classList.remove('open');
-    document.getElementById('sort-dropdown-btn')?.classList.remove('active');
+    $id('sort-menu')?.classList.remove('open');
+    $id('sort-dropdown-btn')?.classList.remove('active');
     document.removeEventListener('click', _onOutsideSortClick);
 }
 
 // Fecha sort menu em scroll ou resize (posição desactualizada)
 window.addEventListener('scroll', () => {
-    if (document.getElementById('sort-menu')?.classList.contains('open')) _closeSortMenu();
+    if ($id('sort-menu')?.classList.contains('open')) _closeSortMenu();
 }, { passive: true });
 window.addEventListener('resize', () => {
-    if (document.getElementById('sort-menu')?.classList.contains('open')) _closeSortMenu();
+    if ($id('sort-menu')?.classList.contains('open')) _closeSortMenu();
 });
 
 function setStockSort(val) {
@@ -1614,7 +1623,7 @@ function filterZeroStock() {
         _setDesktopFilter('zero');
         return;
     }
-    const listEl = document.getElementById('stock-list');
+    const listEl = $id('stock-list');
     if (!listEl) return;
     const wrappers = listEl.querySelectorAll('.swipe-wrapper[data-id]');
     wrappers.forEach(wrapper => {
@@ -1623,14 +1632,14 @@ function filterZeroStock() {
         const isZero = item && (item.quantidade || 0) === 0;
         wrapper.style.display = isZero ? '' : 'none';
     });
-    let badge = document.getElementById('zero-filter-badge');
+    let badge = $id('zero-filter-badge');
     if (!badge) {
-        badge = document.createElement('div');
+        badge = $el('div');
         badge.id        = 'zero-filter-badge';
         badge.className = 'zero-filter-badge';
-        const _badgeTxt = document.createElement('span');
+        const _badgeTxt = $el('span');
         _badgeTxt.textContent = '! A mostrar apenas produtos sem stock';
-        const _badgeBtn = document.createElement('button');
+        const _badgeBtn = $el('button');
         _badgeBtn.textContent = '✕ Limpar';
         _badgeBtn.onclick = clearZeroFilter;
         badge.appendChild(_badgeTxt);
@@ -1652,7 +1661,7 @@ function _saveZoneToHistory(zona) {
     _refreshZoneDatalist();
 }
 function _refreshZoneDatalist() {
-    const dl = document.getElementById('zone-datalist');
+    const dl = $id('zone-datalist');
     if (!dl) return;
     const hist = JSON.parse(localStorage.getItem(ZONE_HISTORY_KEY) || '[]');
     dl.innerHTML = hist.map(z => `<option value="${escapeHtml(z)}">`).join('');
@@ -1661,16 +1670,16 @@ function _refreshZoneDatalist() {
 // PONTO 20: fechar lote com resumo
 function closeBatch() {
     if (_bulkCount === 0) { nav('view-search'); return; }
-    const zona = document.getElementById('bulk-loc')?.value?.trim() || '?';
+    const zona = $id('bulk-loc')?.value?.trim() || '?';
     openConfirmModal({
         icon: '📦',
         title: 'Fechar lote?',
         desc: `${_bulkCount} produto${_bulkCount > 1 ? 's' : ''} adicionado${_bulkCount > 1 ? 's' : ''} na zona "${zona}". Fechar e ir para o stock?`,
         onConfirm: () => {
             // Limpa o formulário completo
-            document.getElementById('form-bulk')?.reset();
+            $id('form-bulk')?.reset();
             setUnitSelector('bulk', 'un');
-            document.getElementById('bulk-notas').value = '';
+            $id('bulk-notas').value = '';
             _bulkCount = 0; _updateBulkCounter();
             nav('view-search');
         }
@@ -1678,20 +1687,20 @@ function closeBatch() {
 }
 
 function _updateBulkCounter() {
-    const el = document.getElementById('bulk-counter');
+    const el = $id('bulk-counter');
     if (!el) return;
     el.textContent = _bulkCount === 0 ? '' : `${_bulkCount} produto${_bulkCount > 1 ? 's' : ''} adicionado${_bulkCount > 1 ? 's' : ''}`;
     el.style.display = _bulkCount > 0 ? 'block' : 'none';
 }
 
 function clearSearch() {
-    const inp = document.getElementById('inp-search');
+    const inp = $id('inp-search');
     if (inp) { inp.value = ''; inp.dispatchEvent(new Event('input')); inp.focus(); }
 }
 
 function clearZeroFilter() {
     _zeroFilterActive = false;
-    const badge = document.getElementById('zero-filter-badge');
+    const badge = $id('zero-filter-badge');
     if (badge) badge.remove();
     renderList('', false);
 }
@@ -1726,12 +1735,12 @@ function _renderDesktopHeader(data) {
     const comStock = total - semStock;
     const semLocal = entries.filter(i => !i.localizacao).length;
 
-    let hdr = document.getElementById('stock-desktop-hdr');
+    let hdr = $id('stock-desktop-hdr');
     if (!hdr) {
-        hdr = document.createElement('div');
+        hdr = $el('div');
         hdr.id = 'stock-desktop-hdr';
         hdr.className = 'sdh';
-        const listEl = document.getElementById('stock-list');
+        const listEl = $id('stock-list');
         listEl?.parentNode.insertBefore(hdr, listEl);
     }
 
@@ -1771,7 +1780,7 @@ function _renderDesktopHeader(data) {
 function _setDesktopFilter(f) {
     _desktopFilter = f;
     // Re-aplica visibilidade nos cards existentes sem re-render completo
-    const listEl = document.getElementById('stock-list');
+    const listEl = $id('stock-list');
     if (!listEl) return;
     const q = window._searchInputEl?.value?.toLowerCase() || '';
     const data = cache.stock.data || {};
@@ -1806,40 +1815,31 @@ function _buildDesktopCard(id, item) {
     const isLow  = !isZero && qty <= 5; // alerta para quantidades muito baixas
     const unidade = item.unidade && item.unidade !== 'un' ? item.unidade : 'un';
 
-    const wrapper = document.createElement('div');
-    wrapper.className  = 'sdc-wrapper';
+    const wrapper = $el('div', { className: 'sdc-wrapper' });
     wrapper.dataset.id = id;
 
-    const card = document.createElement('div');
+    const card = $el('div');
     card.className = 'sdc' + (isZero ? ' sdc-zero' : isLow ? ' sdc-low' : '');
 
     // ── Header do card ────────────────────────────────────────────────────
-    const hdr = document.createElement('div');
-    hdr.className = 'sdc-hdr';
+    const hdr = $el('div', { className: 'sdc-hdr' });
 
     // Badge de alerta
     if (isZero) {
-        const badge = document.createElement('span');
-        badge.className   = 'sdc-badge sdc-badge-out';
-        badge.textContent = 'SEM STOCK';
+        const badge = $el('span', { className: 'sdc-badge sdc-badge-out', textContent: 'SEM STOCK' });
         hdr.appendChild(badge);
     } else if (isLow) {
-        const badge = document.createElement('span');
-        badge.className   = 'sdc-badge sdc-badge-low';
-        badge.textContent = 'BAIXO';
+        const badge = $el('span', { className: 'sdc-badge sdc-badge-low', textContent: 'BAIXO' });
         hdr.appendChild(badge);
     }
 
     // Ref + Nome
-    const meta = document.createElement('div');
-    meta.className = 'sdc-meta';
+    const meta = $el('div', { className: 'sdc-meta' });
 
-    const ref = document.createElement('div');
-    ref.className   = 'sdc-ref';
+    const ref = $el('div', { className: 'sdc-ref' });
     ref.textContent = 'REF: ' + (item.codigo || '—').toUpperCase();
 
-    const nome = document.createElement('div');
-    nome.className   = 'sdc-nome';
+    const nome = $el('div', { className: 'sdc-nome' });
     nome.textContent = (item.nome || '').toUpperCase();
 
     meta.appendChild(ref);
@@ -1847,8 +1847,7 @@ function _buildDesktopCard(id, item) {
 
     // Localização dentro do meta — fica colada ao nome
     if (item.localizacao) {
-        const loc = document.createElement('div');
-        loc.className = 'sdc-loc';
+        const loc = $el('div', { className: 'sdc-loc' });
         loc.innerHTML = `<svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>`;
         loc.appendChild(document.createTextNode(' ' + item.localizacao.toUpperCase()));
         meta.appendChild(loc);
@@ -1858,9 +1857,8 @@ function _buildDesktopCard(id, item) {
 
     // Thumbnail no canto superior direito (só se tiver imagem)
     if (item.imgUrl) {
-        const imgThumb = document.createElement('div');
-        imgThumb.className = 'sdc-img-thumb';
-        const img = document.createElement('img');
+        const imgThumb = $el('div', { className: 'sdc-img-thumb' });
+        const img = $el('img');
         img.src     = item.imgUrl;
         img.alt     = item.nome || '';
         img.onerror = () => { imgThumb.style.display = 'none'; };
@@ -1872,48 +1870,37 @@ function _buildDesktopCard(id, item) {
 
     // ── Notas ─────────────────────────────────────────────────────────────
     if (item.notas) {
-        const notas = document.createElement('div');
-        notas.className   = 'sdc-notas';
+        const notas = $el('div', { className: 'sdc-notas' });
         notas.textContent = item.notas;
         card.appendChild(notas);
     }
 
     // ── Stock actual + controlo de quantidade ─────────────────────────────
-    const foot = document.createElement('div');
-    foot.className = 'sdc-foot';
+    const foot = $el('div', { className: 'sdc-foot' });
 
-    const stockInfo = document.createElement('div');
-    stockInfo.className = 'sdc-stock-info';
+    const stockInfo = $el('div', { className: 'sdc-stock-info' });
 
-    const stockLabel = document.createElement('div');
-    stockLabel.className   = 'sdc-stock-label';
-    stockLabel.textContent = 'ESTOQUE ATUAL';
+    const stockLabel = $el('div', { className: 'sdc-stock-label', textContent: 'ESTOQUE ATUAL' });
 
-    const stockVal = document.createElement('div');
+    const stockVal = $el('div');
     stockVal.className = 'sdc-stock-val' + (isZero ? ' sdc-stock-zero' : '');
     stockVal.innerHTML = `<span class="sdc-qty" id="sdcqty-${id}">${fmtQty(qty, item.unidade)}</span>`;
 
     stockInfo.appendChild(stockLabel);
     stockInfo.appendChild(stockVal);
 
-    const controls = document.createElement('div');
-    controls.className = 'sdc-controls';
+    const controls = $el('div', { className: 'sdc-controls' });
 
-    const btnM = document.createElement('button');
-    btnM.className   = 'sdc-btn-qty';
-    btnM.textContent = '−';
+    const btnM = $el('button', { className: 'sdc-btn-qty', textContent: '−' });
     btnM.disabled    = qty === 0;
     btnM.id          = `sdcbtnm-${id}`;
     btnM.onclick     = (e) => { e.stopPropagation(); changeQtd(id, -1); _syncDesktopQty(id); };
 
-    const qtyDisplay = document.createElement('span');
-    qtyDisplay.className   = 'sdc-qty-display';
+    const qtyDisplay = $el('span', { className: 'sdc-qty-display' });
     qtyDisplay.id          = `sdcdisp-${id}`;
     qtyDisplay.textContent = qty;
 
-    const btnP = document.createElement('button');
-    btnP.className   = 'sdc-btn-qty';
-    btnP.textContent = '+';
+    const btnP = $el('button', { className: 'sdc-btn-qty', textContent: '+' });
     btnP.id          = `sdcbtnp-${id}`;
     btnP.onclick     = (e) => { e.stopPropagation(); changeQtd(id, 1); _syncDesktopQty(id); };
 
@@ -1927,16 +1914,13 @@ function _buildDesktopCard(id, item) {
 
     // ── Acções (editar / apagar) — só para gestores ───────────────────────
     if (currentRole === 'manager') {
-        const actions = document.createElement('div');
-        actions.className = 'sdc-actions';
+        const actions = $el('div', { className: 'sdc-actions' });
 
-        const btnEdit = document.createElement('button');
-        btnEdit.className   = 'sdc-action-btn sdc-action-edit';
+        const btnEdit = $el('button', { className: 'sdc-action-btn sdc-action-edit' });
         btnEdit.innerHTML   = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg> Editar';
         btnEdit.onclick     = (e) => { e.stopPropagation(); openEditModal(id, item); };
 
-        const btnDel = document.createElement('button');
-        btnDel.className    = 'sdc-action-btn sdc-action-del';
+        const btnDel = $el('button', { className: 'sdc-action-btn sdc-action-del' });
         btnDel.innerHTML    = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Apagar';
         btnDel.onclick      = (e) => { e.stopPropagation(); openDeleteModal(id, item); };
 
@@ -1954,9 +1938,9 @@ function _syncDesktopQty(id) {
     setTimeout(() => {
         const qty = cache.stock.data?.[id]?.quantidade ?? 0;
         const item = cache.stock.data?.[id];
-        const disp = document.getElementById(`sdcdisp-${id}`);
-        const qtyEl = document.getElementById(`sdcqty-${id}`);
-        const btnM  = document.getElementById(`sdcbtnm-${id}`);
+        const disp = $id(`sdcdisp-${id}`);
+        const qtyEl = $id(`sdcqty-${id}`);
+        const btnM  = $id(`sdcbtnm-${id}`);
         const wrapper = document.querySelector(`.sdc-wrapper[data-id="${id}"]`);
         const card  = wrapper?.querySelector('.sdc');
         if (disp) disp.textContent = qty;
@@ -1970,7 +1954,7 @@ function _syncDesktopQty(id) {
 }
 
 async function renderList(filter = '', force = false) {
-    const listEl = document.getElementById('stock-list');
+    const listEl = $id('stock-list');
     if (!listEl) return;
 
     if (!cache.stock.data) listEl.innerHTML = '<div class="empty-msg">A carregar...</div>';
@@ -2024,13 +2008,13 @@ async function renderList(filter = '', force = false) {
 
     // ── Vista Mobile — swipe cards ────────────────────────────────────────
     listEl.className = '';
-    document.getElementById('stock-desktop-hdr')?.remove();
+    $id('stock-desktop-hdr')?.remove();
 
     // Se DOM já tem cards (re-render por filtro), apenas faz show/hide
     const existingCards = listEl.querySelectorAll('.swipe-wrapper[data-id]');
     if (existingCards.length > 0 && !force) {
         // Remove "Mostrar mais" antes de filtrar — contagem pode mudar
-        document.getElementById('load-more-btn')?.remove();
+        $id('load-more-btn')?.remove();
         const filterLower = filter.toLowerCase();
         let visible = 0;
         existingCards.forEach(wrapper => {
@@ -2044,7 +2028,7 @@ async function renderList(filter = '', force = false) {
         let noResult = listEl.querySelector('.empty-msg');
         if (filter && visible === 0) {
             if (!noResult) {
-                noResult = document.createElement('div');
+                noResult = $el('div');
                 noResult.className = 'empty-msg';
                 listEl.appendChild(noResult);
             }
@@ -2066,15 +2050,14 @@ async function renderList(filter = '', force = false) {
     // Hint contextual — swipe para gestores, leitura para funcionários
     const hintKey = currentRole === 'worker' ? 'worker-hint-seen' : 'swipe-hint-seen';
     if (!filter && !localStorage.getItem(hintKey)) {
-        const hint = document.createElement('div');
-        hint.className = 'swipe-hint';
+        const hint = $el('div', { className: 'swipe-hint' });
         if (currentRole === 'worker') {
-            const msg = document.createElement('span');
+            const msg = $el('span');
             msg.textContent = '👁️ Modo consulta — apenas visualização';
             hint.appendChild(msg);
         } else {
-            const l = document.createElement('span'); l.textContent = '✏️ Swipe direita para editar';
-            const r = document.createElement('span'); r.textContent = '🗑️ Swipe esquerda para apagar';
+            const l = $el('span'); l.textContent = '✏️ Swipe direita para editar';
+            const r = $el('span'); r.textContent = '🗑️ Swipe esquerda para apagar';
             hint.appendChild(l); hint.appendChild(r);
         }
         listEl.appendChild(hint);
@@ -2090,64 +2073,52 @@ async function renderList(filter = '', force = false) {
     getSortedEntries(entries).forEach(([id, item]) => {
         const matches = _itemMatchesFilter(item, filterLower, filter.toUpperCase());
 
-        const wrapper = document.createElement('div');
-        wrapper.className    = 'swipe-wrapper';
+        const wrapper = $el('div', { className: 'swipe-wrapper' });
         wrapper.dataset.id   = id;
         wrapper.style.display = matches ? '' : 'none';
         if (matches) found++;
 
         // Swipe backgrounds
-        const bgL = document.createElement('div'); bgL.className = 'swipe-bg swipe-bg-left';
-        const iL  = document.createElement('span'); iL.className = 'swipe-bg-icon'; iL.textContent = '';
+        const bgL = $el('div'); bgL.className = 'swipe-bg swipe-bg-left';
+        const iL  = $el('span'); iL.className = 'swipe-bg-icon'; iL.textContent = '';
         bgL.appendChild(iL);
-        const bgR = document.createElement('div'); bgR.className = 'swipe-bg swipe-bg-right';
-        const iR  = document.createElement('span'); iR.className = 'swipe-bg-icon'; iR.textContent = '';
+        const bgR = $el('div'); bgR.className = 'swipe-bg swipe-bg-right';
+        const iR  = $el('span'); iR.className = 'swipe-bg-icon'; iR.textContent = '';
         bgR.appendChild(iR);
         wrapper.appendChild(bgL); wrapper.appendChild(bgR);
 
         // Card content — tudo via textContent (sem XSS)
-        const el = document.createElement('div');
-        el.className = 'item-card';
+        const el = $el('div', { className: 'item-card' });
 
-        const refLabel = document.createElement('div');
-        refLabel.className   = 'ref-label';
-        refLabel.textContent = 'REFERÊNCIA';
+        const refLabel = $el('div', { className: 'ref-label', textContent: 'REFERÊNCIA' });
 
-        const refVal = document.createElement('div');
-        refVal.className   = 'ref-value';
+        const refVal = $el('div', { className: 'ref-value' });
         refVal.textContent = String(item.codigo || '').toUpperCase();
 
-        const nomEl = document.createElement('div');
-        nomEl.className   = 'card-nome';
+        const nomEl = $el('div', { className: 'card-nome' });
         nomEl.textContent = item.nome || '';
 
-        const hr = document.createElement('hr');
-        hr.className = 'card-divider';
+        const hr = ('hr', { className: 'card-divider' });
 
-        const row = document.createElement('div');
-        row.className = 'card-bottom-row';
+        const row = $el('div', { className: 'card-bottom-row' });
 
-        const pill = document.createElement('div');
-        pill.className = 'loc-pill';
-        const pinIcon = document.createElement('span');
+        const pill = $el('div', { className: 'loc-pill' });
+        const pinIcon = $el('span');
         pinIcon.style.fontSize = '0.85rem';
         pinIcon.textContent    = '';
         pill.appendChild(pinIcon);
         pill.appendChild(document.createTextNode(' ' + (item.localizacao ? item.localizacao.toUpperCase() : 'SEM LOCAL')));
 
-        const qtyBox = document.createElement('div');
-        qtyBox.className = 'qty-pill-box';
+        const qtyBox = $el('div', { className: 'qty-pill-box' });
 
         const qty = item.quantidade || 0;
 
-        const btnM = document.createElement('button');
-        btnM.className   = 'btn-qty';
-        btnM.textContent = '−';
+        const btnM = $el('button', { className: 'btn-qty', textContent: '−' });
         btnM.disabled    = qty === 0;
         btnM.id          = `btn-minus-${id}`;
         btnM.onclick     = () => changeQtd(id, -1);
 
-        const qtySpan = document.createElement('span');
+        const qtySpan = $el('span');
         qtySpan.className   = 'qty-display' + (qty === 0 ? ' is-zero' : '');
         qtySpan.id          = `qty-${id}`;
         qtySpan.textContent = fmtQty(qty, item.unidade);
@@ -2163,17 +2134,14 @@ async function renderList(filter = '', force = false) {
             }
         });
 
-        const btnP = document.createElement('button');
-        btnP.className   = 'btn-qty';
-        btnP.textContent = '+';
+        const btnP = $el('button', { className: 'btn-qty', textContent: '+' });
         btnP.onclick     = () => changeQtd(id, 1);
 
         qtyBox.appendChild(btnM); qtyBox.appendChild(qtySpan); qtyBox.appendChild(btnP);
         row.appendChild(pill); row.appendChild(qtyBox);
         // PONTO 13: indicador de notas
         if (item.notas) {
-            const notasRow = document.createElement('div');
-            notasRow.className   = 'card-notas';
+            const notasRow = $el('div', { className: 'card-notas' });
             notasRow.title       = item.notas;
             notasRow.textContent = `📝 ${item.notas}`;
             el.appendChild(refLabel); el.appendChild(refVal); el.appendChild(nomEl);
@@ -2199,10 +2167,10 @@ async function renderList(filter = '', force = false) {
 
     // Botão "Mostrar mais" se há cards diferidos
     const deferred = listEl.querySelectorAll('.swipe-wrapper[data-deferred="1"]').length;
-    const existingBtn = document.getElementById('load-more-btn');
+    const existingBtn = $id('load-more-btn');
     if (existingBtn) existingBtn.remove();
     if (deferred > 0) {
-        const btn = document.createElement('button');
+        const btn = $el('button');
         btn.id = 'load-more-btn';
         btn.className = 'btn-load-more';
         btn.textContent = `Mostrar mais ${deferred} produto${deferred > 1 ? 's' : ''}`;
@@ -2217,9 +2185,7 @@ async function renderList(filter = '', force = false) {
     }
 
     if (filter && found === 0) {
-        const em = document.createElement('div');
-        em.className   = 'empty-msg';
-        em.textContent = 'Nenhum resultado encontrado.';
+        const em = $el('div', { className: 'empty-msg', textContent: 'Nenhum resultado encontrado.' });
         listEl.appendChild(em);
     }
 
@@ -2232,12 +2198,11 @@ async function renderList(filter = '', force = false) {
 
 // Edição inline de quantidade — abre mini-form no lugar do span
 function openInlineQtyEdit(id, item) {
-    const qtyEl = document.getElementById(`qty-${id}`);
+    const qtyEl = $id(`qty-${id}`);
     if (!qtyEl || qtyEl.querySelector('input')) return; // já em edição
     const currentQty = cache.stock.data?.[id]?.quantidade ?? item.quantidade ?? 0; // PONTO 5: lê do cache actualizado
-    const wrap = document.createElement('div');
-    wrap.className = 'qty-inline-edit';
-    const inp = document.createElement('input');
+    const wrap = $el('div', { className: 'qty-inline-edit' });
+    const inp = $el('input');
     inp.type  = 'number';
     inp.min   = '0';
     inp.step  = 'any';
@@ -2251,7 +2216,7 @@ function openInlineQtyEdit(id, item) {
         wrap.replaceWith(qtyEl);
         qtyEl.textContent = fmtQty(newVal, item.unidade);
         qtyEl.classList.toggle('is-zero', newVal === 0);
-        document.getElementById(`btn-minus-${id}`)?.toggleAttribute('disabled', newVal === 0);
+        $id(`btn-minus-${id}`)?.toggleAttribute('disabled', newVal === 0);
         if (cache.stock.data?.[id]) cache.stock.data[id].quantidade = newVal;
         if (newVal < oldValInline) {
             registarMovimento('saida_manual', id, item.codigo, item.nome, oldValInline - newVal);
@@ -2267,9 +2232,7 @@ function openInlineQtyEdit(id, item) {
         if (e.key === 'Escape') { e.preventDefault(); cancelFn(); }
     });
     inp.addEventListener('blur', () => setTimeout(cancelFn, 150));
-    const ok = document.createElement('button');
-    ok.className = 'qty-inline-ok';
-    ok.textContent = '✓';
+    const ok = $el('button', { className: 'qty-inline-ok', textContent: '✓' });
     ok.addEventListener('mousedown', e => { e.preventDefault(); confirmFn(); });
     wrap.appendChild(inp);
     wrap.appendChild(ok);
@@ -2281,7 +2244,7 @@ function openInlineQtyEdit(id, item) {
 async function forceRefresh() {
     setRefreshSpinning(true);
     await Promise.all([
-        renderList(document.getElementById('inp-search')?.value || '', true),
+        renderList($id('inp-search')?.value || '', true),
         renderDashboard()
     ]);
     setRefreshSpinning(false);
@@ -2343,8 +2306,8 @@ async function changeQtd(id, delta) {
 
     // Actualiza cache + DOM imediatamente (optimistic)
     stockData[id].quantidade = newQty;
-    const qtyEl   = document.getElementById(`qty-${id}`);
-    const minusEl = document.getElementById(`btn-minus-${id}`);
+    const qtyEl   = $id(`qty-${id}`);
+    const minusEl = $id(`btn-minus-${id}`);
     const itemUnidade = stockData[id]?.unidade;
     if (qtyEl) {
         qtyEl.textContent = fmtQty(newQty, itemUnidade);
@@ -2392,7 +2355,7 @@ function formatDate(iso) {
 
 
 async function renderTools() {
-    const list = document.getElementById('tools-list');
+    const list = $id('tools-list');
     if (!list) return;
     const data = await fetchCollection('ferramentas');
 
@@ -2405,9 +2368,9 @@ async function renderTools() {
         const disp    = entries.filter(t => t.status === 'disponivel').length;
         const aloc    = entries.filter(t => t.status === 'alocada').length;
         const over    = entries.filter(t => t.status === 'alocada' && t.dataEntrega && _calcDias(t.dataEntrega) > TOOL_ALERT_DAYS).length;
-        const sub = document.getElementById('tools-header-sub');
+        const sub = $id('tools-header-sub');
         if (sub) sub.textContent = `${total} ferramenta${total !== 1 ? 's' : ''} · ${aloc} alocada${aloc !== 1 ? 's' : ''}`;
-        const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+        const el = (id, v) => { const e = $id(id); if(e) e.textContent = v; };
         el('ts-total', total); el('ts-disp', disp); el('ts-aloc', aloc); el('ts-over', over);
         // Esconder stat de atraso se zero
         const overStat = document.querySelector('.ts-red');
@@ -2446,7 +2409,7 @@ async function renderTools() {
         const isAv = t.status === 'disponivel';
         const isOverdue = !isAv && t.dataEntrega && _calcDias(t.dataEntrega) > TOOL_ALERT_DAYS;
 
-        const div = document.createElement('div');
+        const div = $el('div');
         div.className = `tool-card ${isAv ? 'tool-available' : 'tool-allocated'}${isOverdue ? ' tool-overdue' : ''}`;
 
         // Long press → histórico
@@ -2458,46 +2421,37 @@ async function renderTools() {
         div.addEventListener('touchmove', () => clearTimeout(_toolLongPressTimer), { passive: true });
 
         // Ícone
-        const icon = document.createElement('div');
-        icon.className = 'tool-icon';
+        const icon = $el('div', { className: 'tool-icon' });
         icon.innerHTML = TOOL_ICON;
 
         // Info
-        const info = document.createElement('div');
-        info.className = 'tool-info';
+        const info = $el('div', { className: 'tool-info' });
 
-        const nome = document.createElement('div');
-        nome.className   = 'tool-nome';
+        const nome = $el('div', { className: 'tool-nome' });
         nome.textContent = t.nome;
 
-        const sub = document.createElement('div');
-        sub.className = 'tool-sub';
+        const sub = $el('div', { className: 'tool-sub' });
 
         if (isAv) {
-            const dot = document.createElement('span');
-            dot.className = 'tool-status-dot';
+            const dot = $el('span', { className: 'tool-status-dot' });
             dot.style.background = '#16a34a';
-            const lbl = document.createElement('span');
-            lbl.className   = 'tool-status-label';
-            lbl.textContent = 'Em armazém';
+            const lbl = $el('span', { className: 'tool-status-label', textContent: 'Em armazém' });
             sub.appendChild(dot);
             sub.appendChild(lbl);
         } else {
             const days = t.dataEntrega ? _calcDias(t.dataEntrega) : null;
-            const colabBadge = document.createElement('span');
+            const colabBadge = $el('span');
             colabBadge.className   = `tool-badge ${isOverdue ? 'tool-badge-overdue' : 'tool-badge-colab'}`;
             colabBadge.textContent = (t.colaborador || '').toUpperCase();
             sub.appendChild(colabBadge);
             if (days !== null) {
-                const daysBadge = document.createElement('span');
+                const daysBadge = $el('span');
                 daysBadge.className   = `tool-badge ${isOverdue ? 'tool-badge-overdue' : 'tool-badge-days'}`;
                 daysBadge.textContent = days === 0 ? 'hoje' : days === 1 ? '1d fora' : `${days}d fora`;
                 sub.appendChild(daysBadge);
             }
             if (isOverdue) {
-                const ovd = document.createElement('span');
-                ovd.className   = 'tool-badge tool-badge-overdue';
-                ovd.textContent = 'verificar';
+                const ovd = $el('span', { className: 'tool-badge tool-badge-overdue', textContent: 'verificar' });
                 sub.appendChild(ovd);
             }
         }
@@ -2510,15 +2464,13 @@ async function renderTools() {
         if (isAv) {
             // Clicar no card → alocar
             div.onclick = () => openModal(id);
-            const arrow = document.createElement('span');
-            arrow.className = 'tool-arrow';
+            const arrow = $el('span', { className: 'tool-arrow' });
             arrow.innerHTML = CHEVRON;
             div.appendChild(arrow);
         } else {
             // Clicar no card → histórico; botão explícito → devolver
             div.onclick = () => openHistoryModal(id, t.nome);
-            const retBtn = document.createElement('button');
-            retBtn.className = 'tool-return-btn';
+            const retBtn = $el('button', { className: 'tool-return-btn' });
             retBtn.innerHTML = RETURN_ICON;
             retBtn.title = 'Devolver';
             retBtn.onclick = e => {
@@ -2543,8 +2495,7 @@ async function renderTools() {
             if (card) { frag.appendChild(card); added++; }
         });
         if (added > 0) {
-            const lbl = document.createElement('div');
-            lbl.className = 'tools-section-label';
+            const lbl = $el('div', { className: 'tools-section-label' });
             lbl.textContent = label;
             list.appendChild(lbl);
             list.appendChild(frag);
@@ -2565,37 +2516,31 @@ async function renderTools() {
 async function renderAdminTools() {
     if (!requireManagerAccess({ silent: true })) return;
     const data = await fetchCollection('ferramentas');
-    const list = document.getElementById('admin-tools-list');
+    const list = $id('admin-tools-list');
     if (!list) return;
     list.innerHTML = '';
     if (!data || Object.keys(data).length === 0) {
         list.innerHTML = '<div class="empty-msg">Nenhuma ferramenta registada.</div>'; return;
     }
     Object.entries(data).forEach(([id, t]) => {
-        const row = document.createElement('div');
-        row.className = 'admin-list-row admin-tool-row';
+        const row = $el('div', { className: 'admin-list-row admin-tool-row' });
 
         // Nome da ferramenta
-        const lbl = document.createElement('span');
-        lbl.className   = 'admin-list-label';
+        const lbl = $el('span', { className: 'admin-list-label' });
         lbl.textContent = t.nome;
 
         // Barra de acções alinhada à esquerda
-        const actions = document.createElement('div');
-        actions.className = 'admin-tool-actions';
+        const actions = $el('div', { className: 'admin-tool-actions' });
 
-        const editBtn = document.createElement('button');
-        editBtn.className   = 'admin-tool-btn admin-tool-btn-edit';
+        const editBtn = $el('button', { className: 'admin-tool-btn admin-tool-btn-edit' });
         editBtn.innerHTML   = '✏️ <span>Editar</span>';
         editBtn.onclick     = () => openEditToolModal(id, t);
 
-        const histBtn = document.createElement('button');
-        histBtn.className   = 'admin-tool-btn admin-tool-btn-hist';
+        const histBtn = $el('button', { className: 'admin-tool-btn admin-tool-btn-hist' });
         histBtn.innerHTML   = '≡ <span>Histórico</span>';
         histBtn.onclick     = () => openHistoryModal(id, t.nome);
 
-        const delBtn = document.createElement('button');
-        delBtn.className   = 'admin-tool-btn admin-tool-btn-del';
+        const delBtn = $el('button', { className: 'admin-tool-btn admin-tool-btn-del' });
         delBtn.innerHTML   = '🗑️ <span>Eliminar</span>';
         delBtn.onclick     = () => openConfirmModal({
             icon:'', title:'Apagar ferramenta?',
@@ -2645,10 +2590,10 @@ async function addToolHistoryEvent(toolId, acao, colaborador) {
 }
 
 async function openHistoryModal(toolId, toolName) {
-    document.getElementById('history-modal-tool-name').textContent = `🪛 ${toolName}`;
-    const listEl = document.getElementById('history-list');
+    $id('history-modal-tool-name').textContent = `🪛 ${toolName}`;
+    const listEl = $id('history-list');
     listEl.innerHTML = '<div class="empty-msg">A carregar...</div>';
-    document.getElementById('history-modal').classList.add('active');
+    modalOpen('history-modal');
     focusModal('history-modal');
 
     try {
@@ -2671,23 +2616,19 @@ async function openHistoryModal(toolId, toolName) {
         const events = Object.values(data).sort((a, b) => new Date(b.data) - new Date(a.data));
 
         events.forEach(ev => {
-            const row  = document.createElement('div');
+            const row  = $el('div');
             row.className = `history-row ${ev.acao === 'atribuida' ? 'history-out' : 'history-in'}`;
             const icon = ev.acao === 'atribuida' ? '→' : '↩';
             const label = ev.acao === 'atribuida'
                 ? `Entregue a ${ev.colaborador || '?'}`
                 : `Devolvida${ev.colaborador ? ` por ${ev.colaborador}` : ''}`;
             const date  = formatDate(ev.data);
-            const iconEl = document.createElement('span');
-            iconEl.className   = 'history-icon';
+            const iconEl = $el('span', { className: 'history-icon' });
             iconEl.textContent = icon;
-            const info  = document.createElement('div');
-            info.className = 'history-info';
-            const lbl   = document.createElement('span');
-            lbl.className   = 'history-label';
+            const info = $el('div', { className: 'history-info' });
+            const lbl = $el('span', { className: 'history-label' });
             lbl.textContent = label;
-            const dt    = document.createElement('span');
-            dt.className   = 'history-date';
+            const dt = $el('span', { className: 'history-date' });
             dt.textContent = date;
             info.appendChild(lbl);
             info.appendChild(dt);
@@ -2701,7 +2642,7 @@ async function openHistoryModal(toolId, toolName) {
 }
 
 function closeHistoryModal() {
-    document.getElementById('history-modal').classList.remove('active');
+    modalClose('history-modal');
 }
 
 async function assignTool(worker) {
@@ -2745,20 +2686,20 @@ async function returnTool(id) {
 
 // PONTO 11: editar ferramenta (nome)
 function openEditToolModal(id, tool) {
-    document.getElementById('edit-tool-id').value   = id;
-    document.getElementById('edit-tool-name').value = tool.nome || '';
-    document.getElementById('edit-tool-modal').classList.add('active');
+    $id('edit-tool-id').value   = id;
+    $id('edit-tool-name').value = tool.nome || '';
+    modalOpen('edit-tool-modal');
     focusModal('edit-tool-modal');
 }
 
 function closeEditToolModal() {
-    document.getElementById('edit-tool-modal').classList.remove('active');
+    modalClose('edit-tool-modal');
 }
 
 async function saveEditTool() {
     if (!requireManagerAccess()) return;
-    const id   = document.getElementById('edit-tool-id').value;
-    const nome = document.getElementById('edit-tool-name').value.trim().toUpperCase();
+    const id   = $id('edit-tool-id').value;
+    const nome = $id('edit-tool-name').value.trim().toUpperCase();
     if (!nome) { showToast('Nome obrigatório', 'error'); return; }
     if (cache.ferramentas.data?.[id]) {
         cache.ferramentas.data[id] = { ...cache.ferramentas.data[id], nome };
@@ -2805,11 +2746,11 @@ async function renderWorkers() {
     if (!requireManagerAccess({ silent: true })) return;
     const data    = await fetchCollection('funcionarios');
     const workers = data ? Object.entries(data).map(([id,v]) => ({id, nome:v.nome})) : [];
-    const list    = document.getElementById('workers-list');
+    const list    = $id('workers-list');
     if (!list) return;
 
     // Badge de contagem no card header
-    const badge = document.getElementById('workers-count-badge');
+    const badge = $id('workers-count-badge');
     if (badge) badge.textContent = workers.length ? `${workers.length} registados` : '';
 
     list.innerHTML = '';
@@ -2817,19 +2758,15 @@ async function renderWorkers() {
         list.innerHTML = '<div class="empty-msg">Nenhum funcionário adicionado.</div>'; return;
     }
     workers.forEach(w => {
-        const row = document.createElement('div');
-        row.className = 'admin-list-row';
+        const row = $el('div', { className: 'admin-list-row' });
 
-        const avatar = document.createElement('div');
-        avatar.className = 'admin-list-avatar';
+        const avatar = $el('div', { className: 'admin-list-avatar' });
         const initials = w.nome.trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase();
         avatar.textContent = initials || '?';
 
-        const lbl = document.createElement('span');
-        lbl.className   = 'admin-list-label';
+        const lbl = $el('span', { className: 'admin-list-label' });
         lbl.textContent = w.nome;
-        const btn = document.createElement('button');
-        btn.className = 'admin-list-delete';
+        const btn = $el('button', { className: 'admin-list-delete' });
         btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>';
         btn.onclick = () => openConfirmModal({
             icon:'👤', title:'Apagar funcionário?',
@@ -2866,31 +2803,30 @@ async function openModal(id) {
     const toolData = cache.ferramentas.data?.[id];
     const toolName = toolData?.nome || '';
     const toolIcon = toolData?.icone || '';
-    const toolDesc = document.getElementById('worker-modal-tool-name');
+    const toolDesc = $id('worker-modal-tool-name');
     if (toolDesc) toolDesc.textContent = toolName ? `${toolIcon} ${toolName}` : '';
     // Actualiza também o ícone grande no topo do modal
-    const modalIcon = document.getElementById('worker-modal-icon');
+    const modalIcon = $id('worker-modal-icon');
     if (modalIcon) modalIcon.textContent = toolIcon;
 
-    const sel = document.getElementById('worker-select-list');
+    const sel = $id('worker-select-list');
     sel.innerHTML = '';
     // Ordenar por nome
     workers.sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
     workers.forEach(w => {
-        const opt = document.createElement('div');
-        opt.className   = 'worker-option';
+        const opt = $el('div', { className: 'worker-option' });
         opt.textContent = w.nome;
         opt.onclick     = () => assignTool(w.nome);
         sel.appendChild(opt);
     });
-    document.getElementById('worker-modal').classList.add('active');
+    modalOpen('worker-modal');
     focusModal('worker-modal');
 }
-function closeModal() { document.getElementById('worker-modal').classList.remove('active'); }
+function closeModal() { modalClose('worker-modal'); }
 
 // Focus first focusable element inside a modal when it opens
 function focusModal(id) {
-    const modal = document.getElementById(id);
+    const modal = $id(id);
     if (!modal) return;
     const focusable = modal.querySelector('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])');
     if (focusable) setTimeout(() => focusable.focus(), 50);
@@ -2903,15 +2839,15 @@ let confirmCallback = null;
 
 function openConfirmModal({ icon='', title, desc, onConfirm }) {
     confirmCallback = onConfirm;
-    document.getElementById('confirm-modal-icon').textContent  = icon;
-    document.getElementById('confirm-modal-title').textContent = title;
-    document.getElementById('confirm-modal-desc').textContent  = desc;
-    document.getElementById('confirm-modal').classList.add('active');
+    $id('confirm-modal-icon').textContent  = icon;
+    $id('confirm-modal-title').textContent = title;
+    $id('confirm-modal-desc').textContent  = desc;
+    modalOpen('confirm-modal');
     focusModal('confirm-modal');
 }
 function closeConfirmModal() {
     confirmCallback = null;
-    document.getElementById('confirm-modal').classList.remove('active');
+    modalClose('confirm-modal');
 }
 
 // =============================================
@@ -2921,37 +2857,37 @@ let pendingDeleteId = null;
 
 function openDeleteModal(id, item) {
     pendingDeleteId = id;
-    document.getElementById('delete-modal-desc').textContent =
+    $id('delete-modal-desc').textContent =
         `"${String(item.codigo||'').toUpperCase()} — ${item.nome}" será removido permanentemente.`;
-    document.getElementById('delete-modal').classList.add('active');
+    modalOpen('delete-modal');
     focusModal('delete-modal');
 }
 function closeDeleteModal() {
     pendingDeleteId = null;
-    document.getElementById('delete-modal').classList.remove('active');
+    modalClose('delete-modal');
 }
 
 // =============================================
 // MODAL — editar produto (swipe right)
 // =============================================
 function openEditModal(id, item) {
-    document.getElementById('edit-id').value     = id;
-    document.getElementById('edit-codigo').value = item.codigo || '';
-    document.getElementById('edit-nome').value   = item.nome || '';
-    document.getElementById('edit-loc').value    = item.localizacao || '';
-    document.getElementById('edit-qtd').value    = item.quantidade ?? 0;
+    $id('edit-id').value     = id;
+    $id('edit-codigo').value = item.codigo || '';
+    $id('edit-nome').value   = item.nome || '';
+    $id('edit-loc').value    = item.localizacao || '';
+    $id('edit-qtd').value    = item.quantidade ?? 0;
     setUnitSelector('edit', item.unidade || 'un');
-    document.getElementById('edit-notas').value  = item.notas || '';
+    $id('edit-notas').value  = item.notas || '';
     // Campos de gás — só populados se unidade for kg
-    const editGasMax   = document.getElementById('edit-gas-max');
-    const editGasAlert = document.getElementById('edit-gas-alerta');
+    const editGasMax   = $id('edit-gas-max');
+    const editGasAlert = $id('edit-gas-alerta');
     if (editGasMax)   editGasMax.value   = item.gasMax    != null ? item.gasMax    : '';
     if (editGasAlert) editGasAlert.value = item.gasAlerta != null ? item.gasAlerta : '';
     _loadImgEdit(item.imgUrl || '');
-    document.getElementById('edit-modal').classList.add('active');
+    modalOpen('edit-modal');
     focusModal('edit-modal');
 }
-function closeEditModal() { document.getElementById('edit-modal').classList.remove('active'); }
+function closeEditModal() { modalClose('edit-modal'); }
 
 // =============================================
 // SWIPE GESTURES
@@ -3062,8 +2998,8 @@ function openProductDetail(id, item) {
     const data = cache.stock.data?.[id] || item; // usa dados mais recentes se disponível
 
     // Imagem
-    const imgWrap = document.getElementById('pdm-img-wrap');
-    const img     = document.getElementById('pdm-img');
+    const imgWrap = $id('pdm-img-wrap');
+    const img     = $id('pdm-img');
     if (data.imgUrl) {
         img.src = data.imgUrl;
         img.alt = data.nome || '';
@@ -3073,13 +3009,13 @@ function openProductDetail(id, item) {
     }
 
     // Ref + nome
-    document.getElementById('pdm-ref').textContent  = 'REF: ' + (data.codigo || '—').toUpperCase();
-    document.getElementById('pdm-nome').textContent = (data.nome || '').toUpperCase();
+    $id('pdm-ref').textContent  = 'REF: ' + (data.codigo || '—').toUpperCase();
+    $id('pdm-nome').textContent = (data.nome || '').toUpperCase();
 
     // Localização
-    const locWrap = document.getElementById('pdm-loc-wrap');
+    const locWrap = $id('pdm-loc-wrap');
     if (data.localizacao) {
-        document.getElementById('pdm-loc').textContent = data.localizacao.toUpperCase();
+        $id('pdm-loc').textContent = data.localizacao.toUpperCase();
         locWrap.style.display = '';
     } else {
         locWrap.style.display = 'none';
@@ -3087,28 +3023,28 @@ function openProductDetail(id, item) {
 
     // Quantidade
     const qty = data.quantidade ?? 0;
-    const qtyEl = document.getElementById('pdm-qty');
+    const qtyEl = $id('pdm-qty');
     qtyEl.textContent = fmtQty(qty, data.unidade);
     qtyEl.className   = 'pdm-value pdm-qty' + (qty === 0 ? ' pdm-qty-zero' : '');
 
     // Notas
-    const notasWrap = document.getElementById('pdm-notas-wrap');
+    const notasWrap = $id('pdm-notas-wrap');
     if (data.notas) {
-        document.getElementById('pdm-notas').textContent = data.notas;
+        $id('pdm-notas').textContent = data.notas;
         notasWrap.style.display = '';
     } else {
         notasWrap.style.display = 'none';
     }
 
     // Acções — só gestores
-    const actions = document.getElementById('pdm-actions');
+    const actions = $id('pdm-actions');
     if (currentRole === 'manager') {
         actions.style.display = '';
-        document.getElementById('pdm-btn-edit').onclick = () => {
+        $id('pdm-btn-edit').onclick = () => {
             closeProductDetail();
             openEditModal(id, data);
         };
-        document.getElementById('pdm-btn-del').onclick = () => {
+        $id('pdm-btn-del').onclick = () => {
             closeProductDetail();
             openDeleteModal(id, data);
         };
@@ -3116,12 +3052,12 @@ function openProductDetail(id, item) {
         actions.style.display = 'none';
     }
 
-    document.getElementById('product-detail-modal').classList.add('active');
+    modalOpen('product-detail-modal');
     focusModal('product-detail-modal');
 }
 
 function closeProductDetail() {
-    document.getElementById('product-detail-modal').classList.remove('active');
+    modalClose('product-detail-modal');
 }
 
 
@@ -3130,7 +3066,7 @@ function closeProductDetail() {
 // EXPORTAR CSV
 // =============================================
 async function exportCSV() {
-    const btn = document.getElementById('export-csv-btn');
+    const btn = $id('export-csv-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'A exportar...'; }
     const data = await fetchCollection('stock', false);
     if (!data || Object.keys(data).length === 0) {
@@ -3150,7 +3086,7 @@ async function exportCSV() {
     const csv  = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
     const blob = new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8;' });
     const url  = URL.createObjectURL(blob);
-    Object.assign(document.createElement('a'), {
+    Object.assign($el('a'), {
         href: url,
         download: `hiperfrio-stock-${new Date().toISOString().slice(0,10)}.csv`
     }).click();
@@ -3164,7 +3100,7 @@ async function exportCSV() {
 // =============================================
 // PONTO 25: exportar histórico de ferramentas para CSV
 async function exportToolHistoryCSV() {
-    const btn = document.getElementById('export-hist-btn');
+    const btn = $id('export-hist-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'A exportar...'; }
     try {
         const ferrData = await fetchCollection('ferramentas', true);
@@ -3194,7 +3130,7 @@ async function exportToolHistoryCSV() {
         const csv  = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
         const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' });
         const url  = URL.createObjectURL(blob);
-        Object.assign(document.createElement('a'), {
+        Object.assign($el('a'), {
             href: url,
             download: `hiperfrio-historico-ferramentas-${new Date().toISOString().slice(0,10)}.csv`
         }).click();
@@ -3226,10 +3162,10 @@ const _adminMobileTitles = {
 let _adminMobileActive = null;
 
 function _buildAdminMobileMenu() {
-    const viewAdmin = document.getElementById('view-admin');
+    const viewAdmin = $id('view-admin');
     if (!viewAdmin) return;
-    document.getElementById('admin-mobile-menu')?.remove();
-    document.getElementById('admin-mobile-detail')?.remove();
+    $id('admin-mobile-menu')?.remove();
+    $id('admin-mobile-detail')?.remove();
 
     const items = [
         { tab:'workers',  bg:'#eff6ff', color:'#2563eb', label:'Funcionários', sub:'Gerir técnicos e colaboradores',
@@ -3246,7 +3182,7 @@ function _buildAdminMobileMenu() {
           svg:'<path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v2a1 1 0 102 0V9z" clip-rule="evenodd"/>', vb:'0 0 20 20', fill:true },
     ];
 
-    const menu = document.createElement('div');
+    const menu = $el('div');
     menu.id = 'admin-mobile-menu';
 
     const groups = [
@@ -3257,24 +3193,20 @@ function _buildAdminMobileMenu() {
 
     groups.forEach(g => {
         // Label de secção
-        const lbl = document.createElement('div');
-        lbl.className = 'admin-mobile-section-label';
+        const lbl = $el('div', { className: 'admin-mobile-section-label' });
         lbl.textContent = g.label;
         menu.appendChild(lbl);
 
         // Grupo de cards
-        const grp = document.createElement('div');
-        grp.className = 'admin-mobile-group';
+        const grp = $el('div', { className: 'admin-mobile-group' });
 
         g.tabs.forEach(item => {
-            const row = document.createElement('div');
-            row.className = 'admin-mobile-item';
+            const row = $el('div', { className: 'admin-mobile-item' });
             row.style.cssText = 'display:flex;align-items:center;gap:14px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--border);background:var(--card-bg);-webkit-tap-highlight-color:transparent';
             row.addEventListener('click', () => adminMobileOpen(item.tab));
 
             // Ícone
-            const iconWrap = document.createElement('div');
-            iconWrap.className = 'admin-mobile-item-icon';
+            const iconWrap = $el('div', { className: 'admin-mobile-item-icon' });
             iconWrap.style.cssText = `background:${item.bg};width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0`;
             const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             svgEl.setAttribute('width', '22');
@@ -3292,13 +3224,11 @@ function _buildAdminMobileMenu() {
             iconWrap.appendChild(svgEl);
 
             // Texto
-            const textWrap = document.createElement('div');
+            const textWrap = $el('div');
             textWrap.style.cssText = 'flex:1;min-width:0';
-            const labelEl = document.createElement('div');
-            labelEl.className = 'admin-mobile-item-label';
+            const labelEl = $el('div', { className: 'admin-mobile-item-label' });
             labelEl.textContent = item.label;
-            const subEl = document.createElement('div');
-            subEl.className = 'admin-mobile-item-sub';
+            const subEl = $el('div', { className: 'admin-mobile-item-sub' });
             subEl.textContent = item.sub;
             textWrap.appendChild(labelEl);
             textWrap.appendChild(subEl);
@@ -3325,31 +3255,28 @@ function _buildAdminMobileMenu() {
     });
 
     // Construir detalhe
-    const detail = document.createElement('div');
+    const detail = $el('div');
     detail.id = 'admin-mobile-detail';
     detail.style.display = 'none';
 
     // Linha do back btn
-    const hdr = document.createElement('div');
-    hdr.className = 'admin-mobile-detail-header';
+    const hdr = $el('div', { className: 'admin-mobile-detail-header' });
     hdr.style.cssText = 'display:flex;align-items:center;padding:10px 0 4px;';
 
-    const backBtn = document.createElement('button');
-    backBtn.className = 'admin-mobile-back-btn';
+    const backBtn = $el('button', { className: 'admin-mobile-back-btn' });
     backBtn.type = 'button';
     backBtn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:transparent;border:none;outline:none;color:var(--primary);font-family:Inter,sans-serif;font-size:0.85rem;font-weight:600;cursor:pointer;padding:6px 0;margin:0;-webkit-appearance:none;appearance:none;letter-spacing:0.01em;';
     backBtn.addEventListener('click', adminMobileBack);
     backBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg> Administração';
 
     // Título da secção como h2
-    const detailTitle = document.createElement('h2');
-    detailTitle.className = 'admin-mobile-detail-title';
+    const detailTitle = ('h2', { className: 'admin-mobile-detail-title' });
     detailTitle.id = 'admin-mobile-detail-title';
     detailTitle.style.cssText = 'font-size:1.35rem;font-weight:800;color:var(--text-main);letter-spacing:-0.4px;margin:4px 0 16px;padding:0;line-height:1.2;';
 
     hdr.appendChild(backBtn);
 
-    const content = document.createElement('div');
+    const content = $el('div');
     content.id = 'admin-mobile-detail-content';
 
     detail.appendChild(hdr);
@@ -3357,22 +3284,22 @@ function _buildAdminMobileMenu() {
     detail.appendChild(content);
 
     // Inserir antes do slider-wrap
-    const sliderWrap = document.getElementById('admin-slider-wrap');
+    const sliderWrap = $id('admin-slider-wrap');
     viewAdmin.insertBefore(detail, sliderWrap);
     viewAdmin.insertBefore(menu, sliderWrap);
 }
 
 function adminMobileOpen(tab) {
     _adminMobileActive = tab;
-    const menu   = document.getElementById('admin-mobile-menu');
-    const detail = document.getElementById('admin-mobile-detail');
-    const title  = document.getElementById('admin-mobile-detail-title');
-    const content = document.getElementById('admin-mobile-detail-content');
+    const menu   = $id('admin-mobile-menu');
+    const detail = $id('admin-mobile-detail');
+    const title  = $id('admin-mobile-detail-title');
+    const content = $id('admin-mobile-detail-content');
     if (!menu || !detail || !title || !content) return;
 
     title.textContent = _adminMobileTitles[tab] || tab;
 
-    const panel = document.getElementById(`panel-${tab}`);
+    const panel = $id(`panel-${tab}`);
     if (panel) {
         // Forçar dimensões — o .admin-panel tem width/min-width:20% do slider desktop
         panel.style.cssText = 'width:100% !important; min-width:100% !important; flex-shrink:0; box-sizing:border-box; padding:0;';
@@ -3392,19 +3319,19 @@ function adminMobileOpen(tab) {
     void detail.offsetWidth;
     detail.classList.add('admin-mobile-detail-enter');
 
-    const titleEl = document.getElementById('header-page-title');
+    const titleEl = $id('header-page-title');
     if (titleEl) titleEl.textContent = _adminMobileTitles[tab] || 'Administração';
     window.scrollTo(0, 0);
 }
 
 function adminMobileBack() {
     _adminMobileActive = null;
-    const menu    = document.getElementById('admin-mobile-menu');
-    const detail  = document.getElementById('admin-mobile-detail');
-    const content = document.getElementById('admin-mobile-detail-content');
+    const menu    = $id('admin-mobile-menu');
+    const detail  = $id('admin-mobile-detail');
+    const content = $id('admin-mobile-detail-content');
     if (!menu || !detail) return;
 
-    const slider = document.getElementById('admin-slider');
+    const slider = $id('admin-slider');
     if (slider && content) {
         while (content.firstChild) {
             const child = content.firstChild;
@@ -3417,7 +3344,7 @@ function adminMobileBack() {
     // Re-aplicar ws-active no painel correcto (para desktop)
     if (window.innerWidth >= 768) {
         ADMIN_TABS.forEach((t, i) => {
-            const p = document.getElementById(`panel-${t}`);
+            const p = $id(`panel-${t}`);
             if (p) p.classList.toggle('ws-active', i === _adminIdx);
         });
     }
@@ -3425,7 +3352,7 @@ function adminMobileBack() {
     detail.style.display = 'none';
     menu.style.display   = 'block';
 
-    const titleEl = document.getElementById('header-page-title');
+    const titleEl = $id('header-page-title');
     if (titleEl) titleEl.textContent = 'Administração';
     window.scrollTo(0, 0);
 }
@@ -3444,7 +3371,7 @@ function switchAdminTab(tab, animate = true) {
     // transform num elemento pai quebra position:fixed dos modais
     if (window.innerWidth >= 768) {
         ADMIN_TABS.forEach((t, i) => {
-            const p = document.getElementById(`panel-${t}`);
+            const p = $id(`panel-${t}`);
             if (p) p.classList.toggle('ws-active', i === idx);
         });
     }
@@ -3457,7 +3384,7 @@ function switchAdminTab(tab, animate = true) {
     if (tab === 'tools')    renderAdminTools();
     // Move slider apenas em mobile — no desktop usamos display:none/block
     // (transform num pai quebra position:fixed dos modais no desktop)
-    const slider = document.getElementById('admin-slider');
+    const slider = $id('admin-slider');
     if (slider) {
         if (window.innerWidth < 768) {
             if (!animate) slider.classList.add('is-dragging');
@@ -3478,8 +3405,8 @@ function switchAdminTab(tab, animate = true) {
 let _adminSwipeAC = null;
 
 function _setupAdminSwipe() {
-    const wrap   = document.getElementById('admin-slider-wrap');
-    const slider = document.getElementById('admin-slider');
+    const wrap   = $id('admin-slider-wrap');
+    const slider = $id('admin-slider');
     if (!wrap || !slider) return;
 
     // Remove listeners anteriores antes de adicionar novos
@@ -3571,7 +3498,7 @@ function _applyTheme(theme) {
     };
     let metaTheme = document.querySelector('meta[name="theme-color"]');
     if (!metaTheme) {
-        metaTheme = document.createElement('meta');
+        metaTheme = $id('meta');
         metaTheme.name = 'theme-color';
         document.head.appendChild(metaTheme);
     }
@@ -3593,9 +3520,9 @@ function _setupSearchScrollBehaviour(enable) {
     if (!container) return;
 
     // Garante que o peek btn existe (criado uma vez, reutilizado)
-    let peekBtn = document.getElementById('search-peek-btn');
+    let peekBtn = $id('search-peek-btn');
     if (!peekBtn) {
-        peekBtn = document.createElement('button');
+        peekBtn = $el('button');
         peekBtn.id        = 'search-peek-btn';
         peekBtn.className = 'search-peek-btn';
         peekBtn.innerHTML = ' Pesquisar';
@@ -3653,7 +3580,7 @@ function _setupBottomNavScrollBehaviour(enable) {
     // Limpa listener anterior
     if (_bnavScrollCleanup) { _bnavScrollCleanup(); _bnavScrollCleanup = null; }
 
-    const nav = document.getElementById('bottom-nav');
+    const nav = $id('bottom-nav');
     if (!nav) return;
 
     // Detecção de direcção: esconde ao descer, mostra ao subir
@@ -3672,17 +3599,17 @@ function _setupBottomNavScrollBehaviour(enable) {
             _lastY = sy;
 
             if (sy <= SHOW_AT_TOP) {
-                if (_hidden) { _hidden = false; nav.classList.remove('bnav-hidden'); if (window.innerWidth < 768 && document.getElementById('view-search')?.classList.contains('active')) document.getElementById('fab-add')?.classList.remove('bnav-hidden'); }
+                if (_hidden) { _hidden = false; nav.classList.remove('bnav-hidden'); if (window.innerWidth < 768 && $id('view-search').classList.contains('active')) $id('fab-add').classList.remove('bnav-hidden'); }
                 return;
             }
             if (!_hidden && delta > SCROLL_SENSITIVITY) {
                 _hidden = true;
                 nav.classList.add('bnav-hidden');
-                document.getElementById('fab-add')?.classList.add('bnav-hidden');
+                $id('fab-add')?.classList.add('bnav-hidden');
             } else if (_hidden && delta < -SCROLL_SENSITIVITY) {
                 _hidden = false;
                 nav.classList.remove('bnav-hidden');
-                if (window.innerWidth < 768 && document.getElementById('view-search')?.classList.contains('active')) document.getElementById('fab-add')?.classList.remove('bnav-hidden');
+                if (window.innerWidth < 768 && $id('view-search').classList.contains('active')) $id('fab-add').classList.remove('bnav-hidden');
             }
         });
     };
@@ -3712,9 +3639,9 @@ const _THEME_META = {
     };
 function _syncThemeDropdown(theme) {
     const meta = _THEME_META[theme] || _THEME_META.light;
-    const iconEl  = document.getElementById('theme-dropdown-icon');
-    const labelEl = document.getElementById('theme-dropdown-label');
-    const descEl  = document.getElementById('theme-current-desc');
+    const iconEl  = $id('theme-dropdown-icon');
+    const labelEl = $id('theme-dropdown-label');
+    const descEl  = $id('theme-current-desc');
     if (iconEl)  iconEl.textContent  = meta.icon;
     if (labelEl) labelEl.textContent = meta.label;
     if (descEl)  descEl.textContent  = meta.label;
@@ -3725,8 +3652,8 @@ function _syncThemeDropdown(theme) {
 }
 
 function toggleThemeDropdown() {
-    const menu = document.getElementById('theme-menu');
-    const wrap = document.getElementById('theme-dropdown-wrap');
+    const menu = $id('theme-menu');
+    const wrap = $id('theme-dropdown-wrap');
     if (!menu) return;
     const open = menu.classList.toggle('open');
     wrap?.classList.toggle('open', open);
@@ -3739,8 +3666,8 @@ function toggleThemeDropdown() {
 }
 
 function closeThemeDropdown() {
-    document.getElementById('theme-menu')?.classList.remove('open');
-    document.getElementById('theme-dropdown-wrap')?.classList.remove('open');
+    $id('theme-menu')?.classList.remove('open');
+    $id('theme-dropdown-wrap')?.classList.remove('open');
 }
 
 // =============================================
@@ -3763,14 +3690,14 @@ function checkDuplicateCodigo(codigo, onConfirm) {
     }
     // Existe duplicado — mostra modal de confirmação
     const names = dupes.map(d => d.nome || '(sem nome)').join(', ');
-    document.getElementById('dup-modal-desc').textContent =
+    $id('dup-modal-desc').textContent =
         `O código "${codigo.toUpperCase()}" já existe em: ${names}. Queres registar mesmo assim?`;
-    document.getElementById('dup-confirm-btn').onclick = () => { closeDupModal(); onConfirm(); };
-    document.getElementById('dup-modal').classList.add('active');
+    $id('dup-confirm-btn').onclick = () => { closeDupModal(); onConfirm(); };
+    modalOpen('dup-modal');
     focusModal('dup-modal');
 }
 function closeDupModal() {
-    document.getElementById('dup-modal').classList.remove('active');
+    modalClose('dup-modal');
 }
 
 // =============================================
@@ -3791,15 +3718,15 @@ const UNIT_PREFIXES = ['inp', 'bulk', 'edit'];
 // Fecha todos os menus de unidade abertos
 function _closeAllUnitMenus() {
     UNIT_PREFIXES.forEach(p => {
-        document.getElementById(`${p}-unit-menu`)?.classList.remove('open');
-        document.getElementById(`${p}-unit-btn`)?.classList.remove('active');
+        $id(`${p}-unit-menu`)?.classList.remove('open');
+        $id(`${p}-unit-btn`)?.classList.remove('active');
     });
 }
 
 // Listener nomeado para poder ser removido com segurança (ponto 7)
 function _onOutsideUnitClick(e) {
     const isInsideAny = UNIT_PREFIXES.some(p =>
-        document.getElementById(`${p}-unit-wrap`)?.contains(e.target)
+        $id(`${p}-unit-wrap`)?.contains(e.target)
     );
     if (!isInsideAny) {
         _closeAllUnitMenus();
@@ -3808,8 +3735,8 @@ function _onOutsideUnitClick(e) {
 }
 
 function toggleUnitMenu(prefix) {
-    const menu   = document.getElementById(`${prefix}-unit-menu`);
-    const btn    = document.getElementById(`${prefix}-unit-btn`);
+    const menu   = $id(`${prefix}-unit-menu`);
+    const btn    = $id(`${prefix}-unit-btn`);
     const isOpen = menu.classList.contains('open');
 
     // Fecha todos primeiro (inclui outros menus de unidade)
@@ -3824,32 +3751,32 @@ function toggleUnitMenu(prefix) {
 }
 
 function selectUnit(prefix, unit) {
-    document.getElementById(`${prefix}-unidade`).value = unit;
+    $id(`${prefix}-unidade`).value = unit;
     // Update button label
-    const label = document.getElementById(`${prefix}-unit-label`);
+    const label = $id(`${prefix}-unit-label`);
     if (label) label.textContent = UNIT_SHORT[unit] || unit;
     // Update active state in menu
     document.querySelectorAll(`#${prefix}-unit-menu .unit-option`).forEach(btn => {
         btn.classList.toggle('active', btn.dataset.unit === unit);
     });
     // Show/hide gas fields — only visible when kg is selected
-    const gasFields = document.getElementById(`${prefix}-gas-fields`);
+    const gasFields = $id(`${prefix}-gas-fields`);
     if (gasFields) gasFields.style.display = unit === 'kg' ? '' : 'none';
     // Close menu
-    document.getElementById(`${prefix}-unit-menu`)?.classList.remove('open');
-    document.getElementById(`${prefix}-unit-btn`)?.classList.remove('active');
+    $id(`${prefix}-unit-menu`)?.classList.remove('open');
+    $id(`${prefix}-unit-btn`)?.classList.remove('active');
 }
 
 function setUnitSelector(prefix, unit) {
     const val = unit || 'un';
-    document.getElementById(`${prefix}-unidade`).value = val;
-    const label = document.getElementById(`${prefix}-unit-label`);
+    $id(`${prefix}-unidade`).value = val;
+    const label = $id(`${prefix}-unit-label`);
     if (label) label.textContent = UNIT_SHORT[val] || val;
     document.querySelectorAll(`#${prefix}-unit-menu .unit-option`).forEach(btn => {
         btn.classList.toggle('active', btn.dataset.unit === val);
     });
     // Show/hide gas fields
-    const gasFields = document.getElementById(`${prefix}-gas-fields`);
+    const gasFields = $id(`${prefix}-gas-fields`);
     if (gasFields) gasFields.style.display = val === 'kg' ? '' : 'none';
 }
 
@@ -3873,7 +3800,7 @@ function _invGetEmail() {
 }
 
 function saveInvEmail() {
-    const val = (document.getElementById('inv-email-input')?.value || '').trim();
+    const val = ($id('inv-email-input')?.value || '').trim();
     if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
         showToast('Email inválido', 'error');
         return;
@@ -3888,7 +3815,7 @@ function saveInvEmail() {
 }
 
 function _loadInvEmailInput() {
-    const el = document.getElementById('inv-email-input');
+    const el = $id('inv-email-input');
     if (el) el.value = _invGetEmail();
 }
 
@@ -3911,21 +3838,21 @@ async function startInventory() {
 
     _openInvSetup(data);
 
-    const banner = document.getElementById('inv-resume-banner');
+    const banner = $id('inv-resume-banner');
     if (banner) {
         if (!saved) {
             banner.style.display = 'none';
         } else {
             const hoursAgo = Math.round((Date.now() - (saved.ts || 0)) / 3600000);
             const timeLabel = hoursAgo < 1 ? 'há menos de 1h' : `há ${hoursAgo}h`;
-            document.getElementById('inv-resume-banner-text').textContent =
+            $id('inv-resume-banner-text').textContent =
                 `Inventário em curso · ${saved.idx + 1}/${saved.items.length} · guardado ${timeLabel}`;
             banner.style.display = 'flex';
-            document.getElementById('inv-resume-btn-retomar').onclick = () => {
+            $id('inv-resume-btn-retomar').onclick = () => {
                 closeInvSetup();
                 _resumeInventory(saved);
             };
-            document.getElementById('inv-resume-btn-novo').onclick = () => {
+            $id('inv-resume-btn-novo').onclick = () => {
                 banner.style.display = 'none';
                 _invClearResume();
             };
@@ -3942,14 +3869,14 @@ function _openInvSetup(data) {
             .filter(Boolean)
     )].sort((a,b) => a.localeCompare(b,'pt'));
 
-    const container = document.getElementById('inv-setup-zones');
+    const container = $id('inv-setup-zones');
     container.innerHTML = '';
 
     if (zones.length === 0) {
         container.innerHTML = '<p class="modal-desc" style="margin:0">Todos os produtos serão inventariados (sem zonas definidas).</p>';
     } else {
         zones.forEach(zone => {
-            const chip = document.createElement('button');
+            const chip = $el('button');
             chip.type      = 'button';
             chip.className = 'inv-zone-chip active';
             chip.dataset.zone = zone;
@@ -3962,9 +3889,9 @@ function _openInvSetup(data) {
         });
     }
 
-    document.getElementById('inv-skip-zeros').checked = false;
+    $id('inv-skip-zeros').checked = false;
     _updateInvSetupBtn();
-    document.getElementById('inv-setup-modal').classList.add('active');
+    modalOpen('inv-setup-modal');
     focusModal('inv-setup-modal');
 }
 
@@ -3999,7 +3926,7 @@ function _updateInvSetupBtn() {
 }
 
 function closeInvSetup() {
-    document.getElementById('inv-setup-modal').classList.remove('active');
+    modalClose('inv-setup-modal');
 }
 
 async function invSetupStart() {
@@ -4011,7 +3938,7 @@ async function invSetupStart() {
 
     if (activeZones && activeZones.length === 0) return;
 
-    const skipZeros = document.getElementById('inv-skip-zeros').checked;
+    const skipZeros = $id('inv-skip-zeros').checked;
     const allZones  = totalChips === 0 || activeZones === null || activeZones.length === totalChips;
     closeInvSetup();
     await _startInvWithOptions(activeZones, skipZeros, allZones);
@@ -4050,7 +3977,7 @@ async function _startInvWithOptions(zones, skipZeros, allZones = true) {
     _invChanges = {};
     _invSkipped = new Set();
 
-    document.getElementById('inv-modal').classList.add('active');
+    modalOpen('inv-modal');
     focusModal('inv-modal');
     _renderInvStep();
 }
@@ -4067,7 +3994,7 @@ function _resumeInventory(saved) {
     if (!_invLastData) {
         fetchCollection('stock', false).then(d => { if (d) _invLastData = { ...d }; });
     }
-    document.getElementById('inv-modal').classList.add('active');
+    modalOpen('inv-modal');
     focusModal('inv-modal');
     _renderInvStep();
     showToast(`A retomar — produto ${_invIdx + 1} de ${_invItems.length}`);
@@ -4078,11 +4005,11 @@ function _renderInvStep() {
     const [id, item] = _invItems[_invIdx] || [];
     if (!id) { _finishInventory(); return; }
 
-    document.getElementById('inv-progress-text').textContent = `${_invIdx + 1} / ${total}`;
-    document.getElementById('inv-progress-bar').style.width  = `${Math.round((_invIdx / total) * 100)}%`;
+    $id('inv-progress-text').textContent = `${_invIdx + 1} / ${total}`;
+    $id('inv-progress-bar').style.width  = `${Math.round((_invIdx / total) * 100)}%`;
 
     // Zone progress: "Zona 201-001A — 4 de 12"
-    const zonaEl = document.getElementById('inv-zone-progress');
+    const zonaEl = $id('inv-zone-progress');
     if (zonaEl) {
         const zona = (item.localizacao||'').trim().toUpperCase() || 'SEM LOCAL';
         const zonaItems = _invItems.filter(([,p]) => (p.localizacao||'').trim().toUpperCase() === zona || (zona === 'SEM LOCAL' && !(p.localizacao||'').trim()));
@@ -4091,17 +4018,17 @@ function _renderInvStep() {
     }
 
     const zona = (item.localizacao||'').trim().toUpperCase();
-    document.getElementById('inv-local').textContent = zona ? ` ${zona}` : ' SEM LOCAL';
-    document.getElementById('inv-ref').textContent   = item.codigo  || '';
-    document.getElementById('inv-nome').textContent  = item.nome    || '';
-    document.getElementById('inv-unidade').textContent =
+    $id('inv-local').textContent = zona ? ` ${zona}` : ' SEM LOCAL';
+    $id('inv-ref').textContent   = item.codigo  || '';
+    $id('inv-nome').textContent  = item.nome    || '';
+    $id('inv-unidade').textContent =
         item.unidade && item.unidade !== 'un' ? item.unidade : '';
 
     // Limpar search ao navegar
     invSearchClear();
 
     // Badge de zona filtrada
-    const badge = document.getElementById('inv-zone-badge');
+    const badge = $id('inv-zone-badge');
     if (badge) {
         if (_invOptions.zones !== null && !_invOptions.allZones) {
             badge.textContent = `${_invOptions.zones.length} zona${_invOptions.zones.length > 1 ? 's' : ''}`;
@@ -4113,7 +4040,7 @@ function _renderInvStep() {
 
     // Quantidade: usa valor já confirmado se existir, senão o original
     const currentVal = _invChanges[id] !== undefined ? _invChanges[id] : (item.quantidade || 0);
-    const qtyInput   = document.getElementById('inv-qtd');
+    const qtyInput   = $id('inv-qtd');
     qtyInput.value   = currentVal;
     qtyInput.focus();
     qtyInput.select();
@@ -4129,19 +4056,19 @@ function _renderInvStep() {
     newInput.select();
 
     // Mostra a quantidade original do sistema como referência
-    const origEl = document.getElementById('inv-orig-qty');
+    const origEl = $id('inv-orig-qty');
     if (origEl) {
         const orig = item.quantidade || 0;
         origEl.textContent = `Sistema: ${fmtQty(orig, item.unidade)}`;
         origEl.className   = 'inv-orig-qty' + (_invChanges[id] !== undefined && _invChanges[id] !== orig ? ' inv-orig-changed' : '');
     }
 
-    document.getElementById('inv-prev-btn').disabled = _invIdx === 0;
+    $id('inv-prev-btn').disabled = _invIdx === 0;
     _invSaveResume();
 }
 
 function invQtyDelta(delta) {
-    const el = document.getElementById('inv-qtd');
+    const el = $id('inv-qtd');
     if (!el) return;
     el.value = Math.max(0, (parseFloat(el.value) || 0) + delta);
     el.focus();
@@ -4150,7 +4077,7 @@ function invQtyDelta(delta) {
 function invConfirm() {
     const [id] = _invItems[_invIdx] || [];
     if (!id) return;
-    const val = parseFloat(document.getElementById('inv-qtd').value);
+    const val = parseFloat($id('inv-qtd').value);
     if (!isNaN(val) && val >= 0) {
         _invChanges[id] = val;
         _invSkipped.delete(id);
@@ -4171,15 +4098,15 @@ function invPrev() {
 }
 
 function closeInventory() {
-    document.getElementById('inv-modal').classList.remove('active');
+    modalClose('inv-modal');
     invSearchClear();
     // Progresso guardado — não apaga para possível retoma
 }
 
 // ── Pesquisa inline no inventário ────────────────────────────────────────────
 function invSearchInput(q) {
-    const clearBtn = document.getElementById('inv-search-clear');
-    const results  = document.getElementById('inv-search-results');
+    const clearBtn = $id('inv-search-clear');
+    const results  = $id('inv-search-results');
     if (!q.trim()) { invSearchClear(); return; }
     if (clearBtn) clearBtn.style.display = 'flex';
     results.style.display = 'flex';
@@ -4209,43 +4136,34 @@ function invSearchInput(q) {
         const isCurrent = idx === _invIdx;
         const isConfirmed = _invChanges[id] !== undefined;
 
-        const card = document.createElement('div');
+        const card = $el('div');
         card.className = 'inv-search-result' + (isCurrent ? ' inv-search-current' : '');
 
         // Header: ref + zona
-        const hdr = document.createElement('div');
-        hdr.className = 'inv-search-result-header';
-        const ref = document.createElement('span');
-        ref.className = 'inv-search-result-ref';
+        const hdr = $el('div', { className: 'inv-search-result-header' });
+        const ref = $el('span', { className: 'inv-search-result-ref' });
         ref.textContent = item.codigo || '—';
-        const zonaBadge = document.createElement('span');
-        zonaBadge.className = 'inv-search-result-zona';
+        const zonaBadge = $el('span', { className: 'inv-search-result-zona' });
         zonaBadge.textContent = zona;
         hdr.appendChild(ref); hdr.appendChild(zonaBadge);
 
         // Nome
-        const nome = document.createElement('div');
-        nome.className = 'inv-search-result-nome';
+        const nome = $el('div', { className: 'inv-search-result-nome' });
         nome.textContent = item.nome || id;
 
         // Acções
-        const acts = document.createElement('div');
-        acts.className = 'inv-search-result-actions';
+        const acts = $el('div', { className: 'inv-search-result-actions' });
 
         if (!isCurrent) {
-            const btnGoto = document.createElement('button');
-            btnGoto.className = 'inv-search-btn-goto';
-            btnGoto.textContent = 'Ir para →';
+            const btnGoto = $el('button', { className: 'inv-search-btn-goto', textContent: 'Ir para →' });
             btnGoto.onclick = () => _invSearchJumpTo(idx);
 
-            const btnOnly = document.createElement('button');
-            btnOnly.className = 'inv-search-btn-only';
-            btnOnly.textContent = 'Confirmar só este';
+            const btnOnly = $el('button', { className: 'inv-search-btn-only', textContent: 'Confirmar só este' });
             btnOnly.onclick = () => _invSearchConfirmOnly(id, item);
 
             acts.appendChild(btnGoto); acts.appendChild(btnOnly);
         } else {
-            const lbl = document.createElement('span');
+            const lbl = $el('span');
             lbl.style.cssText = 'font-size:0.75rem;color:var(--primary);font-weight:700;padding:4px 0';
             lbl.textContent = '← Produto actual';
             acts.appendChild(lbl);
@@ -4258,10 +4176,9 @@ function invSearchInput(q) {
             .slice(0, 3);
 
         if (zonaNeighbours.length > 0) {
-            const ctx = document.createElement('div');
-            ctx.className = 'inv-search-result-ctx';
+            const ctx = $el('div', { className: 'inv-search-result-ctx' });
             zonaNeighbours.forEach(({ i, p, ni }) => {
-                const row = document.createElement('div');
+                const row = $el('div');
                 row.className = 'inv-search-ctx-row' + (ni === _invIdx ? ' ctx-current' : '');
                 const confirmed = _invChanges[i] !== undefined;
                 row.innerHTML = `<span>${p.codigo || '—'} · ${(p.nome||'').slice(0,22)}</span>`
@@ -4278,9 +4195,9 @@ function invSearchInput(q) {
 }
 
 function invSearchClear() {
-    const inp      = document.getElementById('inv-search-input');
-    const clearBtn = document.getElementById('inv-search-clear');
-    const results  = document.getElementById('inv-search-results');
+    const inp      = $id('inv-search-input');
+    const clearBtn = $id('inv-search-clear');
+    const results  = $id('inv-search-results');
     if (inp)      inp.value = '';
     if (clearBtn) clearBtn.style.display = 'none';
     if (results)  { results.style.display = 'none'; results.innerHTML = ''; }
@@ -4293,14 +4210,14 @@ function _invSearchJumpTo(idx) {
 }
 
 function _invSearchConfirmOnly(id, item) {
-    const inp = document.getElementById('inv-search-input');
+    const inp = $id('inv-search-input');
     // Abre modal rápido de confirmação para este produto
     openConfirmModal({
         icon: '📦',
         title: `Confirmar ${item.codigo || id}`,
         desc: `Qual a quantidade actual de "${item.nome || id}"? (Sistema: ${item.quantidade || 0})`,
         onConfirm: () => {
-            const val = parseFloat(document.getElementById('inv-qtd')?.value);
+            const val = parseFloat($id('inv-qtd')?.value);
             if (!isNaN(val) && val >= 0) {
                 _invChanges[id] = val;
                 _invSkipped.delete(id);
@@ -4312,15 +4229,15 @@ function _invSearchConfirmOnly(id, item) {
     });
     // Injecto um input de quantidade no modal
     setTimeout(() => {
-        const desc = document.getElementById('confirm-modal-desc');
+        const desc = $id('confirm-modal-desc');
         if (!desc) return;
-        const qInput = document.createElement('input');
+        const qInput = $el('input');
         qInput.type = 'number'; qInput.min = '0'; qInput.step = 'any';
         qInput.value = _invChanges[id] !== undefined ? _invChanges[id] : (item.quantidade || 0);
         qInput.className = 'inv-qty-input';
         qInput.id = 'inv-qtd'; // reutiliza o mesmo id para o onConfirm ler
         qInput.style.cssText = 'margin-top:12px;width:100%;text-align:center';
-        qInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('confirm-modal-ok')?.click(); }});
+        qInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $id('confirm-modal-ok').click(); }});
         desc.parentNode.insertBefore(qInput, desc.nextSibling);
         qInput.focus(); qInput.select();
     }, 50);
@@ -4332,7 +4249,7 @@ function _openInvSavePartial() {
     const skipped   = _invSkipped.size;
     const remaining = _invItems.length - confirmed - skipped;
 
-    const statsEl = document.getElementById('inv-partial-stats');
+    const statsEl = $id('inv-partial-stats');
     if (statsEl) {
         statsEl.innerHTML = `
             <div class="inv-partial-stat">
@@ -4348,12 +4265,12 @@ function _openInvSavePartial() {
                 <span class="inv-partial-stat-lbl">Por fazer</span>
             </div>`;
     }
-    document.getElementById('inv-partial-modal').classList.add('active');
+    modalOpen('inv-partial-modal');
     focusModal('inv-partial-modal');
 }
 
 function closeInvPartial() {
-    document.getElementById('inv-partial-modal').classList.remove('active');
+    modalClose('inv-partial-modal');
 }
 
 // Guarda progresso no Firebase (já está guardado incrementalmente) e sai para o menu
@@ -4361,8 +4278,8 @@ async function invSaveAndExit() {
     // Força um último save para garantir que está actualizado
     await _invSaveResume();
     // Fecha todos os modais do inventário
-    document.getElementById('inv-partial-modal').classList.remove('active');
-    document.getElementById('inv-modal').classList.remove('active');
+    modalClose('inv-partial-modal');
+    modalClose('inv-modal');
     invSearchClear();
     showToast('Progresso guardado — podes retomar em qualquer dispositivo', 'success');
 }
@@ -4372,13 +4289,13 @@ async function exportInventoryPartialEmail() {
     await _invSaveResume();
     closeInvPartial();
     // Fecha o inventário
-    document.getElementById('inv-modal').classList.remove('active');
+    modalClose('inv-modal');
     invSearchClear();
     await exportInventoryEmail(true); // true = parcial
 }
 
 function _finishInventory() {
-    document.getElementById('inv-modal').classList.remove('active');
+    modalClose('inv-modal');
     _invClearResume(); // limpa a sessão guardada
 
     const data = cache.stock.data || {};
@@ -4396,12 +4313,12 @@ function _openInvReview(changed, data) {
     const confirmed = Object.keys(_invChanges).length;
     const skipped   = _invSkipped.size;
 
-    const descEl = document.getElementById('inv-review-desc');
+    const descEl = $id('inv-review-desc');
     descEl.textContent = changed.length === 0
         ? `${confirmed} produto${confirmed !== 1?'s':''} confirmado${confirmed !== 1?'s':''} — sem diferenças de quantidade.`
         : `${changed.length} diferença${changed.length !== 1?'s':''} encontrada${changed.length !== 1?'s':''}. Revê e confirma antes de guardar.`;
 
-    const listEl = document.getElementById('inv-review-list');
+    const listEl = $id('inv-review-list');
     listEl.innerHTML = '';
 
     if (changed.length === 0) {
@@ -4411,34 +4328,28 @@ function _openInvReview(changed, data) {
             const item   = data[id] || {};
             const oldQty = item.quantidade || 0;
             const diff   = newQty - oldQty;
-            const row    = document.createElement('label');
-            row.className = 'inv-review-row';
+            const row = $el('label', { className: 'inv-review-row' });
 
-            const cb  = document.createElement('input');
+            const cb  = $el('input');
             cb.type   = 'checkbox';
             cb.checked = true;
             cb.dataset.id = id;
             cb.className  = 'inv-review-cb';
 
-            const info = document.createElement('div');
-            info.className = 'inv-review-info';
+            const info = $el('div', { className: 'inv-review-info' });
 
-            const nome = document.createElement('span');
-            nome.className   = 'inv-review-nome';
+            const nome = $el('span', { className: 'inv-review-nome' });
             nome.textContent = item.nome || id;
 
-            const qty = document.createElement('span');
-            qty.className = 'inv-review-qty';
+            const qty = $el('span', { className: 'inv-review-qty' });
             const sign = diff > 0 ? '+' : '';
-            const oldSpan  = document.createElement('span');
-            oldSpan.className   = 'inv-rev-old';
+            const oldSpan = $el('span', { className: 'inv-rev-old' });
             oldSpan.textContent = fmtQty(oldQty, item.unidade);
             const arr  = document.createTextNode(' → ');
-            const newSpan  = document.createElement('span');
-            newSpan.className   = 'inv-rev-new';
+            const newSpan = $el('span', { className: 'inv-rev-new' });
             newSpan.textContent = fmtQty(newQty, item.unidade);
             const sp = document.createTextNode(' ');
-            const diffSpan = document.createElement('span');
+            const diffSpan = $el('span');
             diffSpan.className   = 'inv-rev-diff ' + (diff > 0 ? 'inv-rev-plus' : 'inv-rev-minus');
             diffSpan.textContent = '(' + sign + fmtQty(diff, item.unidade) + ')';
             qty.appendChild(oldSpan); qty.appendChild(arr);
@@ -4452,19 +4363,19 @@ function _openInvReview(changed, data) {
         });
     }
 
-    document.getElementById('inv-review-modal').classList.add('active');
+    modalOpen('inv-review-modal');
     focusModal('inv-review-modal');
 }
 
 function invReviewBack() {
-    document.getElementById('inv-review-modal').classList.remove('active');
+    modalClose('inv-review-modal');
     // Reabre o inventário no último produto
-    document.getElementById('inv-modal').classList.add('active');
+    modalOpen('inv-modal');
     _invSaveResume();
 }
 
 async function invReviewConfirm() {
-    document.getElementById('inv-review-modal').classList.remove('active');
+    modalClose('inv-review-modal');
 
     const data    = cache.stock.data || {};
     const checked = [...document.querySelectorAll('.inv-review-cb:checked')].map(cb => cb.dataset.id);
@@ -4518,7 +4429,7 @@ async function invReviewConfirm() {
 }
 
 function _openInvResult(stats) {
-    const statsEl = document.getElementById('inv-result-stats');
+    const statsEl = $id('inv-result-stats');
     statsEl.innerHTML = `
         <div class="inv-stat-grid">
             <div class="inv-stat-card inv-stat-ok">
@@ -4542,12 +4453,12 @@ function _openInvResult(stats) {
             ? `<p class="inv-result-saved">${stats.saved} alteração${stats.saved !== 1?'s':''} guardada${stats.saved !== 1?'s':''} no sistema.</p>`
             : '<p class="inv-result-saved">Nenhuma diferença encontrada — stock conforme!</p>'}
     `;
-    document.getElementById('inv-result-modal').classList.add('active');
+    modalOpen('inv-result-modal');
     focusModal('inv-result-modal');
 }
 
 function closeInvResult() {
-    document.getElementById('inv-result-modal').classList.remove('active');
+    modalClose('inv-result-modal');
 }
 
 async function exportInventoryExcel() {
@@ -5105,7 +5016,7 @@ function openMapPinSheet(pats, coords) {
     _mapPinCoords   = coords;
     _mapPinExpanded = pats.length === 1 ? pats[0][0] : null;
 
-    const sheet = document.getElementById('map-pin-sheet');
+    const sheet = $id('map-pin-sheet');
     if (!sheet) return;
 
     _renderMapPinSheet(pats);
@@ -5120,7 +5031,7 @@ function _positionSheetNearPin(coords, sheet) {
     if (!_patMap || !coords) return;
 
     const point = _patMap.latLngToContainerPoint([coords.lat, coords.lng]);
-    const mapContainer = document.getElementById('pat-map-container');
+    const mapContainer = $id('pat-map-container');
     if (!mapContainer) return;
 
     const mapRect = mapContainer.getBoundingClientRect();
@@ -5158,7 +5069,7 @@ function _positionSheetNearPin(coords, sheet) {
     sheet.style.right  = 'auto';
 
     // Posicionar a seta a apontar para o pin
-    const arrow = document.getElementById('map-pin-arrow');
+    const arrow = $id('map-pin-arrow');
     if (arrow) {
         const arrowX = Math.round(pinX - left); // posição X da seta relativa ao sheet
         const clampedX = Math.max(20, Math.min(arrowX, sheetW - 20));
@@ -5179,9 +5090,9 @@ function _positionSheetNearPin(coords, sheet) {
 }
 
 function _renderMapPinSheet(pats) {
-    const estabEl  = document.getElementById('map-pin-estab');
-    const badgesEl = document.getElementById('map-pin-badges');
-    const patsEl   = document.getElementById('map-pin-pats');
+    const estabEl  = $id('map-pin-estab');
+    const badgesEl = $id('map-pin-badges');
+    const patsEl   = $id('map-pin-pats');
 
     const nome     = pats[0][1].estabelecimento || '—';
     const urgentes = pats.filter(([, p]) => _calcDias(p.criadoEm) >= 20);
@@ -5191,21 +5102,17 @@ function _renderMapPinSheet(pats) {
     estabEl.textContent = nome;
     badgesEl.innerHTML  = '';
     if (pats.length > 1) {
-        const b = document.createElement('span');
-        b.className = 'map-pin-badge count';
+        const b = $el('span', { className: 'map-pin-badge count' });
         b.textContent = `${pats.length} pedidos`;
         badgesEl.appendChild(b);
     }
     if (urgentes.length > 0) {
-        const b = document.createElement('span');
-        b.className = 'map-pin-badge urgente';
+        const b = $el('span', { className: 'map-pin-badge urgente' });
         b.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${urgentes.length} urgente${urgentes.length !== 1 ? 's' : ''}`;
         badgesEl.appendChild(b);
     }
     if (comGuia.length > 0) {
-        const b = document.createElement('span');
-        b.className = 'map-pin-badge guia';
-        b.textContent = 'Guia Transporte';
+        const b = $el('span', { className: 'map-pin-badge guia', textContent: 'Guia Transporte' });
         badgesEl.appendChild(b);
     }
 
@@ -5222,13 +5129,12 @@ function _renderMapPinSheet(pats) {
             const diasLbl = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
             const isExpanded = _mapPinExpanded === id;
 
-            const wrapper = document.createElement('div');
+            const wrapper = $el('div');
             wrapper.className = `map-pin-pat-row${urgente ? ' urgente' : ''}`;
             wrapper.dataset.patId = id;
 
             // Cabeçalho resumo (sempre visível)
-            const summary = document.createElement('div');
-            summary.className = 'map-pin-pat-summary';
+            const summary = $el('div', { className: 'map-pin-pat-summary' });
             summary.innerHTML = `
                 <div class="map-pin-pat-top">
                     <span class="map-pin-pat-num">PAT ${pat.numero || '—'}</span>
@@ -5258,38 +5164,31 @@ function _buildPatDetail([id, pat], allPats) {
     const urgente = dias >= 20;
     const prods   = pat.produtos || [];
 
-    const detail = document.createElement('div');
-    detail.className = 'map-pin-pat-detail';
+    const detail = $el('div', { className: 'map-pin-pat-detail' });
 
     // Tags
     if (pat.separacao) {
-        const tags = document.createElement('div');
-        tags.className = 'map-pin-pat-tags';
+        const tags = $el('div', { className: 'map-pin-pat-tags' });
         tags.innerHTML = '<span class="map-pin-pat-tag guia">Guia Transporte</span>';
         detail.appendChild(tags);
     }
 
     // Produtos
     if (prods.length > 0) {
-        const prodsEl = document.createElement('div');
-        prodsEl.className = 'map-pin-pat-prods';
+        const prodsEl = $el('div', { className: 'map-pin-pat-prods' });
         prods.forEach(p => {
-            const chip = document.createElement('span');
-            chip.className = 'map-pin-pat-prod';
+            const chip = $el('span', { className: 'map-pin-pat-prod' });
             chip.textContent = `${p.codigo || '?'} ×${p.quantidade || 1}`;
             prodsEl.appendChild(chip);
         });
         detail.appendChild(prodsEl);
     } else {
-        const empty = document.createElement('p');
-        empty.className = 'map-pin-no-prods';
-        empty.textContent = 'Sem produtos associados';
+        const empty = $el('p', { className: 'map-pin-no-prods', textContent: 'Sem produtos associados' });
         detail.appendChild(empty);
     }
 
     // Botão levantar com confirmação
-    const levBtn = document.createElement('button');
-    levBtn.className = 'map-pin-lev-btn';
+    const levBtn = $el('button', { className: 'map-pin-lev-btn' });
     levBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Dar como levantado`;
     levBtn.onclick = () => {
         // Confirmação via modal existente da app
@@ -5309,7 +5208,7 @@ function _buildPatDetail([id, pat], allPats) {
                     _mapPinExpanded = null;
                     _renderMapPinSheet(remaining);
                     requestAnimationFrame(() => {
-                        const sheet = document.getElementById('map-pin-sheet');
+                        const sheet = $id('map-pin-sheet');
                         if (sheet && _mapPinCoords) _positionSheetNearPin(_mapPinCoords, sheet);
                     });
                 }
@@ -5321,7 +5220,7 @@ function _buildPatDetail([id, pat], allPats) {
 }
 
 function closeMapPinSheet() {
-    const sheet = document.getElementById('map-pin-sheet');
+    const sheet = $id('map-pin-sheet');
     if (!sheet || !sheet.classList.contains('open')) return;
     sheet.classList.add('closing');
     setTimeout(() => {
@@ -5337,7 +5236,7 @@ function closeMapPinSheet() {
 function openMapPinGmaps() {
     if (!_mapPinCoords) return;
     const { lat, lng } = _mapPinCoords;
-    const nome = document.getElementById('map-pin-estab')?.textContent || '';
+    const nome = $id('map-pin-estab')?.textContent || '';
     const q = encodeURIComponent(nome + ', Portugal');
     window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
 }
@@ -5351,15 +5250,15 @@ function centerMapOnPin() {
 async function expandPatMap() {
     _patMapOpen = true;
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.getElementById('view-map')?.classList.add('active');
-    document.getElementById('main-content')?.classList.add('map-view-active');
+    $id('view-map')?.classList.add('active');
+    $id('main-content')?.classList.add('map-view-active');
     window.scrollTo(0, 0);
 
-    const loadingEl   = document.getElementById('pat-map-loading');
-    const loadingTxt  = document.getElementById('pat-map-loading-text');
-    const errorEl     = document.getElementById('pat-map-error');
-    const subtitleEl  = document.getElementById('pat-map-subtitle');
-    const container   = document.getElementById('pat-map-container');
+    const loadingEl   = $id('pat-map-loading');
+    const loadingTxt  = $id('pat-map-loading-text');
+    const errorEl     = $id('pat-map-error');
+    const subtitleEl  = $id('pat-map-subtitle');
+    const container   = $id('pat-map-container');
 
     if (loadingEl)  loadingEl.style.display  = 'flex';
     if (errorEl)    errorEl.style.display    = 'none';
@@ -5367,7 +5266,7 @@ async function expandPatMap() {
     if (loadingTxt) loadingTxt.textContent   = 'A preparar mapa...';
     if (!container) return;
 
-    const headerH    = (document.getElementById('app-header')?.offsetHeight) || 60;
+    const headerH    = ($id('app-header')?.offsetHeight) || 60;
     const mapHeaderEl = document.querySelector('.pat-map-header');
     await _sleep(50);
     const mapHeaderH = mapHeaderEl ? mapHeaderEl.offsetHeight : 80;
@@ -5405,7 +5304,7 @@ async function expandPatMap() {
     if (pendentes.length === 0) {
         if (loadingEl) loadingEl.style.display = 'none';
         if (errorEl)   errorEl.style.display   = 'flex';
-        const errTxt = document.getElementById('pat-map-error-text');
+        const errTxt = $id('pat-map-error-text');
         if (errTxt) errTxt.textContent = 'Sem pedidos pendentes para mostrar.';
         return;
     }
@@ -5461,15 +5360,15 @@ async function openPatMap() {
     _patMapOpen = true;
 
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.getElementById('view-map')?.classList.add('active');
-    document.getElementById('main-content')?.classList.add('map-view-active');
+    $id('view-map')?.classList.add('active');
+    $id('main-content')?.classList.add('map-view-active');
     window.scrollTo(0, 0);
 
-    const loadingEl  = document.getElementById('pat-map-loading');
-    const loadingTxt = document.getElementById('pat-map-loading-text');
-    const errorEl    = document.getElementById('pat-map-error');
-    const subtitleEl = document.getElementById('pat-map-subtitle');
-    const container  = document.getElementById('pat-map-container');
+    const loadingEl  = $id('pat-map-loading');
+    const loadingTxt = $id('pat-map-loading-text');
+    const errorEl    = $id('pat-map-error');
+    const subtitleEl = $id('pat-map-subtitle');
+    const container  = $id('pat-map-container');
 
     if (loadingEl) loadingEl.style.display = 'flex';
     if (errorEl)   errorEl.style.display   = 'none';
@@ -5480,7 +5379,7 @@ async function openPatMap() {
 
     // Calcular altura disponível directamente via viewport
     // vh - header (~60px) - topbar da vista (~80px) - padding bottom
-    const headerEl = document.getElementById('app-header');
+    const headerEl = $id('app-header');
     const headerH  = headerEl ? headerEl.offsetHeight : 60;
     const mapHeaderEl = document.querySelector('.pat-map-header');
     await _sleep(50); // um tick para o DOM pintar
@@ -5544,7 +5443,7 @@ async function openPatMap() {
     if (pendentes.length === 0) {
         if (loadingEl) loadingEl.style.display = 'none';
         if (errorEl) errorEl.style.display = 'flex';
-        document.getElementById('pat-map-error-text').textContent = 'Sem pedidos pendentes para mostrar.';
+        $id('pat-map-error-text').textContent = 'Sem pedidos pendentes para mostrar.';
         return;
     }
 
@@ -5627,7 +5526,7 @@ async function openPatMap() {
     if (missing.length === 0) {
         if (geocoded === 0) {
             if (loadingEl) loadingEl.style.display = 'none';
-            if (errorEl) { errorEl.style.display = 'flex'; document.getElementById('pat-map-error-text').textContent = 'Não foi possível localizar nenhum estabelecimento.'; }
+            if (errorEl) { errorEl.style.display = 'flex'; $id('pat-map-error-text').textContent = 'Não foi possível localizar nenhum estabelecimento.'; }
         }
         const naoEncontrados = groupEntries.filter(([k]) => _geocodeCache[k] === null).length;
         if (naoEncontrados > 0) subtitleEl.textContent += ` · ${naoEncontrados} não localizado${naoEncontrados !== 1 ? 's' : ''}`;
@@ -5669,7 +5568,7 @@ async function openPatMap() {
 
     const totalShown = geocoded + newGeocoded;
     if (totalShown === 0) {
-        if (errorEl) { errorEl.style.display = 'flex'; document.getElementById('pat-map-error-text').textContent = 'Não foi possível localizar nenhum estabelecimento.'; }
+        if (errorEl) { errorEl.style.display = 'flex'; $id('pat-map-error-text').textContent = 'Não foi possível localizar nenhum estabelecimento.'; }
         return;
     }
 
@@ -5686,8 +5585,8 @@ let _patMapPanel     = null;  // instância Leaflet do painel
 let _patMapPanelMkrs = [];    // markers do painel
 
 async function _openPatMapPanel() {
-    const container  = document.getElementById('pat-map-panel-container');
-    const loadingEl  = document.getElementById('pat-map-panel-loading');
+    const container  = $id('pat-map-panel-container');
+    const loadingEl  = $id('pat-map-panel-loading');
     if (!container) return;
 
     if (loadingEl) loadingEl.style.display = 'flex';
@@ -5763,7 +5662,7 @@ async function _openPatMapPanel() {
 
 function closePatMap() {
     _patMapOpen = false;
-    document.getElementById('main-content')?.classList.remove('map-view-active');
+    $id('main-content')?.classList.remove('map-view-active');
     nav('view-pedidos');
 }
 
@@ -5772,9 +5671,9 @@ function closePatMap() {
 // PONTO 23: TIMELINE DE FERRAMENTAS
 // =============================================
 async function openToolTimeline() {
-    const el = document.getElementById('timeline-list');
+    const el = $id('timeline-list');
     el.innerHTML = '<div class="empty-msg">A carregar...</div>';
-    document.getElementById('timeline-modal').classList.add('active');
+    modalOpen('timeline-modal');
     focusModal('timeline-modal');
 
     try {
@@ -5820,29 +5719,24 @@ async function openToolTimeline() {
             const d     = new Date(ev.data);
             const dateStr = d.toLocaleDateString('pt-PT', { day:'numeric', month:'short', year:'numeric' });
             if (dateStr !== lastDate) {
-                const sep = document.createElement('div');
-                sep.className   = 'tl-date-sep';
+                const sep = $el('div', { className: 'tl-date-sep' });
                 sep.textContent = dateStr;
                 el.appendChild(sep);
                 lastDate = dateStr;
             }
-            const row  = document.createElement('div');
+            const row  = $el('div');
             const isOut = ev.acao === 'atribuida' || ev.acao === 'alocada_agora';
             row.className = `tl-event ${isOut ? 'tl-out' : 'tl-in'}`;
 
-            const icoEl = document.createElement('span');
-            icoEl.className = 'tl-tool-icon';
+            const icoEl = $el('span', { className: 'tl-tool-icon' });
             icoEl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>';
 
-            const info = document.createElement('div');
-            info.className = 'tl-info';
+            const info = $el('div', { className: 'tl-info' });
 
-            const name = document.createElement('span');
-            name.className   = 'tl-tool-name';
+            const name = $el('span', { className: 'tl-tool-name' });
             name.textContent = ev.toolNome || '?';
 
-            const action = document.createElement('span');
-            action.className = 'tl-action';
+            const action = $el('span', { className: 'tl-action' });
             if (ev.acao === 'alocada_agora') {
                 action.textContent = `🔴 Com ${ev.colaborador || '?'} há ${ev._dias}d`;
                 action.className += ' tl-action-overdue';
@@ -5852,8 +5746,7 @@ async function openToolTimeline() {
                 action.textContent = `↩ Devolvida${ev.colaborador ? ' por ' + ev.colaborador : ''}`;
             }
 
-            const time = document.createElement('span');
-            time.className   = 'tl-time';
+            const time = $el('span', { className: 'tl-time' });
             time.textContent = d.toLocaleTimeString('pt-PT', { hour:'2-digit', minute:'2-digit' });
 
             info.appendChild(name);
@@ -5869,7 +5762,7 @@ async function openToolTimeline() {
 }
 
 function closeToolTimeline() {
-    document.getElementById('timeline-modal').classList.remove('active');
+    modalClose('timeline-modal');
 }
 
 // =============================================
@@ -5883,9 +5776,9 @@ function bnavAddToggle() {
 
 function bnavAddOpen() {
     _bnavAddOpen = true;
-    const menu    = document.getElementById('bnav-add-menu');
-    const overlay = document.getElementById('bnav-add-overlay');
-    const btn     = document.getElementById('fab-add');
+    const menu    = $id('bnav-add-menu');
+    const overlay = $id('bnav-add-overlay');
+    const btn     = $id('fab-add');
     menu?.classList.add('open');
     overlay?.classList.add('open');
     btn?.classList.add('fab-open');
@@ -5894,9 +5787,9 @@ function bnavAddOpen() {
 
 function bnavAddClose() {
     _bnavAddOpen = false;
-    const menu    = document.getElementById('bnav-add-menu');
-    const overlay = document.getElementById('bnav-add-overlay');
-    const btn     = document.getElementById('fab-add');
+    const menu    = $id('bnav-add-menu');
+    const overlay = $id('bnav-add-overlay');
+    const btn     = $id('fab-add');
     menu?.classList.remove('open');
     overlay?.classList.remove('open');
     btn?.classList.remove('fab-open');
@@ -5913,9 +5806,9 @@ function bnavAddChoose(viewId) {
 
 document.addEventListener('DOMContentLoaded', () => {
     // PAT: só aceita dígitos
-    document.getElementById('pat-numero')?.addEventListener('input', function() {
+    $id('pat-numero')?.addEventListener('input', function() {
         this.value = this.value.replace(/\D/g, '').slice(0, 6);
-        const hint = document.getElementById('pat-numero-hint');
+        const hint = $id('pat-numero-hint');
         if (hint) {
             if (this.value.length > 0 && this.value.length < 6) {
                 hint.textContent = `${this.value.length}/6 dígitos`;
@@ -5940,8 +5833,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Pesquisa com debounce — cache o elemento para evitar lookups repetidos
-    const searchInput = document.getElementById('inp-search');
-    const searchClear = document.getElementById('inp-search-clear');
+    const searchInput = $id('inp-search');
+    const searchClear = $id('inp-search-clear');
     window._searchInputEl = searchInput; // referência global para renderList
     if (searchInput) {
         let debounceTimer;
@@ -5949,13 +5842,13 @@ document.addEventListener('DOMContentLoaded', () => {
             clearTimeout(debounceTimer);
             const val = e.target.value;
             if (searchClear) searchClear.classList.toggle('hidden', !val);
-            if (val) { _zeroFilterActive = false; const b = document.getElementById('zero-filter-badge'); if (b) b.remove(); }
+            if (val) { _zeroFilterActive = false; const b = $id('zero-filter-badge'); if (b) b.remove(); }
             debounceTimer = setTimeout(() => renderList(val), 300);
         };
     }
 
     // Delegação de eventos nas ferramentas — um único listener no container
-    const toolsListEl = document.getElementById('tools-list');
+    const toolsListEl = $id('tools-list');
     if (toolsListEl) {
         toolsListEl.addEventListener('contextmenu', e => {
             const div = e.target.closest('[data-tool-id]');
@@ -5974,7 +5867,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Pesquisa de ferramentas (usa _debounce centralizado)
-    document.getElementById('inp-tools-search')?.addEventListener('input', _debounce(e => {
+    $id('inp-tools-search')?.addEventListener('input', _debounce(e => {
         _toolsFilter = e.target.value.trim() || 'all';
         renderTools();
     }, 250));
@@ -6001,10 +5894,10 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'product-detail-modal',close: closeProductDetail },
         ];
         for (const { id, close } of modals) {
-            if (document.getElementById(id)?.classList.contains('active')) { close(); break; }
+            if ($id(id)?.classList.contains('active')) { close(); break; }
         }
         const anyUnitOpen = UNIT_PREFIXES.some(p =>
-            document.getElementById(`${p}-unit-menu`)?.classList.contains('open')
+            $id(`${p}-unit-menu`)?.classList.contains('open')
         );
         if (anyUnitOpen) {
             _closeAllUnitMenus();
@@ -6027,7 +5920,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', () => {
         clearTimeout(_resizeTimer);
         _resizeTimer = setTimeout(() => {
-            if (document.getElementById('view-search')?.classList.contains('active')) {
+            if ($id('view-search')?.classList.contains('active')) {
                 renderList(window._searchInputEl?.value || '', true);
             }
         }, 250);
@@ -6066,10 +5959,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Confirm modal OK — desabilita durante operações async
-    document.getElementById('confirm-modal-ok').onclick = async () => {
+    $id('confirm-modal-ok').onclick = async () => {
         const cb = confirmCallback;
         if (!cb) return;
-        const btn = document.getElementById('confirm-modal-ok');
+        const btn = $id('confirm-modal-ok');
         const originalText = btn.textContent;
         btn.disabled = true;
         btn.textContent = 'A processar...';
@@ -6082,7 +5975,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Delete confirm
-    document.getElementById('delete-confirm-btn').onclick = async () => {
+    $id('delete-confirm-btn').onclick = async () => {
         if (!pendingDeleteId) return;
         const id   = pendingDeleteId;
         const item = cache.stock.data[id];
@@ -6104,22 +5997,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Form: Novo Produto
-    document.getElementById('form-add')?.addEventListener('submit', async e => {
+    $id('form-add')?.addEventListener('submit', async e => {
         e.preventDefault();
         const btn    = e.target.querySelector('button[type=submit]');
-        const codigo = document.getElementById('inp-codigo').value.trim().toUpperCase();
-        const unidade = document.getElementById('inp-unidade').value || 'un';
+        const codigo = $id('inp-codigo').value.trim().toUpperCase();
+        const unidade = $id('inp-unidade').value || 'un';
         const payload = {
-            nome:        document.getElementById('inp-nome').value.trim().toUpperCase(),
-            localizacao: document.getElementById('inp-loc').value.trim().replace(/\s+/g,'').toUpperCase(),
-            quantidade:  parseFloat(document.getElementById('inp-qtd').value) || 0,
+            nome:        $id('inp-nome').value.trim().toUpperCase(),
+            localizacao: $id('inp-loc').value.trim().replace(/\s+/g,'').toUpperCase(),
+            quantidade:  parseFloat($id('inp-qtd').value) || 0,
             unidade,
-            notas:       document.getElementById('inp-notas')?.value.trim() || '',
+            notas:       $id('inp-notas')?.value.trim() || '',
             codigo,
         };
         if (unidade === 'kg') {
-            const gMax   = parseFloat(document.getElementById('inp-gas-max')?.value);
-            const gAlert = parseFloat(document.getElementById('inp-gas-alerta')?.value);
+            const gMax   = parseFloat($id('inp-gas-max')?.value);
+            const gAlert = parseFloat($id('inp-gas-alerta')?.value);
             if (!isNaN(gMax)   && gMax   > 0) payload.gasMax    = gMax;
             if (!isNaN(gAlert) && gAlert > 0) payload.gasAlerta = gAlert;
         }
@@ -6140,23 +6033,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Form: Lote
-    document.getElementById('form-bulk')?.addEventListener('submit', async e => {
+    $id('form-bulk')?.addEventListener('submit', async e => {
         e.preventDefault();
         const btn    = e.target.querySelector('button[type=submit]');
-        const codigo = document.getElementById('bulk-codigo').value.trim().toUpperCase();
-        const zona   = document.getElementById('bulk-loc').value.trim().replace(/\s+/g,'').toUpperCase();
-        const unidade = document.getElementById('bulk-unidade').value || 'un';
+        const codigo = $id('bulk-codigo').value.trim().toUpperCase();
+        const zona   = $id('bulk-loc').value.trim().replace(/\s+/g,'').toUpperCase();
+        const unidade = $id('bulk-unidade').value || 'un';
         const payload = {
             localizacao: zona,
             codigo,
-            nome:       document.getElementById('bulk-nome').value.trim().toUpperCase(),
-            quantidade: parseFloat(document.getElementById('bulk-qtd').value) || 0,
+            nome:       $id('bulk-nome').value.trim().toUpperCase(),
+            quantidade: parseFloat($id('bulk-qtd').value) || 0,
             unidade,
-            notas:      document.getElementById('bulk-notas')?.value.trim() || '',
+            notas:      $id('bulk-notas')?.value.trim() || '',
         };
         if (unidade === 'kg') {
-            const gMax   = parseFloat(document.getElementById('bulk-gas-max')?.value);
-            const gAlert = parseFloat(document.getElementById('bulk-gas-alerta')?.value);
+            const gMax   = parseFloat($id('bulk-gas-max')?.value);
+            const gAlert = parseFloat($id('bulk-gas-alerta')?.value);
             if (!isNaN(gMax)   && gMax   > 0) payload.gasMax    = gMax;
             if (!isNaN(gAlert) && gAlert > 0) payload.gasAlerta = gAlert;
         }
@@ -6171,11 +6064,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 _updateBulkCounter();
                 _saveZoneToHistory(zona);
                 showToast(`${payload.codigo} adicionado ao lote!`);
-                document.getElementById('bulk-codigo').value = '';
-                document.getElementById('bulk-nome').value   = '';
-                document.getElementById('bulk-qtd').value    = '1';
-                document.getElementById('bulk-notas').value  = '';
-                document.getElementById('bulk-codigo').focus();
+                $id('bulk-codigo').value = '';
+                $id('bulk-nome').value   = '';
+                $id('bulk-qtd').value    = '1';
+                $id('bulk-notas').value  = '';
+                $id('bulk-codigo').focus();
             } catch(_e) { invalidateCache('stock'); showToast('Erro ao adicionar ao lote','error'); }
             finally { btn.disabled = false; }
         };
@@ -6183,23 +6076,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Form: Editar Produto
-    document.getElementById('form-edit')?.addEventListener('submit', async e => {
+    $id('form-edit')?.addEventListener('submit', async e => {
         e.preventDefault();
-        const id      = document.getElementById('edit-id').value;
+        const id      = $id('edit-id').value;
         const btn     = e.target.querySelector('button[type=submit]');
-        const unidade = document.getElementById('edit-unidade').value || 'un';
+        const unidade = $id('edit-unidade').value || 'un';
         btn.disabled  = true;
         const updated = {
-            codigo:      document.getElementById('edit-codigo').value.trim().toUpperCase(),
-            nome:        document.getElementById('edit-nome').value.trim().toUpperCase(),
-            localizacao: document.getElementById('edit-loc').value.trim().replace(/\s+/g,'').toUpperCase(),
-            quantidade:  parseFloat(document.getElementById('edit-qtd').value) || 0,
+            codigo:      $id('edit-codigo').value.trim().toUpperCase(),
+            nome:        $id('edit-nome').value.trim().toUpperCase(),
+            localizacao: $id('edit-loc').value.trim().replace(/\s+/g,'').toUpperCase(),
+            quantidade:  parseFloat($id('edit-qtd').value) || 0,
             unidade,
-            notas:       document.getElementById('edit-notas')?.value.trim() || '',
+            notas:       $id('edit-notas')?.value.trim() || '',
         };
         if (unidade === 'kg') {
-            const gMax   = parseFloat(document.getElementById('edit-gas-max')?.value);
-            const gAlert = parseFloat(document.getElementById('edit-gas-alerta')?.value);
+            const gMax   = parseFloat($id('edit-gas-max')?.value);
+            const gAlert = parseFloat($id('edit-gas-alerta')?.value);
             updated.gasMax    = (!isNaN(gMax)   && gMax   > 0) ? gMax    : null;
             updated.gasAlerta = (!isNaN(gAlert) && gAlert > 0) ? gAlert  : null;
         } else {
@@ -6208,7 +6101,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updated.gasAlerta = null;
         }
         // Imagem do produto — URL ou null
-        const imgUrlVal = document.getElementById('edit-img-url')?.value.trim();
+        const imgUrlVal = $id('edit-img-url')?.value.trim();
         updated.imgUrl = imgUrlVal || null;
 
         const _oldQtyEdit = cache.stock.data?.[id]?.quantidade ?? 0;
@@ -6227,39 +6120,39 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Form: Funcionário
-    document.getElementById('form-worker')?.addEventListener('submit', async e => {
+    $id('form-worker')?.addEventListener('submit', async e => {
         e.preventDefault();
         if (!requireManagerAccess()) return;
-        const nome = document.getElementById('worker-name').value.trim().toUpperCase();
+        const nome = $id('worker-name').value.trim().toUpperCase();
         if (!nome) return;
         try {
             const res = await apiFetch(`${BASE_URL}/funcionarios.json`, { method:'POST', body:JSON.stringify({nome}) });
             if (!cache.funcionarios.data) cache.funcionarios.data = {};
             if (res) { const r = await res.json(); if (r?.name) cache.funcionarios.data[r.name] = {nome}; }
             else { cache.funcionarios.data[`_tmp_${Date.now()}`] = {nome}; }
-            document.getElementById('worker-name').value = '';
+            $id('worker-name').value = '';
             renderWorkers(); showToast('Funcionário adicionado');
         } catch(_e) { invalidateCache('funcionarios'); showToast('Erro ao adicionar funcionário','error'); }
     });
 
     // Form: Registar Ferramenta
-    document.getElementById('form-tool-reg')?.addEventListener('submit', async e => {
+    $id('form-tool-reg')?.addEventListener('submit', async e => {
         e.preventDefault();
         if (!requireManagerAccess()) return;
-        const nome  = document.getElementById('reg-tool-name').value.trim().toUpperCase();
+        const nome  = $id('reg-tool-name').value.trim().toUpperCase();
         const payload = { nome, status:'disponivel' };
         try {
             const res = await apiFetch(`${BASE_URL}/ferramentas.json`, { method:'POST', body:JSON.stringify(payload) });
             if (!cache.ferramentas.data) cache.ferramentas.data = {};
             if (res) { const r = await res.json(); if (r?.name) cache.ferramentas.data[r.name] = payload; }
             else { cache.ferramentas.data[`_tmp_${Date.now()}`] = payload; }
-            document.getElementById('reg-tool-name').value = '';
+            $id('reg-tool-name').value = '';
             renderAdminTools(); showToast('Ferramenta registada');
         } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao registar ferramenta','error'); }
     });
 
     // Form: Editar Ferramenta
-    document.getElementById('form-edit-tool')?.addEventListener('submit', async e => {
+    $id('form-edit-tool')?.addEventListener('submit', async e => {
         e.preventDefault();
         await saveEditTool();
     });
@@ -6335,8 +6228,8 @@ let _clienteDropdownIdx = -1;
 
 function patClientSearch(val) {
     _clienteDropdownIdx = -1;
-    document.getElementById('pat-cliente-id').value = ''; // limpar ao escrever
-    const dd = document.getElementById('pat-client-dropdown');
+    $id('pat-cliente-id').value = ''; // limpar ao escrever
+    const dd = $id('pat-client-dropdown');
     const q  = val.trim();
     if (!q) { dd.innerHTML = ''; _removeClientOutsideListener(); return; }
 
@@ -6352,8 +6245,8 @@ function patClientSearch(val) {
     if (/^\d{1,3}$/.test(q)) {
         const exactMatches = Object.values(dataComId).filter(c => c.numero === q);
         if (exactMatches.length === 1) {
-            document.getElementById('pat-estabelecimento').value = exactMatches[0].nome;
-            document.getElementById('pat-cliente-id').value      = exactMatches[0]._fbId;
+            $id('pat-estabelecimento').value = exactMatches[0].nome;
+            $id('pat-cliente-id').value      = exactMatches[0]._fbId;
             dd.innerHTML = '';
             _removeClientOutsideListener();
             return;
@@ -6382,23 +6275,21 @@ function patClientSearch(val) {
 function _renderClientDropdown(dd, matches, isExact) {
     dd.innerHTML = '';
     if (isExact) {
-        const hdr = document.createElement('div');
-        hdr.className = 'pat-dd-header';
+        const hdr = $el('div', { className: 'pat-dd-header' });
         hdr.textContent = matches.length + ' estabelecimentos com este Nº — escolhe:';
         dd.appendChild(hdr);
     }
     matches.forEach((c, i) => {
-        const opt = document.createElement('div');
-        opt.className = 'pat-dd-option';
+        const opt = $el('div', { className: 'pat-dd-option' });
         opt.dataset.idx = i;
-        const codeEl = document.createElement('span'); codeEl.className = 'pat-dd-code'; codeEl.textContent = c.numero;
-        const nameEl = document.createElement('span'); nameEl.className = 'pat-dd-name';  nameEl.textContent = c.nome;
+        const codeEl = $el('span'); codeEl.className = 'pat-dd-code'; codeEl.textContent = c.numero;
+        const nameEl = $el('span'); nameEl.className = 'pat-dd-name';  nameEl.textContent = c.nome;
         opt.appendChild(codeEl); opt.appendChild(nameEl);
         opt.onmousedown = (e) => {
             e.preventDefault();
-            document.getElementById('pat-cliente-num').value     = c.numero;
-            document.getElementById('pat-estabelecimento').value  = c.nome;
-            document.getElementById('pat-cliente-id').value       = c._fbId || '';
+            $id('pat-cliente-num').value     = c.numero;
+            $id('pat-estabelecimento').value  = c.nome;
+            $id('pat-cliente-id').value       = c._fbId || '';
             dd.innerHTML = '';
             _removeClientOutsideListener();
         };
@@ -6409,7 +6300,7 @@ function _renderClientDropdown(dd, matches, isExact) {
 function _clientOutsideHandler(e) {
     const wrap = document.querySelector('.pat-client-wrap');
     if (wrap && !wrap.contains(e.target)) {
-        document.getElementById('pat-client-dropdown').innerHTML = '';
+        $id('pat-client-dropdown').innerHTML = '';
         _removeClientOutsideListener();
     }
 }
@@ -6422,7 +6313,7 @@ function _removeClientOutsideListener() {
 }
 
 function patClientKeydown(e) {
-    const dd   = document.getElementById('pat-client-dropdown');
+    const dd   = $id('pat-client-dropdown');
     const opts = dd.querySelectorAll('.pat-dd-option');
     if (!opts.length) return;
     if (e.key === 'ArrowDown') {
@@ -6443,7 +6334,7 @@ function patClientKeydown(e) {
 
 // ── Lista de clientes no Admin ─────────────────────────────────────────────
 async function renderClientesList() {
-    const container = document.getElementById('clientes-list');
+    const container = $id('clientes-list');
     if (!container) return;
     container.innerHTML = '<div class="pat-loading">A carregar...</div>';
     const data = await _fetchClientes(true);
@@ -6472,8 +6363,7 @@ async function renderClientesList() {
     const totalComLoc = entries.filter(([, c]) => c.lat != null && c.lng != null).length;
 
     // ── Stats ────────────────────────────────────────────────────────────
-    const stats = document.createElement('div');
-    stats.className = 'clientes-stats';
+    const stats = $el('div', { className: 'clientes-stats' });
     stats.innerHTML = `
         <span class="clientes-stat"><span class="clientes-stat-num">${entries.length}</span> clientes</span>
         <span class="clientes-stat-dot"></span>
@@ -6481,15 +6371,14 @@ async function renderClientesList() {
     container.appendChild(stats);
 
     // ── Pesquisa ─────────────────────────────────────────────────────────
-    const searchWrap = document.createElement('div');
-    searchWrap.className = 'clientes-search-wrap';
+    const searchWrap = $el('div', { className: 'clientes-search-wrap' });
     searchWrap.innerHTML = `
         <svg class="clientes-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input class="clientes-search-input" placeholder="Pesquisar por número ou nome..." id="clientes-search-inp">`;
     container.appendChild(searchWrap);
 
     // ── Área de grupos ────────────────────────────────────────────────────
-    const groupsArea = document.createElement('div');
+    const groupsArea = $el('div');
     groupsArea.id = 'clientes-groups-area';
     container.appendChild(groupsArea);
 
@@ -6518,12 +6407,10 @@ async function renderClientesList() {
             const withLoc = filtered.filter(([, c]) => c.lat != null && c.lng != null).length;
 
             // Wrapper do grupo
-            const grp = document.createElement('div');
-            grp.className = 'clientes-group';
+            const grp = $el('div', { className: 'clientes-group' });
 
             // Header do grupo
-            const hdr = document.createElement('div');
-            hdr.className = 'clientes-group-header';
+            const hdr = $el('div', { className: 'clientes-group-header' });
             hdr.innerHTML = `
                 <span class="clientes-group-name">${cadeia}</span>
                 ${withLoc > 0 ? `<span class="clientes-group-loc visible"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>${withLoc}</span>` : ''}
@@ -6533,26 +6420,23 @@ async function renderClientesList() {
             hdr.onclick = () => grp.classList.toggle('collapsed');
 
             // Body com linhas
-            const body = document.createElement('div');
-            body.className = 'clientes-group-body';
+            const body = $el('div', { className: 'clientes-group-body' });
 
             filtered.forEach(([id, c]) => {
                 const hasCoords = c.lat != null && c.lng != null;
-                const row = document.createElement('div');
-                row.className = 'cliente-row';
+                const row = $el('div', { className: 'cliente-row' });
 
-                const numEl = document.createElement('span');
-                numEl.className = 'cliente-row-num';
+                const numEl = $el('span', { className: 'cliente-row-num' });
                 numEl.textContent = String(c.numero || '').padStart(3, '0');
 
-                const nomeWrap = document.createElement('div');
+                const nomeWrap = $el('div');
                 nomeWrap.style.cssText = 'display:flex;align-items:center;gap:6px;min-width:0;';
 
-                const dot = document.createElement('span');
+                const dot = $el('span');
                 dot.className = `cliente-loc-dot ${hasCoords ? 'has-loc' : 'no-loc'}`;
                 dot.title = hasCoords ? `${parseFloat(c.lat).toFixed(5)}, ${parseFloat(c.lng).toFixed(5)}` : 'Sem localização';
 
-                const nomeEl = document.createElement('span');
+                const nomeEl = $el('span');
                 nomeEl.className = `cliente-row-nome${hasCoords ? '' : ' sem-loc'}`;
                 nomeEl.textContent = c.nome || '—';
                 nomeEl.title = c.nome || '';
@@ -6560,17 +6444,14 @@ async function renderClientesList() {
                 nomeWrap.appendChild(dot);
                 nomeWrap.appendChild(nomeEl);
 
-                const actions = document.createElement('div');
-                actions.className = 'cliente-row-actions';
+                const actions = $el('div', { className: 'cliente-row-actions' });
 
-                const editBtn = document.createElement('button');
-                editBtn.className = 'cliente-row-edit';
+                const editBtn = $el('button', { className: 'cliente-row-edit' });
                 editBtn.title = 'Editar';
                 editBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
                 editBtn.onclick = (e) => { e.stopPropagation(); openEditClienteModal(id, c); };
 
-                const delBtn = document.createElement('button');
-                delBtn.className = 'cliente-row-del';
+                const delBtn = $el('button', { className: 'cliente-row-del' });
                 delBtn.title = 'Apagar';
                 delBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>`;
                 delBtn.onclick = (e) => {
@@ -6611,7 +6492,7 @@ async function renderClientesList() {
     _buildGroups();
 
     // Pesquisa em tempo real
-    const searchInp = document.getElementById('clientes-search-inp');
+    const searchInp = $id('clientes-search-inp');
     if (searchInp) {
         let _st;
         searchInp.addEventListener('input', e => {
@@ -6631,17 +6512,17 @@ function _ecInitials(nome) {
 }
 
 function ecUpdatePreview() {
-    const nome = document.getElementById('edit-cliente-nome')?.value || '';
-    const disp = document.getElementById('ec-nome-display');
-    const avt  = document.getElementById('ec-avatar');
+    const nome = $id('edit-cliente-nome')?.value || '';
+    const disp = $id('ec-nome-display');
+    const avt  = $id('ec-avatar');
     if (disp) disp.textContent = nome || '—';
     if (avt)  avt.textContent  = _ecInitials(nome);
 }
 
 function ecUpdateLocStatus() {
-    const lat = document.getElementById('edit-cliente-lat')?.value?.trim();
-    const lng = document.getElementById('edit-cliente-lng')?.value?.trim();
-    const el  = document.getElementById('ec-loc-status');
+    const lat = $id('edit-cliente-lat')?.value?.trim();
+    const lng = $id('edit-cliente-lng')?.value?.trim();
+    const el  = $id('ec-loc-status');
     if (!el) return;
     if (lat && lng) {
         el.className = 'ec-loc-status editing-loc';
@@ -6653,7 +6534,7 @@ function ecUpdateLocStatus() {
 }
 
 function _ecSetInitialLocStatus(lat, lng) {
-    const el = document.getElementById('ec-loc-status');
+    const el = $id('ec-loc-status');
     if (!el) return;
     if (lat && lng) {
         el.className = 'ec-loc-status has-loc';
@@ -6665,16 +6546,16 @@ function _ecSetInitialLocStatus(lat, lng) {
 }
 
 function openEditClienteModal(id, c) {
-    document.getElementById('edit-cliente-id').value  = id;
-    document.getElementById('edit-cliente-numero').value = c.numero || '';
-    document.getElementById('edit-cliente-nome').value   = c.nome   || '';
-    document.getElementById('edit-cliente-lat').value    = c.lat    || '';
-    document.getElementById('edit-cliente-lng').value    = c.lng    || '';
+    $id('edit-cliente-id').value  = id;
+    $id('edit-cliente-numero').value = c.numero || '';
+    $id('edit-cliente-nome').value   = c.nome   || '';
+    $id('edit-cliente-lat').value    = c.lat    || '';
+    $id('edit-cliente-lng').value    = c.lng    || '';
 
     // Preview no header
-    const nomeDisplay = document.getElementById('ec-nome-display');
-    const numDisplay  = document.getElementById('ec-numero-display');
-    const avatar      = document.getElementById('ec-avatar');
+    const nomeDisplay = $id('ec-nome-display');
+    const numDisplay  = $id('ec-numero-display');
+    const avatar      = $id('ec-avatar');
     if (nomeDisplay) nomeDisplay.textContent = c.nome  || '—';
     if (numDisplay)  numDisplay.textContent  = `Nº ${(c.numero || '').padStart(3, '0')}`;
     if (avatar)      avatar.textContent      = _ecInitials(c.nome);
@@ -6682,20 +6563,20 @@ function openEditClienteModal(id, c) {
     // Estado da localização
     _ecSetInitialLocStatus(c.lat, c.lng);
 
-    document.getElementById('modal-edit-cliente').classList.add('active');
-    setTimeout(() => document.getElementById('edit-cliente-nome')?.focus(), 120);
+    modalOpen('modal-edit-cliente');
+    setTimeout(() => $id('edit-cliente-nome').focus(), 120);
 }
 
 function closeEditClienteModal() {
-    document.getElementById('modal-edit-cliente').classList.remove('active');
+    modalClose('modal-edit-cliente');
 }
 
 async function saveEditCliente() {
-    const id     = document.getElementById('edit-cliente-id').value;
-    const numero = document.getElementById('edit-cliente-numero').value.trim(); // readonly, só para payload
-    const nome   = document.getElementById('edit-cliente-nome').value.trim();
-    const latVal = document.getElementById('edit-cliente-lat').value.trim();
-    const lngVal = document.getElementById('edit-cliente-lng').value.trim();
+    const id     = $id('edit-cliente-id').value;
+    const numero = $id('edit-cliente-numero').value.trim(); // readonly, só para payload
+    const nome   = $id('edit-cliente-nome').value.trim();
+    const latVal = $id('edit-cliente-lat').value.trim();
+    const lngVal = $id('edit-cliente-lng').value.trim();
     const previousNome = _clientesCache.data?.[id]?.nome || '';
 
     if (!nome) { showToast('O nome não pode estar vazio', 'error'); return; }
@@ -6745,7 +6626,7 @@ async function saveEditCliente() {
 async function importClientesExcel(input) {
     const file = input?.files?.[0];
     if (!file) return;
-    const preview = document.getElementById('clientes-import-preview');
+    const preview = $id('clientes-import-preview');
     preview.innerHTML = '<div class="pat-loading">A processar ficheiro...</div>';
 
     try {
@@ -6950,8 +6831,7 @@ function showDupPopover(badge, estabNorm) {
                 (p.estabelecimento || '').trim().toLowerCase() === estabNorm)
         .sort((a, b) => (a[1].criadoEm || 0) - (b[1].criadoEm || 0));
 
-    const pop = document.createElement('div');
-    pop.className = 'dup-popover';
+    const pop = $el('div', { className: 'dup-popover' });
     pop.innerHTML = `
         <div class="dup-pop-title">PATs — ${escapeHtml(pats[0]?.[1]?.estabelecimento || estabNorm)}</div>
         ${pats.map(([, p]) => {
@@ -6987,18 +6867,18 @@ function showDupPopover(badge, estabNorm) {
 }
 
 async function renderPats() {
-    const el = document.getElementById('pat-list');
+    const el = $id('pat-list');
     if (!el) return;
     el.innerHTML = '<div class="pat-loading">A carregar...</div>';
 
     // Sync tab UI
     ['pendentes','levantadas','historico'].forEach(t => {
-        document.getElementById(`pat-tab-${t}`)?.classList.toggle('active', _patTab === t);
+        $id(`pat-tab-${t}`)?.classList.toggle('active', _patTab === t);
     });
-    const guiaFilter = document.getElementById('pat-guia-filter');
+    const guiaFilter = $id('pat-guia-filter');
     const showGuiaFilter = _patTab === 'levantadas' || _patTab === 'historico';
     if (guiaFilter) guiaFilter.style.display = showGuiaFilter ? 'flex' : 'none';
-    const soGuias = showGuiaFilter && document.getElementById('pat-guia-only')?.checked;
+    const soGuias = showGuiaFilter && $id('pat-guia-only').checked;
 
     const pats = await _fetchPats();
     let entries = Object.entries(pats || {})
@@ -7041,8 +6921,7 @@ async function renderPats() {
 
         if (isMobile) {
             // ── KPI row mobile: pills + botão Levantar várias ──────────────
-            const kpiRow = document.createElement('div');
-            kpiRow.className = 'pat-kpi-row';
+            const kpiRow = $el('div', { className: 'pat-kpi-row' });
             kpiRow.id = 'pat-kpi-row';
             kpiRow.innerHTML = `
                 <div class="pat-kpi-pill">
@@ -7065,8 +6944,7 @@ async function renderPats() {
             el.appendChild(kpiRow);
         } else {
             // ── Count bar desktop (mantém comportamento original) ──────────
-            const countBar = document.createElement('div');
-            countBar.className = 'pat-count-bar';
+            const countBar = $el('div', { className: 'pat-count-bar' });
             countBar.innerHTML = `<span class="pat-count-lbl">${entries.length} pedido${entries.length !== 1 ? 's' : ''} pendente${entries.length !== 1 ? 's' : ''}</span>`
                 + (urgentes > 0 ? `<span class="pat-count-badge">${urgentes} urgente${urgentes !== 1 ? 's' : ''} (+15 dias)</span>` : '');
             el.appendChild(countBar);
@@ -7076,10 +6954,10 @@ async function renderPats() {
         updatePatCount();
 
         // Actualizar contador na tab
-        const tabEl = document.getElementById('pat-tab-pendentes');
+        const tabEl = $id('pat-tab-pendentes');
         if (tabEl) {
             let cnt = tabEl.querySelector('.pat-tab-cnt');
-            if (!cnt) { cnt = document.createElement('span'); cnt.className = 'pat-tab-cnt'; tabEl.appendChild(cnt); }
+            if (!cnt) { cnt = $el('span'); cnt.className = 'pat-tab-cnt'; tabEl.appendChild(cnt); }
             cnt.textContent = entries.length;
         }
         return;
@@ -7096,8 +6974,7 @@ async function renderPats() {
 
     sortedGroups.forEach(([func, items]) => {
         // Cabeçalho do grupo
-        const header = document.createElement('div');
-        header.className = 'pat-group-header';
+        const header = $el('div', { className: 'pat-group-header' });
         header.innerHTML = `
             <div class="pat-group-info">
                 <span class="pat-group-avatar">${func === '—' ? '?' : func[0].toUpperCase()}</span>
@@ -7147,44 +7024,38 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
     if (isSelected) cardClass += ' pat-card-selected';
     if (isLev)      cardClass += ' pat-card-levantada';
     if (isHist)     cardClass += ' pat-card-historico';
-    const card = document.createElement('div');
+    const card = $el('div');
     card.className = cardClass;
 
     // ── Accent bar (flex, não absolute) ──────────────────────────────────
-    const accent = document.createElement('div');
-    accent.className = 'pat-card-accent';
+    const accent = $el('div', { className: 'pat-card-accent' });
     accent.style.background = accentColor;
     card.appendChild(accent);
 
     // ── Body principal ────────────────────────────────────────────────────
-    const body = document.createElement('div');
-    body.className = 'pat-card-body-desktop';
+    const body = $el('div', { className: 'pat-card-body-desktop' });
 
     // Top: badges + dias
-    const topRow = document.createElement('div');
-    topRow.className = 'pat-card-top';
-    const topLeft = document.createElement('div');
-    topLeft.className = 'pat-card-top-left';
+    const topRow = $el('div', { className: 'pat-card-top' });
+    const topLeft = $el('div', { className: 'pat-card-top-left' });
 
     // Checkbox selecção
     if (_patSelMode) {
-        const cb = document.createElement('span');
+        const cb = $el('span');
         cb.className = 'pat-sel-cb' + (isSelected ? ' checked' : '');
         cb.innerHTML = isSelected ? _PAT_CHECK_SVG : '';
         topLeft.appendChild(cb);
     }
 
     // Badge número PAT
-    const patBadge = document.createElement('span');
+    const patBadge = $el('span');
     patBadge.className   = 'pat-badge' + (urgente ? ' pat-badge-urgente' : '');
     patBadge.textContent = 'PAT ' + (pat.numero || '—');
     topLeft.appendChild(patBadge);
 
     // Tag separação / guia
     if (separacao) {
-        const sepTag = document.createElement('span');
-        sepTag.className   = 'pat-sep-tag';
-        sepTag.textContent = 'Guia Transporte';
+        const sepTag = $el('span', { className: 'pat-sep-tag', textContent: 'Guia Transporte' });
         topLeft.appendChild(sepTag);
     }
 
@@ -7192,8 +7063,7 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
     if (tab === 'pendentes') {
         const dupCount = estabCount[nomeNorm] || 0;
         if (dupCount > 1) {
-            const dupBadge = document.createElement('span');
-            dupBadge.className     = 'pat-dup-badge';
+            const dupBadge = $el('span', { className: 'pat-dup-badge' });
             dupBadge.dataset.estab = nomeNorm;
             dupBadge.textContent   = `! ${dupCount} pedidos`;
             topLeft.appendChild(dupBadge);
@@ -7201,7 +7071,7 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
     }
 
     // Dias / data
-    const diasSpan = document.createElement('span');
+    const diasSpan = $el('span');
     diasSpan.className = 'pat-dias' + (urgente ? ' pat-dias-urgente' : '');
     if (isHist && pat.saidaEm) {
         diasSpan.textContent = new Date(pat.saidaEm).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
@@ -7214,13 +7084,11 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
     topRow.appendChild(diasSpan);
 
     // Estabelecimento
-    const estabDiv = document.createElement('div');
-    estabDiv.className   = 'pat-card-estab';
+    const estabDiv = $el('div', { className: 'pat-card-estab' });
     estabDiv.textContent = pat.estabelecimento || 'Sem estabelecimento';
 
     // Meta: técnico + data criação
-    const metaRow = document.createElement('div');
-    metaRow.className = 'pat-card-meta';
+    const metaRow = $el('div', { className: 'pat-card-meta' });
     const USER_SVG = '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>';
     const CAL_SVG  = '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
     if (pat.funcionario || pat.criadoEm) {
@@ -7229,11 +7097,9 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
     }
 
     // Produtos chips
-    const prodsDiv = document.createElement('div');
-    prodsDiv.className = 'pat-card-produtos';
+    const prodsDiv = $el('div', { className: 'pat-card-produtos' });
     (pat.produtos || []).forEach(p => {
-        const chip = document.createElement('span');
-        chip.className   = 'pat-prod-chip';
+        const chip = $el('span', { className: 'pat-prod-chip' });
         chip.textContent = (p.codigo || '?') + ' × ' + (p.quantidade || 1);
         prodsDiv.appendChild(chip);
     });
@@ -7244,15 +7110,14 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
 
     // Pills de progresso (Pendente → Com Guia → Separação)
     if (tab === 'pendentes' || tab === 'levantadas') {
-        const stepsDiv = document.createElement('div');
-        stepsDiv.className = 'pat-steps';
+        const stepsDiv = $el('div', { className: 'pat-steps' });
         const steps = [
             { label: 'Pendente',  done: true },
             { label: 'Com Guia',  done: separacao },
             { label: 'Separação', done: separacao && isLev },
         ];
         steps.forEach(s => {
-            const pill = document.createElement('div');
+            const pill = $el('div');
             pill.className = 'pat-step-pill ' + (s.done ? 'done' : 'pending');
             pill.textContent = s.label;
             stepsDiv.appendChild(pill);
@@ -7266,61 +7131,51 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
 
     // ── Localização ───────────────────────────────────────────────────────
     if (pat.localidade || pat.morada) {
-        const locDiv = document.createElement('div');
-        locDiv.className = 'pat-card-loc';
+        const locDiv = $el('div', { className: 'pat-card-loc' });
         locDiv.innerHTML = `<span class="pat-card-loc-label">Localização</span>
                             <span class="pat-card-loc-val">${pat.localidade || pat.morada || ''}</span>`;
         card.appendChild(locDiv);
     }
 
     // ── Acção ─────────────────────────────────────────────────────────────
-    const actionDiv = document.createElement('div');
-    actionDiv.className = 'pat-card-action';
+    const actionDiv = $el('div', { className: 'pat-card-action' });
     actionDiv.onclick   = e => e.stopPropagation();
 
     if (_patSelMode) {
-        const btnRefs = document.createElement('button');
-        btnRefs.className = 'pat-btn-refs';
+        const btnRefs = $el('button', { className: 'pat-btn-refs' });
         btnRefs.innerHTML = _PAT_EDIT_SVG + ' Refs';
         btnRefs.onclick = e => { e.stopPropagation(); openPatRefsModal(id, pat); };
         actionDiv.appendChild(btnRefs);
     } else if (tab === 'pendentes') {
-        const btnEdit = document.createElement('button');
-        btnEdit.className = 'pat-btn-edit';
+        const btnEdit = $el('button', { className: 'pat-btn-edit' });
         btnEdit.innerHTML = _PAT_EDIT_SVG;
         btnEdit.title     = 'Editar PAT';
         btnEdit.onclick   = () => openEditPat(id, pat);
-        const btnLev = document.createElement('button');
-        btnLev.className = 'pat-btn-levantado';
+        const btnLev = $el('button', { className: 'pat-btn-levantado' });
         btnLev.innerHTML = _PAT_CHECK_SVG + ' Levantar ' + _PAT_ARR_SVG;
         btnLev.onclick   = () => marcarPatLevantado(id);
-        const btnDel = document.createElement('button');
-        btnDel.className = 'pat-btn-apagar';
+        const btnDel = $el('button', { className: 'pat-btn-apagar' });
         btnDel.innerHTML = _PAT_DEL_SVG;
         btnDel.onclick   = () => apagarPat(id);
         actionDiv.appendChild(btnEdit);
         actionDiv.appendChild(btnLev);
         actionDiv.appendChild(btnDel);
     } else if (tab === 'levantadas') {
-        const btnEdit = document.createElement('button');
-        btnEdit.className = 'pat-btn-edit';
+        const btnEdit = $el('button', { className: 'pat-btn-edit' });
         btnEdit.innerHTML = _PAT_EDIT_SVG;
         btnEdit.title     = 'Editar PAT';
         btnEdit.onclick   = () => openEditPat(id, pat);
-        const btnSaida = document.createElement('button');
-        btnSaida.className = 'pat-btn-guia';
+        const btnSaida = $el('button', { className: 'pat-btn-guia' });
         btnSaida.innerHTML = _PAT_INFO_SVG + ' Detalhes';
         btnSaida.onclick   = () => darSaidaPat(id);
-        const btnDel = document.createElement('button');
-        btnDel.className = 'pat-btn-apagar';
+        const btnDel = $el('button', { className: 'pat-btn-apagar' });
         btnDel.innerHTML = _PAT_DEL_SVG;
         btnDel.onclick   = () => apagarPat(id);
         actionDiv.appendChild(btnEdit);
         actionDiv.appendChild(btnSaida);
         actionDiv.appendChild(btnDel);
     } else if (tab === 'historico') {
-        const btnDel = document.createElement('button');
-        btnDel.className = 'pat-btn-apagar';
+        const btnDel = $el('button', { className: 'pat-btn-apagar' });
         btnDel.innerHTML = _PAT_DEL_SVG;
         btnDel.onclick   = () => apagarPat(id);
         actionDiv.appendChild(btnDel);
@@ -7344,7 +7199,7 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
 
 // ── MOBILE: layout original com bar absolute e acções em baixo ────────────────
 function _buildPatCardMobile(id, pat, tab, estabCount) {
-    const card = document.createElement('div');
+    const card = $el('div');
     const separacao  = !!pat.separacao;
     const isLev      = tab === 'levantadas';
     const isHist     = tab === 'historico';
@@ -7361,46 +7216,39 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
     if (isSelected)            cardClass += ' pat-card-selected';
     card.className = cardClass;
 
-    const bar = document.createElement('div');
-    bar.className = 'pat-card-bar';
+    const bar = $el('div', { className: 'pat-card-bar' });
     card.appendChild(bar);
 
-    const body = document.createElement('div');
-    body.className = 'pat-card-body';
+    const body = $el('div', { className: 'pat-card-body' });
 
-    const cardTop = document.createElement('div');
-    cardTop.className = 'pat-card-top';
-    const cardTopLeft = document.createElement('div');
-    cardTopLeft.className = 'pat-card-top-left';
+    const cardTop = $el('div', { className: 'pat-card-top' });
+    const cardTopLeft = $el('div', { className: 'pat-card-top-left' });
 
     // Checkbox selecção (sempre visível no mobile, à direita)
-    const cb = document.createElement('div');
+    const cb = $el('div');
     cb.className = 'pat-sel-cb' + (isSelected ? ' checked' : '');
 
-    const patBadge = document.createElement('span');
+    const patBadge = $el('span');
     patBadge.className   = 'pat-badge' + (urgente ? ' pat-badge-urgente' : '');
     patBadge.textContent = 'PAT ' + (pat.numero || '—');
     cardTopLeft.appendChild(patBadge);
 
     if (separacao) {
-        const sepTag = document.createElement('span');
-        sepTag.className   = 'pat-sep-tag';
-        sepTag.textContent = 'Guia Transporte';
+        const sepTag = $el('span', { className: 'pat-sep-tag', textContent: 'Guia Transporte' });
         cardTopLeft.appendChild(sepTag);
     }
 
     if (tab === 'pendentes') {
         const dupCount = estabCount[nomeNorm] || 0;
         if (dupCount > 1) {
-            const dupBadge = document.createElement('span');
-            dupBadge.className     = 'pat-dup-badge';
+            const dupBadge = $el('span', { className: 'pat-dup-badge' });
             dupBadge.dataset.estab = nomeNorm;
             dupBadge.textContent   = `! ${dupCount} pedidos`;
             cardTopLeft.appendChild(dupBadge);
         }
     }
 
-    const diasSpan = document.createElement('span');
+    const diasSpan = $el('span');
     diasSpan.className = 'pat-dias' + (urgente ? ' pat-dias-urgente' : '');
     if (isHist && pat.saidaEm) {
         const d = new Date(pat.saidaEm);
@@ -7416,55 +7264,45 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
     // Modo selecção: mostra checkbox; normal: mostra dias
     cardTop.appendChild(_patSelMode ? cb : diasSpan);
 
-    const estabDiv = document.createElement('div');
-    estabDiv.className   = 'pat-card-estab';
+    const estabDiv = $el('div', { className: 'pat-card-estab' });
     estabDiv.textContent = pat.estabelecimento || 'Sem estabelecimento';
 
     // Meta: técnico + data
-    const metaMobile = document.createElement('div');
-    metaMobile.className = 'pat-card-meta-mobile';
+    const metaMobile = $el('div', { className: 'pat-card-meta-mobile' });
     const _M_USER = '<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>';
     const _M_CAL  = '<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
     if (pat.funcionario) metaMobile.innerHTML += `<span>${_M_USER} ${pat.funcionario}</span>`;
     if (pat.criadoEm)    metaMobile.innerHTML += `<span>${_M_CAL} ${new Date(pat.criadoEm).toLocaleDateString('pt-PT')}</span>`;
 
-    const prodsDiv = document.createElement('div');
-    prodsDiv.className = 'pat-card-produtos';
+    const prodsDiv = $el('div', { className: 'pat-card-produtos' });
     (pat.produtos || []).forEach(p => {
-        const chip = document.createElement('span');
-        chip.className   = 'pat-prod-chip';
+        const chip = $el('span', { className: 'pat-prod-chip' });
         chip.textContent = (p.codigo || '?') + ' × ' + (p.quantidade || 1);
         prodsDiv.appendChild(chip);
     });
 
     const MAP_SVG = '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>';
 
-    const actionsDiv = document.createElement('div');
-    actionsDiv.className = 'pat-card-actions';
+    const actionsDiv = $el('div', { className: 'pat-card-actions' });
     actionsDiv.onclick   = e => e.stopPropagation();
 
     if (_patSelMode) {
-        const btnRefs = document.createElement('button');
-        btnRefs.className = 'pat-btn-refs';
+        const btnRefs = $el('button', { className: 'pat-btn-refs' });
         btnRefs.innerHTML = _PAT_EDIT_SVG + ' Refs';
         btnRefs.onclick = e => { e.stopPropagation(); openPatRefsModal(id, pat); };
         actionsDiv.appendChild(btnRefs);
     } else if (tab === 'pendentes') {
-        const btnEdit = document.createElement('button');
-        btnEdit.className = 'pat-btn-edit';
+        const btnEdit = $el('button', { className: 'pat-btn-edit' });
         btnEdit.innerHTML = _PAT_EDIT_SVG;
         btnEdit.title     = 'Editar PAT';
         btnEdit.onclick   = () => openEditPat(id, pat);
-        const btnLev = document.createElement('button');
-        btnLev.className = 'pat-btn-levantado';
+        const btnLev = $el('button', { className: 'pat-btn-levantado' });
         btnLev.innerHTML = _PAT_CHECK_SVG + ' Levantar ' + _PAT_ARR_SVG;
         btnLev.onclick   = () => marcarPatLevantado(id);
-        const btnDel = document.createElement('button');
-        btnDel.className = 'pat-btn-apagar';
+        const btnDel = $el('button', { className: 'pat-btn-apagar' });
         btnDel.innerHTML = _PAT_DEL_SVG;
         btnDel.onclick   = () => apagarPat(id);
-        const btnMapa = document.createElement('button');
-        btnMapa.className = 'pat-btn-mapa';
+        const btnMapa = $el('button', { className: 'pat-btn-mapa' });
         btnMapa.innerHTML = MAP_SVG + (pat.localidade || pat.morada || 'Mapa');
         btnMapa.onclick   = () => openPatMap();
         actionsDiv.appendChild(btnEdit);
@@ -7472,25 +7310,21 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
         actionsDiv.appendChild(btnDel);
         actionsDiv.appendChild(btnMapa);
     } else if (tab === 'levantadas') {
-        const btnEdit = document.createElement('button');
-        btnEdit.className = 'pat-btn-edit';
+        const btnEdit = $el('button', { className: 'pat-btn-edit' });
         btnEdit.innerHTML = _PAT_EDIT_SVG;
         btnEdit.title     = 'Editar PAT';
         btnEdit.onclick   = () => openEditPat(id, pat);
-        const btnSaida = document.createElement('button');
-        btnSaida.className = 'pat-btn-guia';
+        const btnSaida = $el('button', { className: 'pat-btn-guia' });
         btnSaida.innerHTML = _PAT_INFO_SVG + ' Detalhes';
         btnSaida.onclick   = () => darSaidaPat(id);
-        const btnDel = document.createElement('button');
-        btnDel.className = 'pat-btn-apagar';
+        const btnDel = $el('button', { className: 'pat-btn-apagar' });
         btnDel.innerHTML = _PAT_DEL_SVG;
         btnDel.onclick   = () => apagarPat(id);
         actionsDiv.appendChild(btnEdit);
         actionsDiv.appendChild(btnSaida);
         actionsDiv.appendChild(btnDel);
     } else if (tab === 'historico') {
-        const btnDel = document.createElement('button');
-        btnDel.className = 'pat-btn-apagar';
+        const btnDel = $el('button', { className: 'pat-btn-apagar' });
         btnDel.innerHTML = _PAT_DEL_SVG;
         btnDel.onclick   = () => apagarPat(id);
         actionsDiv.appendChild(btnDel);
@@ -7521,13 +7355,13 @@ function setPatTab(tab) {
     _patTab      = tab;
     _patSelMode  = false;
     _patSelIds.clear();
-    const bar = document.getElementById('pat-sel-bar');
+    const bar = $id('pat-sel-bar');
     if (bar) bar.style.display = 'none';
-    const searchEl = document.getElementById('pat-search');
+    const searchEl = $id('pat-search');
     if (searchEl) searchEl.value = '';
     _patSearchQuery = '';
     if (tab === 'pendentes') {
-        const cbEl = document.getElementById('pat-guia-only');
+        const cbEl = $id('pat-guia-only');
         if (cbEl) cbEl.checked = false;
     }
     renderPats();
@@ -7535,8 +7369,8 @@ function setPatTab(tab) {
 
 // ── Levantar Encomenda — modal de funcionário ─────────────
 async function openLevantarModal() {
-    const modal = document.getElementById('levantar-modal');
-    const list  = document.getElementById('levantar-worker-list');
+    const modal = $id('levantar-modal');
+    const list  = $id('levantar-worker-list');
     if (!modal || !list) return;
 
     list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem">A carregar...</div>';
@@ -7551,15 +7385,14 @@ async function openLevantarModal() {
         return;
     }
     workers.forEach(w => {
-        const opt = document.createElement('div');
-        opt.className   = 'worker-option';
+        const opt = $el('div', { className: 'worker-option' });
         opt.textContent = w.nome;
         opt.onclick     = () => { closeLevantarModal(); startLevantarMode(w.nome); };
         list.appendChild(opt);
     });
 }
 function closeLevantarModal() {
-    document.getElementById('levantar-modal')?.classList.remove('active');
+    $id('levantar-modal')?.classList.remove('active');
 }
 
 // ── Modo de seleção para levantar ─────────────────────────
@@ -7568,9 +7401,9 @@ function startLevantarMode(workerNome) {
     _patSelMode   = true;
     _patSelWorker = workerNome;
     _patSelIds.clear();
-    const bar = document.getElementById('pat-sel-bar');
+    const bar = $id('pat-sel-bar');
     if (bar) bar.style.display = 'flex';
-    const workerEl = document.getElementById('pat-sel-worker');
+    const workerEl = $id('pat-sel-worker');
     if (workerEl) workerEl.textContent = workerNome;
     _updateLevantarBtn();
     renderPats();
@@ -7580,7 +7413,7 @@ function cancelLevantarMode() {
     _patSelMode   = false;
     _patSelWorker = '';
     _patSelIds.clear();
-    const bar = document.getElementById('pat-sel-bar');
+    const bar = $id('pat-sel-bar');
     if (bar) bar.style.display = 'none';
     renderPats();
 }
@@ -7600,7 +7433,7 @@ function patSelToggleAll() {
 }
 
 function _updateLevantarBtn() {
-    const btn = document.getElementById('pat-levantar-btn');
+    const btn = $id('pat-levantar-btn');
     if (!btn) return;
     btn.textContent = `Levantar ${_patSelIds.size}`;
     btn.disabled    = _patSelIds.size === 0;
@@ -7617,7 +7450,7 @@ async function levantarSelectedPats() {
         desc: `Serão marcadas como levantadas por ${worker}. As que têm guia de transporte descontam stock.`,
         onConfirm: async () => {
             // Mostrar feedback imediato
-            const levBtn = document.getElementById('pat-levantar-btn');
+            const levBtn = $id('pat-levantar-btn');
             if (levBtn) { levBtn.disabled = true; levBtn.textContent = 'A processar...'; }
             try {
                 const ts = Date.now();
@@ -7675,7 +7508,7 @@ async function levantarSelectedPats() {
                 showToast(`${ids.length} PAT${ids.length > 1 ? 's' : ''} levantada${ids.length > 1 ? 's' : ''} por ${worker}!`);
             } catch(_e) {
                 showToast('Erro ao levantar pedidos', 'error');
-                const levBtn = document.getElementById('pat-levantar-btn');
+                const levBtn = $id('pat-levantar-btn');
                 if (levBtn) { levBtn.disabled = false; levBtn.textContent = `Levantar ${_patSelIds.size}`; }
             }
         }
@@ -7750,24 +7583,24 @@ let _patRefsDDIdx = -1;
 function openPatRefsModal(id, pat) {
     _patRefsId   = id;
     _patRefsList = (pat.produtos || []).map(p => ({ ...p }));
-    document.getElementById('pat-refs-title').textContent  = 'PAT ' + (pat.numero || '');
-    document.getElementById('pat-refs-estab').textContent  = pat.estabelecimento || '';
-    document.getElementById('pat-refs-search').value       = '';
-    document.getElementById('pat-refs-dropdown').innerHTML = '';
+    $id('pat-refs-title').textContent  = 'PAT ' + (pat.numero || '');
+    $id('pat-refs-estab').textContent  = pat.estabelecimento || '';
+    $id('pat-refs-search').value       = '';
+    $id('pat-refs-dropdown').innerHTML = '';
     _renderRefsChips();
-    document.getElementById('pat-refs-modal').classList.add('active');
+    modalOpen('pat-refs-modal');
     focusModal('pat-refs-modal');
-    setTimeout(() => document.getElementById('pat-refs-search').focus(), 80);
+    setTimeout(() => $id('pat-refs-search').focus(), 80);
 }
 
 function closePatRefsModal() {
-    document.getElementById('pat-refs-modal').classList.remove('active');
+    modalClose('pat-refs-modal');
     _patRefsId = null;
 }
 
 function patRefsSearch(val) {
     _patRefsDDIdx = -1;
-    const dd = document.getElementById('pat-refs-dropdown');
+    const dd = $id('pat-refs-dropdown');
     const q  = val.trim().toLowerCase();
     if (!q) { dd.innerHTML = ''; return; }
 
@@ -7786,16 +7619,14 @@ function patRefsSearch(val) {
     // Opção de adicionar manualmente se não há resultado exacto
     const exactMatch = Object.values(stock).some(i => (i.codigo||'').toLowerCase() === q);
     if (!exactMatch) {
-        const manual = document.createElement('div');
-        manual.className = 'pat-dd-option pat-dd-manual';
+        const manual = $el('div', { className: 'pat-dd-option pat-dd-manual' });
         manual.innerHTML = `<span class="pat-dd-code">${escapeHtml(val.trim().toUpperCase())}</span><span class="pat-dd-name" style="color:var(--text-muted)">→ Adicionar manual</span>`;
         manual.onmousedown = (e) => { e.preventDefault(); patRefsAddManual(val.trim()); };
         dd.appendChild(manual);
     }
 
     matches.forEach(([id, item], i) => {
-        const opt = document.createElement('div');
-        opt.className = 'pat-dd-option';
+        const opt = $el('div', { className: 'pat-dd-option' });
         opt.dataset.idx = i;
         opt.innerHTML = `
             <span class="pat-dd-code">${escapeHtml((item.codigo||'SEMREF').toUpperCase())}</span>
@@ -7811,9 +7642,9 @@ function patRefsSearch(val) {
 }
 
 function patRefsKeydown(e) {
-    const dd   = document.getElementById('pat-refs-dropdown');
+    const dd   = $id('pat-refs-dropdown');
     const opts = dd.querySelectorAll('.pat-dd-option');
-    const val  = document.getElementById('pat-refs-search').value.trim();
+    const val  = $id('pat-refs-search').value.trim();
     if (e.key === 'Enter') {
         e.preventDefault();
         if (_patRefsDDIdx >= 0 && opts[_patRefsDDIdx]) {
@@ -7840,9 +7671,9 @@ function patRefsKeydown(e) {
 function patRefsAddFromStock(id, item) {
     if (_patRefsList.some(p => p.id === id)) return;
     _patRefsList.push({ id, codigo: (item.codigo||'SEMREF').toUpperCase(), nome: item.nome||'', quantidade: 1 });
-    document.getElementById('pat-refs-search').value = '';
-    document.getElementById('pat-refs-dropdown').innerHTML = '';
-    document.getElementById('pat-refs-search').focus();
+    $id('pat-refs-search').value = '';
+    $id('pat-refs-dropdown').innerHTML = '';
+    $id('pat-refs-search').focus();
     _renderRefsChips();
 }
 
@@ -7851,9 +7682,9 @@ function patRefsAddManual(raw) {
     if (!codigo) return;
     if (_patRefsList.some(p => p.codigo === codigo && !p.id)) return;
     _patRefsList.push({ id: null, codigo, nome: '', quantidade: 1 });
-    document.getElementById('pat-refs-search').value = '';
-    document.getElementById('pat-refs-dropdown').innerHTML = '';
-    document.getElementById('pat-refs-search').focus();
+    $id('pat-refs-search').value = '';
+    $id('pat-refs-dropdown').innerHTML = '';
+    $id('pat-refs-search').focus();
     _renderRefsChips();
 }
 
@@ -7868,11 +7699,10 @@ function patRefsSetQty(codigo, val) {
 }
 
 function _renderRefsChips() {
-    const el = document.getElementById('pat-refs-chips');
+    const el = $id('pat-refs-chips');
     el.innerHTML = '';
     _patRefsList.forEach(p => {
-        const chip = document.createElement('div');
-        chip.className = 'pat-chip';
+        const chip = $el('div', { className: 'pat-chip' });
         chip.innerHTML = `
             <div class="pat-chip-info">
                 <span class="pat-chip-code">${escapeHtml(p.codigo)}</span>
@@ -7913,35 +7743,35 @@ async function savePatRefs() {
 
 function openPatModal() {
     _patProducts = [];
-    document.getElementById('pat-edit-id').value            = '';
-    document.getElementById('pat-numero').value              = '';
-    document.getElementById('pat-numero').readOnly           = false;
-    document.getElementById('pat-cliente-num').value         = '';
-    document.getElementById('pat-cliente-id').value          = '';
-    document.getElementById('pat-client-dropdown').innerHTML = '';
-    document.getElementById('pat-estabelecimento').value     = '';
-    document.getElementById('pat-product-search').value      = '';
-    document.getElementById('pat-product-dropdown').innerHTML = '';
-    document.getElementById('pat-product-chips').innerHTML   = '';
-    document.getElementById('pat-numero-hint').textContent   = '';
-    document.getElementById('pat-separacao').checked         = false;
-    document.getElementById('pat-modal-title').textContent   = 'Novo Pedido';
+    $id('pat-edit-id').value            = '';
+    $id('pat-numero').value              = '';
+    $id('pat-numero').readOnly           = false;
+    $id('pat-cliente-num').value         = '';
+    $id('pat-cliente-id').value          = '';
+    $id('pat-client-dropdown').innerHTML = '';
+    $id('pat-estabelecimento').value     = '';
+    $id('pat-product-search').value      = '';
+    $id('pat-product-dropdown').innerHTML = '';
+    $id('pat-product-chips').innerHTML   = '';
+    $id('pat-numero-hint').textContent   = '';
+    $id('pat-separacao').checked         = false;
+    $id('pat-modal-title').textContent   = 'Novo Pedido';
     _fetchClientes();
-    document.getElementById('pat-modal').classList.add('active');
+    modalOpen('pat-modal');
     focusModal('pat-modal');
-    setTimeout(() => document.getElementById('pat-numero').focus(), 80);
+    setTimeout(() => $id('pat-numero').focus(), 80);
 }
 
 async function openEditPat(id, pat) {
     // Preencher o modal com os dados da PAT existente
     _patProducts = (pat.produtos || []).map(p => ({ ...p }));
 
-    document.getElementById('pat-edit-id').value            = id;
-    document.getElementById('pat-modal-title').textContent  = `Editar PAT ${pat.numero || ''}`;
-    document.getElementById('pat-numero').value             = pat.numero || '';
-    document.getElementById('pat-numero').readOnly          = true; // nº PAT não pode ser alterado
-    document.getElementById('pat-numero-hint').textContent  = '';
-    document.getElementById('pat-separacao').checked        = !!pat.separacao;
+    $id('pat-edit-id').value            = id;
+    $id('pat-modal-title').textContent  = `Editar PAT ${pat.numero || ''}`;
+    $id('pat-numero').value             = pat.numero || '';
+    $id('pat-numero').readOnly          = true; // nº PAT não pode ser alterado
+    $id('pat-numero-hint').textContent  = '';
+    $id('pat-separacao').checked        = !!pat.separacao;
 
     // Cliente — tentar preencher clienteId se estiver em falta
     let clienteId = pat.clienteId || '';
@@ -7965,26 +7795,26 @@ async function openEditPat(id, pat) {
         }
     }
 
-    document.getElementById('pat-cliente-num').value         = clienteNum;
-    document.getElementById('pat-cliente-id').value          = clienteId;
-    document.getElementById('pat-client-dropdown').innerHTML = '';
-    document.getElementById('pat-estabelecimento').value     = estab;
+    $id('pat-cliente-num').value         = clienteNum;
+    $id('pat-cliente-id').value          = clienteId;
+    $id('pat-client-dropdown').innerHTML = '';
+    $id('pat-estabelecimento').value     = estab;
 
     // Renderizar chips de produtos
-    document.getElementById('pat-product-chips').innerHTML = '';
+    $id('pat-product-chips').innerHTML = '';
     _renderPatChips();
-    document.getElementById('pat-product-search').value      = '';
-    document.getElementById('pat-product-dropdown').innerHTML = '';
+    $id('pat-product-search').value      = '';
+    $id('pat-product-dropdown').innerHTML = '';
 
     _fetchClientes();
-    document.getElementById('pat-modal').classList.add('active');
+    modalOpen('pat-modal');
     focusModal('pat-modal');
-    setTimeout(() => document.getElementById('pat-estabelecimento').focus(), 80);
+    setTimeout(() => $id('pat-estabelecimento').focus(), 80);
 }
 
 function closePatModal() {
-    document.getElementById('pat-modal').classList.remove('active');
-    document.getElementById('pat-product-dropdown').innerHTML = '';
+    modalClose('pat-modal');
+    $id('pat-product-dropdown').innerHTML = '';
 }
 
 // =============================================
@@ -8011,14 +7841,14 @@ function _isProxyUrl(val) {
 }
 
 function saveAnthropicKey() {
-    const val = document.getElementById('inp-anthropic-key').value.trim();
+    const val = $id('inp-anthropic-key').value.trim();
     if (val && !_isProxyUrl(val) && !val.startsWith('sk-ant-')) {
         showToast('Valor inválido — introduz o URL do Worker (https://...) ou uma chave sk-ant-...', 'error');
         return;
     }
     if (val) {
         sessionStorage.setItem(ANTHROPIC_KEY_STORAGE, val);
-        document.getElementById('inp-anthropic-key').value = '';
+        $id('inp-anthropic-key').value = '';
         const tipo = _isProxyUrl(val) ? 'Proxy configurado' : 'Chave configurada';
         showToast(`${tipo} — OCR por foto usa agora Claude Vision ✓`, 'ok');
     } else {
@@ -8042,7 +7872,7 @@ function _updateOcrKeyStatus() {
         color = 'var(--ok, #16a34a)';
     }
     ['ocr-api-status', 'ocr-api-status-modal'].forEach(id => {
-        const el = document.getElementById(id);
+        const el = $id(id);
         if (el) { el.textContent = text; el.style.color = color; }
     });
 }
@@ -8052,14 +7882,14 @@ function openOcrSettings() {
     _loadOcrKeywordsInput();
     // Pré-preenche o campo da chave
     const key = _getAnthropicKey();
-    const inp = document.getElementById('inp-anthropic-key');
+    const inp = $id('inp-anthropic-key');
     if (inp && key) inp.value = key;
-    document.getElementById('ocr-settings-modal').classList.add('active');
+    modalOpen('ocr-settings-modal');
     focusModal('ocr-settings-modal');
 }
 
 function closeOcrSettings() {
-    document.getElementById('ocr-settings-modal').classList.remove('active');
+    modalClose('ocr-settings-modal');
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -8075,16 +7905,16 @@ function _getSerpApiKey() {
 }
 
 function openGimgSettings() {
-    const keyInp = document.getElementById('gimg-api-key-input');
+    const keyInp = $id('gimg-api-key-input');
     if (keyInp) keyInp.value = _getSerpApiKey();
-    document.getElementById('gimg-settings-modal')?.classList.add('active');
+    $id('gimg-settings-modal')?.classList.add('active');
     focusModal('gimg-settings-modal');
 }
 function closeGimgSettings() {
-    document.getElementById('gimg-settings-modal')?.classList.remove('active');
+    $id('gimg-settings-modal')?.classList.remove('active');
 }
 function saveGimgKeys() {
-    const key = document.getElementById('gimg-api-key-input')?.value.trim();
+    const key = $id('gimg-api-key-input')?.value.trim();
     if (!key) { showToast('Cola a chave SerpApi', 'error'); return; }
     localStorage.setItem(GIMG_KEY_STORAGE, key);
     showToast('Chave SerpApi guardada ✓');
@@ -8106,8 +7936,8 @@ function clearGimgKeys() {
 // os restantes via DELETE na Firebase.
 // ══════════════════════════════════════════════════════════════════════════
 async function runDedup() {
-    const btn    = document.getElementById('dedup-btn');
-    const status = document.getElementById('dedup-status');
+    const btn    = $id('dedup-btn');
+    const status = $id('dedup-status');
 
     if (btn) { btn.disabled = true; btn.textContent = 'A varrer...'; }
     if (status) status.textContent = 'A ler base de dados…';
@@ -8208,7 +8038,7 @@ async function runDedup() {
 
 function _updateGimgStatus() {
     const key = _getSerpApiKey();
-    const el = document.getElementById('gimg-api-status');
+    const el = $id('gimg-api-status');
     if (el) el.textContent = key
         ? 'SerpApi configurada — pesquisa automática activa'
         : 'Não configurada — configura o SerpApi para pesquisa automática';
@@ -8216,9 +8046,9 @@ function _updateGimgStatus() {
 
 // ── Pré-visualização ao colar URL manual ─────────────────────────────────
 function imgUrlPreview(url) {
-    const thumb       = document.getElementById('img-edit-thumb');
-    const placeholder = document.getElementById('img-edit-placeholder');
-    const clearBtn    = document.getElementById('img-clear-btn');
+    const thumb       = $id('img-edit-thumb');
+    const placeholder = $id('img-edit-placeholder');
+    const clearBtn    = $id('img-clear-btn');
     if (!thumb) return;
     if (url && url.startsWith('http')) {
         thumb.src             = url;
@@ -8233,18 +8063,18 @@ function imgUrlPreview(url) {
 }
 
 function imgClear() {
-    const inp = document.getElementById('edit-img-url');
+    const inp = $id('edit-img-url');
     if (inp) inp.value = '';
     imgUrlPreview('');
-    document.getElementById('img-search-results').style.display = 'none';
+    $id('img-search-results').style.display = 'none';
 }
 
 // Carrega imgUrl no modal quando se abre editar produto
 function _loadImgEdit(imgUrl) {
-    const inp = document.getElementById('edit-img-url');
+    const inp = $id('edit-img-url');
     if (inp) inp.value = imgUrl || '';
     imgUrlPreview(imgUrl || '');
-    document.getElementById('img-search-results').style.display = 'none';
+    $id('img-search-results').style.display = 'none';
 }
 
 // ── Pesquisa automática SerpApi Google Images ────────────────────────────
@@ -8252,8 +8082,8 @@ function _loadImgEdit(imgUrl) {
 const SERPAPI_ENDPOINT = 'https://serpapi.com/search.json';
 
 async function imgSearchAuto() {
-    const btn    = document.getElementById('img-search-btn');
-    const nome   = document.getElementById('edit-nome')?.value.trim();  // só o nome, sem referência
+    const btn    = $id('img-search-btn');
+    const nome   = $id('edit-nome')?.value.trim();  // só o nome, sem referência
 
     if (!nome) { showToast('Preenche primeiro o nome do produto', 'error'); return; }
 
@@ -8319,7 +8149,7 @@ async function imgSearchAuto() {
         }
 
         // Grelha de miniaturas clicáveis
-        const resultsEl = document.getElementById('img-search-results');
+        const resultsEl = $id('img-search-results');
         resultsEl.innerHTML = '';
         resultsEl.style.display = 'grid';
         console.log('[imgSearch] A mostrar', items.length, 'resultados');
@@ -8329,11 +8159,10 @@ async function imgSearchAuto() {
             const origUrl  = item.original;
             console.log(`[imgSearch] item ${i}:`, { thumb: thumbUrl?.slice(0,60), orig: origUrl?.slice(0,60) });
 
-            const wrap = document.createElement('div');
-            wrap.className = 'img-result-thumb';
+            const wrap = $el('div', { className: 'img-result-thumb' });
             wrap.title     = item.title || '';
 
-            const img = document.createElement('img');
+            const img = $el('img');
             img.src     = thumbUrl;
             img.alt     = item.title || '';
             img.onerror = () => {
@@ -8343,7 +8172,7 @@ async function imgSearchAuto() {
             img.onclick = () => {
                 const chosen = origUrl || thumbUrl;
                 console.log('[imgSearch] Imagem seleccionada:', chosen?.slice(0, 80));
-                document.getElementById('edit-img-url').value = chosen;
+                $id('edit-img-url').value = chosen;
                 imgUrlPreview(chosen);
                 resultsEl.querySelectorAll('.img-result-thumb').forEach(t => t.classList.remove('selected'));
                 wrap.classList.add('selected');
@@ -8383,7 +8212,7 @@ async function testAnthropicProxy() {
     const val = _getAnthropicKey();
     if (!val) { showToast('Configura primeiro o URL do Worker', 'error'); return; }
 
-    const btn = document.getElementById('btn-test-ocr');
+    const btn = $id('btn-test-ocr');
     if (btn) { btn.disabled = true; btn.textContent = '◷ A testar…'; }
 
     try {
@@ -8428,7 +8257,7 @@ async function testAnthropicProxy() {
 const OCR_KEYWORDS_KEY = 'hiperfrio-ocr-keywords';
 
 function saveOcrKeywords() {
-    const val = document.getElementById('inp-ocr-keywords').value.trim();
+    const val = $id('inp-ocr-keywords').value.trim();
     if (val) localStorage.setItem(OCR_KEYWORDS_KEY, val);
     else localStorage.removeItem(OCR_KEYWORDS_KEY);
     showToast('Palavras-chave guardadas ✓', 'ok');
@@ -8440,7 +8269,7 @@ function _getOcrKeywords() {
 }
 
 function _loadOcrKeywordsInput() {
-    const el = document.getElementById('inp-ocr-keywords');
+    const el = $id('inp-ocr-keywords');
     if (el) el.value = _getOcrKeywords().join('\n');
 }
 
@@ -8454,42 +8283,42 @@ async function patScanStartCamera() {
         _patScanStream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
         });
-        const video = document.getElementById('pat-scan-video');
+        const video = $id('pat-scan-video');
         video.srcObject = _patScanStream;
         video.style.display = 'block';
-        document.getElementById('pat-scan-placeholder').style.display = 'none';
-        document.getElementById('pat-scan-preview').style.display    = 'none';
-        document.getElementById('pat-scan-row-load').style.display    = 'none';
-        document.getElementById('pat-scan-row-capture').style.display = 'flex';
+        $id('pat-scan-placeholder').style.display = 'none';
+        $id('pat-scan-preview').style.display    = 'none';
+        $id('pat-scan-row-load').style.display    = 'none';
+        $id('pat-scan-row-capture').style.display = 'flex';
         _patScanSetStatus('Câmara activa — aponta para o documento e captura', '');
     } catch(e) {
         // Câmara não disponível — mostrar botões de fallback (Galeria)
-        document.getElementById('pat-scan-placeholder').style.display = 'flex';
-        document.getElementById('pat-scan-row-load').style.display    = 'flex';
+        $id('pat-scan-placeholder').style.display = 'flex';
+        $id('pat-scan-row-load').style.display    = 'flex';
         // Esconder botão câmara pois não está disponível
-        const camBtn = document.getElementById('pat-scan-cam-btn');
+        const camBtn = $id('pat-scan-cam-btn');
         if (camBtn) camBtn.style.display = 'none';
         _patScanSetStatus('Câmara não disponível — usa a Galeria', 'error');
     }
 }
 
 function patScanCapture() {
-    const video  = document.getElementById('pat-scan-video');
-    const canvas = document.getElementById('pat-scan-canvas');
+    const video  = $id('pat-scan-video');
+    const canvas = $id('pat-scan-canvas');
     canvas.width  = video.videoWidth  || 1280;
     canvas.height = video.videoHeight || 720;
     canvas.getContext('2d').drawImage(video, 0, 0);
     _patScanMime = 'image/jpeg';
     _patScanB64  = canvas.toDataURL('image/jpeg', 0.80).split(',')[1];
 
-    const prev = document.getElementById('pat-scan-preview');
+    const prev = $id('pat-scan-preview');
     prev.src = canvas.toDataURL('image/jpeg', 0.80);
     prev.style.display = 'block';
     video.style.display = 'none';
 
     patScanStopCamera();
-    document.getElementById('pat-scan-row-capture').style.display = 'none';
-    document.getElementById('pat-scan-row-analyse').style.display = 'flex';
+    $id('pat-scan-row-capture').style.display = 'none';
+    $id('pat-scan-row-analyse').style.display = 'flex';
     // Auto-analisar se houver chave API configurada
     if (_getAnthropicKey()) {
         patScanAnalyse();
@@ -8503,7 +8332,7 @@ function patScanStopCamera() {
         _patScanStream.getTracks().forEach(t => t.stop());
         _patScanStream = null;
     }
-    document.getElementById('pat-scan-video').style.display = 'none';
+    $id('pat-scan-video').style.display = 'none';
 }
 
 // =============================================
@@ -8514,13 +8343,13 @@ let _patScanMime = 'image/jpeg';
 
 function openPatScan() {
     patScanReset();
-    document.getElementById('pat-scan-modal').classList.add('active');
+    modalOpen('pat-scan-modal');
     focusModal('pat-scan-modal');
 }
 
 function closePatScan() {
     patScanStopCamera();
-    document.getElementById('pat-scan-modal').classList.remove('active');
+    modalClose('pat-scan-modal');
 }
 
 function patScanFromFile(inp) {
@@ -8531,12 +8360,12 @@ function patScanFromFile(inp) {
     r.onload = e => {
         _patScanB64 = e.target.result.split(',')[1];
         // mostra preview
-        document.getElementById('pat-scan-placeholder').style.display = 'none';
-        const prev = document.getElementById('pat-scan-preview');
+        $id('pat-scan-placeholder').style.display = 'none';
+        const prev = $id('pat-scan-preview');
         prev.src = e.target.result;
         prev.style.display = 'block';
-        document.getElementById('pat-scan-row-load').style.display = 'none';
-        document.getElementById('pat-scan-row-analyse').style.display = 'flex';
+        $id('pat-scan-row-load').style.display = 'none';
+        $id('pat-scan-row-analyse').style.display = 'flex';
         _patScanSetStatus('Imagem carregada — clica em Analisar', '');
     };
     r.readAsDataURL(f);
@@ -8545,29 +8374,29 @@ function patScanFromFile(inp) {
 function patScanReset() {
     _patScanB64 = null;
     patScanStopCamera();
-    document.getElementById('pat-scan-video').style.display       = 'none';
-    document.getElementById('pat-scan-preview').style.display     = 'none';
-    document.getElementById('pat-scan-placeholder').style.display = 'flex';
-    document.getElementById('pat-scan-row-load').style.display    = 'flex';
-    document.getElementById('pat-scan-row-capture').style.display = 'none';
-    document.getElementById('pat-scan-row-analyse').style.display = 'none';
-    document.getElementById('pat-scan-result').style.display      = 'none';
-    const f1 = document.getElementById('pat-scan-file');
-    const f2 = document.getElementById('pat-scan-file-2');
+    $id('pat-scan-video').style.display       = 'none';
+    $id('pat-scan-preview').style.display     = 'none';
+    $id('pat-scan-placeholder').style.display = 'flex';
+    $id('pat-scan-row-load').style.display    = 'flex';
+    $id('pat-scan-row-capture').style.display = 'none';
+    $id('pat-scan-row-analyse').style.display = 'none';
+    $id('pat-scan-result').style.display      = 'none';
+    const f1 = $id('pat-scan-file');
+    const f2 = $id('pat-scan-file-2');
     if (f1) f1.value = '';
     if (f2) f2.value = '';
     _patScanSetStatus('', '');
 }
 
 function _patScanSetStatus(msg, cls) {
-    const el = document.getElementById('pat-scan-status');
+    const el = $id('pat-scan-status');
     el.textContent = msg;
     el.className   = 'pat-scan-status' + (cls ? ' ' + cls : '');
 }
 
 async function patScanAnalyse() {
     if (!_patScanB64) return;
-    const btn = document.getElementById('pat-scan-go');
+    const btn = $id('pat-scan-go');
     btn.disabled = true;
 
     const apiKey = _getAnthropicKey();
@@ -8692,7 +8521,7 @@ Responde APENAS com JSON válido, sem markdown, sem explicações:
         // ── Preenche resultado ────────────────────────────────────────────────
         _patScanFill('ps-pat',   patNum, patConf,   'ps-pat-conf');
         _patScanFill('ps-estab', estab,  estabConf, 'ps-estab-conf');
-        document.getElementById('pat-scan-result').style.display = 'flex';
+        $id('pat-scan-result').style.display = 'flex';
         const mode = apiKey ? 'Claude Vision' : 'OCR local';
         _patScanSetStatus(`✓ Análise concluída (${mode}) — revê e confirma`, 'ok');
 
@@ -8707,8 +8536,8 @@ Responde APENAS com JSON válido, sem markdown, sem explicações:
 }
 
 function _patScanFill(inputId, value, conf, confId) {
-    const inp  = document.getElementById(inputId);
-    const badge = document.getElementById(confId);
+    const inp  = $id(inputId);
+    const badge = $id(confId);
     inp.value  = value || '';
     if (badge) {
         const pct = Math.round((conf || 0) * 100);
@@ -8719,26 +8548,26 @@ function _patScanFill(inputId, value, conf, confId) {
 }
 
 function patScanApply() {
-    const pat   = document.getElementById('ps-pat').value.trim();
-    const estab = document.getElementById('ps-estab').value.trim().toUpperCase();
+    const pat   = $id('ps-pat').value.trim();
+    const estab = $id('ps-estab').value.trim().toUpperCase();
 
     closePatScan();
 
     // Abrir o modal (que limpa os campos) e só depois preencher
-    const patModalOpen = document.getElementById('pat-modal').classList.contains('active');
+    const patModalOpen = $id('pat-modal').classList.contains('active');
     if (!patModalOpen) openPatModal();
 
     // Preencher após o modal estar aberto (openPatModal tem setTimeout de 80ms para focus)
     setTimeout(() => {
-        if (pat)   document.getElementById('pat-numero').value        = pat;
-        if (estab) document.getElementById('pat-estabelecimento').value = estab;
+        if (pat)   $id('pat-numero').value        = pat;
+        if (estab) $id('pat-estabelecimento').value = estab;
         showToast('Campos preenchidos — revê antes de guardar', 'info');
     }, 100);
 }
 
 function patProductSearch(val) {
     _patDropdownIdx = -1;
-    const dd = document.getElementById('pat-product-dropdown');
+    const dd = $id('pat-product-dropdown');
     const q = val.trim().toLowerCase();
     if (!q) { dd.innerHTML = ''; return; }
 
@@ -8759,8 +8588,7 @@ function patProductSearch(val) {
 
     dd.innerHTML = '';
     matches.forEach(([id, item], i) => {
-        const opt = document.createElement('div');
-        opt.className = 'pat-dd-option';
+        const opt = $el('div', { className: 'pat-dd-option' });
         opt.dataset.idx = i;
         const stockQty = item.quantidade || 0;
         opt.innerHTML = `
@@ -8773,7 +8601,7 @@ function patProductSearch(val) {
 }
 
 function patProductKeydown(e) {
-    const dd = document.getElementById('pat-product-dropdown');
+    const dd = $id('pat-product-dropdown');
     const opts = dd.querySelectorAll('.pat-dd-option');
     if (!opts.length) return;
     if (e.key === 'ArrowDown') {
@@ -8802,9 +8630,9 @@ function patAddProduct(id, item) {
         stockDisponivel: item.quantidade || 0
     });
     _renderPatChips();
-    document.getElementById('pat-product-search').value = '';
-    document.getElementById('pat-product-dropdown').innerHTML = '';
-    document.getElementById('pat-product-search').focus();
+    $id('pat-product-search').value = '';
+    $id('pat-product-dropdown').innerHTML = '';
+    $id('pat-product-search').focus();
 }
 
 function patRemoveProduct(id) {
@@ -8823,11 +8651,10 @@ function patSetQty(id, val) {
 }
 
 function _renderPatChips() {
-    const el = document.getElementById('pat-product-chips');
+    const el = $id('pat-product-chips');
     el.innerHTML = '';
     _patProducts.forEach(p => {
-        const chip = document.createElement('div');
-        chip.className = 'pat-chip';
+        const chip = $el('div', { className: 'pat-chip' });
         chip.dataset.id = p.id;
         chip.innerHTML = `
             <div class="pat-chip-info">
@@ -8858,19 +8685,19 @@ function patQtyStep(id, delta) {
 }
 
 async function savePat() {
-    const editId     = document.getElementById('pat-edit-id').value.trim();
+    const editId     = $id('pat-edit-id').value.trim();
     const isEdit     = !!editId;
-    const numero     = document.getElementById('pat-numero').value.trim();
-    const clienteNum = document.getElementById('pat-cliente-num').value.trim();
-    const clienteId  = document.getElementById('pat-cliente-id').value.trim() || null;
-    const estab      = document.getElementById('pat-estabelecimento').value.trim().toUpperCase();
-    const separacao  = document.getElementById('pat-separacao').checked;
-    const hint       = document.getElementById('pat-numero-hint');
+    const numero     = $id('pat-numero').value.trim();
+    const clienteNum = $id('pat-cliente-num').value.trim();
+    const clienteId  = $id('pat-cliente-id').value.trim() || null;
+    const estab      = $id('pat-estabelecimento').value.trim().toUpperCase();
+    const separacao  = $id('pat-separacao').checked;
+    const hint       = $id('pat-numero-hint');
 
     if (!/^\d{6}$/.test(numero)) {
         hint.textContent = 'O Nº PAT deve ter exactamente 6 dígitos.';
         hint.style.color = 'var(--danger)';
-        document.getElementById('pat-numero').focus();
+        $id('pat-numero').focus();
         return;
     }
     hint.textContent = '';
@@ -8884,7 +8711,7 @@ async function savePat() {
         if (duplicadoLocal) {
             hint.textContent = `PAT ${numero} já está registada (${duplicadoLocal.estabelecimento || 'sem estabelecimento'}).`;
             hint.style.color = 'var(--danger)';
-            document.getElementById('pat-numero').focus();
+            $id('pat-numero').focus();
             return;
         }
         // Confirmação remota — protege contra race condition multi-utilizador
@@ -8899,7 +8726,7 @@ async function savePat() {
                         if (remoteActive) {
                             hint.textContent = `PAT ${numero} já está registada por outro utilizador.`;
                             hint.style.color = 'var(--danger)';
-                            document.getElementById('pat-numero').focus();
+                            $id('pat-numero').focus();
                             // Actualiza cache local com o que o servidor tem
                             _patCache.lastFetch = 0;
                             return;
@@ -9056,42 +8883,37 @@ function openPatDetail(id, pat) {
     const dataStr   = pat.criadoEm ? new Date(pat.criadoEm).toLocaleDateString('pt-PT') : '—';
     const urgente   = dias >= 20;
     const separacao = !!pat.separacao;
-    const body      = document.getElementById('pat-detail-body');
+    const body      = $id('pat-detail-body');
     body.innerHTML  = '';
 
     // ── Helper: criar linha de detalhe ──────────────────────────────────
     function _row(lbl, val) {
-        const d = document.createElement('div');
-        d.className = 'pat-detail-row';
-        const l = document.createElement('span');
-        l.className   = 'pat-detail-lbl';
+        const d = $el('div', { className: 'pat-detail-row' });
+        const l = $el('span', { className: 'pat-detail-lbl' });
         l.textContent = lbl;
-        const v = document.createElement('span');
+        const v = $el('span');
         v.textContent = val;
         d.appendChild(l); d.appendChild(v);
         return d;
     }
 
     // ── Header badges ────────────────────────────────────────────────────
-    const hdr = document.createElement('div');
-    hdr.className = 'pat-detail-header';
+    const hdr = $el('div', { className: 'pat-detail-header' });
 
-    const badge = document.createElement('span');
+    const badge = $el('span');
     badge.className   = 'pat-badge' + (urgente ? ' pat-badge-urgente' : '');
     badge.style.cssText = 'font-size:1rem;padding:6px 14px';
     badge.textContent = 'PAT ' + (pat.numero || '—');
     hdr.appendChild(badge);
 
     if (pat.clienteNumero) {
-        const cb = document.createElement('span');
-        cb.className   = 'pat-cliente-badge';
+        const cb = $el('span', { className: 'pat-cliente-badge' });
         cb.style.cssText = 'font-size:0.9rem;padding:5px 12px';
         cb.textContent = pat.clienteNumero;
         hdr.appendChild(cb);
     }
     if (separacao) {
-        const st = document.createElement('span');
-        st.className   = 'pat-sep-tag';
+        const st = $el('span', { className: 'pat-sep-tag' });
         st.style.marginTop = '8px';
         st.textContent = ' Guia Transporte de Material';
         hdr.appendChild(st);
@@ -9108,44 +8930,35 @@ function openPatDetail(id, pat) {
 
     // ── Produtos ─────────────────────────────────────────────────────────
     if (pat.produtos?.length) {
-        const lbl = document.createElement('div');
-        lbl.className   = 'pat-detail-lbl';
+        const lbl = $el('div', { className: 'pat-detail-lbl' });
         lbl.style.cssText = 'margin-top:14px;margin-bottom:8px';
         lbl.textContent = 'Produtos reservados';
         body.appendChild(lbl);
-        const prodsDiv = document.createElement('div');
-        prodsDiv.className = 'pat-detail-produtos';
+        const prodsDiv = $el('div', { className: 'pat-detail-produtos' });
         pat.produtos.forEach(p => {
-            const row = document.createElement('div');
-            row.className = 'pat-detail-prod';
-            const code = document.createElement('span');
-            code.className   = 'pat-dd-code';
+            const row = $el('div', { className: 'pat-detail-prod' });
+            const code = $el('span', { className: 'pat-dd-code' });
             code.textContent = p.codigo || '?';
-            const name = document.createElement('span');
-            name.className   = 'pat-dd-name';
+            const name = $el('span', { className: 'pat-dd-name' });
             name.textContent = p.nome || '';
-            const qty = document.createElement('span');
-            qty.className   = 'pat-detail-qty';
+            const qty = $el('span', { className: 'pat-detail-qty' });
             qty.textContent = '× ' + (p.quantidade || 1);
             row.appendChild(code); row.appendChild(name); row.appendChild(qty);
             prodsDiv.appendChild(row);
         });
         body.appendChild(prodsDiv);
     } else {
-        const empty = document.createElement('div');
-        empty.className   = 'pat-empty';
+        const empty = $el('div', { className: 'pat-empty' });
         empty.style.marginTop = '12px';
         empty.textContent = 'Sem produtos associados.';
         body.appendChild(empty);
     }
 
     // ── Acções ───────────────────────────────────────────────────────────
-    const actions = document.createElement('div');
-    actions.className = 'pat-detail-actions';
+    const actions = $el('div', { className: 'pat-detail-actions' });
 
     if (pat.status !== 'levantado' && pat.status !== 'historico') {
-        const btnLev = document.createElement('button');
-        btnLev.className   = 'pat-btn-levantado';
+        const btnLev = $el('button', { className: 'pat-btn-levantado' });
         btnLev.style.flex  = '1';
         btnLev.innerHTML   = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
         btnLev.appendChild(document.createTextNode('Dar como levantado'));
@@ -9153,8 +8966,7 @@ function openPatDetail(id, pat) {
         actions.appendChild(btnLev);
     }
 
-    const btnDel = document.createElement('button');
-    btnDel.className = 'pat-btn-apagar';
+    const btnDel = $el('button', { className: 'pat-btn-apagar' });
     btnDel.setAttribute('aria-label', 'Apagar PAT');
     btnDel.innerHTML = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
     btnDel.onclick   = () => { closePatDetail(); apagarPat(id); };
@@ -9162,12 +8974,12 @@ function openPatDetail(id, pat) {
 
     body.appendChild(actions);
 
-    document.getElementById('pat-detail-modal').classList.add('active');
+    modalOpen('pat-detail-modal');
     focusModal('pat-detail-modal');
 }
 
 function closePatDetail() {
-    document.getElementById('pat-detail-modal').classList.remove('active');
+    modalClose('pat-detail-modal');
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -9502,7 +9314,7 @@ async function _relSalvarPatAntesDeApagar(pat) {
 // ── Fechar mês manualmente ────────────────────────────────────────────────
 async function relFecharMes() {
     const mesKey = _mesKey(_relMesOffset);
-    const btn = document.getElementById('rel-fechar-btn');
+    const btn = $id('rel-fechar-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'A guardar...'; }
     const snap = await _guardarSnapshot(mesKey);
     if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v14a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Fechar mês'; }
@@ -9520,18 +9332,18 @@ function relMoveMonth(delta) {
 // ── Renderizar relatório ──────────────────────────────────────────────────
 async function renderRelatorio() {
     const mesKey  = _mesKey(_relMesOffset);
-    const lblEl   = document.getElementById('rel-month-label');
-    const content = document.getElementById('rel-content');
-    const strip   = document.getElementById('rel-summary-strip');
+    const lblEl   = $id('rel-month-label');
+    const content = $id('rel-content');
+    const strip   = $id('rel-summary-strip');
     if (lblEl) lblEl.textContent = _mesLabel(mesKey);
     if (!content) return;
 
     // Botão fechar mês — só no mês actual
-    const btnFechar = document.getElementById('rel-fechar-btn');
+    const btnFechar = $id('rel-fechar-btn');
     if (btnFechar) btnFechar.style.display = _relMesOffset === 0 ? 'inline-flex' : 'none';
 
     content.innerHTML = '<div class="rel-loading">A carregar relatório...</div>';
-    if (strip) { ['rel-sum-pats','rel-sum-dur','rel-sum-saidas'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '—'; }); }
+    if (strip) { ['rel-sum-pats','rel-sum-dur','rel-sum-saidas'].forEach(id => { const el = $id(id); if (el) el.textContent = '—'; }); }
 
     // Fetch snapshot
     let snap = null;
@@ -9559,7 +9371,7 @@ async function renderRelatorio() {
     const totalSaidas = (snap.top5 || []).reduce((a, b) => a + (b.qty || 0), 0);
     _relAnimCount('rel-sum-pats',   snap.totalPats ?? 0);
     _relAnimCount('rel-sum-saidas', totalSaidas);
-    const durEl = document.getElementById('rel-sum-dur');
+    const durEl = $id('rel-sum-dur');
     if (durEl) durEl.textContent = snap.duracaoMedia != null ? snap.duracaoMedia + 'd' : '—';
 
     content.innerHTML = '';
@@ -9576,7 +9388,7 @@ async function renderRelatorio() {
     }
 
     function _card(content_html, delay_class = '') {
-        const d = document.createElement('div');
+        const d = $el('div');
         d.className = 'rel-card' + (delay_class ? ' ' + delay_class : '');
         d.innerHTML = content_html;
         return d;
@@ -9591,8 +9403,7 @@ async function renderRelatorio() {
     }
 
     // ── 1: KPI Cards ────────────────────────────────────────────────────
-    const kpiCard = document.createElement('div');
-    kpiCard.className = 'rel-card';
+    const kpiCard = $el('div', { className: 'rel-card' });
     kpiCard.style.padding = '10px';
     const durColor = (snap.duracaoMedia > 7) ? '#dc2626' : (snap.duracaoMedia > 3) ? '#f59e0b' : '#4ade80';
     kpiCard.innerHTML = `
@@ -9618,8 +9429,7 @@ async function renderRelatorio() {
     // ── 2: Insight automático ────────────────────────────────────────────
     const insightMsg = _relBuildInsight(snap);
     if (insightMsg) {
-        const ins = document.createElement('div');
-        ins.className = 'rel-insight';
+        const ins = $el('div', { className: 'rel-insight' });
         ins.innerHTML = `
             <div class="rel-insight-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -9632,8 +9442,7 @@ async function renderRelatorio() {
     }
 
     // ── 3: Donut — distribuição PATs ─────────────────────────────────────
-    const donutCard = document.createElement('div');
-    donutCard.className = 'rel-card';
+    const donutCard = $el('div', { className: 'rel-card' });
     const totalPats  = snap.totalPats  || 0;
     const levantadas = snap.levantadas || 0;
     const comGuia    = snap.comGuia    ?? (snap.topClientes || []).reduce((a, c) => a + (c.comGuia || 0), 0);
@@ -9659,18 +9468,15 @@ async function renderRelatorio() {
     content.appendChild(donutCard);
 
     // ── 4: Top Clientes ──────────────────────────────────────────────────
-    const cliCard = document.createElement('div');
-    cliCard.className = 'rel-card';
+    const cliCard = $el('div', { className: 'rel-card' });
     const cliLen = snap.topClientes?.length || 0;
     cliCard.innerHTML = _cardHdr('Top clientes', cliLen + ' estabelec.', 'rel-pill-blue');
     if (cliLen) {
-        const list = document.createElement('div');
-        list.className = 'rel-rank-list';
+        const list = $el('div', { className: 'rel-rank-list' });
         snap.topClientes.forEach((cli, i) => {
             const badges = ['rb1','rb2','rb3'];
             const bc = i < 3 ? badges[i] : 'rbn';
-            const row = document.createElement('div');
-            row.className = 'rel-rank-row';
+            const row = $el('div', { className: 'rel-rank-row' });
             row.innerHTML = `
                 <div class="rel-rank-badge ${bc}">${i+1}</div>
                 <div class="rel-rank-info">
@@ -9688,18 +9494,15 @@ async function renderRelatorio() {
     content.appendChild(cliCard);
 
     // ── 5: Top referências ───────────────────────────────────────────────
-    const refsCard = document.createElement('div');
-    refsCard.className = 'rel-card';
+    const refsCard = $el('div', { className: 'rel-card' });
     refsCard.innerHTML = _cardHdr('Top referências saídas', 'unidades', 'rel-pill-blue');
     if (snap.top5?.length) {
-        const blist = document.createElement('div');
-        blist.className = 'rel-bar-list';
+        const blist = $el('div', { className: 'rel-bar-list' });
         const maxQ = snap.top5[0]?.qty || 1;
         const colors = ['#1e3a5f','#2563eb','#2563eb','#60a5fa','#93c5fd'];
         snap.top5.forEach((item, i) => {
             const pct = Math.round((item.qty / maxQ) * 100);
-            const el = document.createElement('div');
-            el.className = 'rel-bar-row';
+            const el = $el('div', { className: 'rel-bar-row' });
             el.innerHTML = `
                 <div class="rel-bar-meta">
                     <span class="rel-bar-name">${escapeHtml(item.codigo)}${item.nome ? ' — ' + escapeHtml(item.nome) : ''}</span>
@@ -9715,21 +9518,18 @@ async function renderRelatorio() {
     content.appendChild(refsCard);
 
     // ── 6: Ferramentas dias fora ─────────────────────────────────────────
-    const ferrCard = document.createElement('div');
-    ferrCard.className = 'rel-card';
+    const ferrCard = $el('div', { className: 'rel-card' });
     const diasMes = new Date(_mesRange(mesKey).fim).getDate();
     ferrCard.innerHTML = _cardHdr('Dias fora do armazém', diasMes + ' dias no mês', 'rel-pill-amber');
     if (snap.topFerrDias?.length) {
-        const blist2 = document.createElement('div');
-        blist2.className = 'rel-bar-list';
+        const blist2 = $el('div', { className: 'rel-bar-list' });
         snap.topFerrDias.forEach(t => {
             const pct  = Math.round((t.dias / diasMes) * 100);
             const alerta = pct >= 80;
             const warn   = pct >= 50 && pct < 80;
             const color  = alerta ? '#dc2626' : warn ? '#f59e0b' : '#2563eb';
             const valColor = alerta ? '#dc2626' : warn ? '#f59e0b' : '#2563eb';
-            const el = document.createElement('div');
-            el.className = 'rel-bar-row';
+            const el = $el('div', { className: 'rel-bar-row' });
             el.innerHTML = `
                 <div class="rel-bar-meta">
                     <span class="rel-bar-name">${escapeHtml(t.nome)}</span>
@@ -9746,16 +9546,13 @@ async function renderRelatorio() {
 
     // ── 7: Ferramentas mais requisitadas ─────────────────────────────────
     if (snap.topFerr?.length) {
-        const ferrReqCard = document.createElement('div');
-        ferrReqCard.className = 'rel-card';
+        const ferrReqCard = $el('div', { className: 'rel-card' });
         ferrReqCard.innerHTML = _cardHdr('Ferramentas mais requisitadas', snap.topFerr.length + ' ferramentas', 'rel-pill-blue');
-        const blist3 = document.createElement('div');
-        blist3.className = 'rel-bar-list';
+        const blist3 = $el('div', { className: 'rel-bar-list' });
         const maxF = snap.topFerr[0]?.count || 1;
         snap.topFerr.forEach(t => {
             const pct = Math.round((t.count / maxF) * 100);
-            const el = document.createElement('div');
-            el.className = 'rel-bar-row';
+            const el = $el('div', { className: 'rel-bar-row' });
             el.innerHTML = `
                 <div class="rel-bar-meta">
                     <span class="rel-bar-name">${escapeHtml(t.nome)}</span>
@@ -9772,19 +9569,16 @@ async function renderRelatorio() {
 
     // ── 8: PATs por funcionário (gauges) ─────────────────────────────────
     if (snap.porFunc && Object.keys(snap.porFunc).length) {
-        const funcCard = document.createElement('div');
-        funcCard.className = 'rel-card';
+        const funcCard = $el('div', { className: 'rel-card' });
         const totalLev = Object.values(snap.porFunc).reduce((a, b) => a + b, 0) || 1;
         const funcEntries = Object.entries(snap.porFunc).sort((a, b) => b[1] - a[1]).slice(0, 4);
         funcCard.innerHTML = _cardHdr('PATs por funcionário', totalLev + ' levantadas', 'rel-pill-green');
-        const gaugeRow = document.createElement('div');
-        gaugeRow.className = 'rel-gauge-row';
+        const gaugeRow = $el('div', { className: 'rel-gauge-row' });
         const gColors = ['#1e3a5f','#2563eb','#f59e0b','#16a34a'];
         funcEntries.forEach(([nome, val], i) => {
             const pct = Math.round((val / totalLev) * 100);
             const col = gColors[i] || '#64748b';
-            const col_div = document.createElement('div');
-            col_div.className = 'rel-gauge-col';
+            const col_div = $el('div', { className: 'rel-gauge-col' });
             col_div.innerHTML = `
                 <canvas id="rel-gauge-${i}" width="72" height="72" class="rel-gauge-canvas"></canvas>
                 <span class="rel-gauge-name">${escapeHtml(nome)}</span>
@@ -9809,7 +9603,7 @@ async function renderRelatorio() {
             setTimeout(() => { bar.style.width = bar.dataset.w + '%'; }, i * 70);
         });
         // Donut Chart.js — destruir instância anterior para evitar flickering
-        const donutCanvas = document.getElementById('rel-donut');
+        const donutCanvas = $id('rel-donut');
         if (donutCanvas && window.Chart) {
             if (_relDonutChart) { _relDonutChart.destroy(); _relDonutChart = null; }
             _relDonutChart = new Chart(donutCanvas, {
@@ -9834,7 +9628,7 @@ async function renderRelatorio() {
 
 // ── Contador animado ──────────────────────────────────────────────────────
 function _relAnimCount(elId, target, dur = 800) {
-    const el = document.getElementById(elId);
+    const el = $id(elId);
     if (!el || target == null) return;
     if (target === 0) { el.textContent = '0'; return; }
     const start = performance.now();
@@ -9850,7 +9644,7 @@ function _relAnimCount(elId, target, dur = 800) {
 // ── Gauge canvas ──────────────────────────────────────────────────────────
 function _relDrawGauge(canvasId, pct, color, delayMs = 0) {
     setTimeout(() => {
-        const c = document.getElementById(canvasId);
+        const c = $id(canvasId);
         if (!c) return;
         const ctx = c.getContext('2d');
         const cx = 36, cy = 36, r = 26, lw = 7;
@@ -9914,15 +9708,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Desktop layout: sidebar visível, bottom nav escondido
     function applyDesktopLayout() {
         const isDesktop = window.innerWidth >= 768;
-        const bottomNav = document.getElementById('bottom-nav');
-        const sideMenu  = document.getElementById('side-menu');
-        const appLayout = document.getElementById('app-layout');
+        const bottomNav = $id('bottom-nav');
+        const sideMenu  = $id('side-menu');
+        const appLayout = $id('app-layout');
 
         if (isDesktop) {
             if (bottomNav) bottomNav.style.display = 'none';
-            const fab = document.getElementById('fab-add');
+            const fab = $id('fab-add');
             if (fab) fab.style.display = 'none';
-            const closeBtn = document.getElementById('close-menu');
+            const closeBtn = $id('close-menu');
             if (closeBtn) closeBtn.style.display = 'none';
             if (sideMenu) {
                 sideMenu.style.position = 'relative';
@@ -9939,9 +9733,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             if (bottomNav) bottomNav.style.display = '';
-            const fab = document.getElementById('fab-add');
+            const fab = $id('fab-add');
             if (fab) fab.style.display = '';
-            const closeBtn = document.getElementById('close-menu');
+            const closeBtn = $id('close-menu');
             if (closeBtn) closeBtn.style.display = '';
             if (sideMenu) {
                 sideMenu.style.position = '';
@@ -9965,7 +9759,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ── Render lista ──────────────────────────────────────────────────────────
 function renderEncList() {
-    const wrap = document.getElementById('enc-list');
+    const wrap = $id('enc-list');
     if (!wrap) return;
 
     let entries = Object.entries(_encData)
@@ -10003,31 +9797,26 @@ function renderEncList() {
         const dataFmt  = enc.data ? enc.data.split('-').reverse().join('/') : '—';
 
         // Card
-        const card = document.createElement('div');
-        card.className = 'enc-card';
+        const card = $el('div', { className: 'enc-card' });
         card.onclick   = () => openEncDetail(id);
 
         // Top row
-        const top = document.createElement('div');
-        top.className = 'enc-card-top';
+        const top = $el('div', { className: 'enc-card-top' });
 
-        const left = document.createElement('div');
-        const num  = document.createElement('div');
-        num.className   = 'enc-card-num';
+        const left = $el('div');
+        const num = $el('div', { className: 'enc-card-num' });
         num.textContent = 'Encomenda Nº ' + (enc.num || '—');
-        const forn = document.createElement('div');
-        forn.className   = 'enc-card-forn';
+        const forn = $el('div', { className: 'enc-card-forn' });
         forn.textContent = enc.fornecedor || '—';
         left.appendChild(num);
         left.appendChild(forn);
 
-        const right = document.createElement('div');
+        const right = $el('div');
         right.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;gap:4px';
-        const badge = document.createElement('span');
+        const badge = $el('span');
         badge.className   = 'enc-badge enc-badge-' + (enc.estado || 'pendente');
         badge.textContent = estadoLabel;
-        const date = document.createElement('span');
-        date.className   = 'enc-card-date';
+        const date = $el('span', { className: 'enc-card-date' });
         date.textContent = dataFmt;
         right.appendChild(badge);
         right.appendChild(date);
@@ -10036,16 +9825,12 @@ function renderEncList() {
         top.appendChild(right);
 
         // Progress
-        const progWrap = document.createElement('div');
-        progWrap.className = 'enc-progress-wrap';
-        const bar = document.createElement('div');
-        bar.className = 'enc-progress-bar';
-        const fill = document.createElement('div');
-        fill.className    = 'enc-progress-fill';
+        const progWrap = $el('div', { className: 'enc-progress-wrap' });
+        const bar = $el('div', { className: 'enc-progress-bar' });
+        const fill = $el('div', { className: 'enc-progress-fill' });
         fill.style.width  = pct + '%';
         bar.appendChild(fill);
-        const lbl = document.createElement('div');
-        lbl.className   = 'enc-progress-label';
+        const lbl = $el('div', { className: 'enc-progress-label' });
         lbl.textContent = `${recebido} / ${total} unidades recebidas (${pct}%)`;
         progWrap.appendChild(bar);
         progWrap.appendChild(lbl);
@@ -10066,33 +9851,33 @@ function encFilterSet(btn, filter) {
 
 function openWeightCalc() {
     weightCalcReset();
-    document.getElementById('weight-calc-modal').classList.add('active');
+    modalOpen('weight-calc-modal');
     focusModal('weight-calc-modal');
-    setTimeout(() => document.getElementById('wc-sample-units')?.focus(), 120);
+    setTimeout(() => $id('wc-sample-units').focus(), 120);
 }
 
 function closeWeightCalc() {
-    document.getElementById('weight-calc-modal').classList.remove('active');
+    modalClose('weight-calc-modal');
 }
 
 function weightCalcReset() {
     ['wc-sample-units','wc-sample-weight','wc-total-weight'].forEach(id => {
-        const el = document.getElementById(id);
+        const el = $id(id);
         if (el) el.value = '';
     });
-    document.getElementById('wc-unit-weight').textContent = '';
-    document.getElementById('wc-result').style.display = 'none';
+    $id('wc-unit-weight').textContent = '';
+    $id('wc-result').style.display = 'none';
 }
 
 function weightCalcUpdate() {
-    const sampleUnits  = parseFloat(document.getElementById('wc-sample-units').value);
-    const sampleWeight = parseFloat(document.getElementById('wc-sample-weight').value);
-    const totalWeight  = parseFloat(document.getElementById('wc-total-weight').value);
+    const sampleUnits  = parseFloat($id('wc-sample-units').value);
+    const sampleWeight = parseFloat($id('wc-sample-weight').value);
+    const totalWeight  = parseFloat($id('wc-total-weight').value);
 
-    const unitWeightEl = document.getElementById('wc-unit-weight');
-    const resultEl     = document.getElementById('wc-result');
-    const resultValEl  = document.getElementById('wc-result-value');
-    const resultSubEl  = document.getElementById('wc-result-sub');
+    const unitWeightEl = $id('wc-unit-weight');
+    const resultEl     = $id('wc-result');
+    const resultValEl  = $id('wc-result-value');
+    const resultSubEl  = $id('wc-result-sub');
 
     // Mostrar peso por unidade
     if (sampleUnits > 0 && sampleWeight > 0) {
@@ -10132,7 +9917,7 @@ async function encImportPdf(inp) {
         return;
     }
 
-    const label = document.getElementById('enc-pdf-label');
+    const label = $id('enc-pdf-label');
     const originalHTML = label ? label.innerHTML : '';
     if (label) {
         label.innerHTML = '◷';
@@ -10202,11 +9987,11 @@ REGRAS:
         const result = JSON.parse(raw.replace(/```json|```/gi, '').trim());
 
         openNovaEncomenda();
-        if (result.numero)     document.getElementById('enc-num').value        = result.numero;
-        if (result.fornecedor) document.getElementById('enc-fornecedor').value = result.fornecedor;
+        if (result.numero)     $id('enc-num').value        = result.numero;
+        if (result.fornecedor) $id('enc-fornecedor').value = result.fornecedor;
 
         if (Array.isArray(result.linhas) && result.linhas.length > 0) {
-            document.getElementById('enc-linhas-wrap').innerHTML = '';
+            $id('enc-linhas-wrap').innerHTML = '';
             for (const l of result.linhas) {
                 encAddLinha(l.ref || '', l.nome || '', l.qtd ?? 1);
             }
@@ -10230,25 +10015,24 @@ REGRAS:
 // ── Modal criar ───────────────────────────────────────────────────────────
 function openNovaEncomenda() {
     _encEditId = null;
-    document.getElementById('enc-modal-title').textContent = 'Nova Encomenda';
-    document.getElementById('enc-num').value        = '';
-    document.getElementById('enc-data').value       = new Date().toISOString().split('T')[0];
-    document.getElementById('enc-fornecedor').value = '';
-    document.getElementById('enc-obs').value        = '';
-    document.getElementById('enc-linhas-wrap').innerHTML = '';
+    $id('enc-modal-title').textContent = 'Nova Encomenda';
+    $id('enc-num').value        = '';
+    $id('enc-data').value       = new Date().toISOString().split('T')[0];
+    $id('enc-fornecedor').value = '';
+    $id('enc-obs').value        = '';
+    $id('enc-linhas-wrap').innerHTML = '';
     encAddLinha();
-    document.getElementById('enc-modal').classList.add('active');
+    modalOpen('enc-modal');
     focusModal('enc-modal');
 }
 
 function closeEncModal() {
-    document.getElementById('enc-modal').classList.remove('active');
+    modalClose('enc-modal');
 }
 
 function encAddLinha(ref = '', nome = '', qtd = '') {
-    const wrap = document.getElementById('enc-linhas-wrap');
-    const div  = document.createElement('div');
-    div.className = 'enc-linha';
+    const wrap = $id('enc-linhas-wrap');
+    const div = $el('div', { className: 'enc-linha' });
     div.innerHTML = `
         <input class="blue-input enc-linha-ref"  type="text"   placeholder="Ref."       value="${escapeHtml(String(ref))}"  autocomplete="off" spellcheck="false">
         <input class="blue-input enc-linha-nome" type="text"   placeholder="Designação" value="${escapeHtml(String(nome))}" autocomplete="off" spellcheck="false" oninput="this.value=this.value.toUpperCase()">
@@ -10258,10 +10042,10 @@ function encAddLinha(ref = '', nome = '', qtd = '') {
 }
 
 async function saveEncomenda() {
-    const num  = document.getElementById('enc-num').value.trim();
-    const data = document.getElementById('enc-data').value;
-    const forn = document.getElementById('enc-fornecedor').value.trim();
-    const obs  = document.getElementById('enc-obs').value.trim();
+    const num  = $id('enc-num').value.trim();
+    const data = $id('enc-data').value;
+    const forn = $id('enc-fornecedor').value.trim();
+    const obs  = $id('enc-obs').value.trim();
 
     if (!num)  { showToast('Indica o número da encomenda', 'error'); return; }
     if (!forn) { showToast('Indica o fornecedor', 'error'); return; }
@@ -10300,12 +10084,12 @@ function openEncDetail(id) {
     _encEditId = id;
 
     const dataFmt = enc.data ? enc.data.split('-').reverse().join('/') : '—';
-    document.getElementById('enc-detail-title').textContent = `Encomenda Nº ${enc.num || '—'}`;
-    document.getElementById('enc-detail-sub').textContent   =
+    $id('enc-detail-title').textContent = `Encomenda Nº ${enc.num || '—'}`;
+    $id('enc-detail-sub').textContent   =
         `${enc.fornecedor || '—'} · ${dataFmt}${enc.obs ? ' · ' + enc.obs : ''}`;
 
     const linhas = enc.linhas || {};
-    document.getElementById('enc-detail-linhas').innerHTML = Object.entries(linhas).map(([idx, l]) => {
+    $id('enc-detail-linhas').innerHTML = Object.entries(linhas).map(([idx, l]) => {
         const qtd      = parseFloat(l.qtd) || 0;
         const recebido = Math.min(parseFloat(l.recebido) || 0, qtd);
         const pct      = qtd > 0 ? Math.round(recebido / qtd * 100) : 0;
@@ -10332,12 +10116,12 @@ function openEncDetail(id) {
         </div>`;
     }).join('');
 
-    document.getElementById('enc-detail-modal').classList.add('active');
+    modalOpen('enc-detail-modal');
     focusModal('enc-detail-modal');
 }
 
 function closeEncDetail() {
-    document.getElementById('enc-detail-modal').classList.remove('active');
+    modalClose('enc-detail-modal');
 }
 
 async function deleteEncomenda() {
@@ -10370,24 +10154,24 @@ function openEntradaModal(encId, lIdx) {
     const l = _encData[encId]?.linhas?.[lIdx];
     if (!l) return;
     const falta = (parseFloat(l.qtd) || 0) - (parseFloat(l.recebido) || 0);
-    document.getElementById('enc-entrada-desc').textContent =
+    $id('enc-entrada-desc').textContent =
         `${l.ref ? '[' + l.ref + '] ' : ''}${l.nome} — faltam ${falta} unidades`;
-    const inp = document.getElementById('enc-entrada-qty');
+    const inp = $id('enc-entrada-qty');
     inp.value = falta;
     inp.max   = falta;
-    document.getElementById('enc-entrada-info').textContent =
+    $id('enc-entrada-info').textContent =
         `Já recebido: ${parseFloat(l.recebido) || 0} · Encomendado: ${parseFloat(l.qtd) || 0}`;
-    document.getElementById('enc-entrada-modal').classList.add('active');
+    modalOpen('enc-entrada-modal');
     focusModal('enc-entrada-modal');
     setTimeout(() => inp.focus(), 100);
 }
 
 function closeEntradaModal() {
-    document.getElementById('enc-entrada-modal').classList.remove('active');
+    modalClose('enc-entrada-modal');
 }
 
 async function confirmarEntrada() {
-    const qty = parseFloat(document.getElementById('enc-entrada-qty').value);
+    const qty = parseFloat($id('enc-entrada-qty').value);
     if (isNaN(qty) || qty <= 0) { showToast('Quantidade inválida', 'error'); return; }
 
     const enc = _encData[_encEntradaId];
