@@ -5801,33 +5801,22 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 hint.textContent = '';
             }
+        }
+    });
 
-    // Desktop layout
+    // Desktop layout — apenas esconde/mostra elementos que o CSS não controla via media query
+    // O CSS já gere position:fixed da sidebar e margin-left do main-content
     function applyDesktopLayout() {
         const isDesktop = window.innerWidth >= 768;
-        const bottomNav = $id('bottom-nav');
-        const sideMenu  = $id('side-menu');
-        const appLayout = $id('app-layout');
+        const fab = $id('fab-add');
         if (isDesktop) {
-            if (bottomNav) bottomNav.style.display = 'none';
-            const fab1 = $id('fab-add'); if (fab1) fab1.style.display = 'none';
-            const cb1 = $id('close-menu'); if (cb1) cb1.style.display = 'none';
-            if (sideMenu) {
-                sideMenu.style.cssText = 'position:relative;left:0;top:0;height:calc(100vh - 60px);box-shadow:none;z-index:100;overflow-y:auto';
-            }
-            if (appLayout) { appLayout.style.flexDirection = 'row'; appLayout.style.alignItems = 'flex-start'; }
+            if (fab) fab.style.display = 'none';
         } else {
-            if (bottomNav) bottomNav.style.display = '';
-            const fab2 = $id('fab-add'); if (fab2) fab2.style.display = '';
-            const cb2 = $id('close-menu'); if (cb2) cb2.style.display = '';
-            if (sideMenu) sideMenu.style.cssText = '';
-            if (appLayout) { appLayout.style.flexDirection = ''; appLayout.style.alignItems = ''; }
+            if (fab) fab.style.display = '';
         }
     }
     applyDesktopLayout();
     window.addEventListener('resize', applyDesktopLayout);
-        }
-    });
 
     // Tema
     const savedTheme = localStorage.getItem('hiperfrio-tema') || 'light';
