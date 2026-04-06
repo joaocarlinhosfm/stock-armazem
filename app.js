@@ -62,7 +62,7 @@ function _debounce(fn, ms = 300) {
 }
 
 // ── Lazy loading de bibliotecas pesadas ──────────────────────────────────────
-// XLSX (~1 MB) só é carregado quando realmente usado,
+// Tesseract (~2.5 MB) e XLSX (~1 MB) só são carregados quando realmente usados,
 // evitando atrasar o arranque da app em Android com rede lenta.
 function _loadScript(src) {
     return new Promise((resolve, reject) => {
@@ -70,6 +70,12 @@ function _loadScript(src) {
         s.src = src; s.onload = resolve; s.onerror = reject;
         document.head.appendChild(s);
     });
+}
+let _tesseractLoading = null;
+async function loadTesseract() {
+    if (typeof Tesseract !== 'undefined') return;
+    if (!_tesseractLoading) _tesseractLoading = _loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js');
+    await _tesseractLoading;
 }
 let _xlsxLoading = null;
 async function loadXlsx() {
@@ -834,9 +840,6 @@ function nav(viewId) {
         // Desktop: carregar mapa no painel lateral automaticamente
         if (window.innerWidth >= 768) {
             setTimeout(() => _openPatMapPanel(), 200);
-        } else {
-            // Mobile: inicializar/actualizar faixa de mapa no topo da lista
-            setTimeout(() => _initStripMap(), 150);
         }
     }
     document.querySelectorAll('.menu-items li').forEach(li => li.classList.remove('active'));
@@ -4729,106 +4732,6 @@ async function _invClearResume() {
 // ══════════════════════════════════════════════════════════
 
 let _patMap            = null;  // instância Leaflet
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MAPA MOBILE STRIP — faixa Leaflet no topo da view-pedidos (mobile only)
-// Instância separada de _patMap para não conflituar com a view-map fullscreen
-// ─────────────────────────────────────────────────────────────────────────────
-let _stripMap       = null;   // instância Leaflet da faixa mobile
-let _stripMarkers   = [];     // markers da faixa
-let _stripInited    = false;  // já foi inicializado nesta sessão
-
-async function _initStripMap() {
-    // Só corre em mobile e se o elemento existir
-    if (window.innerWidth >= 768) return;
-    const container = document.getElementById('pat-map-strip-inner');
-    if (!container) return;
-
-    // Inicializar Leaflet uma só vez
-    if (!_stripMap) {
-        _stripMap = L.map(container, {
-            center:          [39.6, -8.0],
-            zoom:            7,
-            zoomControl:     false,
-            dragging:        false,
-            scrollWheelZoom: false,
-            doubleClickZoom: false,
-            touchZoom:       false,
-            keyboard:        false,
-            attributionControl: true,
-        });
-
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '© CartoDB',
-            subdomains: 'abcd',
-            maxZoom: 19,
-        }).addTo(_stripMap);
-    }
-
-    // Actualizar pins com PATs pendentes actuais
-    await _updateStripMarkers();
-}
-
-async function _updateStripMarkers() {
-    if (!_stripMap) return;
-
-    // Limpar markers anteriores
-    _stripMarkers.forEach(m => m.remove());
-    _stripMarkers = [];
-
-    // Garantir geocode cache carregada
-    await _loadGeocodeCache();
-
-    // Buscar PATs pendentes
-    const pats = await _fetchPats();
-    await _fetchClientes();
-    const pendentes = Object.entries(pats || {})
-        .filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
-
-    // Contador no overlay
-    const cntEl = document.getElementById('pat-map-strip-cnt-text');
-    if (cntEl) cntEl.textContent = pendentes.length + ' pendentes';
-
-    // Agrupar por estabelecimento
-    const groups = {};
-    pendentes.forEach(([id, pat]) => {
-        const key = _normEstabKey(pat.estabelecimento);
-        if (!key) return;
-        if (!groups[key]) groups[key] = [];
-        groups[key].push([id, pat]);
-    });
-
-    const bounds = [];
-    Object.entries(groups).forEach(([k, items]) => {
-        const coords = _geocodeCache[k];
-        if (!coords) return;
-        const urgente   = items.some(([, p]) => _calcDias(p.criadoEm) >= 20);
-        const separacao = items.some(([, p]) => !!p.separacao);
-        const color     = urgente ? '#ef4444' : separacao ? '#f59e0b' : '#2563eb';
-        const glow      = urgente ? 'rgba(239,68,68,.35)' : separacao ? 'rgba(245,158,11,.35)' : 'rgba(37,99,235,.30)';
-        const icon = L.divIcon({
-            className: '',
-            html: `<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2.5px solid rgba(255,255,255,.9);box-shadow:0 0 0 3px ${glow},0 2px 8px rgba(0,0,0,.4)"></div>`,
-            iconSize: [12, 12],
-            iconAnchor: [6, 6],
-        });
-        const marker = L.marker([coords.lat, coords.lng], { icon })
-            .addTo(_stripMap);
-        // Tap no pin → abre mapa completo
-        marker.on('click', () => openPatMap());
-        _stripMarkers.push(marker);
-        bounds.push([coords.lat, coords.lng]);
-    });
-
-    // Ajustar viewport aos pins ou usar bounds de Portugal
-    if (bounds.length > 0) {
-        const ptBounds = L.latLngBounds(bounds);
-        _stripMap.fitBounds(ptBounds, { padding: [20, 20], maxZoom: 13 });
-    } else {
-        _stripMap.setView([39.6, -8.0], 7);
-    }
-    _stripMap.invalidateSize();
-}
 let _markerJustClicked = false; // flag para não fechar sheet ao clicar marker
 let _patMapMarkers = [];    // markers actuais
 let _patMapOpen    = false;
@@ -5406,6 +5309,99 @@ function openMapPinGmaps() {
 function centerMapOnPin() {
     if (!_patMap || !_mapPinCoords) return;
     _patMap.setView([_mapPinCoords.lat, _mapPinCoords.lng], 15, { animate: true });
+}
+
+async function expandPatMap() {
+    // Sempre abre a view-map fullscreen (tanto mobile como desktop)
+    _patMapOpen = true;
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-map')?.classList.add('active');
+    document.getElementById('main-content')?.classList.add('map-view-active');
+    window.scrollTo(0, 0);
+
+    const loadingEl  = document.getElementById('pat-map-loading');
+    const loadingTxt = document.getElementById('pat-map-loading-text');
+    const errorEl    = document.getElementById('pat-map-error');
+    const subtitleEl = document.getElementById('pat-map-subtitle');
+    const container  = document.getElementById('pat-map-container');
+
+    if (loadingEl)  loadingEl.style.display = 'flex';
+    if (errorEl)    errorEl.style.display   = 'none';
+    if (subtitleEl) subtitleEl.textContent  = '';
+    if (loadingTxt) loadingTxt.textContent  = 'A preparar mapa...';
+    if (!container) return;
+
+    const headerEl   = document.getElementById('app-header');
+    const headerH    = headerEl ? headerEl.offsetHeight : 60;
+    const mapHeaderEl = document.querySelector('.pat-map-header');
+    await _sleep(50);
+    const mapHeaderH = mapHeaderEl ? mapHeaderEl.offsetHeight : 80;
+    container.style.height = (window.innerHeight - headerH - mapHeaderH) + 'px';
+    container.style.width  = '100%';
+
+    if (_patMap) { _patMapMarkers.forEach(m => m.remove()); _patMapMarkers = []; }
+
+    const PT_BOUNDS = L.latLngBounds(L.latLng(30.0, -31.5), L.latLng(42.2, -6.2));
+    if (!_patMap) {
+        _patMap = L.map('pat-map-container', {
+            center: [39.6, -8.0], zoom: 7, minZoom: 6, maxZoom: 17,
+            maxBounds: PT_BOUNDS, maxBoundsViscosity: 1.0, zoomControl: true,
+        });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap © CARTO', subdomains: 'abcd', maxZoom: 20, minZoom: 6,
+        }).addTo(_patMap);
+        _patMap.fitBounds(PT_BOUNDS, { padding: [20, 20] });
+        _patMap.invalidateSize();
+        _patMap.on('click', () => { if (_markerJustClicked) { _markerJustClicked = false; return; } closeMapPinSheet(); });
+    }
+
+    if (loadingTxt) loadingTxt.textContent = 'A carregar pedidos...';
+    _patMapMarkers.forEach(m => m.remove()); _patMapMarkers = [];
+
+    const pats = await _fetchPats();
+    await _fetchClientes();
+    const pendentes = Object.entries(pats || {}).filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
+
+    if (pendentes.length === 0) {
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (errorEl)   errorEl.style.display   = 'flex';
+        document.getElementById('pat-map-error-text').textContent = 'Sem pedidos pendentes para mostrar.';
+        return;
+    }
+    if (subtitleEl) subtitleEl.textContent = 'A preparar localizações...';
+    if (loadingTxt) loadingTxt.textContent = 'A carregar localizações guardadas...';
+    await _loadGeocodeCache();
+
+    const groups = {};
+    pendentes.forEach(([id, pat]) => {
+        const key = _normEstabKey(pat.estabelecimento);
+        if (!key) return;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push([id, pat]);
+    });
+
+    const bounds = [];
+    Object.entries(groups).forEach(([k, items]) => {
+        const coords = _geocodeCache[k];
+        if (!coords) return;
+        const urgente   = items.some(([, p]) => _calcDias(p.criadoEm) >= 20);
+        const separacao = items.some(([, p]) => !!p.separacao);
+        const icon = _makePinIcon(items.length, urgente, separacao);
+        const marker = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMap);
+        marker.on('click', () => {
+            const cur = _getMapPendingPatsForEstab(items[0]?.[1]?.estabelecimento || k);
+            if (cur.length === 0) { marker.remove(); _patMapMarkers = _patMapMarkers.filter(m => m !== marker); closeMapPinSheet(); return; }
+            _markerJustClicked = true;
+            openMapPinSheet(cur, { lat: coords.lat, lng: coords.lng });
+        });
+        _patMapMarkers.push(marker);
+        bounds.push([coords.lat, coords.lng]);
+    });
+
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (bounds.length > 0) _patMap.fitBounds(L.latLngBounds(bounds), { padding: [40, 40], maxZoom: 14 });
+    _patMap.invalidateSize();
+    _renderMapPinSheet(pendentes);
 }
 
 async function openPatMap() {
@@ -8405,6 +8401,296 @@ function _loadOcrKeywordsInput() {
 }
 
 // =============================================
+// PAT SCAN — câmara
+// =============================================
+let _patScanStream = null;
+
+async function patScanStartCamera() {
+    try {
+        _patScanStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+        const video = document.getElementById('pat-scan-video');
+        video.srcObject = _patScanStream;
+        video.style.display = 'block';
+        document.getElementById('pat-scan-placeholder').style.display = 'none';
+        document.getElementById('pat-scan-preview').style.display    = 'none';
+        document.getElementById('pat-scan-row-load').style.display    = 'none';
+        document.getElementById('pat-scan-row-capture').style.display = 'flex';
+        _patScanSetStatus('Câmara activa — aponta para o documento e captura', '');
+    } catch(e) {
+        // Câmara não disponível — mostrar botões de fallback (Galeria)
+        document.getElementById('pat-scan-placeholder').style.display = 'flex';
+        document.getElementById('pat-scan-row-load').style.display    = 'flex';
+        // Esconder botão câmara pois não está disponível
+        const camBtn = document.getElementById('pat-scan-cam-btn');
+        if (camBtn) camBtn.style.display = 'none';
+        _patScanSetStatus('Câmara não disponível — usa a Galeria', 'error');
+    }
+}
+
+function patScanCapture() {
+    const video  = document.getElementById('pat-scan-video');
+    const canvas = document.getElementById('pat-scan-canvas');
+    canvas.width  = video.videoWidth  || 1280;
+    canvas.height = video.videoHeight || 720;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    _patScanMime = 'image/jpeg';
+    _patScanB64  = canvas.toDataURL('image/jpeg', 0.80).split(',')[1];
+
+    const prev = document.getElementById('pat-scan-preview');
+    prev.src = canvas.toDataURL('image/jpeg', 0.80);
+    prev.style.display = 'block';
+    video.style.display = 'none';
+
+    patScanStopCamera();
+    document.getElementById('pat-scan-row-capture').style.display = 'none';
+    document.getElementById('pat-scan-row-analyse').style.display = 'flex';
+    // Auto-analisar se houver chave API configurada
+    if (_getAnthropicKey()) {
+        patScanAnalyse();
+    } else {
+        _patScanSetStatus('Foto capturada — clica em Analisar', '');
+    }
+}
+
+function patScanStopCamera() {
+    if (_patScanStream) {
+        _patScanStream.getTracks().forEach(t => t.stop());
+        _patScanStream = null;
+    }
+    document.getElementById('pat-scan-video').style.display = 'none';
+}
+
+// =============================================
+// PAT SCAN — preenchimento por fotografia (OCR via Claude Vision)
+// =============================================
+let _patScanB64  = null;
+let _patScanMime = 'image/jpeg';
+
+function openPatScan() {
+    patScanReset();
+    document.getElementById('pat-scan-modal').classList.add('active');
+    focusModal('pat-scan-modal');
+}
+
+function closePatScan() {
+    patScanStopCamera();
+    document.getElementById('pat-scan-modal').classList.remove('active');
+}
+
+function patScanFromFile(inp) {
+    const f = inp.files[0];
+    if (!f) return;
+    _patScanMime = f.type || 'image/jpeg';
+    const r = new FileReader();
+    r.onload = e => {
+        _patScanB64 = e.target.result.split(',')[1];
+        // mostra preview
+        document.getElementById('pat-scan-placeholder').style.display = 'none';
+        const prev = document.getElementById('pat-scan-preview');
+        prev.src = e.target.result;
+        prev.style.display = 'block';
+        document.getElementById('pat-scan-row-load').style.display = 'none';
+        document.getElementById('pat-scan-row-analyse').style.display = 'flex';
+        _patScanSetStatus('Imagem carregada — clica em Analisar', '');
+    };
+    r.readAsDataURL(f);
+}
+
+function patScanReset() {
+    _patScanB64 = null;
+    patScanStopCamera();
+    document.getElementById('pat-scan-video').style.display       = 'none';
+    document.getElementById('pat-scan-preview').style.display     = 'none';
+    document.getElementById('pat-scan-placeholder').style.display = 'flex';
+    document.getElementById('pat-scan-row-load').style.display    = 'flex';
+    document.getElementById('pat-scan-row-capture').style.display = 'none';
+    document.getElementById('pat-scan-row-analyse').style.display = 'none';
+    document.getElementById('pat-scan-result').style.display      = 'none';
+    const f1 = document.getElementById('pat-scan-file');
+    const f2 = document.getElementById('pat-scan-file-2');
+    if (f1) f1.value = '';
+    if (f2) f2.value = '';
+    _patScanSetStatus('', '');
+}
+
+function _patScanSetStatus(msg, cls) {
+    const el = document.getElementById('pat-scan-status');
+    el.textContent = msg;
+    el.className   = 'pat-scan-status' + (cls ? ' ' + cls : '');
+}
+
+async function patScanAnalyse() {
+    if (!_patScanB64) return;
+    const btn = document.getElementById('pat-scan-go');
+    btn.disabled = true;
+
+    const apiKey = _getAnthropicKey();
+
+    try {
+        let patNum = null, patConf = 0, estab = null, estabConf = 0;
+
+        if (apiKey) {
+            // ── Modo Claude Vision (alta qualidade) ──────────────────────────
+            _patScanSetStatus('A analisar com Claude Vision…', 'loading');
+
+            const keywords = _getOcrKeywords();
+            const kwHint = keywords.length > 0
+                ? `\\n\\nPALAVRAS-CHAVE DE ESTABELECIMENTO (palavras que identificam o nome do cliente neste documento): ${keywords.map(k => '"' + k + '"').join(', ')}. Se encontrares uma linha que contenha alguma destas palavras, usa essa linha como nome do estabelecimento.`
+                : '';
+
+            const prompt = `És um sistema de OCR especializado em documentos de assistência técnica portugueses.
+
+O documento pode ter qualquer formato: folha A4 impressa, papel térmico, recibo manuscrito, ou até uma fita com texto escrito à mão. Adapta-te ao formato que vês.
+
+Extrai os dois campos abaixo. Segue RIGOROSAMENTE estas regras:
+
+CAMPO 1 — pat_numero:
+- É um número com EXACTAMENTE 6 dígitos
+- Pode aparecer sozinho sem qualquer prefixo, ou precedido de "PAT", "OS", "N.º", "Ref." ou similar
+- Ignora qualquer número que não tenha exactamente 6 dígitos
+- Pode estar em qualquer zona do documento
+- Se não encontrares, devolve null
+
+CAMPO 2 — estabelecimento:
+- É o nome do local/cliente onde a assistência foi prestada
+- NUNCA tem prefixo ou label — aparece sozinho, sem "Cliente:", "Nome:" ou similar
+- Pode aparecer em qualquer posição relativamente ao número PAT: antes, depois, acima, abaixo
+- CADEIAS CONHECIDAS: o estabelecimento pertence quase sempre a uma destas cadeias — procura estas palavras-chave e extrai o nome completo que as acompanha:
+    • "Pingo Doce" ou "PDD" = Pingo Doce (ex: "PINGO DOCE BRAGA RETAIL", "PDD VIANA")
+    • "Continente" (ex: "CONTINENTE MODELO COIMBRA")
+    • "Recheio" (ex: "RECHEIO PORTO")
+- O nome completo inclui a palavra-chave da cadeia mais o identificador específico da loja
+- Devolve o nome em MAIÚSCULAS${kwHint}
+- Se não encontrares, devolve null
+
+CONFIANÇA:
+- pat_confianca: 0.0 a 1.0 (0.9+ = leste claramente, 0.5 = razoável, <0.4 = incerto)
+- estab_confianca: 0.0 a 1.0
+
+Responde APENAS com JSON válido, sem markdown, sem explicações:
+{"pat_numero": "...", "estabelecimento": "...", "pat_confianca": 0.0, "estab_confianca": 0.0}`;
+            const isProxy = _isProxyUrl(apiKey);
+            const endpoint = isProxy ? apiKey : 'https://api.anthropic.com/v1/messages';
+            const headers = { 'Content-Type': 'application/json' };
+            if (!isProxy) {
+                headers['x-api-key'] = apiKey;
+                headers['anthropic-version'] = '2023-06-01';
+                headers['anthropic-dangerous-allow-browser'] = 'true';
+            }
+
+            const resp = await _fetchWithTimeout(endpoint, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    model: 'claude-haiku-4-5-20251001',
+                    max_tokens: 300,
+                    messages: [{ role: 'user', content: [
+                        { type: 'image', source: { type: 'base64', media_type: _patScanMime, data: _patScanB64 } },
+                        { type: 'text', text: prompt }
+                    ]}]
+                })
+            });
+
+            if (!resp.ok) {
+                const e = await resp.json().catch(() => ({}));
+                if (resp.status === 401) throw new Error('Chave API inválida ou expirada — actualiza em Admin → Definições');
+                throw new Error(e?.error?.message || `HTTP ${resp.status}`);
+            }
+
+            const data   = await resp.json();
+            const raw    = data.content?.map(b => b.text || '').join('') || '';
+            const result = JSON.parse(raw.replace(/```json|```/gi, '').trim());
+
+            patNum    = result.pat_numero;
+            patConf   = result.pat_confianca || 0;
+            estab     = result.estabelecimento;
+            estabConf = result.estab_confianca || 0;
+
+        } else {
+            // ── Modo Tesseract (OCR local, sem chave) ─────────────────────────
+            _patScanSetStatus('A carregar motor OCR…', 'loading');
+            await loadTesseract();
+
+            const dataUrl = `data:${_patScanMime};base64,${_patScanB64}`;
+
+            const { data: { text } } = await Tesseract.recognize(dataUrl, 'por', {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        const pct = Math.round((m.progress || 0) * 100);
+                        _patScanSetStatus(`A reconhecer texto… ${pct}%`, 'loading');
+                    }
+                }
+            });
+
+            const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+            const patRx = [
+                /(?:PAT|OS|N[º°.]?\s*(?:PAT|OS)?)\s*[:\-]?\s*(\d{4,8})/i,
+                /\b(\d{5,8})\b/
+            ];
+            for (const rx of patRx) {
+                const m = text.match(rx);
+                if (m) { patNum = m[1]; patConf = rx === patRx[0] ? 0.75 : 0.45; break; }
+            }
+            const skipWords = /^(PAT|OS|DATA|TÉCNICO|SERVIÇO|TEL|NIF|FAX|MORADA|RUA|AV|HORA|\d+)$/i;
+            const nameLines = lines.filter(l =>
+                l.length > 4 && l.length < 60 &&
+                !/^\d+$/.test(l) &&
+                !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(l) &&
+                !skipWords.test(l.split(/\s/)[0])
+            );
+            const estabKw = nameLines.find(l => /CAFÉ|SNACK|BAR|REST|HOTEL|MINI|SUPER|MERCADO|LDA|SA\b|UNIP|POSTO/i.test(l));
+            if (estabKw) { estab = estabKw.toUpperCase(); estabConf = 0.70; }
+            else if (nameLines.length > 0) { estab = nameLines[0].toUpperCase(); estabConf = 0.40; }
+        }
+
+        // ── Preenche resultado ────────────────────────────────────────────────
+        _patScanFill('ps-pat',   patNum, patConf,   'ps-pat-conf');
+        _patScanFill('ps-estab', estab,  estabConf, 'ps-estab-conf');
+        document.getElementById('pat-scan-result').style.display = 'flex';
+        const mode = apiKey ? 'Claude Vision' : 'OCR local';
+        _patScanSetStatus(`✓ Análise concluída (${mode}) — revê e confirma`, 'ok');
+
+    } catch(e) {
+        const isTimeout = e?.name === 'AbortError';
+        const msg = isTimeout ? 'Tempo esgotado (30s) — tenta novamente com boa ligação' : (e?.message || (typeof e === 'string' ? e : JSON.stringify(e)) || 'Erro desconhecido');
+        _patScanSetStatus('Erro: ' + msg, 'error');
+        console.error('[patScan]', e);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function _patScanFill(inputId, value, conf, confId) {
+    const inp  = document.getElementById(inputId);
+    const badge = document.getElementById(confId);
+    inp.value  = value || '';
+    if (badge) {
+        const pct = Math.round((conf || 0) * 100);
+        badge.textContent = pct + '%';
+        badge.className   = 'pat-scan-conf ' + (pct >= 75 ? 'high' : pct >= 50 ? 'mid' : 'low');
+        badge.style.display = value ? '' : 'none';
+    }
+}
+
+function patScanApply() {
+    const pat   = document.getElementById('ps-pat').value.trim();
+    const estab = document.getElementById('ps-estab').value.trim().toUpperCase();
+
+    closePatScan();
+
+    // Abrir o modal (que limpa os campos) e só depois preencher
+    const patModalOpen = document.getElementById('pat-modal').classList.contains('active');
+    if (!patModalOpen) openPatModal();
+
+    // Preencher após o modal estar aberto (openPatModal tem setTimeout de 80ms para focus)
+    setTimeout(() => {
+        if (pat)   document.getElementById('pat-numero').value        = pat;
+        if (estab) document.getElementById('pat-estabelecimento').value = estab;
+        showToast('Campos preenchidos — revê antes de guardar', 'info');
+    }, 100);
+}
 
 function patProductSearch(val) {
     _patDropdownIdx = -1;
