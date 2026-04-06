@@ -4357,7 +4357,7 @@ body.is-offline #app-layout {
     display: flex;
     align-items: stretch;
     overflow: hidden;
-    margin-bottom: 7px;
+    margin-bottom: 6px;
 }
 .pat-card-accent {
     width: 5px;
@@ -4366,7 +4366,7 @@ body.is-offline #app-layout {
 }
 .pat-card-body-desktop {
     flex: 1;
-    padding: 9px 14px;
+    padding: 8px 12px;
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -4375,10 +4375,10 @@ body.is-offline #app-layout {
 .pat-card-meta {
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 0.70rem;
+    gap: 10px;
+    font-size: 0.68rem;
     color: var(--text-muted);
-    margin-top: 2px;
+    margin-top: 1px;
     flex-wrap: wrap;
 }
 .pat-card-meta span {
@@ -4390,15 +4390,15 @@ body.is-offline #app-layout {
 .pat-steps {
     display: flex;
     align-items: center;
-    gap: 5px;
-    margin-top: 5px;
+    gap: 4px;
+    margin-top: 4px;
     flex-wrap: wrap;
 }
 .pat-step-pill {
-    font-size: 0.62rem;
+    font-size: 0.58rem;
     font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 5px;
+    padding: 2px 7px;
+    border-radius: 4px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     border: 1px solid transparent;
@@ -4410,9 +4410,9 @@ body.is-offline #app-layout {
     flex-direction: column;
     justify-content: center;
     align-items: flex-end;
-    padding: 9px 14px;
+    padding: 8px 12px;
     flex-shrink: 0;
-    min-width: 120px;
+    min-width: 110px;
     border-left: 1px solid var(--border);
 }
 .pat-card-loc-label {
@@ -4435,7 +4435,7 @@ body.is-offline #app-layout {
     align-items: center;
     justify-content: center;
     gap: 5px;
-    padding: 9px 14px;
+    padding: 8px 12px;
     flex-shrink: 0;
     border-left: 1px solid var(--border);
 }
@@ -4481,7 +4481,7 @@ body.is-offline #app-layout {
 .pat-map-panel {
     display: flex;
     flex-direction: column;
-    padding: 14px 14px 12px;
+    padding: 12px 12px 10px;
     flex: 1;
     min-height: 0;
 }
@@ -4503,8 +4503,8 @@ body.is-offline #app-layout {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-height: 220px;
     flex: 1;
+    min-height: 220px;
     font-size: 0.72rem;
     color: var(--text-muted);
     background: var(--bg);
@@ -6764,6 +6764,63 @@ body.is-offline #app-layout {
 .pat-pin.red   .pat-pin-body { fill: #dc2626; }
 .pat-pin.cluster .pat-pin-body { fill: #6366f1; }
 .pat-pin .pat-pin-hole { fill: white; opacity: 0.9; }
+
+/* ── Pin de cadeia (logo da loja) ── */
+.pat-pin-chain {
+    position: relative;
+    width: 44px;
+    height: 52px;
+    cursor: pointer;
+    filter: drop-shadow(0 3px 8px rgba(0,0,0,0.28));
+    transition: transform 0.15s, filter 0.15s;
+}
+.pat-pin-chain:hover {
+    transform: translateY(-3px) scale(1.08);
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.32));
+}
+.pat-pin-chain-bg {
+    width: 44px;
+    height: 44px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    background: var(--chain-color, #2563eb);
+    border: 3px solid #fff;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.20);
+}
+.pat-pin-chain-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: rotate(45deg);
+    display: block;
+}
+.pat-pin-chain-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(45deg);
+    font-size: 0.72rem;
+    font-weight: 900;
+    color: #fff;
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: -0.02em;
+}
+.pat-pin-chain-tail {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 10px solid var(--chain-color, #2563eb);
+}
 
 /* ── Map Pin Bottom-Sheet ────────────────────────────────── */
 .map-pin-sheet {

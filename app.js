@@ -4987,32 +4987,52 @@ async function _geocodeEstab(nome, saveToFirebase = true, clienteNumero = '', cl
 // Para adicionar novos: { match: /regex/, icon: 'ficheiro.png', size: [w, h] }
 const _CHAIN_ICONS = [
     {
-        match: /pingo\s*doce/i,
-        icon:  'pingo-doce-pin.png',
-        size:  [64, 50],
-        anchor: [32, 50],
-        popup:  [0, -52],
+        match:    /pingo\s*doce/i,
+        icon:     'pingo-doce-pin.png',
+        color:    '#e30613',
+        initials: 'PD',
     },
     {
-        match: /continente/i,
-        icon:  'continente-pin.png',
-        size:  [64, 57],
-        anchor: [32, 57],
-        popup:  [0, -59],
+        match:    /continente/i,
+        icon:     'continente-pin.png',
+        color:    '#e30613',
+        initials: 'CT',
     },
     {
-        match: /recheio/i,
-        icon:  'recheio-pin.png',
-        size:  [64, 57],
-        anchor: [32, 57],
-        popup:  [0, -59],
+        match:    /recheio/i,
+        icon:     'recheio-pin.png',
+        color:    '#cc0000',
+        initials: 'RC',
     },
     {
-        match: /leclerc/i,
-        icon:  'leclerc-pin.png',
-        size:  [64, 57],
-        anchor: [32, 57],
-        popup:  [0, -59],
+        match:    /leclerc/i,
+        icon:     'leclerc-pin.png',
+        color:    '#003da5',
+        initials: 'LC',
+    },
+    {
+        match:    /intermarc[hé]/i,
+        icon:     '',
+        color:    '#007a33',
+        initials: 'IM',
+    },
+    {
+        match:    /lidl/i,
+        icon:     '',
+        color:    '#0050aa',
+        initials: 'LI',
+    },
+    {
+        match:    /aldi/i,
+        icon:     '',
+        color:    '#00539f',
+        initials: 'AL',
+    },
+    {
+        match:    /modelo\b/i,
+        icon:     '',
+        color:    '#e30613',
+        initials: 'MC',
     },
 ];
 
@@ -5020,11 +5040,27 @@ function _getChainIcon(nomeEstab) {
     const nome = (nomeEstab || '').trim();
     for (const chain of _CHAIN_ICONS) {
         if (chain.match.test(nome)) {
-            return L.icon({
-                iconUrl:    chain.icon,
-                iconSize:   chain.size,
-                iconAnchor: chain.anchor,
-                popupAnchor: chain.popup,
+            // Usa divIcon com <img> + fallback SVG caso o PNG não exista
+            const color = chain.color || '#2563eb';
+            const html = `
+                <div class="pat-pin-chain" style="--chain-color:${color}">
+                    <div class="pat-pin-chain-bg">
+                        <img class="pat-pin-chain-img"
+                             src="${chain.icon}"
+                             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+                             alt="">
+                        <div class="pat-pin-chain-fallback" style="display:none;background:${color}">
+                            ${chain.initials || '?'}
+                        </div>
+                    </div>
+                    <div class="pat-pin-chain-tail" style="border-top-color:${color}"></div>
+                </div>`;
+            return L.divIcon({
+                className: '',
+                html,
+                iconSize:    [44, 52],
+                iconAnchor:  [22, 52],
+                popupAnchor: [0, -54],
             });
         }
     }
@@ -5311,28 +5347,27 @@ function centerMapOnPin() {
     _patMap.setView([_mapPinCoords.lat, _mapPinCoords.lng], 15, { animate: true });
 }
 
+// Abre o mapa PAT fullscreen (desktop e mobile) — chamado pelo botão Expandir Mapa
 async function expandPatMap() {
-    // Sempre abre a view-map fullscreen (tanto mobile como desktop)
     _patMapOpen = true;
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-map')?.classList.add('active');
     document.getElementById('main-content')?.classList.add('map-view-active');
     window.scrollTo(0, 0);
 
-    const loadingEl  = document.getElementById('pat-map-loading');
-    const loadingTxt = document.getElementById('pat-map-loading-text');
-    const errorEl    = document.getElementById('pat-map-error');
-    const subtitleEl = document.getElementById('pat-map-subtitle');
-    const container  = document.getElementById('pat-map-container');
+    const loadingEl   = document.getElementById('pat-map-loading');
+    const loadingTxt  = document.getElementById('pat-map-loading-text');
+    const errorEl     = document.getElementById('pat-map-error');
+    const subtitleEl  = document.getElementById('pat-map-subtitle');
+    const container   = document.getElementById('pat-map-container');
 
-    if (loadingEl)  loadingEl.style.display = 'flex';
-    if (errorEl)    errorEl.style.display   = 'none';
-    if (subtitleEl) subtitleEl.textContent  = '';
-    if (loadingTxt) loadingTxt.textContent  = 'A preparar mapa...';
+    if (loadingEl)  loadingEl.style.display  = 'flex';
+    if (errorEl)    errorEl.style.display    = 'none';
+    if (subtitleEl) subtitleEl.textContent   = '';
+    if (loadingTxt) loadingTxt.textContent   = 'A preparar mapa...';
     if (!container) return;
 
-    const headerEl   = document.getElementById('app-header');
-    const headerH    = headerEl ? headerEl.offsetHeight : 60;
+    const headerH    = (document.getElementById('app-header')?.offsetHeight) || 60;
     const mapHeaderEl = document.querySelector('.pat-map-header');
     await _sleep(50);
     const mapHeaderH = mapHeaderEl ? mapHeaderEl.offsetHeight : 80;
@@ -5348,11 +5383,15 @@ async function expandPatMap() {
             maxBounds: PT_BOUNDS, maxBoundsViscosity: 1.0, zoomControl: true,
         });
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '© OpenStreetMap © CARTO', subdomains: 'abcd', maxZoom: 20, minZoom: 6,
+            attribution: '© OpenStreetMap © CARTO',
+            subdomains: 'abcd', maxZoom: 20, minZoom: 6,
         }).addTo(_patMap);
         _patMap.fitBounds(PT_BOUNDS, { padding: [20, 20] });
         _patMap.invalidateSize();
-        _patMap.on('click', () => { if (_markerJustClicked) { _markerJustClicked = false; return; } closeMapPinSheet(); });
+        _patMap.on('click', () => {
+            if (_markerJustClicked) { _markerJustClicked = false; return; }
+            closeMapPinSheet();
+        });
     }
 
     if (loadingTxt) loadingTxt.textContent = 'A carregar pedidos...';
@@ -5360,14 +5399,17 @@ async function expandPatMap() {
 
     const pats = await _fetchPats();
     await _fetchClientes();
-    const pendentes = Object.entries(pats || {}).filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
+    const pendentes = Object.entries(pats || {})
+        .filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
 
     if (pendentes.length === 0) {
         if (loadingEl) loadingEl.style.display = 'none';
         if (errorEl)   errorEl.style.display   = 'flex';
-        document.getElementById('pat-map-error-text').textContent = 'Sem pedidos pendentes para mostrar.';
+        const errTxt = document.getElementById('pat-map-error-text');
+        if (errTxt) errTxt.textContent = 'Sem pedidos pendentes para mostrar.';
         return;
     }
+
     if (subtitleEl) subtitleEl.textContent = 'A preparar localizações...';
     if (loadingTxt) loadingTxt.textContent = 'A carregar localizações guardadas...';
     await _loadGeocodeCache();
@@ -5386,8 +5428,10 @@ async function expandPatMap() {
         if (!coords) return;
         const urgente   = items.some(([, p]) => _calcDias(p.criadoEm) >= 20);
         const separacao = items.some(([, p]) => !!p.separacao);
-        const icon = _makePinIcon(items.length, urgente, separacao);
-        const marker = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMap);
+        const nomeEstab = items[0][1].estabelecimento || '';
+        const chainIcon = _getChainIcon(nomeEstab);
+        const icon      = chainIcon || _makePinIcon(items.length, urgente, separacao);
+        const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMap);
         marker.on('click', () => {
             const cur = _getMapPendingPatsForEstab(items[0]?.[1]?.estabelecimento || k);
             if (cur.length === 0) { marker.remove(); _patMapMarkers = _patMapMarkers.filter(m => m !== marker); closeMapPinSheet(); return; }
