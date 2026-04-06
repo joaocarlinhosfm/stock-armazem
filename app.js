@@ -779,6 +779,8 @@ document.addEventListener('click', function(e) {
 // ARQUITECTURA (#18): esta função gere routing + side-effects.
 // Para refactor futuro: separar em _activateView(id) e callbacks por vista.
 function nav(viewId) {
+    // DIAGNÓSTICO TEMPORÁRIO
+    console.log('[nav] chamado com:', viewId, '| currentRole:', currentRole);
     if (viewId === 'view-admin' && !checkAdminAccess()) return;
 
     // Actualiza título do header
@@ -797,7 +799,9 @@ function nav(viewId) {
     if (titleEl && pageTitles[viewId]) titleEl.textContent = pageTitles[viewId];
 
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    $id(viewId)?.classList.add('active');
+    const _navEl = $id(viewId);
+    if (_navEl) { _navEl.classList.add('active'); console.log('[nav] vista activada:', viewId, '| active?', _navEl.classList.contains('active')); }
+    else { console.error('[nav] ELEMENTO NÃO ENCONTRADO:', viewId); }
 
     // Desktop: admin precisa de padding 0 para o layout Windows Settings funcionar
     const mainContent = $id('main-content');
