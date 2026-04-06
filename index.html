@@ -1689,52 +1689,8 @@
 
     <div id="toast-container"></div>
     <!-- Firebase SDK (Auth anónima — token para REST API) -->
-    <!-- Tesseract e XLSX carregados sob pedido via loadTesseract() / loadXlsx() em app.js -->
+    <!-- XLSX carregado sob pedido via loadXlsx() em app.js -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-
-            <!-- Botão de captura (visível quando câmara activa) -->
-            <div class="pat-scan-btns" id="pat-scan-row-capture" style="display:none">
-                <button class="btn-primary pat-scan-file-label" onclick="patScanCapture()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/><path fill="none" stroke="currentColor" stroke-width="2" d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/></svg>
-                    Tirar Foto
-                </button>
-                <label class="btn-cancel pat-scan-file-label" for="pat-scan-file-2" style="flex:0.6">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    Galeria
-                </label>
-                <input type="file" id="pat-scan-file-2" accept="image/*" style="display:none" onchange="patScanFromFile(this)">
-            </div>
-
-            <div class="pat-scan-btns" id="pat-scan-row-analyse" style="display:none">
-                <button class="btn-primary" id="pat-scan-go" onclick="patScanAnalyse()">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    Analisar
-                </button>
-                <button class="btn-cancel" onclick="patScanReset()">↩ Nova foto</button>
-            </div>
-
-            <!-- Resultado -->
-            <div id="pat-scan-result" class="pat-scan-result" style="display:none">
-                <div class="pat-scan-field">
-                    <span class="pat-scan-flabel">Nº PAT</span>
-                    <div class="pat-scan-frow">
-                        <input class="blue-input pat-scan-finput" id="ps-pat" type="text" maxlength="8" placeholder="—">
-                        <span class="pat-scan-conf" id="ps-pat-conf"></span>
-                    </div>
-                </div>
-                <div class="pat-scan-field">
-                    <span class="pat-scan-flabel">Estabelecimento</span>
-                    <div class="pat-scan-frow">
-                        <input class="blue-input pat-scan-finput" id="ps-estab" type="text" placeholder="—">
-                        <span class="pat-scan-conf" id="ps-estab-conf"></span>
-                    </div>
-                </div>
-                <button class="btn-primary" style="width:100%;margin-top:8px" onclick="patScanApply()">
-                    ✓ Usar estes dados
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- ═══════════════════════════════════════════════════════════
          MODAL: Calculadora de Stock por Peso
@@ -2032,6 +1988,8 @@
 
     <!-- Leaflet CSS + JS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="app.js?v=1774968866"></script>
 </body>
 </html>

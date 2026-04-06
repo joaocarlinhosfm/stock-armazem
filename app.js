@@ -5799,6 +5799,31 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 hint.textContent = '';
             }
+
+    // Desktop layout
+    function applyDesktopLayout() {
+        const isDesktop = window.innerWidth >= 768;
+        const bottomNav = $id('bottom-nav');
+        const sideMenu  = $id('side-menu');
+        const appLayout = $id('app-layout');
+        if (isDesktop) {
+            if (bottomNav) bottomNav.style.display = 'none';
+            const fab1 = $id('fab-add'); if (fab1) fab1.style.display = 'none';
+            const cb1 = $id('close-menu'); if (cb1) cb1.style.display = 'none';
+            if (sideMenu) {
+                sideMenu.style.cssText = 'position:relative;left:0;top:0;height:calc(100vh - 60px);box-shadow:none;z-index:100;overflow-y:auto';
+            }
+            if (appLayout) { appLayout.style.flexDirection = 'row'; appLayout.style.alignItems = 'flex-start'; }
+        } else {
+            if (bottomNav) bottomNav.style.display = '';
+            const fab2 = $id('fab-add'); if (fab2) fab2.style.display = '';
+            const cb2 = $id('close-menu'); if (cb2) cb2.style.display = '';
+            if (sideMenu) sideMenu.style.cssText = '';
+            if (appLayout) { appLayout.style.flexDirection = ''; appLayout.style.alignItems = ''; }
+        }
+    }
+    applyDesktopLayout();
+    window.addEventListener('resize', applyDesktopLayout);
         }
     });
 
@@ -9285,59 +9310,6 @@ function _relBuildInsight(snap) {
     return null;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-
-    // Desktop layout: sidebar visível, bottom nav escondido
-    function applyDesktopLayout() {
-        const isDesktop = window.innerWidth >= 768;
-        const bottomNav = $id('bottom-nav');
-        const sideMenu  = $id('side-menu');
-        const appLayout = $id('app-layout');
-
-        if (isDesktop) {
-            if (bottomNav) bottomNav.style.display = 'none';
-            const fab = $id('fab-add');
-            if (fab) fab.style.display = 'none';
-            const closeBtn = $id('close-menu');
-            if (closeBtn) closeBtn.style.display = 'none';
-            if (sideMenu) {
-                sideMenu.style.position = 'relative';
-                sideMenu.style.left = '0';
-                sideMenu.style.top = '0';
-                sideMenu.style.height = 'calc(100vh - 60px)';
-                sideMenu.style.boxShadow = 'none';
-                sideMenu.style.zIndex = '100';
-                sideMenu.style.overflowY = 'auto';
-            }
-            if (appLayout) {
-                appLayout.style.flexDirection = 'row';
-                appLayout.style.alignItems = 'flex-start';
-            }
-        } else {
-            if (bottomNav) bottomNav.style.display = '';
-            const fab = $id('fab-add');
-            if (fab) fab.style.display = '';
-            const closeBtn = $id('close-menu');
-            if (closeBtn) closeBtn.style.display = '';
-            if (sideMenu) {
-                sideMenu.style.position = '';
-                sideMenu.style.left = '';
-                sideMenu.style.top = '';
-                sideMenu.style.height = '';
-                sideMenu.style.boxShadow = '';
-                sideMenu.style.zIndex = '';
-                sideMenu.style.overflowY = '';
-            }
-            if (appLayout) {
-                appLayout.style.flexDirection = '';
-                appLayout.style.alignItems = '';
-            }
-        }
-    }
-
-    applyDesktopLayout();
-    window.addEventListener('resize', applyDesktopLayout);
-});
 
 // ── Render lista ──────────────────────────────────────────────────────────
 function renderEncList() {
