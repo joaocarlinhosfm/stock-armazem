@@ -5324,159 +5324,54 @@ function centerMapOnPin() {
     _patMap.setView([_mapPinCoords.lat, _mapPinCoords.lng], 15, { animate: true });
 }
 
-// Abre o mapa PAT fullscreen (desktop e mobile) — chamado pelo botão Expandir Mapa
+
+
+// expandPatMap — abre o mapa fullscreen (desktop e mobile).
+// Delega em openPatMap que já tem geocodificação completa (Passos 1-4).
+// Não duplica lógica — garante que novos estabelecimentos são sempre geocodificados.
 async function expandPatMap() {
-    _patMapOpen = true;
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    $id('view-map')?.classList.add('active');
-    $id('main-content')?.classList.add('map-view-active');
-    window.scrollTo(0, 0);
+    // Em desktop, openPatMap normalmente abriria apenas o painel lateral.
+    // Forçamos a navegação para view-map antes de chamar openPatMap,
+    // de modo a que toda a lógica de geocodificação corra no contexto fullscreen.
+    const wasDesktop = window.innerWidth >= 768;
+    if (wasDesktop) {
+        // Navegar para view-map e ajustar o container antes de inicializar
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        $id('view-map')?.classList.add('active');
+        $id('main-content')?.classList.add('map-view-active');
+        window.scrollTo(0, 0);
 
-    const loadingEl   = $id('pat-map-loading');
-    const loadingTxt  = $id('pat-map-loading-text');
-    const errorEl     = $id('pat-map-error');
-    const subtitleEl  = $id('pat-map-subtitle');
-    const container   = $id('pat-map-container');
+        // Calcular altura do container
+        const container   = $id('pat-map-container');
+        const headerH     = $id('app-header')?.offsetHeight || 60;
+        const mapHeaderEl = document.querySelector('.pat-map-header');
+        await _sleep(50);
+        const mapHeaderH  = mapHeaderEl ? mapHeaderEl.offsetHeight : 80;
+        if (container) {
+            container.style.height = (window.innerHeight - headerH - mapHeaderH) + 'px';
+            container.style.width  = '100%';
+        }
 
-    if (loadingEl)  loadingEl.style.display  = 'flex';
-    if (errorEl)    errorEl.style.display    = 'none';
-    if (subtitleEl) subtitleEl.textContent   = '';
-    if (loadingTxt) loadingTxt.textContent   = 'A preparar mapa...';
-    if (!container) return;
+        // Limpar instância do painel lateral se existir (containers diferentes)
+        if (_patMapPanel) {
+            try { _patMapPanel.remove(); } catch(_) {}
+            _patMapPanel = null;
+        }
 
-    const headerH    = ($id('app-header')?.offsetHeight) || 60;
-    const mapHeaderEl = document.querySelector('.pat-map-header');
-    await _sleep(50);
-    const mapHeaderH = mapHeaderEl ? mapHeaderEl.offsetHeight : 80;
-    container.style.height = (window.innerHeight - headerH - mapHeaderH) + 'px';
-    container.style.width  = '100%';
+        // Resetar _patMap para forçar recriação no container correcto
+        if (_patMap) {
+            _patMapMarkers.forEach(m => m.remove());
+            _patMapMarkers = [];
+            try { _patMap.remove(); } catch(_) {}
+            _patMap = null;
+        }
 
-    if (_patMap) { _patMapMarkers.forEach(m => m.remove()); _patMapMarkers = []; }
-
-    const PT_BOUNDS = L.latLngBounds(L.latLng(30.0, -31.5), L.latLng(42.2, -6.2));
-    if (!_patMap) {
-        _patMap = L.map('pat-map-container', {
-            center: [39.6, -8.0], zoom: 7, minZoom: 6, maxZoom: 17,
-            maxBounds: PT_BOUNDS, maxBoundsViscosity: 1.0, zoomControl: true,
-        });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '© OpenStreetMap © CARTO',
-            subdomains: 'abcd', maxZoom: 20, minZoom: 6,
-        }).addTo(_patMap);
-        _patMap.fitBounds(PT_BOUNDS, { padding: [20, 20] });
-        _patMap.invalidateSize();
-        _patMap.on('click', () => {
-            if (_markerJustClicked) { _markerJustClicked = false; return; }
-            closeMapPinSheet();
-        });
+        // Resetar flag para forçar nova geocodificação de estabelecimentos novos
+        _geocodeCacheLoaded = false;
     }
 
-    if (loadingTxt) loadingTxt.textContent = 'A carregar pedidos...';
-    _patMapMarkers.forEach(m => m.remove()); _patMapMarkers = [];
-
-    const pats = await _fetchPats();
-    await _fetchClientes();
-    const pendentes = Object.entries(pats || {})
-        .filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
-
-    if (pendentes.length === 0) {
-        if (loadingEl) loadingEl.style.display = 'none';
-        if (errorEl)   errorEl.style.display   = 'flex';
-        const errTxt = $id('pat-map-error-text');
-        if (errTxt) errTxt.textContent = 'Sem pedidos pendentes para mostrar.';
-        return;
-    }
-
-    if (subtitleEl) subtitleEl.textContent = 'A preparar localizações...';
-    if (loadingTxt) loadingTxt.textContent = 'A carregar localizações guardadas...';
-    await _loadGeocodeCache();
-
-    const groups = {};
-    pendentes.forEach(([id, pat]) => {
-        const key = _normEstabKey(pat.estabelecimento);
-        if (!key) return;
-        if (!groups[key]) groups[key] = [];
-        groups[key].push([id, pat]);
-    });
-
-    const bounds = [];
-    Object.entries(groups).forEach(([k, items]) => {
-        const coords = _geocodeCache[k];
-        if (!coords) return;
-        const urgente   = items.some(([, p]) => _calcDias(p.criadoEm) >= 20);
-        const separacao = items.some(([, p]) => !!p.separacao);
-        const nomeEstab = items[0][1].estabelecimento || '';
-        const chainIcon = _getChainIcon(nomeEstab);
-        const icon      = chainIcon || _makePinIcon(items.length, urgente, separacao);
-        const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMap);
-        marker.on('click', () => {
-            const cur = _getMapPendingPatsForEstab(items[0]?.[1]?.estabelecimento || k);
-            if (cur.length === 0) { marker.remove(); _patMapMarkers = _patMapMarkers.filter(m => m !== marker); closeMapPinSheet(); return; }
-            _markerJustClicked = true;
-            openMapPinSheet(cur, { lat: coords.lat, lng: coords.lng });
-        });
-        _patMapMarkers.push(marker);
-        bounds.push([coords.lat, coords.lng]);
-    });
-
-    if (loadingEl) loadingEl.style.display = 'none';
-    if (bounds.length > 0) _patMap.fitBounds(L.latLngBounds(bounds), { padding: [40, 40], maxZoom: 14 });
-    _patMap.invalidateSize();
-    _renderMapPinSheet(pendentes);
-}
-
-// Abre mapa PAT fullscreen — chamado pelo botão Expandir Mapa
-async function expandPatMap() {
-    _patMapOpen = true;
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    $id('view-map')?.classList.add('active');
-    $id('main-content')?.classList.add('map-view-active');
-    window.scrollTo(0, 0);
-    const loadingEl=$id('pat-map-loading'), loadingTxt=$id('pat-map-loading-text'),
-          errorEl=$id('pat-map-error'), subtitleEl=$id('pat-map-subtitle'), container=$id('pat-map-container');
-    if (loadingEl)  loadingEl.style.display='flex';
-    if (errorEl)    errorEl.style.display='none';
-    if (subtitleEl) subtitleEl.textContent='';
-    if (loadingTxt) loadingTxt.textContent='A preparar mapa...';
-    if (!container) return;
-    const headerH=($id('app-header')?.offsetHeight)||60, mapHeaderEl=document.querySelector('.pat-map-header');
-    await _sleep(50);
-    container.style.height=(window.innerHeight-headerH-(mapHeaderEl?mapHeaderEl.offsetHeight:80))+'px';
-    container.style.width='100%';
-    if (_patMap) { _patMapMarkers.forEach(m=>m.remove()); _patMapMarkers=[]; }
-    const PT_BOUNDS=L.latLngBounds(L.latLng(30.0,-31.5),L.latLng(42.2,-6.2));
-    if (!_patMap) {
-        _patMap=L.map('pat-map-container',{center:[39.6,-8.0],zoom:7,minZoom:6,maxZoom:17,maxBounds:PT_BOUNDS,maxBoundsViscosity:1.0,zoomControl:true});
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:20,minZoom:6}).addTo(_patMap);
-        _patMap.fitBounds(PT_BOUNDS,{padding:[20,20]}); _patMap.invalidateSize();
-        _patMap.on('click',()=>{if(_markerJustClicked){_markerJustClicked=false;return;}closeMapPinSheet();});
-    }
-    if (loadingTxt) loadingTxt.textContent='A carregar pedidos...';
-    _patMapMarkers.forEach(m=>m.remove()); _patMapMarkers=[];
-    const pats=await _fetchPats(); await _fetchClientes();
-    const pendentes=Object.entries(pats||{}).filter(([,p])=>p.status!=='levantado'&&p.status!=='historico');
-    if (pendentes.length===0) {
-        if (loadingEl) loadingEl.style.display='none';
-        if (errorEl) errorEl.style.display='flex';
-        const errTxt=$id('pat-map-error-text'); if (errTxt) errTxt.textContent='Sem pedidos pendentes para mostrar.'; return;
-    }
-    if (subtitleEl) subtitleEl.textContent='A preparar localizações...';
-    if (loadingTxt) loadingTxt.textContent='A carregar localizações guardadas...';
-    await _loadGeocodeCache();
-    const groups={};
-    pendentes.forEach(([id,pat])=>{const key=_normEstabKey(pat.estabelecimento);if(!key)return;if(!groups[key])groups[key]=[];groups[key].push([id,pat]);});
-    const bounds=[];
-    Object.entries(groups).forEach(([k,items])=>{
-        const coords=_geocodeCache[k]; if(!coords)return;
-        const urgente=items.some(([,p])=>_calcDias(p.criadoEm)>=20), separacao=items.some(([,p])=>!!p.separacao);
-        const icon=_getChainIcon(items[0][1].estabelecimento||'')||_makePinIcon(items.length,urgente,separacao);
-        const marker=L.marker([coords.lat,coords.lng],{icon}).addTo(_patMap);
-        marker.on('click',()=>{const cur=_getMapPendingPatsForEstab(items[0]?.[1]?.estabelecimento||k);if(!cur.length){marker.remove();_patMapMarkers=_patMapMarkers.filter(m=>m!==marker);closeMapPinSheet();return;}_markerJustClicked=true;openMapPinSheet(cur,{lat:coords.lat,lng:coords.lng});});
-        _patMapMarkers.push(marker); bounds.push([coords.lat,coords.lng]);
-    });
-    if (loadingEl) loadingEl.style.display='none';
-    if (bounds.length>0) _patMap.fitBounds(L.latLngBounds(bounds),{padding:[40,40],maxZoom:14});
-    _patMap.invalidateSize(); _renderMapPinSheet(pendentes);
+    // openPatMap tem o fluxo completo: geocache + Nominatim para novos
+    await openPatMap();
 }
 
 async function openPatMap() {
@@ -8632,6 +8527,7 @@ async function savePat() {
             } else {
                 _patCache.data[`_tmp_pat_${Date.now()}`] = payload;
             }
+            _geocodeCacheLoaded = false; // novo estabelecimento pode precisar de geocodificação
             closePatModal();
             renderPats();
             showToast(res ? `PAT ${numero} registada!` : `PAT ${numero} guardada offline`);
