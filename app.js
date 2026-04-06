@@ -8,7 +8,7 @@ const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Atalho para document.getElementById — retorna null sem lançar erro */
-const $ = id => document.getElementById(id);
+const $id = id => document.getElementById(id); // Isto define '$id'
 
 /** Cria um elemento e aplica propriedades de uma só vez.
  *  Exemplo: $el('div', { className: 'card', textContent: 'Olá' })
