@@ -4980,17 +4980,77 @@ function _getChainIcon(nomeEstab) {
     for (const chain of _CHAIN_ICONS) {
         if (!chain.match.test(nome)) continue;
         const color = chain.color || '#2563eb';
+
+        // Tudo em inline styles — evita qualquer conflito com o Leaflet
+        // que injeta width/height no container .leaflet-marker-icon
+        const bgStyle = [
+            'position:absolute',
+            'top:0;left:0',
+            'width:34px;height:34px',
+            'border-radius:50% 50% 50% 0',
+            'transform:rotate(-45deg)',
+            `background:${color}`,
+            'border:2.5px solid #fff',
+            'overflow:hidden',
+            'display:flex',
+            'align-items:center',
+            'justify-content:center',
+            'box-shadow:0 1px 4px rgba(0,0,0,.25)',
+        ].join(';');
+
+        const imgStyle = [
+            'width:100%',
+            'height:100%',
+            'object-fit:cover',
+            'transform:rotate(45deg)',
+            'display:block',
+            'flex-shrink:0',
+        ].join(';');
+
+        const fbStyle = [
+            'width:100%',
+            'height:100%',
+            `display:${chain.icon ? 'none' : 'flex'}`,
+            'align-items:center',
+            'justify-content:center',
+            'transform:rotate(45deg)',
+            'font-size:11px',
+            'font-weight:900',
+            'color:#fff',
+            'font-family:DM Sans,sans-serif',
+        ].join(';');
+
+        const tailStyle = [
+            'position:absolute',
+            'bottom:0',
+            'left:50%',
+            'transform:translateX(-50%)',
+            'width:0;height:0',
+            'border-left:6px solid transparent',
+            'border-right:6px solid transparent',
+            `border-top:8px solid ${color}`,
+        ].join(';');
+
+        const wrapStyle = [
+            'position:relative',
+            'width:34px',
+            'height:42px',
+            'cursor:pointer',
+            'filter:drop-shadow(0 2px 4px rgba(0,0,0,.30))',
+        ].join(';');
+
         const imgHtml = chain.icon
-            ? `<img class="pat-pin-chain-img" src="${chain.icon}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">`
+            ? `<img style="${imgStyle}" src="${chain.icon}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">`
             : '';
-        const fallbackDisplay = chain.icon ? 'none' : 'flex';
-        const html = `<div class="pat-pin-chain" style="--chain-color:${color}"><div class="pat-pin-chain-bg">${imgHtml}<div class="pat-pin-chain-fallback" style="display:${fallbackDisplay}">${chain.initials || '?'}</div></div><div class="pat-pin-chain-tail" style="border-top-color:${color}"></div></div>`;
+
+        const html = `<div style="${wrapStyle}"><div style="${bgStyle}">${imgHtml}<div style="${fbStyle}">${chain.initials || '?'}</div></div><div style="${tailStyle}"></div></div>`;
+
         return L.divIcon({
             className: '',
             html,
-            iconSize:    [36, 44],
-            iconAnchor:  [18, 44],
-            popupAnchor: [0, -46],
+            iconSize:    [34, 42],
+            iconAnchor:  [17, 42],
+            popupAnchor: [0, -44],
         });
     }
     return null;
