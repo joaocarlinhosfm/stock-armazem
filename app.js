@@ -4928,49 +4928,49 @@ const _CHAIN_ICONS = [
     {
         match:    /pingo\s*doce/i,
         icon:     'pingo-doce-pin.png',
-        color:    '#e30613',
+        color:    '#334155',
         initials: 'PD',
     },
     {
         match:    /continente/i,
         icon:     'continente-pin.png',
-        color:    '#e30613',
+        color:    '#334155',
         initials: 'CT',
     },
     {
         match:    /recheio/i,
         icon:     'recheio-pin.png',
-        color:    '#cc0000',
+        color:    '#334155',
         initials: 'RC',
     },
     {
         match:    /leclerc/i,
         icon:     'leclerc-pin.png',
-        color:    '#003da5',
+        color:    '#334155',
         initials: 'LC',
     },
     {
         match:    /intermarc[hé]/i,
         icon:     '',
-        color:    '#007a33',
+        color:    '#334155',
         initials: 'IM',
     },
     {
         match:    /lidl/i,
         icon:     '',
-        color:    '#0050aa',
+        color:    '#334155',
         initials: 'LI',
     },
     {
         match:    /aldi/i,
         icon:     '',
-        color:    '#00539f',
+        color:    '#334155',
         initials: 'AL',
     },
     {
         match:    /modelo\b/i,
         icon:     '',
-        color:    '#e30613',
+        color:    '#334155',
         initials: 'MC',
     },
 ];
@@ -4979,23 +4979,23 @@ function _getChainIcon(nomeEstab) {
     const nome = (nomeEstab || '').trim();
     for (const chain of _CHAIN_ICONS) {
         if (!chain.match.test(nome)) continue;
-        const color = chain.color || '#2563eb';
+        const color = chain.color || '#334155';
 
         // Tudo em inline styles — evita qualquer conflito com o Leaflet
-        // que injeta width/height no container .leaflet-marker-icon
+        // Dimensões +20%: 34→41px, 42→50px
         const bgStyle = [
             'position:absolute',
             'top:0;left:0',
-            'width:34px;height:34px',
+            'width:41px;height:41px',
             'border-radius:50% 50% 50% 0',
             'transform:rotate(-45deg)',
             `background:${color}`,
-            'border:2.5px solid #fff',
+            'border:3px solid #fff',
             'overflow:hidden',
             'display:flex',
             'align-items:center',
             'justify-content:center',
-            'box-shadow:0 1px 4px rgba(0,0,0,.25)',
+            'box-shadow:0 2px 6px rgba(0,0,0,.28)',
         ].join(';');
 
         const imgStyle = [
@@ -5014,7 +5014,7 @@ function _getChainIcon(nomeEstab) {
             'align-items:center',
             'justify-content:center',
             'transform:rotate(45deg)',
-            'font-size:11px',
+            'font-size:13px',
             'font-weight:900',
             'color:#fff',
             'font-family:DM Sans,sans-serif',
@@ -5026,17 +5026,17 @@ function _getChainIcon(nomeEstab) {
             'left:50%',
             'transform:translateX(-50%)',
             'width:0;height:0',
-            'border-left:6px solid transparent',
-            'border-right:6px solid transparent',
-            `border-top:8px solid ${color}`,
+            'border-left:7px solid transparent',
+            'border-right:7px solid transparent',
+            `border-top:10px solid ${color}`,
         ].join(';');
 
         const wrapStyle = [
             'position:relative',
-            'width:34px',
-            'height:42px',
+            'width:41px',
+            'height:50px',
             'cursor:pointer',
-            'filter:drop-shadow(0 2px 4px rgba(0,0,0,.30))',
+            'filter:drop-shadow(0 2px 5px rgba(0,0,0,.32))',
         ].join(';');
 
         const imgHtml = chain.icon
@@ -5048,9 +5048,9 @@ function _getChainIcon(nomeEstab) {
         return L.divIcon({
             className: '',
             html,
-            iconSize:    [34, 42],
-            iconAnchor:  [17, 42],
-            popupAnchor: [0, -44],
+            iconSize:    [41, 50],
+            iconAnchor:  [20, 50],
+            popupAnchor: [0, -52],
         });
     }
     return null;
