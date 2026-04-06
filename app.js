@@ -2047,7 +2047,7 @@ async function renderList(filter = '', force = false) {
         const nomEl = $el('div', { className: 'card-nome' });
         nomEl.textContent = item.nome || '';
 
-        const hr = ('hr', { className: 'card-divider' });
+        const hr = $el('hr', { className: 'card-divider' });
 
         const row = $el('div', { className: 'card-bottom-row' });
 
