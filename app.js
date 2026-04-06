@@ -4638,64 +4638,38 @@ async function _invClearResume() {
 // MAPA DE PEDIDOS PAT — Leaflet + Nominatim (OpenStreetMap)
 // ══════════════════════════════════════════════════════════
 
-// ── MAPA MOBILE STRIP ──────────────────────────────────────────────────────
-let _stripMap = null, _stripMarkers = [];
-
+let _stripMap=null, _stripMarkers=[];
 async function _initStripMap() {
-    if (window.innerWidth >= 768) return;
-    const container = $id('pat-map-strip-inner');
-    if (!container) return;
+    if (window.innerWidth>=768) return;
+    const container=$id('pat-map-strip-inner'); if (!container) return;
     if (!_stripMap) {
-        _stripMap = L.map(container, {
-            center: [39.6, -8.0], zoom: 7, zoomControl: false, dragging: false,
-            scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false,
-            keyboard: false, attributionControl: true,
-        });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '© CartoDB', subdomains: 'abcd', maxZoom: 19,
-        }).addTo(_stripMap);
+        _stripMap=L.map(container,{center:[39.6,-8.0],zoom:7,zoomControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false,keyboard:false,attributionControl:true});
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© CartoDB',subdomains:'abcd',maxZoom:19}).addTo(_stripMap);
     }
     await _updateStripMarkers();
 }
-
 async function _updateStripMarkers() {
     if (!_stripMap) return;
-    _stripMarkers.forEach(m => m.remove()); _stripMarkers = [];
+    _stripMarkers.forEach(m=>m.remove()); _stripMarkers=[];
     await _loadGeocodeCache();
-    const pats = await _fetchPats();
-    await _fetchClientes();
-    const pendentes = Object.entries(pats || {}).filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
-    const cntEl = $id('pat-map-strip-cnt-text');
-    if (cntEl) cntEl.textContent = pendentes.length + ' pendentes';
-    const groups = {};
-    pendentes.forEach(([id, pat]) => {
-        const key = _normEstabKey(pat.estabelecimento);
-        if (!key) return;
-        if (!groups[key]) groups[key] = [];
-        groups[key].push([id, pat]);
+    const pats=await _fetchPats(); await _fetchClientes();
+    const pendentes=Object.entries(pats||{}).filter(([,p])=>p.status!=='levantado'&&p.status!=='historico');
+    const cntEl=$id('pat-map-strip-cnt-text'); if (cntEl) cntEl.textContent=pendentes.length+' pendentes';
+    const groups={};
+    pendentes.forEach(([id,pat])=>{const key=_normEstabKey(pat.estabelecimento);if(!key)return;if(!groups[key])groups[key]=[];groups[key].push([id,pat]);});
+    const bounds=[];
+    Object.entries(groups).forEach(([k,items])=>{
+        const coords=_geocodeCache[k]; if(!coords)return;
+        const urgente=items.some(([,p])=>_calcDias(p.criadoEm)>=20);
+        const color=urgente?'#ef4444':'#2563eb', glow=urgente?'rgba(239,68,68,.35)':'rgba(37,99,235,.30)';
+        const icon=L.divIcon({className:'',html:`<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2.5px solid rgba(255,255,255,.9);box-shadow:0 0 0 3px ${glow},0 2px 8px rgba(0,0,0,.4)"></div>`,iconSize:[12,12],iconAnchor:[6,6]});
+        const marker=L.marker([coords.lat,coords.lng],{icon}).addTo(_stripMap);
+        marker.on('click',()=>expandPatMap()); _stripMarkers.push(marker); bounds.push([coords.lat,coords.lng]);
     });
-    const bounds = [];
-    Object.entries(groups).forEach(([k, items]) => {
-        const coords = _geocodeCache[k];
-        if (!coords) return;
-        const urgente = items.some(([, p]) => _calcDias(p.criadoEm) >= 20);
-        const color   = urgente ? '#ef4444' : '#2563eb';
-        const glow    = urgente ? 'rgba(239,68,68,.35)' : 'rgba(37,99,235,.30)';
-        const icon = L.divIcon({
-            className: '',
-            html: `<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2.5px solid rgba(255,255,255,.9);box-shadow:0 0 0 3px ${glow},0 2px 8px rgba(0,0,0,.4)"></div>`,
-            iconSize: [12,12], iconAnchor: [6,6],
-        });
-        const marker = L.marker([coords.lat, coords.lng], { icon }).addTo(_stripMap);
-        marker.on('click', () => expandPatMap());
-        _stripMarkers.push(marker);
-        bounds.push([coords.lat, coords.lng]);
-    });
-    if (bounds.length > 0) _stripMap.fitBounds(L.latLngBounds(bounds), { padding: [20,20], maxZoom: 13 });
-    else _stripMap.setView([39.6, -8.0], 7);
+    if (bounds.length>0) _stripMap.fitBounds(L.latLngBounds(bounds),{padding:[20,20],maxZoom:13});
+    else _stripMap.setView([39.6,-8.0],7);
     _stripMap.invalidateSize();
 }
-
 let _patMap            = null;  // instância Leaflet
 let _markerJustClicked = false; // flag para não fechar sheet ao clicar marker
 let _patMapMarkers = [];    // markers actuais
@@ -5006,23 +4980,11 @@ function _getChainIcon(nomeEstab) {
     for (const chain of _CHAIN_ICONS) {
         if (!chain.match.test(nome)) continue;
         const color = chain.color || '#2563eb';
-        // Se tem PNG, usa com onerror para fallback; caso contrário vai directo para iniciais
         const imgHtml = chain.icon
-            ? `<img class="pat-pin-chain-img"
-                    src="${chain.icon}"
-                    onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
-                    alt="">`
+            ? `<img class="pat-pin-chain-img" src="${chain.icon}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">`
             : '';
         const fallbackDisplay = chain.icon ? 'none' : 'flex';
-        const html = `<div class="pat-pin-chain" style="--chain-color:${color}">
-                <div class="pat-pin-chain-bg">
-                    ${imgHtml}
-                    <div class="pat-pin-chain-fallback" style="display:${fallbackDisplay};background:${color}">
-                        ${chain.initials || '?'}
-                    </div>
-                </div>
-                <div class="pat-pin-chain-tail" style="border-top-color:${color}"></div>
-            </div>`;
+        const html = `<div class="pat-pin-chain" style="--chain-color:${color}"><div class="pat-pin-chain-bg">${imgHtml}<div class="pat-pin-chain-fallback" style="display:${fallbackDisplay}">${chain.initials || '?'}</div></div><div class="pat-pin-chain-tail" style="border-top-color:${color}"></div></div>`;
         return L.divIcon({
             className: '',
             html,
@@ -5410,93 +5372,51 @@ async function expandPatMap() {
     $id('view-map')?.classList.add('active');
     $id('main-content')?.classList.add('map-view-active');
     window.scrollTo(0, 0);
-
-    const loadingEl  = $id('pat-map-loading');
-    const loadingTxt = $id('pat-map-loading-text');
-    const errorEl    = $id('pat-map-error');
-    const subtitleEl = $id('pat-map-subtitle');
-    const container  = $id('pat-map-container');
-
-    if (loadingEl)  loadingEl.style.display  = 'flex';
-    if (errorEl)    errorEl.style.display    = 'none';
-    if (subtitleEl) subtitleEl.textContent   = '';
-    if (loadingTxt) loadingTxt.textContent   = 'A preparar mapa...';
+    const loadingEl=$id('pat-map-loading'), loadingTxt=$id('pat-map-loading-text'),
+          errorEl=$id('pat-map-error'), subtitleEl=$id('pat-map-subtitle'), container=$id('pat-map-container');
+    if (loadingEl)  loadingEl.style.display='flex';
+    if (errorEl)    errorEl.style.display='none';
+    if (subtitleEl) subtitleEl.textContent='';
+    if (loadingTxt) loadingTxt.textContent='A preparar mapa...';
     if (!container) return;
-
-    const headerH     = ($id('app-header')?.offsetHeight) || 60;
-    const mapHeaderEl = document.querySelector('.pat-map-header');
+    const headerH=($id('app-header')?.offsetHeight)||60, mapHeaderEl=document.querySelector('.pat-map-header');
     await _sleep(50);
-    const mapHeaderH  = mapHeaderEl ? mapHeaderEl.offsetHeight : 80;
-    container.style.height = (window.innerHeight - headerH - mapHeaderH) + 'px';
-    container.style.width  = '100%';
-
-    if (_patMap) { _patMapMarkers.forEach(m => m.remove()); _patMapMarkers = []; }
-
-    const PT_BOUNDS = L.latLngBounds(L.latLng(30.0, -31.5), L.latLng(42.2, -6.2));
+    container.style.height=(window.innerHeight-headerH-(mapHeaderEl?mapHeaderEl.offsetHeight:80))+'px';
+    container.style.width='100%';
+    if (_patMap) { _patMapMarkers.forEach(m=>m.remove()); _patMapMarkers=[]; }
+    const PT_BOUNDS=L.latLngBounds(L.latLng(30.0,-31.5),L.latLng(42.2,-6.2));
     if (!_patMap) {
-        _patMap = L.map('pat-map-container', {
-            center: [39.6, -8.0], zoom: 7, minZoom: 6, maxZoom: 17,
-            maxBounds: PT_BOUNDS, maxBoundsViscosity: 1.0, zoomControl: true,
-        });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '© OpenStreetMap © CARTO', subdomains: 'abcd', maxZoom: 20, minZoom: 6,
-        }).addTo(_patMap);
-        _patMap.fitBounds(PT_BOUNDS, { padding: [20, 20] });
-        _patMap.invalidateSize();
-        _patMap.on('click', () => { if (_markerJustClicked) { _markerJustClicked = false; return; } closeMapPinSheet(); });
+        _patMap=L.map('pat-map-container',{center:[39.6,-8.0],zoom:7,minZoom:6,maxZoom:17,maxBounds:PT_BOUNDS,maxBoundsViscosity:1.0,zoomControl:true});
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:20,minZoom:6}).addTo(_patMap);
+        _patMap.fitBounds(PT_BOUNDS,{padding:[20,20]}); _patMap.invalidateSize();
+        _patMap.on('click',()=>{if(_markerJustClicked){_markerJustClicked=false;return;}closeMapPinSheet();});
     }
-
-    if (loadingTxt) loadingTxt.textContent = 'A carregar pedidos...';
-    _patMapMarkers.forEach(m => m.remove()); _patMapMarkers = [];
-
-    const pats = await _fetchPats();
-    await _fetchClientes();
-    const pendentes = Object.entries(pats || {}).filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
-
-    if (pendentes.length === 0) {
-        if (loadingEl) loadingEl.style.display = 'none';
-        if (errorEl)   errorEl.style.display   = 'flex';
-        const errTxt = $id('pat-map-error-text');
-        if (errTxt) errTxt.textContent = 'Sem pedidos pendentes para mostrar.';
-        return;
+    if (loadingTxt) loadingTxt.textContent='A carregar pedidos...';
+    _patMapMarkers.forEach(m=>m.remove()); _patMapMarkers=[];
+    const pats=await _fetchPats(); await _fetchClientes();
+    const pendentes=Object.entries(pats||{}).filter(([,p])=>p.status!=='levantado'&&p.status!=='historico');
+    if (pendentes.length===0) {
+        if (loadingEl) loadingEl.style.display='none';
+        if (errorEl) errorEl.style.display='flex';
+        const errTxt=$id('pat-map-error-text'); if (errTxt) errTxt.textContent='Sem pedidos pendentes para mostrar.'; return;
     }
-
-    if (subtitleEl) subtitleEl.textContent = 'A preparar localizações...';
-    if (loadingTxt) loadingTxt.textContent = 'A carregar localizações guardadas...';
+    if (subtitleEl) subtitleEl.textContent='A preparar localizações...';
+    if (loadingTxt) loadingTxt.textContent='A carregar localizações guardadas...';
     await _loadGeocodeCache();
-
-    const groups = {};
-    pendentes.forEach(([id, pat]) => {
-        const key = _normEstabKey(pat.estabelecimento);
-        if (!key) return;
-        if (!groups[key]) groups[key] = [];
-        groups[key].push([id, pat]);
+    const groups={};
+    pendentes.forEach(([id,pat])=>{const key=_normEstabKey(pat.estabelecimento);if(!key)return;if(!groups[key])groups[key]=[];groups[key].push([id,pat]);});
+    const bounds=[];
+    Object.entries(groups).forEach(([k,items])=>{
+        const coords=_geocodeCache[k]; if(!coords)return;
+        const urgente=items.some(([,p])=>_calcDias(p.criadoEm)>=20), separacao=items.some(([,p])=>!!p.separacao);
+        const icon=_getChainIcon(items[0][1].estabelecimento||'')||_makePinIcon(items.length,urgente,separacao);
+        const marker=L.marker([coords.lat,coords.lng],{icon}).addTo(_patMap);
+        marker.on('click',()=>{const cur=_getMapPendingPatsForEstab(items[0]?.[1]?.estabelecimento||k);if(!cur.length){marker.remove();_patMapMarkers=_patMapMarkers.filter(m=>m!==marker);closeMapPinSheet();return;}_markerJustClicked=true;openMapPinSheet(cur,{lat:coords.lat,lng:coords.lng});});
+        _patMapMarkers.push(marker); bounds.push([coords.lat,coords.lng]);
     });
-
-    const bounds = [];
-    Object.entries(groups).forEach(([k, items]) => {
-        const coords = _geocodeCache[k];
-        if (!coords) return;
-        const urgente   = items.some(([, p]) => _calcDias(p.criadoEm) >= 20);
-        const separacao = items.some(([, p]) => !!p.separacao);
-        const nomeEstab = items[0][1].estabelecimento || '';
-        const chainIcon = _getChainIcon(nomeEstab);
-        const icon      = chainIcon || _makePinIcon(items.length, urgente, separacao);
-        const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMap);
-        marker.on('click', () => {
-            const cur = _getMapPendingPatsForEstab(items[0]?.[1]?.estabelecimento || k);
-            if (cur.length === 0) { marker.remove(); _patMapMarkers = _patMapMarkers.filter(m => m !== marker); closeMapPinSheet(); return; }
-            _markerJustClicked = true;
-            openMapPinSheet(cur, { lat: coords.lat, lng: coords.lng });
-        });
-        _patMapMarkers.push(marker);
-        bounds.push([coords.lat, coords.lng]);
-    });
-
-    if (loadingEl) loadingEl.style.display = 'none';
-    if (bounds.length > 0) _patMap.fitBounds(L.latLngBounds(bounds), { padding: [40, 40], maxZoom: 14 });
-    _patMap.invalidateSize();
-    _renderMapPinSheet(pendentes);
+    if (loadingEl) loadingEl.style.display='none';
+    if (bounds.length>0) _patMap.fitBounds(L.latLngBounds(bounds),{padding:[40,40],maxZoom:14});
+    _patMap.invalidateSize(); _renderMapPinSheet(pendentes);
 }
 
 async function openPatMap() {
@@ -5959,11 +5879,8 @@ function bnavAddChoose(viewId) {
 document.addEventListener('DOMContentLoaded', () => {
     // PAT: só aceita dígitos
     $id('pat-obs')?.addEventListener('input', function() {
-        const len = this.value.length;
-        const el  = $id('pat-obs-count');
-        if (el) el.textContent = len > 0 ? `${len}/300` : '';
+        const len=this.value.length; const el=$id('pat-obs-count'); if(el) el.textContent=len>0?`${len}/300`:'';
     });
-
     $id('pat-numero')?.addEventListener('input', function() {
         this.value = this.value.replace(/\D/g, '').slice(0, 6);
         const hint = $id('pat-numero-hint');
@@ -7265,55 +7182,40 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
     body.appendChild(topRow);
     body.appendChild(estabDiv);
     if (metaRow.children.length > 0 || metaRow.innerHTML) body.appendChild(metaRow);
+    if (pat.obs) body.appendChild($el('div', { className: 'pat-card-obs', textContent: pat.obs }));
 
-    // Observações
-    if (pat.obs) {
-        const obsDiv = $el('div', { className: 'pat-card-obs', textContent: pat.obs });
-        body.appendChild(obsDiv);
-    }
+    if ((pat.produtos || []).length > 0) body.appendChild(prodsDiv);
 
-    // Pills de progresso (Pendente → Com Guia → Separação)
+    // ── Linha inferior: pills de estado + botões de acção (mesma linha) ───
+    const footRow = $el('div', { className: 'pat-card-foot' });
+    footRow.onclick = e => e.stopPropagation();
+
+    // Pills lado esquerdo
     if (tab === 'pendentes' || tab === 'levantadas') {
-        const stepsDiv = $el('div', { className: 'pat-steps' });
+        const pillsWrap = $el('div', { className: 'pat-card-foot-pills' });
         const steps = [
             { label: 'Pendente',  done: true },
             { label: 'Com Guia',  done: separacao },
             { label: 'Separação', done: separacao && isLev },
         ];
         steps.forEach(s => {
-            const pill = $el('div');
-            pill.className = 'pat-step-pill ' + (s.done ? 'done' : 'pending');
-            pill.textContent = s.label;
-            stepsDiv.appendChild(pill);
+            const pill = $el('div', { className: 'pat-step-pill ' + (s.done ? 'done' : 'pending'), textContent: s.label });
+            pillsWrap.appendChild(pill);
         });
-        body.appendChild(stepsDiv);
+        footRow.appendChild(pillsWrap);
     }
 
-    if ((pat.produtos || []).length > 0) body.appendChild(prodsDiv);
-
-    card.appendChild(body);
-
-    // ── Localização ───────────────────────────────────────────────────────
-    if (pat.localidade || pat.morada) {
-        const locDiv = $el('div', { className: 'pat-card-loc' });
-        locDiv.innerHTML = `<span class="pat-card-loc-label">Localização</span>
-                            <span class="pat-card-loc-val">${pat.localidade || pat.morada || ''}</span>`;
-        card.appendChild(locDiv);
-    }
-
-    // ── Acção ─────────────────────────────────────────────────────────────
-    const actionDiv = $el('div', { className: 'pat-card-action' });
-    actionDiv.onclick   = e => e.stopPropagation();
+    // Botões lado direito
+    const btnsWrap = $el('div', { className: 'pat-card-foot-btns' });
 
     if (_patSelMode) {
         const btnRefs = $el('button', { className: 'pat-btn-refs' });
         btnRefs.innerHTML = _PAT_EDIT_SVG + ' Refs';
         btnRefs.onclick = e => { e.stopPropagation(); openPatRefsModal(id, pat); };
-        actionDiv.appendChild(btnRefs);
+        btnsWrap.appendChild(btnRefs);
     } else if (tab === 'pendentes') {
-        const btnEdit = $el('button', { className: 'pat-btn-edit' });
+        const btnEdit = $el('button', { className: 'pat-btn-edit', title: 'Editar PAT' });
         btnEdit.innerHTML = _PAT_EDIT_SVG;
-        btnEdit.title     = 'Editar PAT';
         btnEdit.onclick   = () => openEditPat(id, pat);
         const btnLev = $el('button', { className: 'pat-btn-levantado' });
         btnLev.innerHTML = _PAT_CHECK_SVG + ' Levantar ' + _PAT_ARR_SVG;
@@ -7321,13 +7223,12 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
         const btnDel = $el('button', { className: 'pat-btn-apagar' });
         btnDel.innerHTML = _PAT_DEL_SVG;
         btnDel.onclick   = () => apagarPat(id);
-        actionDiv.appendChild(btnEdit);
-        actionDiv.appendChild(btnLev);
-        actionDiv.appendChild(btnDel);
+        btnsWrap.appendChild(btnEdit);
+        btnsWrap.appendChild(btnLev);
+        btnsWrap.appendChild(btnDel);
     } else if (tab === 'levantadas') {
-        const btnEdit = $el('button', { className: 'pat-btn-edit' });
+        const btnEdit = $el('button', { className: 'pat-btn-edit', title: 'Editar PAT' });
         btnEdit.innerHTML = _PAT_EDIT_SVG;
-        btnEdit.title     = 'Editar PAT';
         btnEdit.onclick   = () => openEditPat(id, pat);
         const btnSaida = $el('button', { className: 'pat-btn-guia' });
         btnSaida.innerHTML = _PAT_INFO_SVG + ' Detalhes';
@@ -7335,17 +7236,19 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
         const btnDel = $el('button', { className: 'pat-btn-apagar' });
         btnDel.innerHTML = _PAT_DEL_SVG;
         btnDel.onclick   = () => apagarPat(id);
-        actionDiv.appendChild(btnEdit);
-        actionDiv.appendChild(btnSaida);
-        actionDiv.appendChild(btnDel);
+        btnsWrap.appendChild(btnEdit);
+        btnsWrap.appendChild(btnSaida);
+        btnsWrap.appendChild(btnDel);
     } else if (tab === 'historico') {
         const btnDel = $el('button', { className: 'pat-btn-apagar' });
         btnDel.innerHTML = _PAT_DEL_SVG;
         btnDel.onclick   = () => apagarPat(id);
-        actionDiv.appendChild(btnDel);
+        btnsWrap.appendChild(btnDel);
     }
 
-    if (actionDiv.children.length > 0) card.appendChild(actionDiv);
+    if (btnsWrap.children.length > 0) footRow.appendChild(btnsWrap);
+    body.appendChild(footRow);
+    card.appendChild(body);
 
     card.onclick = e => {
         if (_patSelMode) {
@@ -7910,7 +7813,7 @@ function openPatModal() {
     $id('pat-edit-id').value            = '';
     $id('pat-numero').value              = '';
     $id('pat-numero').readOnly           = false;
-    if ($id('pat-obs')) { $id('pat-obs').value = ''; $id('pat-obs-count').textContent = ''; }
+    if ($id('pat-obs')) { $id('pat-obs').value=''; $id('pat-obs-count').textContent=''; }
     $id('pat-cliente-num').value         = '';
     $id('pat-cliente-id').value          = '';
     $id('pat-client-dropdown').innerHTML = '';
@@ -7936,7 +7839,7 @@ async function openEditPat(id, pat) {
     $id('pat-numero').value             = pat.numero || '';
     $id('pat-numero').readOnly          = true; // nº PAT não pode ser alterado
     $id('pat-numero-hint').textContent  = '';
-    if ($id('pat-obs')) { $id('pat-obs').value = pat.obs || ''; $id('pat-obs-count').textContent = pat.obs ? `${pat.obs.length}/300` : ''; }
+    if ($id('pat-obs')) { $id('pat-obs').value=pat.obs||''; $id('pat-obs-count').textContent=pat.obs?`${pat.obs.length}/300`:''; }
     $id('pat-separacao').checked        = !!pat.separacao;
 
     // Cliente — tentar preencher clienteId se estiver em falta
@@ -8568,7 +8471,7 @@ async function savePat() {
     const clienteId  = $id('pat-cliente-id').value.trim() || null;
     const estab      = $id('pat-estabelecimento').value.trim().toUpperCase();
     const separacao  = $id('pat-separacao').checked;
-    const obs        = ($id('pat-obs')?.value || '').trim();
+    const obs        = ($id('pat-obs')?.value||'').trim();
     const hint       = $id('pat-numero-hint');
 
     if (!/^\d{6}$/.test(numero)) {
@@ -8624,7 +8527,7 @@ async function savePat() {
             clienteId:       clienteId  || null,
             estabelecimento: estab,
             separacao,
-            obs:             obs || null,
+            obs: obs||null,
             produtos: _patProducts.map(p => ({
                 id: p.id, codigo: p.codigo, nome: p.nome, quantidade: p.quantidade || 1
             })),
@@ -8649,11 +8552,11 @@ async function savePat() {
             clienteId:     clienteId  || null,
             estabelecimento: estab,
             separacao,
-            obs:             obs || null,
+            obs: obs||null,
             produtos: _patProducts.map(p => ({
                 id: p.id, codigo: p.codigo, nome: p.nome, quantidade: p.quantidade || 1
             })),
-            obs:     obs || null,
+            obs: obs||null,
             status: 'pendente',
             criadoEm: Date.now(),
         };
