@@ -1691,6 +1691,48 @@
     <!-- Firebase SDK (Auth anónima — token para REST API) -->
     <!-- XLSX carregado sob pedido via loadXlsx() em app.js -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <!-- App Check: descomenta após configurar no Firebase Console -->
+    <!-- <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check-compat.js"></script> -->
+    <script>
+        window._firebaseTokenPromise = new Promise((resolve, reject) => {
+            firebase.initializeApp({
+                apiKey:      "AIzaSyCJS8Ev4EZcUbIO0AA4ckw10w8lvkZ3U_8",
+                authDomain:  "stock-f477e.firebaseapp.com",
+                databaseURL: "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app",
+                projectId:   "stock-f477e",
+            });
+
+            // App Check — descomenta e substitui SITE_KEY após configurar no Firebase Console
+            // firebase.appCheck().activate('SITE_KEY_RECAPTCHA_V3', true);
+
+            firebase.auth().signInAnonymously()
+                .then(cred => cred.user.getIdToken())
+                .then(token => {
+                    window._firebaseUser = firebase.auth().currentUser;
+                    window._firebaseReady = true;
+                    resolve(token);
+                    // Activar botão de login agora que Firebase está pronto
+                    const btn = document.getElementById('ls-submit-btn');
+                    const fbSpinner = document.getElementById('ls-firebase-spinner');
+                    const btnText = document.getElementById('ls-btn-text');
+                    if (btn) btn.disabled = false;
+                    if (fbSpinner) fbSpinner.style.display = 'none';
+                    if (btnText) btnText.textContent = 'Entrar';
+                })
+                .catch(err => {
+                    console.error('Firebase Auth erro:', err.code, err.message);
+                    // Mesmo com erro, activar botão (pode funcionar offline)
+                    const btn2 = document.getElementById('ls-submit-btn');
+                    const fbSpinner2 = document.getElementById('ls-firebase-spinner');
+                    const btnText2 = document.getElementById('ls-btn-text');
+                    if (btn2) btn2.disabled = false;
+                    if (fbSpinner2) fbSpinner2.style.display = 'none';
+                    if (btnText2) btnText2.textContent = 'Entrar';
+                    reject(err);
+                });
+        });
+    </script>
 
     <!-- ═══════════════════════════════════════════════════════════
          MODAL: Calculadora de Stock por Peso
