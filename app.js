@@ -779,8 +779,6 @@ document.addEventListener('click', function(e) {
 // ARQUITECTURA (#18): esta função gere routing + side-effects.
 // Para refactor futuro: separar em _activateView(id) e callbacks por vista.
 function nav(viewId) {
-    // DIAGNÓSTICO TEMPORÁRIO
-    console.log('[nav] chamado com:', viewId, '| currentRole:', currentRole);
     if (viewId === 'view-admin' && !checkAdminAccess()) return;
 
     // Actualiza título do header
@@ -799,9 +797,7 @@ function nav(viewId) {
     if (titleEl && pageTitles[viewId]) titleEl.textContent = pageTitles[viewId];
 
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    const _navEl = $id(viewId);
-    if (_navEl) { _navEl.classList.add('active'); console.log('[nav] vista activada:', viewId, '| active?', _navEl.classList.contains('active')); }
-    else { console.error('[nav] ELEMENTO NÃO ENCONTRADO:', viewId); }
+    $id(viewId)?.classList.add('active');
 
     // Desktop: admin precisa de padding 0 para o layout Windows Settings funcionar
     const mainContent = $id('main-content');
@@ -1260,7 +1256,9 @@ async function renderDashboard(force = false, fromBtn = false) {
     const trendEncomendas = _getDashTrend('encActivas',  encActivas,  snapYesterday);
 
     el.innerHTML = '';
-    el.className = 'dash-v3';
+    // Preservar 'view' e 'active' — não usar className= que apagaria as classes de routing
+    el.classList.remove('dv3-loading');
+    el.classList.add('dash-v3');
 
     _renderDashGreeting(el, greeting, displayName, dateStr, timeStr);
     _renderDashAlert(el, patUrgentes);
