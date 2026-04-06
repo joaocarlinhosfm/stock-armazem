@@ -5446,8 +5446,7 @@ async function expandPatMap() {
 
     if (geocoded > 0) {
         if (loadingEl) loadingEl.style.display = 'none';
-        if (bounds.length === 1) _patMap.setView(bounds[0], 13);
-        else if (bounds.length > 1) _patMap.fitBounds(bounds, { padding: [40, 40] });
+        if (bounds.length >= 1) _patMap.fitBounds(L.latLngBounds(bounds), { padding: [60, 60], maxZoom: 12 });
         if (subtitleEl) subtitleEl.textContent = geocoded + ' estabelecimento' + (geocoded !== 1 ? 's' : '') + ' no mapa';
         setTimeout(() => _patMap && _patMap.invalidateSize(), 200);
     }
@@ -5477,8 +5476,7 @@ async function expandPatMap() {
         _addMk(estabKey, items);
         if (loadingEl) loadingEl.style.display = 'none';
         geocoded++;
-        if (bounds.length > 1) _patMap.fitBounds(bounds, { padding: [40, 40] });
-        else _patMap.setView([coords.lat, coords.lng], 13);
+        if (bounds.length >= 1) _patMap.fitBounds(L.latLngBounds(bounds), { padding: [60, 60], maxZoom: 12 });
     }
     if (subtitleEl) subtitleEl.textContent = geocoded + ' estabelecimento' + (geocoded !== 1 ? 's' : '') + ' no mapa';
     _renderMapPinSheet(pendentes);
