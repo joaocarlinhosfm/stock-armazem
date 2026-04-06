@@ -840,6 +840,9 @@ function nav(viewId) {
         // Desktop: carregar mapa no painel lateral automaticamente
         if (window.innerWidth >= 768) {
             setTimeout(() => _openPatMapPanel(), 200);
+        } else {
+            // Mobile: inicializar/actualizar faixa de mapa no topo da lista
+            setTimeout(() => _initStripMap(), 150);
         }
     }
     document.querySelectorAll('.menu-items li').forEach(li => li.classList.remove('active'));
@@ -4732,6 +4735,106 @@ async function _invClearResume() {
 // ══════════════════════════════════════════════════════════
 
 let _patMap            = null;  // instância Leaflet
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAPA MOBILE STRIP — faixa Leaflet no topo da view-pedidos (mobile only)
+// Instância separada de _patMap para não conflituar com a view-map fullscreen
+// ─────────────────────────────────────────────────────────────────────────────
+let _stripMap       = null;   // instância Leaflet da faixa mobile
+let _stripMarkers   = [];     // markers da faixa
+let _stripInited    = false;  // já foi inicializado nesta sessão
+
+async function _initStripMap() {
+    // Só corre em mobile e se o elemento existir
+    if (window.innerWidth >= 768) return;
+    const container = document.getElementById('pat-map-strip-inner');
+    if (!container) return;
+
+    // Inicializar Leaflet uma só vez
+    if (!_stripMap) {
+        _stripMap = L.map(container, {
+            center:          [39.6, -8.0],
+            zoom:            7,
+            zoomControl:     false,
+            dragging:        false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            touchZoom:       false,
+            keyboard:        false,
+            attributionControl: true,
+        });
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© CartoDB',
+            subdomains: 'abcd',
+            maxZoom: 19,
+        }).addTo(_stripMap);
+    }
+
+    // Actualizar pins com PATs pendentes actuais
+    await _updateStripMarkers();
+}
+
+async function _updateStripMarkers() {
+    if (!_stripMap) return;
+
+    // Limpar markers anteriores
+    _stripMarkers.forEach(m => m.remove());
+    _stripMarkers = [];
+
+    // Garantir geocode cache carregada
+    await _loadGeocodeCache();
+
+    // Buscar PATs pendentes
+    const pats = await _fetchPats();
+    await _fetchClientes();
+    const pendentes = Object.entries(pats || {})
+        .filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
+
+    // Contador no overlay
+    const cntEl = document.getElementById('pat-map-strip-cnt-text');
+    if (cntEl) cntEl.textContent = pendentes.length + ' pendentes';
+
+    // Agrupar por estabelecimento
+    const groups = {};
+    pendentes.forEach(([id, pat]) => {
+        const key = _normEstabKey(pat.estabelecimento);
+        if (!key) return;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push([id, pat]);
+    });
+
+    const bounds = [];
+    Object.entries(groups).forEach(([k, items]) => {
+        const coords = _geocodeCache[k];
+        if (!coords) return;
+        const urgente   = items.some(([, p]) => _calcDias(p.criadoEm) >= 20);
+        const separacao = items.some(([, p]) => !!p.separacao);
+        const color     = urgente ? '#ef4444' : separacao ? '#f59e0b' : '#2563eb';
+        const glow      = urgente ? 'rgba(239,68,68,.35)' : separacao ? 'rgba(245,158,11,.35)' : 'rgba(37,99,235,.30)';
+        const icon = L.divIcon({
+            className: '',
+            html: `<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2.5px solid rgba(255,255,255,.9);box-shadow:0 0 0 3px ${glow},0 2px 8px rgba(0,0,0,.4)"></div>`,
+            iconSize: [12, 12],
+            iconAnchor: [6, 6],
+        });
+        const marker = L.marker([coords.lat, coords.lng], { icon })
+            .addTo(_stripMap);
+        // Tap no pin → abre mapa completo
+        marker.on('click', () => openPatMap());
+        _stripMarkers.push(marker);
+        bounds.push([coords.lat, coords.lng]);
+    });
+
+    // Ajustar viewport aos pins ou usar bounds de Portugal
+    if (bounds.length > 0) {
+        const ptBounds = L.latLngBounds(bounds);
+        _stripMap.fitBounds(ptBounds, { padding: [20, 20], maxZoom: 13 });
+    } else {
+        _stripMap.setView([39.6, -8.0], 7);
+    }
+    _stripMap.invalidateSize();
+}
 let _markerJustClicked = false; // flag para não fechar sheet ao clicar marker
 let _patMapMarkers = [];    // markers actuais
 let _patMapOpen    = false;

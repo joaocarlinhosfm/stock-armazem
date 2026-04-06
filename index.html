@@ -555,6 +555,21 @@
 
               <!-- COLUNA ESQUERDA -->
               <div class="pat-col-left">
+
+                <!-- FAIXA DE MAPA MOBILE (oculta no desktop — desktop usa pat-col-right) -->
+                <div class="pat-map-strip" id="pat-map-strip">
+                    <div id="pat-map-strip-inner"></div>
+                    <div class="pat-map-strip-gradient"></div>
+                    <div class="pat-map-strip-counter" id="pat-map-strip-counter">
+                        <span class="pat-map-strip-dot"></span>
+                        <span id="pat-map-strip-cnt-text">— clientes</span>
+                    </div>
+                    <button class="pat-map-strip-pill" onclick="openPatMap()">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                        Ver Mapa PAT
+                    </button>
+                </div>
+
                 <div class="pat-toolbar">
                     <div class="pat-toolbar-top">
                         <h2 class="dash-view-title">Pedidos PAT</h2>

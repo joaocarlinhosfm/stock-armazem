@@ -4439,6 +4439,94 @@ body.is-offline #app-layout {
     border-left: 1px solid var(--border);
 }
 /* ── PAT desktop two-column layout ── */
+/* ══════════════════════════════════════════════════════════
+   PAT MOBILE MAP STRIP — faixa de mapa no topo da lista mobile
+   ══════════════════════════════════════════════════════════ */
+.pat-map-strip {
+    position: relative;
+    height: 160px;
+    flex-shrink: 0;
+    overflow: hidden;
+    background: #0f2444;
+}
+#pat-map-strip-inner {
+    width: 100%;
+    height: 100%;
+}
+/* Gradiente suave na base — funde com o fundo da página */
+.pat-map-strip-gradient {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, rgba(241,245,249,.55));
+    pointer-events: none;
+    z-index: 400;
+}
+/* Contador de pins (canto superior esquerdo) */
+.pat-map-strip-counter {
+    position: absolute;
+    top: 10px; left: 10px;
+    background: rgba(15,36,68,.82);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #93c5fd;
+    letter-spacing: 0.05em;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.pat-map-strip-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #ef4444;
+    animation: patStripBlink 1.6s ease-in-out infinite;
+    flex-shrink: 0;
+}
+@keyframes patStripBlink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: .25; }
+}
+/* Pill "Ver Mapa PAT" (canto inferior direito) */
+.pat-map-strip-pill {
+    position: absolute;
+    bottom: 10px; right: 10px;
+    background: rgba(15,36,68,.82);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 20px;
+    padding: 5px 10px 5px 7px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'DM Sans', 'Inter', sans-serif;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #e2e8f0;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    z-index: 500;
+    transition: background 0.15s;
+}
+.pat-map-strip-pill:hover { background: rgba(37,99,235,.75); }
+.pat-map-strip-pill svg   { color: #60a5fa; flex-shrink: 0; }
+
+/* No desktop, a faixa esconde-se (mapa já está no pat-col-right) */
+@media (min-width: 768px) {
+    .pat-map-strip { display: none; }
+}
+
+/* Dark mode — fundo já é escuro, sem ajustes necessários */
+
+/* ══════════════════════════════════════════════════════════ */
+
 .pat-desktop-layout {
     display: flex;
     flex-direction: column;
