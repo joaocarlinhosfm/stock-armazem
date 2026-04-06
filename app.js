@@ -3207,7 +3207,7 @@ function _buildAdminMobileMenu() {
     backBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg> Administração';
 
     // Título da secção como h2
-    const detailTitle = ('h2', { className: 'admin-mobile-detail-title' });
+    const detailTitle = $el('h2', { className: 'admin-mobile-detail-title' });
     detailTitle.id = 'admin-mobile-detail-title';
     detailTitle.style.cssText = 'font-size:1.35rem;font-weight:800;color:var(--text-main);letter-spacing:-0.4px;margin:4px 0 16px;padding:0;line-height:1.2;';
 
