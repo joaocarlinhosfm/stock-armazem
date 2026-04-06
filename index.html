@@ -624,7 +624,7 @@
                         <span>A carregar mapa...</span>
                     </div>
                     <div id="pat-map-panel-container" class="pat-map-panel-container"></div>
-                    <button class="pat-map-panel-expand" onclick="expandPatMap()">
+                    <button class="pat-map-panel-expand" onclick="openPatMap()">
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
                         Expandir Mapa
                     </button>
@@ -1323,6 +1323,15 @@
                         <div id="pat-product-dropdown" class="pat-product-dropdown"></div>
                     </div>
                     <div id="pat-product-chips" class="pat-product-chips"></div>
+                </div>
+
+                <!-- Observações -->
+                <div class="pat-field">
+                    <label class="pat-label">Observações</label>
+                    <textarea id="pat-obs" class="blue-input pat-input pat-obs-textarea"
+                        placeholder="Notas sobre o pedido (opcional)..."
+                        rows="2" autocomplete="off" maxlength="300"></textarea>
+                    <span class="pat-hint pat-obs-count" id="pat-obs-count"></span>
                 </div>
             </div>
 
