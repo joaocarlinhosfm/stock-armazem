@@ -3,18 +3,16 @@
 // Confirmar que as rules não permitem leitura/escrita sem token válido.
 const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DOM HELPERS — evitam repetição de document.getElementById / createElement
-// ─────────────────────────────────────────────────────────────────────────────
+// ── DOM HELPERS — evitam repetição de document.getElementById / createElement
 
 /** Atalho para document.getElementById — retorna null sem lançar erro */
-const $id = id => document.getElementById(id); // Isto define '$id'
+const $id = id => $id(id); // Isto define '$id'
 
 /** Cria um elemento e aplica propriedades de uma só vez.
  *  Exemplo: $el('div', { className: 'card', textContent: 'Olá' })
  */
 function $el(tag, props = {}) {
-    const el = document.createElement(tag);
+    const el = $el(tag);
     Object.assign(el, props);
     return el;
 }
@@ -51,10 +49,8 @@ function modalClose(id) {
 })();
 
 
-// ─────────────────────────────────────────────────────────────────────────────
 // _calcDias(tsOrStr, tsEnd?) — dias de calendário entre dois pontos
 // tsEnd opcional — se omitido usa hoje. Conta 1 dia a partir das 00:00.
-// ─────────────────────────────────────────────────────────────────────────────
 function _calcDias(tsOrStr, tsEnd) {
     if (!tsOrStr) return 0;
     let origem;
@@ -78,9 +74,7 @@ function _calcDias(tsOrStr, tsEnd) {
     return Math.max(0, Math.round((fimZero - origem) / 86400000));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _debounce(fn, ms) — função utilitária centralizada para debounce de pesquisa
-// ─────────────────────────────────────────────────────────────────────────────
+// ── _debounce(fn, ms) — função utilitária centralizada para debounce de pesquisa
 function _debounce(fn, ms = 300) {
     let timer;
     return (...args) => {
@@ -90,8 +84,7 @@ function _debounce(fn, ms = 300) {
 }
 
 // ── Lazy loading de bibliotecas pesadas ──────────────────────────────────────
-// XLSX (~1 MB) só é carregado quando realmente usado,
-// evitando atrasar o arranque da app em Android com rede lenta.
+// XLSX (~1 MB) só é carregado quando realmente usado, evitando atrasar o arranque em Android com rede lenta.
 function _loadScript(src) {
     return new Promise((resolve, reject) => {
         const s = $el('script');
@@ -223,9 +216,7 @@ function applyRole(role) {
     $id('role-screen')?.classList.add('hidden');
 }
 
-// ──────────────────────────────────────────────────────────
-// SISTEMA DE LOGIN POR USERNAME + PASSWORD
-// ──────────────────────────────────────────────────────────
+// ── SISTEMA DE LOGIN POR USERNAME + PASSWORD
 const USERS_URL      = `${BASE_URL}/config/users.json`;
 const USERS_BASE_URL = `${BASE_URL}/config/users`;
 const USER_KEY       = 'hiperfrio-username';
@@ -414,9 +405,7 @@ async function handleLogin(e) {
     }
 }
 
-// ──────────────────────────────────────────────────────────
-// GESTÃO DE UTILIZADORES (Admin → tab Utilizadores)
-// ──────────────────────────────────────────────────────────
+// ── GESTÃO DE UTILIZADORES (Admin → tab Utilizadores)
 
 async function createUser() {
     if (!requireManagerAccess()) return;
@@ -533,7 +522,7 @@ async function deleteUser(username) {
 
 // Trocar de perfil — sem reload para ser mais rápido
 function switchRole() {
-    closeSwitchRoleModal();
+    modalClose('switch-role-modal');
     localStorage.removeItem(ROLE_KEY);
     currentRole = null;
     // Remove badge
@@ -568,9 +557,6 @@ function switchRole() {
 function openSwitchRoleModal() {
     $id('switch-role-modal')?.classList.add('active');
     focusModal('switch-role-modal');
-}
-function closeSwitchRoleModal() {
-    $id('switch-role-modal')?.classList.remove('active');
 }
 
 function checkAdminAccess() {
@@ -861,8 +847,6 @@ function nav(viewId) {
         // Desktop: carregar mapa no painel lateral automaticamente
         if (window.innerWidth >= 768) {
             setTimeout(() => _openPatMapPanel(), 200);
-        } else {
-            setTimeout(() => _initStripMap(), 150);
         }
     }
     document.querySelectorAll('.menu-items li').forEach(li => li.classList.remove('active'));
@@ -989,74 +973,10 @@ async function _pruneDashSnapshots() {
     }
 }
 
-async function renderDashboard(force = false, showSpinner = false) {
-    const el = $id('dashboard');
-    if (!el) return;
+// ── renderDashboard helpers ──────────────────────────────────────────────────
 
-    el.classList.add('dv3-loading');
-    $id('dv3-refresh-btn')?.classList.add('spinning');
-
-    const ts = Date.now();
-    const [stockData, ferrData, , , snapData] = await Promise.all([
-        fetchCollection('stock', force || ts > cache.stock.lastFetch + 60000),
-        fetchCollection('ferramentas', force || ts > cache.ferramentas.lastFetch + 60000),
-        _fetchPats(force || !_patCache.data),
-        loadEncomendas(),
-        _loadDashSnaps(),
-    ]);
-
-    const snapYesterday = snapData?.yesterday ?? null;
-
-    const stockEntries    = Object.values(stockData || {});
-    const ferraEntries    = Object.values(ferrData  || {});
-    const total           = stockEntries.length;
-    const semStock        = stockEntries.filter(i => (i.quantidade || 0) === 0).length;
-    const comStock        = total - semStock;
-    const alocadas        = ferraEntries.filter(t => t.status === 'alocada').length;
-    const totalFerr       = ferraEntries.length;
-    const patPendentes    = _getPatPendingCount();
-    const ALERTA_DIAS     = 7;
-    const alocadasHaMuito = ferraEntries.filter(t =>
-        t.status === 'alocada' && t.dataEntrega && _calcDias(t.dataEntrega) > ALERTA_DIAS
-    );
-    // Encomendas
-    const encEntries   = Object.values(_encData || {});
-    const encPendentes = encEntries.filter(e => e.estado === 'pendente').length;
-    const encParciais  = encEntries.filter(e => e.estado === 'parcial').length;
-    const encActivas   = encPendentes + encParciais;
-
-    _saveDashSnapshot(total, semStock, alocadas, patPendentes, encActivas);
-
-    // PATs: urgentes e com guia
-    const allPats     = Object.entries(_patCache.data || {});
-    const patsPend    = allPats.filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
-    const patUrgentes = patsPend.filter(([, p]) => p.criadoEm && _calcDias(p.criadoEm) >= 20).length;
-    const patComGuia  = patsPend.filter(([, p]) => !!p.separacao).length;
-    const patHoje     = patsPend.filter(([, p]) => p.criadoEm && _calcDias(p.criadoEm) === 0).length;
-
-    // Saudação contextual
-    const hour = new Date().getHours();
-    const greeting = hour < 12 ? 'Bom dia' : hour < 19 ? 'Boa tarde' : 'Boa noite';
-    const displayName = localStorage.getItem('hiperfrio-displayname') ||
-                        localStorage.getItem('hiperfrio-username') || '';
-    const now = new Date();
-    const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
-    const weekdays = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-    const months   = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    const dateStr  = `${weekdays[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]}`;
-
-    // Trend vs dia anterior (Firebase — partilhado entre dispositivos)
-    const trendSemStock   = _getDashTrend('semStock',    semStock,    snapYesterday);
-    const trendPats       = _getDashTrend('patPendentes',patPendentes,snapYesterday);
-    const trendEncomendas = _getDashTrend('encActivas',  encActivas,  snapYesterday);
-
-    // ── Render ────────────────────────────────────────────────────────────
-    el.innerHTML = '';
-    el.className = 'dash-v3';
-
+function _renderDashGreeting(el, greeting, displayName, dateStr, timeStr) {
     const esc = escapeHtml;
-
-    // ── Saudação com botão refresh integrado
     const greetDiv = $el('div', { className: 'dv3-greeting' });
     greetDiv.innerHTML = `
         <div class="dv3-greeting-top">
@@ -1072,22 +992,29 @@ async function renderDashboard(force = false, showSpinner = false) {
             </button>
         </div>`;
     el.appendChild(greetDiv);
+}
 
-    // ── Alert strip (só se houver urgências)
-    if (patUrgentes > 0) {
-        const alert = $el('div', { className: 'dv3-alert' });
-        alert.onclick   = () => nav('view-pedidos');
-        alert.innerHTML = `
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span>${patUrgentes} PAT${patUrgentes > 1 ? 's' : ''} com +20 dias sem levantar</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-left:auto"><polyline points="9 18 15 12 9 6"/></svg>`;
-        el.appendChild(alert);
-    }
+function _renderDashAlert(el, patUrgentes) {
+    if (patUrgentes <= 0) return;
+    const alert = $el('div', { className: 'dv3-alert' });
+    alert.onclick   = () => nav('view-pedidos');
+    alert.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>${patUrgentes} PAT${patUrgentes > 1 ? 's' : ''} com +20 dias sem levantar</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-left:auto"><polyline points="9 18 15 12 9 6"/></svg>`;
+    el.appendChild(alert);
+}
 
-    // ── KPI grande row: Stock + PATs
+function _renderDashKpis(el, { total, comStock, semStock, alocadas, totalFerr, alocadasHaMuito,
+                                patPendentes, patUrgentes, patComGuia, patHoje,
+                                encActivas, encPendentes, encParciais,
+                                trendPats, trendEncomendas, trendSemStock }) {
+    const esc = escapeHtml;
+    const ALERTA_DIAS = 7;
+
+    // KPI grande row: Stock + PATs
     const kpiRow = $el('div', { className: 'dv3-kpi-row' });
 
-    // KPI: Stock
     const stockPct = total > 0 ? Math.round(comStock / total * 100) : 100;
     const kpiStock = $el('div', { className: 'dv3-kpi' });
     kpiStock.onclick   = () => nav('view-search');
@@ -1101,9 +1028,7 @@ async function renderDashboard(force = false, showSpinner = false) {
         <div class="dv3-kpi-bar"><div class="dv3-kpi-bar-fill" style="width:${stockPct}%;background:#639922"></div></div>`;
     kpiRow.appendChild(kpiStock);
 
-    // KPI: PATs
-    const kpiPat = $el('div');
-    kpiPat.className = 'dv3-kpi' + (patUrgentes > 0 ? ' dv3-kpi-warn' : '');
+    const kpiPat = $el('div', { className: 'dv3-kpi' + (patUrgentes > 0 ? ' dv3-kpi-warn' : '') });
     kpiPat.onclick   = () => nav('view-pedidos');
     kpiPat.innerHTML = `
         <div class="dv3-kpi-label">PATs pendentes</div>
@@ -1119,12 +1044,11 @@ async function renderDashboard(force = false, showSpinner = false) {
     kpiRow.appendChild(kpiPat);
     el.appendChild(kpiRow);
 
-    // ── KPI mini row: Ferramentas, Encomendas, Sem stock
+    // KPI mini row: Ferramentas, Encomendas, Sem stock
     const miniRow = $el('div', { className: 'dv3-mini-row' });
 
     function _miniKpi(label, val, sub, color, warn, onClick) {
-        const d = $el('div');
-        d.className = 'dv3-mini' + (warn ? ' dv3-mini-warn' : '');
+        const d = $el('div', { className: 'dv3-mini' + (warn ? ' dv3-mini-warn' : '') });
         if (onClick) d.onclick = onClick;
         d.innerHTML = `<div class="dv3-mini-label">${esc(label)}</div>
             <div class="dv3-mini-val" style="color:${color}">${esc(String(val))}</div>
@@ -1138,8 +1062,7 @@ async function renderDashboard(force = false, showSpinner = false) {
             ? `<span style="color:#A32D2D;font-weight:600">${alocadasHaMuito.length} em atraso</span>`
             : alocadas === 0 ? 'Todas em armazém' : `${totalFerr - alocadas} em armazém`,
         alocadasHaMuito.length > 0 ? '#BA7517' : 'var(--text-main)',
-        alocadasHaMuito.length > 0,
-        () => nav('view-tools')
+        alocadasHaMuito.length > 0, () => nav('view-tools')
     ));
 
     miniRow.appendChild(_miniKpi(
@@ -1151,9 +1074,7 @@ async function renderDashboard(force = false, showSpinner = false) {
             if (encPendentes > 0) return `${encPendentes} pendente${encPendentes > 1 ? 's' : ''}`;
             return 'Sem activas';
         })(),
-        encActivas > 0 ? '#185FA5' : 'var(--text-main)',
-        false,
-        () => nav('view-encomendas')
+        encActivas > 0 ? '#185FA5' : 'var(--text-main)', false, () => nav('view-encomendas')
     ));
 
     const trendHtml = trendSemStock !== null
@@ -1161,19 +1082,17 @@ async function renderDashboard(force = false, showSpinner = false) {
         : semStock > 0 ? `${Math.round(semStock / total * 100)}% do inventário` : 'Tudo com stock';
 
     miniRow.appendChild(_miniKpi(
-        'Sem stock', semStock,
-        trendHtml,
-        semStock > 0 ? '#E24B4A' : '#639922',
-        semStock > 5,
+        'Sem stock', semStock, trendHtml,
+        semStock > 0 ? '#E24B4A' : '#639922', semStock > 5,
         semStock > 0 ? () => { _pendingZeroFilter = true; nav('view-search'); } : null
     ));
-
     el.appendChild(miniRow);
+}
 
-    // ── Secção: Gases refrigerantes (produtos com unidade kg)
-    _renderGasCard(stockData, el);
+function _renderDashSections(el, { patsPend, ferraEntries, encData, total, comStock, semStock, ALERTA_DIAS }) {
+    const esc = escapeHtml;
 
-    // ── Secção: PATs pendentes (as mais urgentes primeiro)
+    // PATs pendentes
     const patEntries = patsPend
         .sort((a, b) => _calcDias(b[1].criadoEm) - _calcDias(a[1].criadoEm))
         .slice(0, 5);
@@ -1181,16 +1100,13 @@ async function renderDashboard(force = false, showSpinner = false) {
     if (patEntries.length > 0) {
         const sec = _dv3Section('PATs pendentes', 'Ver todas →', () => nav('view-pedidos'));
         const list = $el('div', { className: 'dv3-list' });
-
         patEntries.forEach(([id, pat]) => {
             const dias    = _calcDias(pat.criadoEm);
             const urgente = dias >= 20;
-            const row = $el('div', { className: 'dv3-list-row' });
+            const row     = $el('div', { className: 'dv3-list-row' });
             row.onclick   = () => openPatDetail(id, pat);
-
-            const accent = $el('div', { className: 'dv3-list-accent' });
+            const accent  = $el('div', { className: 'dv3-list-accent' });
             accent.style.background = urgente ? '#E24B4A' : '#1a56db';
-
             const info = $el('div', { className: 'dv3-list-info' });
             info.innerHTML = `
                 <div class="dv3-list-primary">
@@ -1198,22 +1114,15 @@ async function renderDashboard(force = false, showSpinner = false) {
                     ${pat.separacao ? '<span class="dv3-chip dv3-chip-amber" style="font-size:9px;padding:1px 5px">Guia</span>' : ''}
                 </div>
                 <div class="dv3-list-secondary">${esc(pat.estabelecimento || 'Sem estabelecimento')}</div>`;
-
-            const age = $el('span');
-            age.className   = 'dv3-list-age' + (urgente ? ' dv3-list-age-urg' : '');
+            const age = $el('span', { className: 'dv3-list-age' + (urgente ? ' dv3-list-age-urg' : '') });
             age.textContent = dias === 0 ? 'Hoje' : dias === 1 ? '1d' : `${dias}d`;
-
-            row.appendChild(accent);
-            row.appendChild(info);
-            row.appendChild(age);
+            row.appendChild(accent); row.appendChild(info); row.appendChild(age);
             list.appendChild(row);
         });
-
-        sec.appendChild(list);
-        el.appendChild(sec);
+        sec.appendChild(list); el.appendChild(sec);
     }
 
-    // ── Secção: Ferramentas em campo
+    // Ferramentas em campo
     const alocadasList = ferraEntries
         .filter(t => t.status === 'alocada' && t.colaborador)
         .sort((a, b) => _calcDias(b.dataEntrega||0) - _calcDias(a.dataEntrega||0));
@@ -1221,23 +1130,14 @@ async function renderDashboard(force = false, showSpinner = false) {
     if (alocadasList.length > 0) {
         const sec2 = _dv3Section('Ferramentas em campo', 'Painel →', () => nav('view-tools'));
         const list2 = $el('div', { className: 'dv3-list' });
-
-        // Agrupa por colaborador
         const porColab = {};
-        alocadasList.forEach(t => {
-            const c = t.colaborador;
-            if (!porColab[c]) porColab[c] = [];
-            porColab[c].push(t);
-        });
-
+        alocadasList.forEach(t => { if (!porColab[t.colaborador]) porColab[t.colaborador] = []; porColab[t.colaborador].push(t); });
         Object.entries(porColab).forEach(([colab, tools]) => {
             const dias_max = Math.max(...tools.map(t => t.dataEntrega ? _calcDias(t.dataEntrega) : 0));
             const overdue  = dias_max >= ALERTA_DIAS;
             const initials = colab.trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase();
-
             const row = $el('div', { className: 'dv3-list-row' });
             row.onclick   = () => nav('view-tools');
-
             row.innerHTML = `
                 <div class="dv3-avatar">${esc(initials)}</div>
                 <div class="dv3-list-info">
@@ -1247,13 +1147,11 @@ async function renderDashboard(force = false, showSpinner = false) {
                 <span class="dv3-badge ${overdue ? 'dv3-badge-warn' : 'dv3-badge-ok'}">${dias_max}d fora</span>`;
             list2.appendChild(row);
         });
-
-        sec2.appendChild(list2);
-        el.appendChild(sec2);
+        sec2.appendChild(list2); el.appendChild(sec2);
     }
 
-    // ── Secção: Encomendas activas
-    const encActivas2 = Object.entries(_encData || {})
+    // Encomendas activas
+    const encActivas2 = Object.entries(encData || {})
         .filter(([, e]) => e.estado === 'pendente' || e.estado === 'parcial')
         .sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0))
         .slice(0, 3);
@@ -1261,16 +1159,13 @@ async function renderDashboard(force = false, showSpinner = false) {
     if (encActivas2.length > 0) {
         const sec3 = _dv3Section('Encomendas em curso', 'Ver todas →', () => nav('view-encomendas'));
         const list3 = $el('div', { className: 'dv3-list' });
-
         encActivas2.forEach(([, enc]) => {
             const linhas   = Object.values(enc.linhas || {});
-            const total    = linhas.reduce((s, l) => s + (parseFloat(l.qtd) || 0), 0);
+            const tot      = linhas.reduce((s, l) => s + (parseFloat(l.qtd) || 0), 0);
             const recebido = linhas.reduce((s, l) => s + Math.min(parseFloat(l.recebido) || 0, parseFloat(l.qtd) || 0), 0);
-            const pct      = total > 0 ? Math.round(recebido / total * 100) : 0;
+            const pct      = tot > 0 ? Math.round(recebido / tot * 100) : 0;
             const isParcial = enc.estado === 'parcial';
-
             const row = $el('div', { className: 'dv3-list-row dv3-list-row-col' });
-
             row.innerHTML = `
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
                     <span class="dv3-list-primary dv3-mono" style="font-size:12px">Enc. ${esc(enc.num||'—')} · ${esc(enc.fornecedor||'—')}</span>
@@ -1282,16 +1177,13 @@ async function renderDashboard(force = false, showSpinner = false) {
                 </div>`;
             list3.appendChild(row);
         });
-
-        sec3.appendChild(list3);
-        el.appendChild(sec3);
+        sec3.appendChild(list3); el.appendChild(sec3);
     }
 
-    // ── Secção: Barra de saúde do inventário
+    // Saúde do inventário
     if (total > 0) {
         const sec4 = _dv3Section('Saúde do inventário', null, null);
         const pctOk = Math.round(comStock / total * 100);
-
         sec4.innerHTML += `
             <div class="dv3-health-bar-wrap">
                 <div class="dv3-health-bar">
@@ -1300,22 +1192,85 @@ async function renderDashboard(force = false, showSpinner = false) {
                 </div>
             </div>
             <div class="dv3-health-legend">
-                <div class="dv3-health-item">
-                    <div class="dv3-health-dot" style="background:#639922"></div>
-                    <span>${comStock} com stock (${pctOk}%)</span>
-                </div>
-                <div class="dv3-health-item">
-                    <div class="dv3-health-dot" style="background:#E24B4A"></div>
-                    <span>${semStock} esgotados</span>
-                </div>
+                <div class="dv3-health-item"><div class="dv3-health-dot" style="background:#639922"></div><span>${comStock} com stock (${pctOk}%)</span></div>
+                <div class="dv3-health-item"><div class="dv3-health-dot" style="background:#E24B4A"></div><span>${semStock} esgotados</span></div>
             </div>`;
         el.appendChild(sec4);
     }
+}
+
+
+async function renderDashboard(force = false, fromBtn = false) {
+    const el = $id('view-dashboard');
+    if (!el) return;
+
+    el.classList.add('dv3-loading');
+    $id('dv3-refresh-btn')?.classList.add('spinning');
+
+    const ts = Date.now();
+    const [stockData, ferrData, , , snapData] = await Promise.all([
+        fetchCollection('stock', force || ts > cache.stock.lastFetch + 60000),
+        fetchCollection('ferramentas', force || ts > cache.ferramentas.lastFetch + 60000),
+        _fetchPats(force || !_patCache.data),
+        loadEncomendas(),
+        _loadDashSnaps(),
+    ]);
+
+    const snapYesterday = snapData?.yesterday ?? null;
+    const stockEntries  = Object.values(stockData || {});
+    const ferraEntries  = Object.values(ferrData  || {});
+    const total         = stockEntries.length;
+    const semStock      = stockEntries.filter(i => (i.quantidade || 0) === 0).length;
+    const comStock      = total - semStock;
+    const alocadas      = ferraEntries.filter(t => t.status === 'alocada').length;
+    const totalFerr     = ferraEntries.length;
+    const patPendentes  = _getPatPendingCount();
+    const ALERTA_DIAS   = 7;
+    const alocadasHaMuito = ferraEntries.filter(t =>
+        t.status === 'alocada' && t.dataEntrega && _calcDias(t.dataEntrega) > ALERTA_DIAS
+    );
+    const encEntries    = Object.values(_encData || {});
+    const encPendentes  = encEntries.filter(e => e.estado === 'pendente').length;
+    const encParciais   = encEntries.filter(e => e.estado === 'parcial').length;
+    const encActivas    = encPendentes + encParciais;
+
+    _saveDashSnapshot(total, semStock, alocadas, patPendentes, encActivas);
+
+    const allPats    = Object.entries(_patCache.data || {});
+    const patsPend   = allPats.filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico');
+    const patUrgentes = patsPend.filter(([, p]) => p.criadoEm && _calcDias(p.criadoEm) >= 20).length;
+    const patComGuia  = patsPend.filter(([, p]) => !!p.separacao).length;
+    const patHoje     = patsPend.filter(([, p]) => p.criadoEm && _calcDias(p.criadoEm) === 0).length;
+
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Bom dia' : hour < 19 ? 'Boa tarde' : 'Boa noite';
+    const displayName = localStorage.getItem('hiperfrio-displayname') || localStorage.getItem('hiperfrio-username') || '';
+    const now = new Date();
+    const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+    const weekdays = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    const months   = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const dateStr  = `${weekdays[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]}`;
+
+    const trendSemStock   = _getDashTrend('semStock',    semStock,    snapYesterday);
+    const trendPats       = _getDashTrend('patPendentes',patPendentes,snapYesterday);
+    const trendEncomendas = _getDashTrend('encActivas',  encActivas,  snapYesterday);
+
+    el.innerHTML = '';
+    el.className = 'dash-v3';
+
+    _renderDashGreeting(el, greeting, displayName, dateStr, timeStr);
+    _renderDashAlert(el, patUrgentes);
+    _renderDashKpis(el, { total, comStock, semStock, alocadas, totalFerr, alocadasHaMuito,
+                          patPendentes, patUrgentes, patComGuia, patHoje,
+                          encActivas, encPendentes, encParciais,
+                          trendPats, trendEncomendas, trendSemStock });
+    _renderGasCard(stockData, el);
+    _renderDashSections(el, { patsPend, ferraEntries, encData: _encData, total, comStock, semStock, ALERTA_DIAS });
 
     el.classList.remove('dv3-loading');
-    // Retirar animação do botão refresh interno
     $id('dv3-refresh-btn')?.classList.remove('spinning');
 }
+
 
 // ── Gas card helpers ─────────────────────────────────────────────────────────
 // Lê MAX e ALERTA das notas do produto.
@@ -1711,11 +1666,9 @@ function _itemMatchesFilter(item, filterLower, filterUpper) {
 }
 
 
-// ══════════════════════════════════════════════════════════════════════════
 // STOCK — VISTA DESKTOP (>= 768px)
 // Layout em grid 3 colunas com cards informativos.
 // Mobile mantém o swipe-wrapper inalterado.
-// ══════════════════════════════════════════════════════════════════════════
 
 let _desktopFilter = 'all'; // 'all' | 'stock' | 'zero' | 'nolocal'
 
@@ -2637,9 +2590,6 @@ async function openHistoryModal(toolId, toolName) {
     }
 }
 
-function closeHistoryModal() {
-    modalClose('history-modal');
-}
 
 async function assignTool(worker) {
     const dataEntrega = new Date().toISOString();
@@ -2647,7 +2597,7 @@ async function assignTool(worker) {
     cache.ferramentas.data[id] = {
         ...cache.ferramentas.data[id], status:'alocada', colaborador:worker, dataEntrega
     };
-    closeModal(); renderTools(); renderDashboard(); showToast(`Entregue a ${worker}!`);
+    modalClose('worker-modal'); renderTools(); renderDashboard(); showToast(`Entregue a ${worker}!`);
     try {
         await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, {
             method:'PATCH', body:JSON.stringify({status:'alocada',colaborador:worker,dataEntrega})
@@ -2688,9 +2638,6 @@ function openEditToolModal(id, tool) {
     focusModal('edit-tool-modal');
 }
 
-function closeEditToolModal() {
-    modalClose('edit-tool-modal');
-}
 
 async function saveEditTool() {
     if (!requireManagerAccess()) return;
@@ -2700,7 +2647,7 @@ async function saveEditTool() {
     if (cache.ferramentas.data?.[id]) {
         cache.ferramentas.data[id] = { ...cache.ferramentas.data[id], nome };
     }
-    closeEditToolModal();
+    modalClose('edit-tool-modal');
     renderAdminTools();
     renderTools();
     renderDashboard();
@@ -2818,7 +2765,6 @@ async function openModal(id) {
     modalOpen('worker-modal');
     focusModal('worker-modal');
 }
-function closeModal() { modalClose('worker-modal'); }
 
 // Focus first focusable element inside a modal when it opens
 function focusModal(id) {
@@ -2883,7 +2829,6 @@ function openEditModal(id, item) {
     modalOpen('edit-modal');
     focusModal('edit-modal');
 }
-function closeEditModal() { modalClose('edit-modal'); }
 
 // =============================================
 // SWIPE GESTURES
@@ -3037,11 +2982,11 @@ function openProductDetail(id, item) {
     if (currentRole === 'manager') {
         actions.style.display = '';
         $id('pdm-btn-edit').onclick = () => {
-            closeProductDetail();
+            modalClose('product-detail-modal');
             openEditModal(id, data);
         };
         $id('pdm-btn-del').onclick = () => {
-            closeProductDetail();
+            modalClose('product-detail-modal');
             openDeleteModal(id, data);
         };
     } else {
@@ -3050,10 +2995,6 @@ function openProductDetail(id, item) {
 
     modalOpen('product-detail-modal');
     focusModal('product-detail-modal');
-}
-
-function closeProductDetail() {
-    modalClose('product-detail-modal');
 }
 
 
@@ -3266,7 +3207,7 @@ function _buildAdminMobileMenu() {
     backBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg> Administração';
 
     // Título da secção como h2
-    const detailTitle = $el('h2', { className: 'admin-mobile-detail-title' });
+    const detailTitle = ('h2', { className: 'admin-mobile-detail-title' });
     detailTitle.id = 'admin-mobile-detail-title';
     detailTitle.style.cssText = 'font-size:1.35rem;font-weight:800;color:var(--text-main);letter-spacing:-0.4px;margin:4px 0 16px;padding:0;line-height:1.2;';
 
@@ -3620,7 +3561,6 @@ function _setupBottomNavScrollBehaviour(enable) {
 }
 
 
-
 // Ponto de entrada único para mudança de tema
 function setTheme(theme) {
     localStorage.setItem('hiperfrio-tema', theme);
@@ -3688,12 +3628,9 @@ function checkDuplicateCodigo(codigo, onConfirm) {
     const names = dupes.map(d => d.nome || '(sem nome)').join(', ');
     $id('dup-modal-desc').textContent =
         `O código "${codigo.toUpperCase()}" já existe em: ${names}. Queres registar mesmo assim?`;
-    $id('dup-confirm-btn').onclick = () => { closeDupModal(); onConfirm(); };
+    $id('dup-confirm-btn').onclick = () => { modalClose('dup-modal'); onConfirm(); };
     modalOpen('dup-modal');
     focusModal('dup-modal');
-}
-function closeDupModal() {
-    modalClose('dup-modal');
 }
 
 // =============================================
@@ -4265,9 +4202,6 @@ function _openInvSavePartial() {
     focusModal('inv-partial-modal');
 }
 
-function closeInvPartial() {
-    modalClose('inv-partial-modal');
-}
 
 // Guarda progresso no Firebase (já está guardado incrementalmente) e sai para o menu
 async function invSaveAndExit() {
@@ -4283,7 +4217,7 @@ async function invSaveAndExit() {
 async function exportInventoryPartialEmail() {
     // Guarda no Firebase antes de exportar
     await _invSaveResume();
-    closeInvPartial();
+    modalClose('inv-partial-modal');
     // Fecha o inventário
     modalClose('inv-modal');
     invSearchClear();
@@ -4453,9 +4387,6 @@ function _openInvResult(stats) {
     focusModal('inv-result-modal');
 }
 
-function closeInvResult() {
-    modalClose('inv-result-modal');
-}
 
 async function exportInventoryExcel() {
     await loadXlsx();
@@ -4611,15 +4542,12 @@ async function _invLoadResume() {
         }
         const saved = await res.json();
         if (!saved || !saved.items || saved.items.length === 0) {
-            console.log('invLoadResume: sem sessão guardada');
             return null;
         }
         if (Date.now() - (saved.ts || 0) > INV_RESUME_FIREBASE_TTL) {
-            console.log('invLoadResume: sessão expirada');
             _invClearResume();
             return null;
         }
-        console.log(`invLoadResume: encontrada sessão — produto ${saved.idx + 1}/${saved.items.length}`);
         return saved;
     } catch (e) {
         console.warn('invLoadResume erro:', e);
@@ -4634,42 +4562,8 @@ async function _invClearResume() {
     } catch (_e) {}
 }
 
-// ══════════════════════════════════════════════════════════
-// MAPA DE PEDIDOS PAT — Leaflet + Nominatim (OpenStreetMap)
-// ══════════════════════════════════════════════════════════
+// ── MAPA DE PEDIDOS PAT — Leaflet + Nominatim (OpenStreetMap)
 
-let _stripMap=null, _stripMarkers=[];
-async function _initStripMap() {
-    if (window.innerWidth>=768) return;
-    const container=$id('pat-map-strip-inner'); if (!container) return;
-    if (!_stripMap) {
-        _stripMap=L.map(container,{center:[39.6,-8.0],zoom:7,zoomControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false,keyboard:false,attributionControl:true});
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© CartoDB',subdomains:'abcd',maxZoom:19}).addTo(_stripMap);
-    }
-    await _updateStripMarkers();
-}
-async function _updateStripMarkers() {
-    if (!_stripMap) return;
-    _stripMarkers.forEach(m=>m.remove()); _stripMarkers=[];
-    await _loadGeocodeCache();
-    const pats=await _fetchPats(); await _fetchClientes();
-    const pendentes=Object.entries(pats||{}).filter(([,p])=>p.status!=='levantado'&&p.status!=='historico');
-    const cntEl=$id('pat-map-strip-cnt-text'); if (cntEl) cntEl.textContent=pendentes.length+' pendentes';
-    const groups={};
-    pendentes.forEach(([id,pat])=>{const key=_normEstabKey(pat.estabelecimento);if(!key)return;if(!groups[key])groups[key]=[];groups[key].push([id,pat]);});
-    const bounds=[];
-    Object.entries(groups).forEach(([k,items])=>{
-        const coords=_geocodeCache[k]; if(!coords)return;
-        const urgente=items.some(([,p])=>_calcDias(p.criadoEm)>=20);
-        const color=urgente?'#ef4444':'#2563eb', glow=urgente?'rgba(239,68,68,.35)':'rgba(37,99,235,.30)';
-        const icon=L.divIcon({className:'',html:`<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2.5px solid rgba(255,255,255,.9);box-shadow:0 0 0 3px ${glow},0 2px 8px rgba(0,0,0,.4)"></div>`,iconSize:[12,12],iconAnchor:[6,6]});
-        const marker=L.marker([coords.lat,coords.lng],{icon}).addTo(_stripMap);
-        marker.on('click',()=>expandPatMap()); _stripMarkers.push(marker); bounds.push([coords.lat,coords.lng]);
-    });
-    if (bounds.length>0) _stripMap.fitBounds(L.latLngBounds(bounds),{padding:[20,20],maxZoom:13});
-    else _stripMap.setView([39.6,-8.0],7);
-    _stripMap.invalidateSize();
-}
 let _patMap            = null;  // instância Leaflet
 let _markerJustClicked = false; // flag para não fechar sheet ao clicar marker
 let _patMapMarkers = [];    // markers actuais
@@ -4762,7 +4656,6 @@ async function _persistEstabCoords(nome, coords, clienteNumero = '', clienteId =
     // Guardar nas coordenadas do cliente (fonte de verdade)
     const clienteMatch = _findClienteByEstab(nome, clienteNumero, clienteId);
     if (!clienteMatch) {
-        console.log('[geocache] sem cliente para:', nome, '— coords só na geocode-cache');
         return;
     }
 
@@ -4783,7 +4676,6 @@ async function _persistEstabCoords(nome, coords, clienteNumero = '', clienteId =
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ lat, lng })
         });
-        console.log('[geocache] coords guardadas no cliente:', matchedId, `(${lat}, ${lng})`);
     } catch(e) {
         console.warn('[geocache] falha ao guardar no cliente:', matchedId, e?.message);
     }
@@ -4841,7 +4733,6 @@ async function _loadGeocodeCache() {
         _geocodeCacheLoaded = true;
     }
 
-    console.log(`[geocache] ${Object.keys(_geocodeCache).length} localizações (clientes sempre frescos)`);
 }
 
 // Atraso entre pedidos Nominatim (1 req/s conforme ToS)
@@ -4928,49 +4819,49 @@ const _CHAIN_ICONS = [
     {
         match:    /pingo\s*doce/i,
         icon:     'pingo-doce-pin.png',
-        color:    '#334155',
+        color:    '#e30613',
         initials: 'PD',
     },
     {
         match:    /continente/i,
         icon:     'continente-pin.png',
-        color:    '#334155',
+        color:    '#e30613',
         initials: 'CT',
     },
     {
         match:    /recheio/i,
         icon:     'recheio-pin.png',
-        color:    '#334155',
+        color:    '#cc0000',
         initials: 'RC',
     },
     {
         match:    /leclerc/i,
         icon:     'leclerc-pin.png',
-        color:    '#334155',
+        color:    '#003da5',
         initials: 'LC',
     },
     {
         match:    /intermarc[hé]/i,
         icon:     '',
-        color:    '#334155',
+        color:    '#007a33',
         initials: 'IM',
     },
     {
         match:    /lidl/i,
         icon:     '',
-        color:    '#334155',
+        color:    '#0050aa',
         initials: 'LI',
     },
     {
         match:    /aldi/i,
         icon:     '',
-        color:    '#334155',
+        color:    '#00539f',
         initials: 'AL',
     },
     {
         match:    /modelo\b/i,
         icon:     '',
-        color:    '#334155',
+        color:    '#e30613',
         initials: 'MC',
     },
 ];
@@ -4978,93 +4869,38 @@ const _CHAIN_ICONS = [
 function _getChainIcon(nomeEstab, zoom) {
     const nome = (nomeEstab || '').trim();
     for (const chain of _CHAIN_ICONS) {
-        if (!chain.match.test(nome)) continue;
-        if (zoom !== undefined) return _makeChainIconAtZoom(chain, zoom);
-        const color = chain.color || '#334155';
-
-        // Tudo em inline styles — evita qualquer conflito com o Leaflet
-        // Dimensões +20%: 34→41px, 42→50px
-        const bgStyle = [
-            'position:absolute',
-            'top:0;left:0',
-            'width:41px;height:41px',
-            'border-radius:50% 50% 50% 0',
-            'transform:rotate(-45deg)',
-            `background:${color}`,
-            'border:3px solid #fff',
-            'overflow:hidden',
-            'display:flex',
-            'align-items:center',
-            'justify-content:center',
-            'box-shadow:0 2px 6px rgba(0,0,0,.28)',
-        ].join(';');
-
-        const imgStyle = [
-            'width:100%',
-            'height:100%',
-            'object-fit:cover',
-            'transform:rotate(45deg)',
-            'display:block',
-            'flex-shrink:0',
-        ].join(';');
-
-        const fbStyle = [
-            'width:100%',
-            'height:100%',
-            `display:${chain.icon ? 'none' : 'flex'}`,
-            'align-items:center',
-            'justify-content:center',
-            'transform:rotate(45deg)',
-            'font-size:13px',
-            'font-weight:900',
-            'color:#fff',
-            'font-family:DM Sans,sans-serif',
-        ].join(';');
-
-        const tailStyle = [
-            'position:absolute',
-            'bottom:0',
-            'left:50%',
-            'transform:translateX(-50%)',
-            'width:0;height:0',
-            'border-left:7px solid transparent',
-            'border-right:7px solid transparent',
-            `border-top:10px solid ${color}`,
-        ].join(';');
-
-        const wrapStyle = [
-            'position:relative',
-            'width:41px',
-            'height:50px',
-            'cursor:pointer',
-            'filter:drop-shadow(0 2px 5px rgba(0,0,0,.32))',
-        ].join(';');
-
-        const imgHtml = chain.icon
-            ? `<img style="${imgStyle}" src="${chain.icon}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">`
-            : '';
-
-        const html = `<div style="${wrapStyle}"><div style="${bgStyle}">${imgHtml}<div style="${fbStyle}">${chain.initials || '?'}</div></div><div style="${tailStyle}"></div></div>`;
-
-        return L.divIcon({
-            className: '',
-            html,
-            iconSize:    [41, 50],
-            iconAnchor:  [20, 50],
-            popupAnchor: [0, -52],
-        });
+        if (chain.match.test(nome)) {
+            // Usa divIcon com <img> + fallback SVG caso o PNG não exista
+            const color = chain.color || '#2563eb';
+            const html = `
+                <div class="pat-pin-chain" style="--chain-color:${color}">
+                    <div class="pat-pin-chain-bg">
+                        <img class="pat-pin-chain-img"
+                             src="${chain.icon}"
+                             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+                             alt="">
+                        <div class="pat-pin-chain-fallback" style="display:none;background:${color}">
+                            ${chain.initials || '?'}
+                        </div>
+                    </div>
+                    <div class="pat-pin-chain-tail" style="border-top-color:${color}"></div>
+                </div>`;
+            return L.divIcon({
+                className: '',
+                html,
+                iconSize:    [44, 52],
+                iconAnchor:  [22, 52],
+                popupAnchor: [0, -54],
+            });
+        }
     }
     return null;
 }
 
-// Calcula dimensões do pin para um dado nível de zoom
-// zoom 7 → 22px, zoom 10 → 32px (base), zoom 14 → 44px, zoom 17 → 54px
+// Tamanho do pin escala com o zoom: zoom7→22px, zoom10→32px, zoom14→44px
 function _pinSizeForZoom(zoom) {
-    const base = 32;
-    const scale = Math.pow(1.22, zoom - 10); // +22% por nível acima de 10
-    const w = Math.round(Math.max(18, Math.min(60, base * scale)));
-    const h = Math.round(w * 1.22);
-    return { w, h };
+    const w = Math.round(Math.max(18, Math.min(60, 32 * Math.pow(1.22, zoom - 10))));
+    return { w, h: Math.round(w * 1.22) };
 }
 
 function _makePinIcon(count, urgente, separacao, zoom) {
@@ -5072,23 +4908,10 @@ function _makePinIcon(count, urgente, separacao, zoom) {
     const cls   = count > 1 ? 'cluster' : color;
     const { w, h } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 10));
     const holeR = Math.max(3, Math.round(w * 0.17));
-
     const countHtml = count > 1
         ? `<div class="pat-pin-count" style="font-size:${Math.max(8, Math.round(w*0.3))}px">${count}</div>`
         : '';
-
-    const html = `
-        <div class="pat-pin ${cls}" style="width:${w}px;height:${h}px">
-            <svg viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg" style="width:${w}px;height:${h}px;display:block">
-                <path class="pat-pin-body"
-                    d="M18 2 C9.163 2 2 9.163 2 18 C2 28.5 18 42 18 42 C18 42 34 28.5 34 18 C34 9.163 26.837 2 18 2 Z"
-                    stroke="white" stroke-width="1.5"
-                />
-                <circle class="pat-pin-hole" cx="18" cy="17" r="${holeR}"/>
-            </svg>
-            ${countHtml}
-        </div>`;
-
+    const html = `<div class="pat-pin ${cls}" style="width:${w}px;height:${h}px"><svg viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg" style="width:${w}px;height:${h}px;display:block"><path class="pat-pin-body" d="M18 2 C9.163 2 2 9.163 2 18 C2 28.5 18 42 18 42 C18 42 34 28.5 34 18 C34 9.163 26.837 2 18 2 Z" stroke="white" stroke-width="1.5"/><circle class="pat-pin-hole" cx="18" cy="17" r="${holeR}"/></svg>${countHtml}</div>`;
     return L.divIcon({
         className: '',
         html,
@@ -5099,31 +4922,23 @@ function _makePinIcon(count, urgente, separacao, zoom) {
 }
 
 function _makeChainIconAtZoom(chain, zoom) {
-    const { w, h } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 10));
+    const { w } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 10));
     const color = chain.color || '#334155';
-    const bg = w; // quadrado antes da rotação
+    const tailH = Math.round(w * 0.25);
+    const border = Math.max(2, Math.round(w * 0.07));
+    const fs = Math.max(8, Math.round(w * 0.32));
+    const tailW = Math.round(w * 0.2);
     const imgHtml = chain.icon
-        ? `<img style="width:100%;height:100%;object-fit:cover;transform:rotate(45deg);display:block;flex-shrink:0" src="${chain.icon}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">`
+        ? `<img style="width:100%;height:100%;object-fit:cover;transform:rotate(45deg);display:block" src="${chain.icon}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">`
         : '';
     const fbDisplay = chain.icon ? 'none' : 'flex';
-    const fs = Math.max(8, Math.round(bg * 0.32));
-    const tailW = Math.round(bg * 0.2);
-    const tailH = Math.round(bg * 0.25);
-    const border = Math.max(2, Math.round(bg * 0.07));
-
-    const bgStyle = `position:absolute;top:0;left:0;width:${bg}px;height:${bg}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${color};border:${border}px solid #fff;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.25)`;
-    const fbStyle = `width:100%;height:100%;display:${fbDisplay};align-items:center;justify-content:center;transform:rotate(45deg);font-size:${fs}px;font-weight:900;color:#fff;font-family:DM Sans,sans-serif`;
-    const tailStyle = `position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:${tailW}px solid transparent;border-right:${tailW}px solid transparent;border-top:${tailH}px solid ${color}`;
-    const wrapStyle = `position:relative;width:${bg}px;height:${bg+tailH}px;cursor:pointer;filter:drop-shadow(0 2px 4px rgba(0,0,0,.30))`;
-
-    const html = `<div style="${wrapStyle}"><div style="${bgStyle}">${imgHtml}<div style="${fbStyle}">${chain.initials || '?'}</div></div><div style="${tailStyle}"></div></div>`;
-
+    const html = `<div style="position:relative;width:${w}px;height:${w+tailH}px;cursor:pointer;filter:drop-shadow(0 2px 4px rgba(0,0,0,.30))"><div style="position:absolute;top:0;left:0;width:${w}px;height:${w}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${color};border:${border}px solid #fff;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.25)">${imgHtml}<div style="width:100%;height:100%;display:${fbDisplay};align-items:center;justify-content:center;transform:rotate(45deg);font-size:${fs}px;font-weight:900;color:#fff;font-family:DM Sans,sans-serif">${chain.initials||'?'}</div></div><div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:${tailW}px solid transparent;border-right:${tailW}px solid transparent;border-top:${tailH}px solid ${color}"></div></div>`;
     return L.divIcon({
         className: '',
         html,
-        iconSize:    [bg, bg + tailH],
-        iconAnchor:  [Math.round(bg/2), bg + tailH],
-        popupAnchor: [0, -(bg + tailH + 2)],
+        iconSize:    [w, w + tailH],
+        iconAnchor:  [Math.round(w/2), w + tailH],
+        popupAnchor: [0, -(w + tailH + 2)],
     });
 }
 
@@ -5365,10 +5180,7 @@ function centerMapOnPin() {
     _patMap.setView([_mapPinCoords.lat, _mapPinCoords.lng], 15, { animate: true });
 }
 
-
-
-// expandPatMap — abre SEMPRE o mapa fullscreen (desktop e mobile).
-// Self-contained: não delega em openPatMap para evitar o desvio para o painel lateral.
+// expandPatMap — abre SEMPRE o mapa fullscreen com geocodificação completa e pins dinâmicos
 async function expandPatMap() {
     _patMapOpen = true;
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -5388,7 +5200,6 @@ async function expandPatMap() {
     if (loadingTxt) loadingTxt.textContent   = 'A preparar mapa...';
     if (!container) return;
 
-    // Dimensionar container
     const headerH     = $id('app-header')?.offsetHeight || 60;
     const mapHeaderEl = document.querySelector('.pat-map-header');
     await _sleep(60);
@@ -5396,16 +5207,12 @@ async function expandPatMap() {
     container.style.height = (window.innerHeight - headerH - mapHeaderH) + 'px';
     container.style.width  = '100%';
 
-    // Destruir painel lateral (container diferente do fullscreen)
-    if (_patMapPanel) {
-        try { _patMapPanel.remove(); } catch(_) {}
-        _patMapPanel = null;
-    }
+    // Destruir painel lateral se existir (container diferente)
+    if (_patMapPanel) { try { _patMapPanel.remove(); } catch(_) {} _patMapPanel = null; }
 
-    // Recriar instância Leaflet no container correcto
+    // Recriar instância Leaflet para garantir container correcto
     if (_patMap) {
-        _patMapMarkers.forEach(m => m.remove());
-        _patMapMarkers = [];
+        _patMapMarkers.forEach(m => m.remove()); _patMapMarkers = [];
         try { _patMap.remove(); } catch(_) {}
         _patMap = null;
     }
@@ -5416,13 +5223,22 @@ async function expandPatMap() {
         maxBounds: PT_BOUNDS, maxBoundsViscosity: 1.0, zoomControl: true,
     });
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '\u00a9 OpenStreetMap \u00a9 CARTO',
-        subdomains: 'abcd', maxZoom: 20, minZoom: 6,
+        attribution: '© OpenStreetMap © CARTO', subdomains: 'abcd', maxZoom: 20, minZoom: 6,
     }).addTo(_patMap);
     _patMap.invalidateSize();
     _patMap.on('click', () => {
         if (_markerJustClicked) { _markerJustClicked = false; return; }
         closeMapPinSheet();
+    });
+    // Pins dinâmicos: redimensionar ao fazer zoom
+    _patMap.on('zoomend', () => {
+        const z = _patMap.getZoom();
+        _patMapMarkers.forEach(m => {
+            if (!m._hipMeta) return;
+            const { nome, count, urgente, separacao } = m._hipMeta;
+            const chain = _CHAIN_ICONS.find(c => c.match.test(nome));
+            m.setIcon(chain ? _makeChainIconAtZoom(chain, z) : _makePinIcon(count, urgente, separacao, z));
+        });
     });
 
     if (loadingTxt) loadingTxt.textContent = 'A carregar pedidos...';
@@ -5468,8 +5284,7 @@ async function expandPatMap() {
         const chain     = _CHAIN_ICONS.find(c => c.match.test(nome));
         const icon      = chain ? _makeChainIconAtZoom(chain, z) : _makePinIcon(count, urgente, separacao, z);
         const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMap);
-        // Guardar metadata para resize no zoom
-        marker._hipMeta = { estabKey, nome, count, urgente, separacao, chain: chain || null };
+        marker._hipMeta = { nome, count, urgente, separacao };
         const lat = coords.lat, lng = coords.lng;
         marker.on('click', () => {
             const cur = _getMapPendingPatsForEstab(items[0]?.[1]?.estabelecimento || estabKey);
@@ -5480,19 +5295,6 @@ async function expandPatMap() {
         _patMapMarkers.push(marker);
         return true;
     }
-
-    // Listener zoomend — atualiza tamanho de todos os pins
-    _patMap.on('zoomend', () => {
-        const z = _patMap.getZoom();
-        _patMapMarkers.forEach(m => {
-            const meta = m._hipMeta;
-            if (!meta) return;
-            const newIcon = meta.chain
-                ? _makeChainIconAtZoom(meta.chain, z)
-                : _makePinIcon(meta.count, meta.urgente, meta.separacao, z);
-            m.setIcon(newIcon);
-        });
-    });
 
     let geocoded = 0;
     const bounds = [];
@@ -5513,11 +5315,7 @@ async function expandPatMap() {
     if (missing.length === 0) {
         if (geocoded === 0) {
             if (loadingEl) loadingEl.style.display = 'none';
-            if (errorEl) {
-                errorEl.style.display = 'flex';
-                const t = $id('pat-map-error-text');
-                if (t) t.textContent = 'Nao foi possivel localizar nenhum estabelecimento.';
-            }
+            if (errorEl) { errorEl.style.display = 'flex'; const t = $id('pat-map-error-text'); if (t) t.textContent = 'Não foi possível localizar nenhum estabelecimento.'; }
         }
         _renderMapPinSheet(pendentes);
         return;
@@ -5529,8 +5327,7 @@ async function expandPatMap() {
         const nomeOriginal = items[0][1].estabelecimento || estabKey;
         if (subtitleEl) subtitleEl.textContent = 'A localizar "' + nomeOriginal + '"... (' + (i+1) + '/' + missing.length + ')';
         const coords = await _geocodeEstab(nomeOriginal, true, items[0]?.[1]?.clienteNumero || '', items[0]?.[1]?.clienteId || '');
-        if (!_patMapOpen) break;
-        if (!coords) continue;
+        if (!_patMapOpen || !coords) continue;
         bounds.push([coords.lat, coords.lng]);
         _addMk(estabKey, items);
         if (loadingEl) loadingEl.style.display = 'none';
@@ -5581,7 +5378,6 @@ async function openPatMap() {
     const availH = window.innerHeight - headerH - mapHeaderH;
     container.style.height = availH + 'px';
     container.style.width  = '100%';
-    console.log(`[map] header:${headerH}px mapHeader:${mapHeaderH}px container:${container.offsetWidth}x${availH}px`);
 
     // Reutilizar instância do mapa se já existir (evita reload desnecessário)
     if (_patMap) {
@@ -5620,7 +5416,7 @@ async function openPatMap() {
     _patMap.on('click', () => {
         if (_markerJustClicked) { _markerJustClicked = false; return; }
         closeMapPinSheet();
-    }); } // fim do if (!_patMap)
+    }); }
 
     if (loadingTxt) loadingTxt.textContent = 'A carregar pedidos...';
 
@@ -5659,7 +5455,6 @@ async function openPatMap() {
 
     const cached  = groupEntries.filter(([k]) => _geocodeCache[k] !== undefined);
     const missing = groupEntries.filter(([k]) => _geocodeCache[k] === undefined);
-    console.log(`[map] ${cached.length} em cache, ${missing.length} por geocodificar`);
 
     // ── Passo 2: Helper para adicionar marker ────────────────────────────
     function _addMarker(estabKey, items) {
@@ -5682,12 +5477,9 @@ async function openPatMap() {
                 closeMapPinSheet();
                 return;
             }
-            console.log('[map] marker clicado:', currentItems[0][1].estabelecimento);
             _markerJustClicked = true;
-            console.log('[map] a chamar openMapPinSheet, tipo:', typeof openMapPinSheet);
             try {
                 openMapPinSheet(currentItems, { lat: _lat, lng: _lng });
-                console.log('[map] openMapPinSheet concluiu sem erro');
             } catch(e) {
                 console.error('[map] ERRO em openMapPinSheet:', e.message, e.stack);
             }
@@ -5955,9 +5747,6 @@ async function openToolTimeline() {
     }
 }
 
-function closeToolTimeline() {
-    modalClose('timeline-modal');
-}
 
 // =============================================
 // BOTTOM NAV — botão + com mini-menu
@@ -6000,9 +5789,6 @@ function bnavAddChoose(viewId) {
 
 document.addEventListener('DOMContentLoaded', () => {
     // PAT: só aceita dígitos
-    $id('pat-obs')?.addEventListener('input', function() {
-        const len=this.value.length; const el=$id('pat-obs-count'); if(el) el.textContent=len>0?`${len}/300`:'';
-    });
     $id('pat-numero')?.addEventListener('input', function() {
         this.value = this.value.replace(/\D/g, '').slice(0, 6);
         const hint = $id('pat-numero-hint');
@@ -6073,22 +5859,22 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', e => {
         if (e.key !== 'Escape') return;
         const modals = [
-            { id: 'worker-modal',       close: closeModal },
+            { id: 'worker-modal',       close: () => modalClose('worker-modal') },
             { id: 'delete-modal',       close: closeDeleteModal },
-            { id: 'edit-modal',         close: closeEditModal },
+            { id: 'edit-modal',         close: () => modalClose('edit-modal') },
             { id: 'confirm-modal',      close: closeConfirmModal },
-            { id: 'switch-role-modal',  close: closeSwitchRoleModal },
-            { id: 'history-modal',      close: closeHistoryModal },
-            { id: 'dup-modal',          close: closeDupModal },
+            { id: 'switch-role-modal',  close: () => modalClose('switch-role-modal') },
+            { id: 'history-modal',      close: () => modalClose('history-modal') },
+            { id: 'dup-modal',          close: () => modalClose('dup-modal') },
             { id: 'inv-setup-modal',    close: closeInvSetup },
             { id: 'inv-modal',          close: closeInventory },
             { id: 'inv-review-modal',   close: invReviewBack },
-            { id: 'inv-result-modal',   close: closeInvResult },
-            { id: 'timeline-modal',     close: closeToolTimeline },
-            { id: 'edit-tool-modal',    close: closeEditToolModal },
-            { id: 'modal-edit-cliente', close: closeEditClienteModal },
+            { id: 'inv-result-modal',   close: () => modalClose('inv-result-modal') },
+            { id: 'timeline-modal',     close: () => modalClose('timeline-modal') },
+            { id: 'edit-tool-modal',    close: () => modalClose('edit-tool-modal') },
+            { id: 'modal-edit-cliente', close: () => modalClose('modal-edit-cliente') },
             { id: 'gimg-settings-modal',close: closeGimgSettings },
-            { id: 'product-detail-modal',close: closeProductDetail },
+            { id: 'product-detail-modal',close: () => modalClose('product-detail-modal') },
         ];
         for (const { id, close } of modals) {
             if ($id(id)?.classList.contains('active')) { close(); break; }
@@ -6304,7 +6090,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const _oldQtyEdit = cache.stock.data?.[id]?.quantidade ?? 0;
         cache.stock.data[id] = { ...cache.stock.data[id], ...updated };
         btn.textContent = 'A guardar...';
-        closeEditModal();
+        modalClose('edit-modal');
         renderList(window._searchInputEl?.value || '', true);
         if (updated.quantidade < _oldQtyEdit) {
             registarMovimento('saida_manual', id, updated.codigo, updated.nome, _oldQtyEdit - updated.quantidade);
@@ -6764,9 +6550,6 @@ function openEditClienteModal(id, c) {
     setTimeout(() => $id('edit-cliente-nome').focus(), 120);
 }
 
-function closeEditClienteModal() {
-    modalClose('modal-edit-cliente');
-}
 
 async function saveEditCliente() {
     const id     = $id('edit-cliente-id').value;
@@ -6813,7 +6596,7 @@ async function saveEditCliente() {
         } else if (cacheKey) {
             _geocodeCache[cacheKey] = null;
         }
-        closeEditClienteModal();
+        modalClose('modal-edit-cliente');
         renderClientesList();
         showToast('Cliente guardado');
     } catch(_e) { showToast('Erro ao guardar', 'error'); }
@@ -6879,90 +6662,7 @@ async function importClientesExcel(input) {
 }
 
 // ── Exportar Excel de clientes ─────────────────────────────────────────────
-async function limparTodasCoordenadas() {
-    const data = await _fetchClientes(true);
-    const comCoords = Object.entries(data || {}).filter(([, c]) => c.lat != null || c.lng != null);
 
-    if (comCoords.length === 0) {
-        showToast('Nenhum cliente tem coordenadas guardadas', 'error');
-        return;
-    }
-
-    openConfirmModal({
-        icon: '🗑',
-        title: 'Limpar todas as localizações?',
-        desc: `Vai apagar as coordenadas de ${comCoords.length} cliente${comCoords.length !== 1 ? 's' : ''}. Também vai limpar a geocode-cache. Esta acção não pode ser desfeita.`,
-        onConfirm: async () => {
-            let ok = 0;
-            let erros = 0;
-
-            // 1. Apagar coords de cada cliente
-            for (const [id] of comCoords) {
-                try {
-                    await apiFetch(`${BASE_URL}/clientes/${id}.json`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ lat: null, lng: null })
-                    });
-                    if (_clientesCache.data?.[id]) {
-                        _clientesCache.data[id].lat = null;
-                        _clientesCache.data[id].lng = null;
-                    }
-                    ok++;
-                } catch(_e) { erros++; }
-            }
-
-            // 2. Apagar geocode-cache inteira
-            try {
-                await apiFetch(`${BASE_URL}/geocode-cache.json`, { method: 'DELETE' });
-                // Limpar cache em memória
-                Object.keys(_geocodeCache).forEach(k => delete _geocodeCache[k]);
-                _geocodeCacheLoaded = false;
-            } catch(_e) { console.warn('[limpar] erro ao apagar geocode-cache:', _e?.message); }
-
-            renderClientesList();
-            if (erros === 0) {
-                showToast(`${ok} localização${ok !== 1 ? 'ões' : ''} apagada${ok !== 1 ? 's' : ''}`);
-            } else {
-                showToast(`${ok} apagadas, ${erros} com erro`, 'error');
-            }
-        }
-    });
-}
-
-async function exportClientesExcel() {
-    try {
-        await loadXlsx();
-        const data    = await _fetchClientes(true);
-        const entries = Object.entries(data || {})
-            .sort((a, b) => Number(a[1].numero) - Number(b[1].numero));
-
-        if (entries.length === 0) { showToast('Sem clientes para exportar', 'error'); return; }
-
-        const rows = [['Número', 'Nome', 'Latitude', 'Longitude']];
-        entries.forEach(([, c]) => {
-            rows.push([c.numero, c.nome, c.lat || '', c.lng || '']);
-        });
-
-        const ws = XLSX.utils.aoa_to_sheet(rows);
-        ws['!cols'] = [{ wch: 8 }, { wch: 40 }, { wch: 14 }, { wch: 14 }];
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
-        XLSX.writeFile(wb, `clientes-hiperfrio-${new Date().toISOString().slice(0,10)}.xlsx`);
-        showToast(`${entries.length} clientes exportados`);
-    } catch(e) {
-        console.error('[clientes] exportar:', e);
-        showToast('Erro ao exportar', 'error');
-    }
-}
-
-// =============================================
-// PEDIDOS PAT
-// =============================================
-let _patProducts = []; // {id, codigo, nome, quantidade}
-let _patDropdownIdx = -1;
-
-const _patCache = { data: null, lastFetch: 0 };
 
 async function _fetchPats(force = false) {
     const now = Date.now();
@@ -7304,40 +7004,49 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
     body.appendChild(topRow);
     body.appendChild(estabDiv);
     if (metaRow.children.length > 0 || metaRow.innerHTML) body.appendChild(metaRow);
-    if (pat.obs) body.appendChild($el('div', { className: 'pat-card-obs', textContent: pat.obs }));
 
-    if ((pat.produtos || []).length > 0) body.appendChild(prodsDiv);
-
-    // ── Linha inferior: pills de estado + botões de acção (mesma linha) ───
-    const footRow = $el('div', { className: 'pat-card-foot' });
-    footRow.onclick = e => e.stopPropagation();
-
-    // Pills lado esquerdo
+    // Pills de progresso (Pendente → Com Guia → Separação)
     if (tab === 'pendentes' || tab === 'levantadas') {
-        const pillsWrap = $el('div', { className: 'pat-card-foot-pills' });
+        const stepsDiv = $el('div', { className: 'pat-steps' });
         const steps = [
             { label: 'Pendente',  done: true },
             { label: 'Com Guia',  done: separacao },
             { label: 'Separação', done: separacao && isLev },
         ];
         steps.forEach(s => {
-            const pill = $el('div', { className: 'pat-step-pill ' + (s.done ? 'done' : 'pending'), textContent: s.label });
-            pillsWrap.appendChild(pill);
+            const pill = $el('div');
+            pill.className = 'pat-step-pill ' + (s.done ? 'done' : 'pending');
+            pill.textContent = s.label;
+            stepsDiv.appendChild(pill);
         });
-        footRow.appendChild(pillsWrap);
+        body.appendChild(stepsDiv);
     }
 
-    // Botões lado direito
-    const btnsWrap = $el('div', { className: 'pat-card-foot-btns' });
+    if ((pat.produtos || []).length > 0) body.appendChild(prodsDiv);
+
+    card.appendChild(body);
+
+    // ── Localização ───────────────────────────────────────────────────────
+    if (pat.localidade || pat.morada) {
+        const locDiv = $el('div', { className: 'pat-card-loc' });
+        locDiv.innerHTML = `<span class="pat-card-loc-label">Localização</span>
+                            <span class="pat-card-loc-val">${pat.localidade || pat.morada || ''}</span>`;
+        card.appendChild(locDiv);
+    }
+
+    // ── Acção ─────────────────────────────────────────────────────────────
+    const actionDiv = $el('div', { className: 'pat-card-action' });
+    actionDiv.onclick   = e => e.stopPropagation();
 
     if (_patSelMode) {
         const btnRefs = $el('button', { className: 'pat-btn-refs' });
         btnRefs.innerHTML = _PAT_EDIT_SVG + ' Refs';
         btnRefs.onclick = e => { e.stopPropagation(); openPatRefsModal(id, pat); };
-        btnsWrap.appendChild(btnRefs);
+        actionDiv.appendChild(btnRefs);
     } else if (tab === 'pendentes') {
-        const btnEdit = $el('button', { className: 'pat-btn-edit', title: 'Editar PAT' });
+        const btnEdit = $el('button', { className: 'pat-btn-edit' });
         btnEdit.innerHTML = _PAT_EDIT_SVG;
+        btnEdit.title     = 'Editar PAT';
         btnEdit.onclick   = () => openEditPat(id, pat);
         const btnLev = $el('button', { className: 'pat-btn-levantado' });
         btnLev.innerHTML = _PAT_CHECK_SVG + ' Levantar ' + _PAT_ARR_SVG;
@@ -7345,12 +7054,13 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
         const btnDel = $el('button', { className: 'pat-btn-apagar' });
         btnDel.innerHTML = _PAT_DEL_SVG;
         btnDel.onclick   = () => apagarPat(id);
-        btnsWrap.appendChild(btnEdit);
-        btnsWrap.appendChild(btnLev);
-        btnsWrap.appendChild(btnDel);
+        actionDiv.appendChild(btnEdit);
+        actionDiv.appendChild(btnLev);
+        actionDiv.appendChild(btnDel);
     } else if (tab === 'levantadas') {
-        const btnEdit = $el('button', { className: 'pat-btn-edit', title: 'Editar PAT' });
+        const btnEdit = $el('button', { className: 'pat-btn-edit' });
         btnEdit.innerHTML = _PAT_EDIT_SVG;
+        btnEdit.title     = 'Editar PAT';
         btnEdit.onclick   = () => openEditPat(id, pat);
         const btnSaida = $el('button', { className: 'pat-btn-guia' });
         btnSaida.innerHTML = _PAT_INFO_SVG + ' Detalhes';
@@ -7358,19 +7068,17 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
         const btnDel = $el('button', { className: 'pat-btn-apagar' });
         btnDel.innerHTML = _PAT_DEL_SVG;
         btnDel.onclick   = () => apagarPat(id);
-        btnsWrap.appendChild(btnEdit);
-        btnsWrap.appendChild(btnSaida);
-        btnsWrap.appendChild(btnDel);
+        actionDiv.appendChild(btnEdit);
+        actionDiv.appendChild(btnSaida);
+        actionDiv.appendChild(btnDel);
     } else if (tab === 'historico') {
         const btnDel = $el('button', { className: 'pat-btn-apagar' });
         btnDel.innerHTML = _PAT_DEL_SVG;
         btnDel.onclick   = () => apagarPat(id);
-        btnsWrap.appendChild(btnDel);
+        actionDiv.appendChild(btnDel);
     }
 
-    if (btnsWrap.children.length > 0) footRow.appendChild(btnsWrap);
-    body.appendChild(footRow);
-    card.appendChild(body);
+    if (actionDiv.children.length > 0) card.appendChild(actionDiv);
 
     card.onclick = e => {
         if (_patSelMode) {
@@ -7935,7 +7643,6 @@ function openPatModal() {
     $id('pat-edit-id').value            = '';
     $id('pat-numero').value              = '';
     $id('pat-numero').readOnly           = false;
-    if ($id('pat-obs')) { $id('pat-obs').value=''; $id('pat-obs-count').textContent=''; }
     $id('pat-cliente-num').value         = '';
     $id('pat-cliente-id').value          = '';
     $id('pat-client-dropdown').innerHTML = '';
@@ -7961,7 +7668,6 @@ async function openEditPat(id, pat) {
     $id('pat-numero').value             = pat.numero || '';
     $id('pat-numero').readOnly          = true; // nº PAT não pode ser alterado
     $id('pat-numero-hint').textContent  = '';
-    if ($id('pat-obs')) { $id('pat-obs').value=pat.obs||''; $id('pat-obs-count').textContent=pat.obs?`${pat.obs.length}/300`:''; }
     $id('pat-separacao').checked        = !!pat.separacao;
 
     // Cliente — tentar preencher clienteId se estiver em falta
@@ -7982,7 +7688,6 @@ async function openEditPat(id, pat) {
                 body: JSON.stringify({ clienteId })
             }).catch(() => {});
             if (_patCache.data?.[id]) _patCache.data[id].clienteId = clienteId;
-            console.log('[editPat] clienteId preenchido automaticamente:', clienteId);
         }
     }
 
@@ -8079,13 +7784,8 @@ function openOcrSettings() {
     focusModal('ocr-settings-modal');
 }
 
-function closeOcrSettings() {
-    modalClose('ocr-settings-modal');
-}
 
-// ══════════════════════════════════════════════════════════════════════════
-// IMAGENS DE PRODUTOS — Google Custom Search + URL manual
-// ══════════════════════════════════════════════════════════════════════════
+// ── IMAGENS DE PRODUTOS — Google Custom Search + URL manual
 // ── SerpApi Image Search ─────────────────────────────────────────────────
 // Gratuito: 250 pesquisas/mês, sem cartão de crédito
 // Documenta: serpapi.com/google-images-api
@@ -8119,13 +7819,11 @@ function clearGimgKeys() {
     closeGimgSettings();
 }
 
-// ══════════════════════════════════════════════════════════════════════════
 // MANUTENÇÃO — Limpar referências duplicadas no stock
 // Lógica: agrupa todos os produtos por `codigo` (referência).
 // Quando há mais do que um produto com o mesmo codigo, mantém o que tem
 // mais informação (maior quantidade ou mais campos preenchidos) e apaga
 // os restantes via DELETE na Firebase.
-// ══════════════════════════════════════════════════════════════════════════
 async function runDedup() {
     const btn    = $id('dedup-btn');
     const status = $id('dedup-status');
@@ -8279,12 +7977,10 @@ async function imgSearchAuto() {
     if (!nome) { showToast('Preenche primeiro o nome do produto', 'error'); return; }
 
     const key = _getSerpApiKey();
-    console.log('[imgSearch] Iniciando pesquisa:', { nome, temChave: !!key });
 
     if (!key) {
         // Sem chave: abre Google Images no browser
         const encoded = encodeURIComponent(nome + ' produto refrigeração HVAC');
-        console.log('[imgSearch] Sem chave — a abrir browser:', encoded);
         window.open(`https://www.google.com/search?tbm=isch&q=${encoded}`, '_blank');
         showToast('Sem chave SerpApi — a abrir Google Images no browser', 'info');
         return;
@@ -8293,7 +7989,6 @@ async function imgSearchAuto() {
     // Detecta se a chave é um URL de proxy (Cloudflare Worker)
     // ou uma chave SerpApi directa (que vai falhar por CORS)
     const isProxy = key.startsWith('http://') || key.startsWith('https://');
-    console.log('[imgSearch] Modo:', isProxy ? 'proxy' : 'directo (CORS pode falhar)');
 
     const SPIN_SVG   = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="animation:dash-spin .7s linear infinite"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
     const SEARCH_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
@@ -8308,17 +8003,13 @@ async function imgSearchAuto() {
         if (isProxy) {
             // Proxy Cloudflare Worker — passa o query como parâmetro
             url = `${key}?q=${q}`;
-            console.log('[imgSearch] URL proxy:', url);
         } else {
             // Chamada directa SerpApi (pode falhar por CORS no browser)
             url = `${SERPAPI_ENDPOINT}?engine=google_images&q=${q}&num=6&safe=active&api_key=${key}`;
-            console.log('[imgSearch] URL directa SerpApi (sem proxy):', SERPAPI_ENDPOINT);
             console.warn('[imgSearch] AVISO: chamada directa ao SerpApi falha por CORS no browser. Configura um Cloudflare Worker como proxy.');
         }
 
-        console.log('[imgSearch] A fazer fetch...');
         const res = await _fetchWithTimeout(url, {}, 12000);
-        console.log('[imgSearch] Resposta recebida:', res.status, res.statusText);
 
         if (!res.ok) {
             const errText = await res.text().catch(() => '');
@@ -8329,7 +8020,6 @@ async function imgSearchAuto() {
         }
 
         const data  = await res.json();
-        console.log('[imgSearch] Dados recebidos — imagens:', data.images_results?.length ?? 0, 'erro:', data.error);
 
         if (data.error) throw new Error(data.error);
 
@@ -8343,12 +8033,10 @@ async function imgSearchAuto() {
         const resultsEl = $id('img-search-results');
         resultsEl.innerHTML = '';
         resultsEl.style.display = 'grid';
-        console.log('[imgSearch] A mostrar', items.length, 'resultados');
 
         items.forEach((item, i) => {
             const thumbUrl = item.thumbnail;
             const origUrl  = item.original;
-            console.log(`[imgSearch] item ${i}:`, { thumb: thumbUrl?.slice(0,60), orig: origUrl?.slice(0,60) });
 
             const wrap = $el('div', { className: 'img-result-thumb' });
             wrap.title     = item.title || '';
@@ -8362,7 +8050,6 @@ async function imgSearchAuto() {
             };
             img.onclick = () => {
                 const chosen = origUrl || thumbUrl;
-                console.log('[imgSearch] Imagem seleccionada:', chosen?.slice(0, 80));
                 $id('edit-img-url').value = chosen;
                 imgUrlPreview(chosen);
                 resultsEl.querySelectorAll('.img-result-thumb').forEach(t => t.classList.remove('selected'));
@@ -8593,7 +8280,6 @@ async function savePat() {
     const clienteId  = $id('pat-cliente-id').value.trim() || null;
     const estab      = $id('pat-estabelecimento').value.trim().toUpperCase();
     const separacao  = $id('pat-separacao').checked;
-    const obs        = ($id('pat-obs')?.value||'').trim();
     const hint       = $id('pat-numero-hint');
 
     if (!/^\d{6}$/.test(numero)) {
@@ -8649,7 +8335,6 @@ async function savePat() {
             clienteId:       clienteId  || null,
             estabelecimento: estab,
             separacao,
-            obs: obs||null,
             produtos: _patProducts.map(p => ({
                 id: p.id, codigo: p.codigo, nome: p.nome, quantidade: p.quantidade || 1
             })),
@@ -8674,11 +8359,9 @@ async function savePat() {
             clienteId:     clienteId  || null,
             estabelecimento: estab,
             separacao,
-            obs: obs||null,
             produtos: _patProducts.map(p => ({
                 id: p.id, codigo: p.codigo, nome: p.nome, quantidade: p.quantidade || 1
             })),
-            obs: obs||null,
             status: 'pendente',
             criadoEm: Date.now(),
         };
@@ -8694,7 +8377,6 @@ async function savePat() {
             } else {
                 _patCache.data[`_tmp_pat_${Date.now()}`] = payload;
             }
-            _geocodeCacheLoaded = false; // novo estabelecimento pode precisar de geocodificação
             closePatModal();
             renderPats();
             showToast(res ? `PAT ${numero} registada!` : `PAT ${numero} guardada offline`);
@@ -8868,14 +8550,14 @@ function openPatDetail(id, pat) {
         btnLev.style.flex  = '1';
         btnLev.innerHTML   = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
         btnLev.appendChild(document.createTextNode('Dar como levantado'));
-        btnLev.onclick     = () => { closePatDetail(); marcarPatLevantado(id); };
+        btnLev.onclick     = () => { modalClose('pat-detail-modal'); marcarPatLevantado(id); };
         actions.appendChild(btnLev);
     }
 
     const btnDel = $el('button', { className: 'pat-btn-apagar' });
     btnDel.setAttribute('aria-label', 'Apagar PAT');
     btnDel.innerHTML = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
-    btnDel.onclick   = () => { closePatDetail(); apagarPat(id); };
+    btnDel.onclick   = () => { modalClose('pat-detail-modal'); apagarPat(id); };
     actions.appendChild(btnDel);
 
     body.appendChild(actions);
@@ -8884,16 +8566,11 @@ function openPatDetail(id, pat) {
     focusModal('pat-detail-modal');
 }
 
-function closePatDetail() {
-    modalClose('pat-detail-modal');
-}
 
-// ══════════════════════════════════════════════════════════════════════════
 // ENCOMENDAS A FORNECEDOR  (REST API — mesmo padrão do resto da app)
 // Firebase: /encomendas/{id}
 //   num, fornecedor, data, obs, estado, ts
 //   linhas: { "0": {ref, nome, qtd, recebido}, ... }
-// ══════════════════════════════════════════════════════════════════════════
 
 const ENC_URL = `${BASE_URL}/encomendas`;
 
@@ -8924,11 +8601,9 @@ async function loadEncomendas(force = false) {
 
 // Carrega quando navega para a view
 
-// ══════════════════════════════════════════════════════════════════════════
 // RELATÓRIO MENSAL
 // Firebase: /relatorios/{YYYY-MM} — snapshot mensal guardado automaticamente
 //           /movimentos/{id}      — log de movimentos de stock
-// ══════════════════════════════════════════════════════════════════════════
 
 const REL_URL = `${BASE_URL}/relatorios`;
 const MOV_URL = `${BASE_URL}/movimentos`;
@@ -8978,7 +8653,6 @@ async function _pruneMovimentos() {
         }
 
         localStorage.setItem(_PRUNE_MOV_KEY, Date.now().toString());
-        console.log(`[pruneMovimentos] ${expirados.length} movimentos apagados`);
     } catch(e) {
         console.warn('[pruneMovimentos] erro:', e?.message);
     }
@@ -9762,9 +9436,6 @@ function openWeightCalc() {
     setTimeout(() => $id('wc-sample-units').focus(), 120);
 }
 
-function closeWeightCalc() {
-    modalClose('weight-calc-modal');
-}
 
 function weightCalcReset() {
     ['wc-sample-units','wc-sample-weight','wc-total-weight'].forEach(id => {
@@ -10026,9 +9697,6 @@ function openEncDetail(id) {
     focusModal('enc-detail-modal');
 }
 
-function closeEncDetail() {
-    modalClose('enc-detail-modal');
-}
 
 async function deleteEncomenda() {
     if (!_encEditId) return;
@@ -10043,7 +9711,7 @@ async function deleteEncomenda() {
                 // Remover do cache local imediatamente
                 delete _encData[_encEditId];
                 showToast('Encomenda apagada', 'ok');
-                closeEncDetail();
+                modalClose('enc-detail-modal');
                 renderEncList();
                 loadEncomendas(true);
             } catch(e) {
@@ -10072,9 +9740,6 @@ function openEntradaModal(encId, lIdx) {
     setTimeout(() => inp.focus(), 100);
 }
 
-function closeEntradaModal() {
-    modalClose('enc-entrada-modal');
-}
 
 async function confirmarEntrada() {
     const qty = parseFloat($id('enc-entrada-qty').value);
@@ -10125,7 +9790,7 @@ async function confirmarEntrada() {
             _encData[_encEntradaId].estado = novoEstado;
         }
         showToast(`Entrada de ${qty} confirmada ✓`, 'ok');
-        closeEntradaModal();
+        modalClose('enc-entrada-modal');
         renderEncList();
         openEncDetail(_encEntradaId);
         // Sincroniza com Firebase em background
