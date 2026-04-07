@@ -4911,7 +4911,7 @@ function _pinLabel(nome) {
 function _makePinIcon(count, urgente, separacao, zoom, nome) {
     const { w } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 7));
     const bgColor   = urgente ? '#dc2626' : separacao ? '#d97706' : '#334155';
-    const showLabel = (zoom ?? 7) >= 11;
+    const showLabel = (zoom ?? 7) >= 8;
     const label     = showLabel ? _pinLabel(nome) : '';
     const fs        = Math.max(9, Math.round(w * 0.32));
     const countBadge = count > 1
@@ -4939,7 +4939,7 @@ function _makePinIcon(count, urgente, separacao, zoom, nome) {
 
 function _makeChainIconAtZoom(chain, zoom, urgente, separacao, nome) {
     const { w } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 7));
-    const showLabel = (zoom ?? 7) >= 11;
+    const showLabel = (zoom ?? 7) >= 8;
     const label     = showLabel ? _pinLabel(nome || '') : '';
     const totalH    = w + (label ? 28 : 0);
     const imgHtml = chain.icon
