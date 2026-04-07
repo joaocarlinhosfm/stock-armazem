@@ -4759,6 +4759,7 @@ body.is-offline #app-layout {
     display: flex;
     gap: 7px;
     align-items: center;
+    justify-content: flex-end;
     margin-top: 6px;
 }
 .pat-btn-levantado {
