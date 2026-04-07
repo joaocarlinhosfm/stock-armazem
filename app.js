@@ -4871,8 +4871,7 @@ function _getChainIcon(nomeEstab, zoom) {
     const nome = (nomeEstab || '').trim();
     for (const chain of _CHAIN_ICONS) {
         if (chain.match.test(nome)) {
-            // Usa divIcon com <img> + fallback SVG caso o PNG não exista
-            const color = chain.color || '#2563eb';
+            const color = '#334155';
             const html = `
                 <div class="pat-pin-chain" style="--chain-color:${color}">
                     <div class="pat-pin-chain-bg">
@@ -5504,10 +5503,13 @@ async function openPatMap() {
 
     if (geocoded > 0) {
         if (loadingEl) loadingEl.style.display = 'none';
-        _patMap.fitBounds(bounds.length === 1 ? [bounds[0], bounds[0]] : bounds, { padding: [60, 60], maxZoom: 13 });
-        const pendingTxt = ''; // sem mensagem de 'a localizar novos'
-        subtitleEl.textContent = `${geocoded} estabelecimento${geocoded !== 1 ? 's' : ''} no mapa${pendingTxt}`;
-        setTimeout(() => _patMap && _patMap.invalidateSize(), 200);
+        _patMap.invalidateSize();
+        setTimeout(() => {
+            if (!_patMap) return;
+            if (bounds.length === 1) { _patMap.setView(bounds[0], 11); }
+            else { _patMap.fitBounds(bounds, { padding: [60, 60], maxZoom: 13 }); }
+        }, 150);
+        subtitleEl.textContent = `${geocoded} estabelecimento${geocoded !== 1 ? 's' : ''} no mapa`;
     }
 
     // ── Passo 4: Geocodificar os que faltam (background se já há pins) ───
@@ -5652,8 +5654,18 @@ async function _openPatMapPanel() {
         bounds.push([coords.lat, coords.lng]);
     });
 
-    if (bounds.length >= 1) { _patMapPanel.fitBounds(bounds.length === 1 ? [bounds[0], bounds[0]] : bounds, { padding: [30, 30], maxZoom: 12 }); }
-    _patMapPanel.invalidateSize();
+    if (bounds.length >= 1) {
+        _patMapPanel.invalidateSize();
+        setTimeout(() => {
+            if (bounds.length === 1) {
+                _patMapPanel.setView(bounds[0], 11);
+            } else {
+                _patMapPanel.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+            }
+        }, 100);
+    } else {
+        _patMapPanel.invalidateSize();
+    }
 }
 
 function closePatMap() {
