@@ -7058,6 +7058,12 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
 
     if ((pat.produtos || []).length > 0) body.appendChild(prodsDiv);
 
+    if (pat.obs) {
+        const obsDiv = $el('div', { className: 'pat-card-obs' });
+        obsDiv.textContent = pat.obs;
+        body.appendChild(obsDiv);
+    }
+
     card.appendChild(body);
 
     // ── Localização ───────────────────────────────────────────────────────
@@ -7264,6 +7270,11 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
     body.appendChild(cardTop);
     body.appendChild(estabDiv);
     if (metaMobile.innerHTML) body.appendChild(metaMobile);
+    if (pat.obs) {
+        const obsDiv = $el('div', { className: 'pat-card-obs' });
+        obsDiv.textContent = pat.obs;
+        body.appendChild(obsDiv);
+    }
     if ((pat.produtos || []).length > 0) body.appendChild(prodsDiv);
     if (actionsDiv.children.length > 0) body.appendChild(actionsDiv);
     card.appendChild(body);
@@ -7686,6 +7697,7 @@ function openPatModal() {
     $id('pat-product-chips').innerHTML   = '';
     $id('pat-numero-hint').textContent   = '';
     $id('pat-separacao').checked         = false;
+    $id('pat-obs') && ($id('pat-obs').value = '');
     $id('pat-modal-title').textContent   = 'Novo Pedido';
     _fetchClientes();
     modalOpen('pat-modal');
@@ -7703,6 +7715,7 @@ async function openEditPat(id, pat) {
     $id('pat-numero').readOnly          = true; // nº PAT não pode ser alterado
     $id('pat-numero-hint').textContent  = '';
     $id('pat-separacao').checked        = !!pat.separacao;
+    $id('pat-obs') && ($id('pat-obs').value = pat.obs || '');
 
     // Cliente — tentar preencher clienteId se estiver em falta
     let clienteId = pat.clienteId || '';
@@ -8314,6 +8327,7 @@ async function savePat() {
     const clienteId  = $id('pat-cliente-id').value.trim() || null;
     const estab      = $id('pat-estabelecimento').value.trim().toUpperCase();
     const separacao  = $id('pat-separacao').checked;
+    const obs        = ($id('pat-obs')?.value || '').trim();
     const hint       = $id('pat-numero-hint');
 
     if (!/^\d{6}$/.test(numero)) {
@@ -8369,6 +8383,7 @@ async function savePat() {
             clienteId:       clienteId  || null,
             estabelecimento: estab,
             separacao,
+            obs:             obs || null,
             produtos: _patProducts.map(p => ({
                 id: p.id, codigo: p.codigo, nome: p.nome, quantidade: p.quantidade || 1
             })),
@@ -8393,6 +8408,7 @@ async function savePat() {
             clienteId:     clienteId  || null,
             estabelecimento: estab,
             separacao,
+            obs:           obs || null,
             produtos: _patProducts.map(p => ({
                 id: p.id, codigo: p.codigo, nome: p.nome, quantidade: p.quantidade || 1
             })),

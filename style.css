@@ -4988,6 +4988,20 @@ body.is-offline #app-layout {
 .pat-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
 .pat-required { color: var(--danger); }
 .pat-input { width: 100%; }
+.pat-obs-input { resize: vertical; min-height: 60px; font-family: inherit; font-size: 0.88rem; line-height: 1.5; }
+
+/* Observações no card PAT */
+.pat-card-obs {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    border-left: 2px solid var(--border);
+    padding: 4px 8px;
+    border-radius: 0 4px 4px 0;
+    margin-top: 4px;
+    line-height: 1.4;
+    font-style: italic;
+}
 .pat-hint { font-size: 0.74rem; min-height: 16px; }
 
 /* Toggle separação */
