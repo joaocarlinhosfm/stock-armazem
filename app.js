@@ -4565,9 +4565,29 @@ async function _invClearResume() {
 
 // ── MAPA DE PEDIDOS PAT — Leaflet + Nominatim (OpenStreetMap)
 
+function _createClusterGroup() {
+    return L.markerClusterGroup({
+        maxClusterRadius: 60,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        iconCreateFunction(cluster) {
+            const count = cluster.getChildCount();
+            const size  = count < 5 ? 36 : count < 10 ? 42 : 48;
+            return L.divIcon({
+                html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#334155;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="font-size:13px;font-weight:800;color:#fff;font-family:DM Sans,sans-serif">${count}</span></div>`,
+                className: '',
+                iconSize: [size, size],
+                iconAnchor: [size/2, size/2],
+            });
+        },
+    });
+}
+
 let _patMap            = null;  // instância Leaflet
-let _markerJustClicked = false; // flag para não fechar sheet ao clicar marker
-let _patMapMarkers = [];    // markers actuais
+let _patMapCluster     = null;  // MarkerClusterGroup do mapa principal
+let _markerJustClicked = false;
+let _patMapMarkers = [];
 let _patMapOpen    = false;
 
 // ── Geocoding cache — Firebase /geocode-cache/ ────────────────────────────
@@ -4890,9 +4910,10 @@ function _pinLabel(nome) {
 
 function _makePinIcon(count, urgente, separacao, zoom, nome) {
     const { w } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 7));
-    const bgColor = urgente ? '#dc2626' : separacao ? '#d97706' : '#334155';
-    const label   = _pinLabel(nome);
-    const fs      = Math.max(9, Math.round(w * 0.32));
+    const bgColor   = urgente ? '#dc2626' : separacao ? '#d97706' : '#334155';
+    const showLabel = (zoom ?? 7) >= 11;
+    const label     = showLabel ? _pinLabel(nome) : '';
+    const fs        = Math.max(9, Math.round(w * 0.32));
     const countBadge = count > 1
         ? `<div style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;border-radius:99px;font-size:9px;font-weight:800;padding:1px 5px;border:1.5px solid #fff;white-space:nowrap">${count}</div>`
         : '';
@@ -4918,8 +4939,9 @@ function _makePinIcon(count, urgente, separacao, zoom, nome) {
 
 function _makeChainIconAtZoom(chain, zoom, urgente, separacao, nome) {
     const { w } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 7));
-    const label  = _pinLabel(nome || '');
-    const totalH = w + (label ? 28 : 0);
+    const showLabel = (zoom ?? 7) >= 11;
+    const label     = showLabel ? _pinLabel(nome || '') : '';
+    const totalH    = w + (label ? 28 : 0);
     const imgHtml = chain.icon
         ? `<img style="width:70%;height:70%;object-fit:contain;display:block" src="${chain.icon}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt=""><div style="display:none;font-size:${Math.round(w*0.3)}px;font-weight:800;color:#334155;font-family:DM Sans,sans-serif">${chain.initials||'?'}</div>`
         : `<div style="font-size:${Math.round(w*0.3)}px;font-weight:800;color:#334155;font-family:DM Sans,sans-serif">${chain.initials||'?'}</div>`;
@@ -5210,11 +5232,12 @@ async function expandPatMap() {
     container.style.width  = '100%';
 
     // Destruir painel lateral se existir (container diferente)
-    if (_patMapPanel) { try { _patMapPanel.remove(); } catch(_) {} _patMapPanel = null; }
+    if (_patMapPanel) { try { _patMapPanel.remove(); } catch(_) {} _patMapPanel = null; _patMapPanelCluster = null; }
 
     // Recriar instância Leaflet para garantir container correcto
     if (_patMap) {
-        _patMapMarkers.forEach(m => m.remove()); _patMapMarkers = [];
+        if (_patMapCluster) { _patMap.removeLayer(_patMapCluster); _patMapCluster = null; }
+        _patMapMarkers = [];
         try { _patMap.remove(); } catch(_) {}
         _patMap = null;
     }
@@ -5227,12 +5250,14 @@ async function expandPatMap() {
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '© OpenStreetMap © CARTO', subdomains: 'abcd', maxZoom: 20, minZoom: 6,
     }).addTo(_patMap);
+    _patMapCluster = _createClusterGroup();
+    _patMap.addLayer(_patMapCluster);
     _patMap.invalidateSize();
     _patMap.on('click', () => {
         if (_markerJustClicked) { _markerJustClicked = false; return; }
         closeMapPinSheet();
     });
-    // Pins dinâmicos: redimensionar ao fazer zoom
+    // Pins dinâmicos: redimensionar e mostrar/esconder labels ao fazer zoom
     _patMap.on('zoomend', () => {
         const z = _patMap.getZoom();
         _patMapMarkers.forEach(m => {
@@ -5285,12 +5310,12 @@ async function expandPatMap() {
         const z         = _patMap.getZoom();
         const chain     = _CHAIN_ICONS.find(c => c.match.test(nome));
         const icon      = chain ? _makeChainIconAtZoom(chain, z, urgente, separacao, nome) : _makePinIcon(count, urgente, separacao, z, nome);
-        const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMap);
+        const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMapCluster);
         marker._hipMeta = { nome, count, urgente, separacao };
         const lat = coords.lat, lng = coords.lng;
         marker.on('click', () => {
             const cur = _getMapPendingPatsForEstab(items[0]?.[1]?.estabelecimento || estabKey);
-            if (!cur.length) { marker.remove(); _patMapMarkers = _patMapMarkers.filter(m => m !== marker); closeMapPinSheet(); return; }
+            if (!cur.length) { if (_patMapCluster) _patMapCluster.removeLayer(marker); _patMapMarkers = _patMapMarkers.filter(m => m !== marker); closeMapPinSheet(); return; }
             _markerJustClicked = true;
             openMapPinSheet(cur, { lat, lng });
         });
@@ -5383,7 +5408,7 @@ async function openPatMap() {
 
     // Reutilizar instância do mapa se já existir (evita reload desnecessário)
     if (_patMap) {
-        _patMapMarkers.forEach(m => m.remove());
+        if (_patMapCluster) _patMapCluster.clearLayers();
         _patMapMarkers = [];
     }
 
@@ -5394,16 +5419,15 @@ async function openPatMap() {
     );
 
     if (!_patMap) { _patMap = L.map('pat-map-container', {
-        center:       [39.6, -8.0],  // centro aproximado de Portugal continental
+        center:       [39.6, -8.0],
         zoom:         7,
-        minZoom:      6,             // não deixa afastar mais do que isto
+        minZoom:      6,
         maxZoom:      17,
         maxBounds:    PT_BOUNDS,
-        maxBoundsViscosity: 1.0,     // 1.0 = limite rígido, não deixa arrastar para fora
+        maxBoundsViscosity: 1.0,
         zoomControl:  true,
     });
 
-    // CartoDB Positron — minimalista, sem API key, gratuito
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
@@ -5411,19 +5435,28 @@ async function openPatMap() {
         minZoom: 6,
     }).addTo(_patMap);
 
-    // Centrar em Portugal ao arrancar
+    _patMapCluster = _createClusterGroup();
+    _patMap.addLayer(_patMapCluster);
     _patMap.fitBounds(PT_BOUNDS, { padding: [20, 20] });
     _patMap.invalidateSize();
-    // Fechar sheet ao clicar no mapa
     _patMap.on('click', () => {
         if (_markerJustClicked) { _markerJustClicked = false; return; }
         closeMapPinSheet();
+    });
+    _patMap.on('zoomend', () => {
+        const z = _patMap.getZoom();
+        _patMapMarkers.forEach(m => {
+            if (!m._hipMeta) return;
+            const { nome, count, urgente, separacao } = m._hipMeta;
+            const chain = _CHAIN_ICONS.find(c => c.match.test(nome));
+            m.setIcon(chain ? _makeChainIconAtZoom(chain, z, urgente, separacao, nome) : _makePinIcon(count, urgente, separacao, z, nome));
+        });
     }); }
 
     if (loadingTxt) loadingTxt.textContent = 'A carregar pedidos...';
 
     // Limpar markers anteriores
-    _patMapMarkers.forEach(m => m.remove());
+    if (_patMapCluster) _patMapCluster.clearLayers();
     _patMapMarkers = [];
 
     // Buscar PATs pendentes
@@ -5469,14 +5502,14 @@ async function openPatMap() {
         const z = _patMap ? _patMap.getZoom() : 7;
         const icon = chain ? _makeChainIconAtZoom(chain, z, urgente, separacao, nomeEstab) : _makePinIcon(items.length, urgente, separacao, z, nomeEstab);
         const marker = L.marker([coords.lat, coords.lng], { icon })
-            .addTo(_patMap);
+            .addTo(_patMapCluster);
         marker._hipMeta = { nome: nomeEstab, count: items.length, urgente, separacao };
         const _lat   = coords.lat;
         const _lng   = coords.lng;
         marker.on('click', () => {
             const currentItems = _getMapPendingPatsForEstab(items[0]?.[1]?.estabelecimento || estabKey);
             if (currentItems.length === 0) {
-                marker.remove();
+                if (_patMapCluster) _patMapCluster.removeLayer(marker);
                 _patMapMarkers = _patMapMarkers.filter(m => m !== marker);
                 closeMapPinSheet();
                 return;
@@ -5573,6 +5606,7 @@ async function openPatMap() {
 
 // ── Mapa no painel lateral (desktop) ─────────────────────────────────────────
 let _patMapPanel     = null;  // instância Leaflet do painel
+let _patMapPanelCluster = null; // MarkerClusterGroup do painel
 let _patMapPanelMkrs = [];    // markers do painel
 
 async function _openPatMapPanel() {
@@ -5599,6 +5633,8 @@ async function _openPatMapPanel() {
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             subdomains: 'abcd', maxZoom: 20, minZoom: 5,
         }).addTo(_patMapPanel);
+        _patMapPanelCluster = _createClusterGroup();
+        _patMapPanel.addLayer(_patMapPanelCluster);
         _patMapPanel.fitBounds(PT_BOUNDS, { padding: [10, 10] });
         _patMapPanel.on('click', () => { if (_markerJustClicked) { _markerJustClicked = false; return; } closeMapPinSheet(); });
         _patMapPanel.on('zoomend', () => {
@@ -5611,7 +5647,7 @@ async function _openPatMapPanel() {
             });
         });
     } else {
-        _patMapPanelMkrs.forEach(m => m.remove());
+        if (_patMapPanelCluster) _patMapPanelCluster.clearLayers();
         _patMapPanelMkrs = [];
     }
 
@@ -5643,12 +5679,12 @@ async function _openPatMapPanel() {
         const nomeEstab = items[0][1].estabelecimento || '';
         const chain     = _CHAIN_ICONS.find(c => c.match.test(nomeEstab));
         const icon      = chain ? _makeChainIconAtZoom(chain, 7, urgente, separacao, nomeEstab) : _makePinIcon(items.length, urgente, separacao, 7, nomeEstab);
-        const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMapPanel);
+        const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMapPanelCluster);
         marker._hipMeta = { nome: nomeEstab, count: items.length, urgente, separacao };
         const _lat = coords.lat, _lng = coords.lng;
         marker.on('click', () => {
             const cur = _getMapPendingPatsForEstab(items[0]?.[1]?.estabelecimento || k);
-            if (cur.length === 0) { marker.remove(); _patMapPanelMkrs = _patMapPanelMkrs.filter(m => m !== marker); closeMapPinSheet(); return; }
+            if (cur.length === 0) { if (_patMapPanelCluster) _patMapPanelCluster.removeLayer(marker); _patMapPanelMkrs = _patMapPanelMkrs.filter(m => m !== marker); closeMapPinSheet(); return; }
             _markerJustClicked = true;
             openMapPinSheet(cur, { lat: _lat, lng: _lng });
         });
