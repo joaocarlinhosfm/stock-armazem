@@ -1093,41 +1093,41 @@ header h1 { display: none; }
 
 .menu-items {
     list-style: none;
-    padding: 12px 10px;
+    padding: 10px 8px;
     flex-grow: 1;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
 }
 
 /* Separadores de grupo no sidebar */
 .menu-group-label {
-    font-size: 0.6rem;
+    font-size: 0.58rem;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.11em;
     text-transform: uppercase;
     color: var(--text-muted);
-    padding: 8px 12px 3px;
-    opacity: 0.75;
+    padding: 10px 10px 4px;
+    opacity: 0.5;
     list-style: none;
 }
 .menu-group-divider {
     height: 1px;
-    background: linear-gradient(to right, transparent, var(--border) 30%, var(--border) 70%, transparent);
-    margin: 8px 4px;
-    opacity: 0.7;
+    background: var(--border);
+    margin: 6px 10px;
+    opacity: 0.5;
     list-style: none;
 }
 
 .menu-items li {
-    padding: 11px 12px;
-    border-radius: 10px;
+    padding: 9px 10px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     gap: 10px;
     font-weight: 500;
-    font-size: 0.875rem;
+    font-size: 0.85rem;
     cursor: pointer;
     transition: background 0.13s, color 0.13s;
     color: var(--text-muted);
@@ -1148,26 +1148,32 @@ header h1 { display: none; }
 .menu-items li.active::after {
     content: '';
     position: absolute;
-    right: -10px; top: 50%;
+    right: -8px; top: 50%;
     transform: translateY(-50%);
-    width: 3px; height: 60%;
+    width: 3px; height: 55%;
     border-radius: 99px 0 0 99px;
     background: var(--primary);
 }
 
 .menu-items li svg {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     flex-shrink: 0;
-    opacity: 0.65;
+    opacity: 0.55;
 }
 .menu-items li.active svg,
 .menu-items li:hover svg { opacity: 1; }
 
-.menu-divider { border: 0; border-top: 1px solid var(--border); margin: 8px 4px; list-style: none; }
+.menu-divider {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 6px 10px;
+    opacity: 0.5;
+    list-style: none;
+}
 
 .menu-footer {
-    padding: 14px 16px;
+    padding: 12px 16px;
     border-top: 1px solid var(--border);
     display: flex;
     justify-content: space-between;
@@ -1176,13 +1182,13 @@ header h1 { display: none; }
     flex-shrink: 0;
 }
 .menu-footer-user {
-    font-size: 0.82rem;
+    font-size: 0.80rem;
     font-weight: 700;
     color: var(--text-main);
     line-height: 1;
 }
 .menu-footer-role {
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     color: var(--text-muted);
     margin-top: 2px;
 }
