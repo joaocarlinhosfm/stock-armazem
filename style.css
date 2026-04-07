@@ -4529,7 +4529,7 @@ body.is-offline #app-layout {
     .pat-col-right {
         display: flex;
         flex-direction: column;
-        width: 420px;
+        width: 500px;
         flex-shrink: 0;
         background: var(--card-bg);
     }
@@ -4580,7 +4580,7 @@ body.is-offline #app-layout {
 .pat-map-panel-container {
     width: 100%;
     flex: 1;
-    min-height: 220px;
+    min-height: 400px;
     background: #e8edf2;
     border-radius: 10px;
     overflow: hidden;

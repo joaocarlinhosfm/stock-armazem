@@ -5580,8 +5580,8 @@ async function _openPatMapPanel() {
 
     if (loadingEl) loadingEl.style.display = 'flex';
 
-    // Dimensionar o container — altura fixa 180px como no mockup
-    container.style.height = '180px';
+    // Altura controlada pelo CSS flex — apenas garantir largura
+    container.style.height = '';
     container.style.width  = '100%';
 
     // Criar instância se não existe
@@ -5655,14 +5655,17 @@ async function _openPatMapPanel() {
     });
 
     if (bounds.length >= 1) {
-        _patMapPanel.invalidateSize();
+        // Dar tempo ao CSS flex para calcular a altura real do container
         setTimeout(() => {
-            if (bounds.length === 1) {
-                _patMapPanel.setView(bounds[0], 11);
-            } else {
-                _patMapPanel.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
-            }
-        }, 100);
+            _patMapPanel.invalidateSize();
+            setTimeout(() => {
+                if (bounds.length === 1) {
+                    _patMapPanel.setView(bounds[0], 11);
+                } else {
+                    _patMapPanel.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+                }
+            }, 150);
+        }, 50);
     } else {
         _patMapPanel.invalidateSize();
     }
