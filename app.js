@@ -4924,7 +4924,7 @@ function _makePinIcon(count, urgente, separacao, zoom) {
 
 function _makeChainIconAtZoom(chain, zoom, urgente, separacao) {
     const { w } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 7));
-    const color = urgente ? '#dc2626' : separacao ? '#d97706' : (chain.color || '#334155');
+    const color = chain.color || '#334155';
     const tailH = Math.round(w * 0.25);
     const border = Math.max(2, Math.round(w * 0.07));
     const fs = Math.max(8, Math.round(w * 0.32));
@@ -5464,9 +5464,9 @@ async function openPatMap() {
         const urgente   = items.some(([, p]) => _calcDias(p.criadoEm) >= 20);
         const separacao = items.some(([, p]) => !!p.separacao);
         const nomeEstab = items[0][1].estabelecimento || '';
-        const chainIcon = _getChainIcon(nomeEstab);
+        const chain     = _CHAIN_ICONS.find(c => c.match.test(nomeEstab));
         const z = _patMap ? _patMap.getZoom() : 7;
-        const icon = chainIcon || _makePinIcon(items.length, urgente, separacao, z);
+        const icon = chain ? _makeChainIconAtZoom(chain, z, urgente, separacao) : _makePinIcon(items.length, urgente, separacao, z);
         const marker = L.marker([coords.lat, coords.lng], { icon })
             .addTo(_patMap);
         marker._hipMeta = { nome: nomeEstab, count: items.length, urgente, separacao };
@@ -5504,8 +5504,7 @@ async function openPatMap() {
 
     if (geocoded > 0) {
         if (loadingEl) loadingEl.style.display = 'none';
-        if (bounds.length === 1) { _patMap.setView(bounds[0], 10); }
-        else if (bounds.length > 1) { _patMap.fitBounds(bounds, { padding: [40, 40] }); }
+        _patMap.fitBounds(bounds.length === 1 ? [bounds[0], bounds[0]] : bounds, { padding: [60, 60], maxZoom: 13 });
         const pendingTxt = ''; // sem mensagem de 'a localizar novos'
         subtitleEl.textContent = `${geocoded} estabelecimento${geocoded !== 1 ? 's' : ''} no mapa${pendingTxt}`;
         setTimeout(() => _patMap && _patMap.invalidateSize(), 200);
@@ -5544,8 +5543,7 @@ async function openPatMap() {
         bounds.push([coords.lat, coords.lng]);
         _addMarker(estabKey, items);
 
-        if (bounds.length > 1) { _patMap.fitBounds(bounds, { padding: [40, 40] }); }
-        else { _patMap.setView([coords.lat, coords.lng], 13); }
+        if (bounds.length >= 1) { _patMap.fitBounds(bounds.length === 1 ? [bounds[0], bounds[0]] : bounds, { padding: [40, 40], maxZoom: 13 }); }
 
         if (newGeocoded === 1 && geocoded === 0) {
             if (loadingEl) loadingEl.style.display = 'none';
@@ -5639,8 +5637,8 @@ async function _openPatMapPanel() {
         const urgente   = items.some(([, p]) => _calcDias(p.criadoEm) >= 20);
         const separacao = items.some(([, p]) => !!p.separacao);
         const nomeEstab = items[0][1].estabelecimento || '';
-        const chainIcon = _getChainIcon(nomeEstab);
-        const icon      = chainIcon || _makePinIcon(items.length, urgente, separacao, 7);
+        const chain     = _CHAIN_ICONS.find(c => c.match.test(nomeEstab));
+        const icon      = chain ? _makeChainIconAtZoom(chain, 7, urgente, separacao) : _makePinIcon(items.length, urgente, separacao, 7);
         const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMapPanel);
         marker._hipMeta = { nome: nomeEstab, count: items.length, urgente, separacao };
         const _lat = coords.lat, _lng = coords.lng;
@@ -5654,8 +5652,7 @@ async function _openPatMapPanel() {
         bounds.push([coords.lat, coords.lng]);
     });
 
-    if (bounds.length === 1) { _patMapPanel.setView(bounds[0], 10); }
-    else if (bounds.length > 1) { _patMapPanel.fitBounds(bounds, { padding: [20, 20] }); }
+    if (bounds.length >= 1) { _patMapPanel.fitBounds(bounds.length === 1 ? [bounds[0], bounds[0]] : bounds, { padding: [30, 30], maxZoom: 12 }); }
     _patMapPanel.invalidateSize();
 }
 
