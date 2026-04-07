@@ -4870,75 +4870,74 @@ const _CHAIN_ICONS = [
 function _getChainIcon(nomeEstab, zoom) {
     const nome = (nomeEstab || '').trim();
     for (const chain of _CHAIN_ICONS) {
-        if (chain.match.test(nome)) {
-            const color = '#334155';
-            const html = `
-                <div class="pat-pin-chain" style="--chain-color:${color}">
-                    <div class="pat-pin-chain-bg">
-                        <img class="pat-pin-chain-img"
-                             src="${chain.icon}"
-                             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
-                             alt="">
-                        <div class="pat-pin-chain-fallback" style="display:none;background:${color}">
-                            ${chain.initials || '?'}
-                        </div>
-                    </div>
-                    <div class="pat-pin-chain-tail" style="border-top-color:${color}"></div>
-                </div>`;
-            return L.divIcon({
-                className: '',
-                html,
-                iconSize:    [44, 52],
-                iconAnchor:  [22, 52],
-                popupAnchor: [0, -54],
-            });
-        }
+        if (chain.match.test(nome)) return chain;
     }
     return null;
 }
 
-// Tamanho do pin escala com o zoom: zoom7→22px, zoom10→32px, zoom14→44px
+// Tamanho do pin escala com o zoom
 function _pinSizeForZoom(zoom) {
     const w = Math.round(Math.max(31, Math.min(53, 31 * Math.pow(1.15, zoom - 7))));
     return { w, h: Math.round(w * 1.22) };
 }
 
-function _makePinIcon(count, urgente, separacao, zoom) {
-    const color = urgente ? 'red' : separacao ? 'amber' : 'blue';
-    const cls   = count > 1 ? 'cluster' : color;
-    const { w, h } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 7));
-    const holeR = Math.max(3, Math.round(w * 0.17));
-    const countHtml = count > 1
-        ? `<div class="pat-pin-count" style="font-size:${Math.max(8, Math.round(w*0.3))}px">${count}</div>`
+// Label truncada para não ficar demasiado larga no mapa
+function _pinLabel(nome) {
+    if (!nome) return '';
+    const clean = nome.replace(/\s*-\s*\d+$/, '').trim(); // remove "- 335" do fim
+    return clean.length > 22 ? clean.substring(0, 20) + '…' : clean;
+}
+
+function _makePinIcon(count, urgente, separacao, zoom, nome) {
+    const { w } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 7));
+    const bgColor = urgente ? '#dc2626' : separacao ? '#d97706' : '#334155';
+    const label   = _pinLabel(nome);
+    const fs      = Math.max(9, Math.round(w * 0.32));
+    const countBadge = count > 1
+        ? `<div style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;border-radius:99px;font-size:9px;font-weight:800;padding:1px 5px;border:1.5px solid #fff;white-space:nowrap">${count}</div>`
         : '';
-    const html = `<div class="pat-pin ${cls}" style="width:${w}px;height:${h}px"><svg viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg" style="width:${w}px;height:${h}px;display:block"><path class="pat-pin-body" d="M18 2 C9.163 2 2 9.163 2 18 C2 28.5 18 42 18 42 C18 42 34 28.5 34 18 C34 9.163 26.837 2 18 2 Z" stroke="white" stroke-width="1.5"/><circle class="pat-pin-hole" cx="18" cy="17" r="${holeR}"/></svg>${countHtml}</div>`;
+    const labelHtml = label
+        ? `<div style="position:absolute;top:${w+6}px;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(15,23,42,0.82);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:0.01em;pointer-events:none;font-family:DM Sans,sans-serif">${label}</div>`
+        : '';
+    const totalH = w + (label ? 28 : 0);
+    const html = `<div style="position:relative;width:${w}px;height:${totalH}px">
+        <div style="width:${w}px;height:${w}px;border-radius:50%;background:${bgColor};border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;cursor:pointer">
+            <span style="font-size:${fs}px;font-weight:800;color:#fff;font-family:DM Sans,sans-serif">${count > 1 ? count : ''}</span>
+        </div>
+        ${countBadge}
+        ${labelHtml}
+    </div>`;
     return L.divIcon({
         className: '',
         html,
-        iconSize:    [w, h],
-        iconAnchor:  [Math.round(w/2), h],
-        popupAnchor: [0, -(h+2)],
+        iconSize:    [w, totalH],
+        iconAnchor:  [Math.round(w/2), Math.round(w/2)],
+        popupAnchor: [0, -(Math.round(w/2)+4)],
     });
 }
 
-function _makeChainIconAtZoom(chain, zoom, urgente, separacao) {
+function _makeChainIconAtZoom(chain, zoom, urgente, separacao, nome) {
     const { w } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 7));
-    const color = '#334155';
-    const tailH = Math.round(w * 0.25);
-    const border = Math.max(2, Math.round(w * 0.07));
-    const fs = Math.max(8, Math.round(w * 0.32));
-    const tailW = Math.round(w * 0.2);
+    const label  = _pinLabel(nome || '');
+    const totalH = w + (label ? 28 : 0);
     const imgHtml = chain.icon
-        ? `<img style="width:100%;height:100%;object-fit:cover;transform:rotate(45deg);display:block" src="${chain.icon}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">`
+        ? `<img style="width:70%;height:70%;object-fit:contain;display:block" src="${chain.icon}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt=""><div style="display:none;font-size:${Math.round(w*0.3)}px;font-weight:800;color:#334155;font-family:DM Sans,sans-serif">${chain.initials||'?'}</div>`
+        : `<div style="font-size:${Math.round(w*0.3)}px;font-weight:800;color:#334155;font-family:DM Sans,sans-serif">${chain.initials||'?'}</div>`;
+    const labelHtml = label
+        ? `<div style="position:absolute;top:${w+6}px;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(15,23,42,0.82);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:0.01em;pointer-events:none;font-family:DM Sans,sans-serif">${label}</div>`
         : '';
-    const fbDisplay = chain.icon ? 'none' : 'flex';
-    const html = `<div style="position:relative;width:${w}px;height:${w+tailH}px;cursor:pointer;filter:drop-shadow(0 2px 4px rgba(0,0,0,.30))"><div style="position:absolute;top:0;left:0;width:${w}px;height:${w}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${color};border:${border}px solid #fff;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.25)">${imgHtml}<div style="width:100%;height:100%;display:${fbDisplay};align-items:center;justify-content:center;transform:rotate(45deg);font-size:${fs}px;font-weight:900;color:#fff;font-family:DM Sans,sans-serif">${chain.initials||'?'}</div></div><div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:${tailW}px solid transparent;border-right:${tailW}px solid transparent;border-top:${tailH}px solid ${color}"></div></div>`;
+    const html = `<div style="position:relative;width:${w}px;height:${totalH}px">
+        <div style="width:${w}px;height:${w}px;border-radius:50%;background:#fff;border:2.5px solid #334155;box-shadow:0 2px 8px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden">
+            ${imgHtml}
+        </div>
+        ${labelHtml}
+    </div>`;
     return L.divIcon({
         className: '',
         html,
-        iconSize:    [w, w + tailH],
-        iconAnchor:  [Math.round(w/2), w + tailH],
-        popupAnchor: [0, -(w + tailH + 2)],
+        iconSize:    [w, totalH],
+        iconAnchor:  [Math.round(w/2), Math.round(w/2)],
+        popupAnchor: [0, -(Math.round(w/2)+4)],
     });
 }
 
@@ -5240,7 +5239,7 @@ async function expandPatMap() {
             if (!m._hipMeta) return;
             const { nome, count, urgente, separacao } = m._hipMeta;
             const chain = _CHAIN_ICONS.find(c => c.match.test(nome));
-            m.setIcon(chain ? _makeChainIconAtZoom(chain, z, urgente, separacao) : _makePinIcon(count, urgente, separacao, z));
+            m.setIcon(chain ? _makeChainIconAtZoom(chain, z, urgente, separacao, nome) : _makePinIcon(count, urgente, separacao, z, nome));
         });
     });
 
@@ -5285,7 +5284,7 @@ async function expandPatMap() {
         const count     = items.length;
         const z         = _patMap.getZoom();
         const chain     = _CHAIN_ICONS.find(c => c.match.test(nome));
-        const icon      = chain ? _makeChainIconAtZoom(chain, z, urgente, separacao) : _makePinIcon(count, urgente, separacao, z);
+        const icon      = chain ? _makeChainIconAtZoom(chain, z, urgente, separacao, nome) : _makePinIcon(count, urgente, separacao, z, nome);
         const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMap);
         marker._hipMeta = { nome, count, urgente, separacao };
         const lat = coords.lat, lng = coords.lng;
@@ -5468,7 +5467,7 @@ async function openPatMap() {
         const nomeEstab = items[0][1].estabelecimento || '';
         const chain     = _CHAIN_ICONS.find(c => c.match.test(nomeEstab));
         const z = _patMap ? _patMap.getZoom() : 7;
-        const icon = chain ? _makeChainIconAtZoom(chain, z, urgente, separacao) : _makePinIcon(items.length, urgente, separacao, z);
+        const icon = chain ? _makeChainIconAtZoom(chain, z, urgente, separacao, nomeEstab) : _makePinIcon(items.length, urgente, separacao, z, nomeEstab);
         const marker = L.marker([coords.lat, coords.lng], { icon })
             .addTo(_patMap);
         marker._hipMeta = { nome: nomeEstab, count: items.length, urgente, separacao };
@@ -5608,7 +5607,7 @@ async function _openPatMapPanel() {
                 if (!m._hipMeta) return;
                 const { nome, count, urgente, separacao } = m._hipMeta;
                 const chain = _CHAIN_ICONS.find(c => c.match.test(nome));
-                m.setIcon(chain ? _makeChainIconAtZoom(chain, z, urgente, separacao) : _makePinIcon(count, urgente, separacao, z));
+                m.setIcon(chain ? _makeChainIconAtZoom(chain, z, urgente, separacao, nome) : _makePinIcon(count, urgente, separacao, z, nome));
             });
         });
     } else {
@@ -5643,7 +5642,7 @@ async function _openPatMapPanel() {
         const separacao = items.some(([, p]) => !!p.separacao);
         const nomeEstab = items[0][1].estabelecimento || '';
         const chain     = _CHAIN_ICONS.find(c => c.match.test(nomeEstab));
-        const icon      = chain ? _makeChainIconAtZoom(chain, 7, urgente, separacao) : _makePinIcon(items.length, urgente, separacao, 7);
+        const icon      = chain ? _makeChainIconAtZoom(chain, 7, urgente, separacao, nomeEstab) : _makePinIcon(items.length, urgente, separacao, 7, nomeEstab);
         const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMapPanel);
         marker._hipMeta = { nome: nomeEstab, count: items.length, urgente, separacao };
         const _lat = coords.lat, _lng = coords.lng;
