@@ -4357,6 +4357,7 @@ body.is-offline #app-layout {
     display: flex;
     align-items: stretch;
     overflow: hidden;
+    margin-bottom: 6px;
 }
 .pat-card-accent {
     width: 5px;
@@ -4365,19 +4366,19 @@ body.is-offline #app-layout {
 }
 .pat-card-body-desktop {
     flex: 1;
-    padding: 13px 16px;
+    padding: 8px 14px;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
 }
 .pat-card-meta {
     display: flex;
     align-items: center;
-    gap: 14px;
-    font-size: 0.71rem;
+    gap: 10px;
+    font-size: 0.68rem;
     color: var(--text-muted);
-    margin-top: 3px;
+    margin-top: 1px;
     flex-wrap: wrap;
 }
 .pat-card-meta span {
@@ -4386,21 +4387,46 @@ body.is-offline #app-layout {
     gap: 4px;
 }
 /* Pills de progresso (Pendente / Com Guia / Separação) */
+/* ── Rodapé do card desktop: pills + botões na mesma linha ── */
+.pat-card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+}
+.pat-card-foot-pills {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+}
+.pat-card-foot-btns {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+/* Mantém compatibilidade mobile que ainda usa .pat-steps */
 .pat-steps {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-top: 8px;
+    gap: 5px;
+    margin-top: 6px;
     flex-wrap: wrap;
 }
 .pat-step-pill {
-    font-size: 0.65rem;
+    font-size: 0.60rem;
     font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 6px;
+    padding: 2px 8px;
+    border-radius: 4px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    border: 1.5px solid transparent;
+    border: 1px solid transparent;
 }
 .pat-step-pill.done    { background: var(--primary); color: #fff; border-color: var(--primary); }
 .pat-step-pill.pending { background: transparent; color: var(--text-muted); border-color: var(--border); }
@@ -4428,13 +4454,13 @@ body.is-offline #app-layout {
     color: var(--text-sub);
     text-align: right;
 }
+/* .pat-card-action legado — substituído por .pat-card-foot no desktop */
 .pat-card-action {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    justify-content: center;
     gap: 6px;
-    padding: 13px 16px;
+    padding: 8px 12px;
     flex-shrink: 0;
     border-left: 1px solid var(--border);
 }
@@ -4462,7 +4488,7 @@ body.is-offline #app-layout {
     .pat-col-right {
         display: flex;
         flex-direction: column;
-        width: 290px;
+        width: 340px;
         flex-shrink: 0;
         background: var(--card-bg);
     }
@@ -4480,7 +4506,9 @@ body.is-offline #app-layout {
 .pat-map-panel {
     display: flex;
     flex-direction: column;
-    padding: 14px 14px 0;
+    padding: 12px 12px 10px;
+    flex: 1;
+    min-height: 0;
 }
 .pat-map-panel-header {
     padding: 0 0 10px;
@@ -4500,7 +4528,8 @@ body.is-offline #app-layout {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    height: 180px;
+    flex: 1;
+    min-height: 220px;
     font-size: 0.72rem;
     color: var(--text-muted);
     background: var(--bg);
@@ -4509,7 +4538,8 @@ body.is-offline #app-layout {
 }
 .pat-map-panel-container {
     width: 100%;
-    height: 180px;
+    flex: 1;
+    min-height: 220px;
     background: #e8edf2;
     border-radius: 10px;
     overflow: hidden;
@@ -4813,7 +4843,6 @@ body.is-offline #app-layout {
 
 .pat-btn-apagar {
     flex-shrink: 0;
-    margin-left: auto;
     width: 32px; height: 32px;
     padding: 0;
     display: flex;
@@ -4831,6 +4860,34 @@ body.is-offline #app-layout {
 
 .pat-dd-manual { border-top: 1px dashed var(--border); }
 
+
+
+/* ── Campo Observações no modal PAT ─────────────────────────────────────── */
+.pat-obs-textarea {
+    resize: none;
+    min-height: 60px;
+    font-size: 0.84rem;
+    line-height: 1.45;
+    padding: 9px 12px;
+    font-family: 'DM Sans', 'Inter', sans-serif;
+}
+.pat-obs-count {
+    display: block;
+    text-align: right;
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+.pat-card-obs {
+    font-size: 0.70rem;
+    color: var(--text-muted);
+    font-style: italic;
+    line-height: 1.35;
+    padding: 3px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
 .pat-loading, .pat-empty { text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 32px 0; }
 
@@ -6724,6 +6781,69 @@ body.is-offline #app-layout {
 .pat-popup-list-dias.urgente { color: #dc2626; font-weight: 700; }
 
 /* Pin personalizado */
+
+/* ── Pins de cadeia (logo da loja no mapa) ──────────────────────────────────
+   Leaflet injeta .leaflet-marker-icon com width/height inline — usamos
+   !important nos filhos para garantir dimensões correctas.
+   ─────────────────────────────────────────────────────────────────────── */
+.pat-pin-chain {
+    position: relative !important;
+    width: 36px !important;
+    height: 44px !important;
+    cursor: pointer;
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,.30));
+    transition: transform 0.15s;
+}
+.pat-pin-chain:hover { transform: translateY(-3px) scale(1.08); }
+
+.pat-pin-chain-bg {
+    position: absolute !important;
+    top: 0; left: 0;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% 50% 50% 0 !important;
+    transform: rotate(-45deg) !important;
+    background: var(--chain-color, #2563eb);
+    border: 2.5px solid #fff;
+    overflow: hidden;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,.22);
+}
+.pat-pin-chain-img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    transform: rotate(45deg) !important;
+    display: block !important;
+    flex-shrink: 0;
+}
+.pat-pin-chain-fallback {
+    width: 100% !important;
+    height: 100% !important;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(45deg) !important;
+    font-size: 0.62rem !important;
+    font-weight: 900;
+    color: #fff;
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: -0.02em;
+    text-align: center;
+}
+.pat-pin-chain-tail {
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 0 !important;
+    height: 0 !important;
+    border-left: 7px solid transparent !important;
+    border-right: 7px solid transparent !important;
+    border-top: 9px solid var(--chain-color, #2563eb) !important;
+}
+
 .pat-pin {
     position: relative;
     width: 36px;
