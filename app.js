@@ -4900,14 +4900,14 @@ function _getChainIcon(nomeEstab, zoom) {
 
 // Tamanho do pin escala com o zoom: zoom7→22px, zoom10→32px, zoom14→44px
 function _pinSizeForZoom(zoom) {
-    const w = Math.round(Math.max(16, Math.min(40, 28 * Math.pow(1.18, zoom - 10))));
+    const w = Math.round(Math.max(28, Math.min(48, 28 * Math.pow(1.15, zoom - 7))));
     return { w, h: Math.round(w * 1.22) };
 }
 
 function _makePinIcon(count, urgente, separacao, zoom) {
     const color = urgente ? 'red' : separacao ? 'amber' : 'blue';
     const cls   = count > 1 ? 'cluster' : color;
-    const { w, h } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 10));
+    const { w, h } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 7));
     const holeR = Math.max(3, Math.round(w * 0.17));
     const countHtml = count > 1
         ? `<div class="pat-pin-count" style="font-size:${Math.max(8, Math.round(w*0.3))}px">${count}</div>`
@@ -4922,9 +4922,9 @@ function _makePinIcon(count, urgente, separacao, zoom) {
     });
 }
 
-function _makeChainIconAtZoom(chain, zoom) {
-    const { w } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 10));
-    const color = chain.color || '#334155';
+function _makeChainIconAtZoom(chain, zoom, urgente, separacao) {
+    const { w } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 7));
+    const color = urgente ? '#dc2626' : separacao ? '#d97706' : (chain.color || '#334155');
     const tailH = Math.round(w * 0.25);
     const border = Math.max(2, Math.round(w * 0.07));
     const fs = Math.max(8, Math.round(w * 0.32));
@@ -5238,7 +5238,7 @@ async function expandPatMap() {
             if (!m._hipMeta) return;
             const { nome, count, urgente, separacao } = m._hipMeta;
             const chain = _CHAIN_ICONS.find(c => c.match.test(nome));
-            m.setIcon(chain ? _makeChainIconAtZoom(chain, z) : _makePinIcon(count, urgente, separacao, z));
+            m.setIcon(chain ? _makeChainIconAtZoom(chain, z, urgente, separacao) : _makePinIcon(count, urgente, separacao, z));
         });
     });
 
@@ -5283,7 +5283,7 @@ async function expandPatMap() {
         const count     = items.length;
         const z         = _patMap.getZoom();
         const chain     = _CHAIN_ICONS.find(c => c.match.test(nome));
-        const icon      = chain ? _makeChainIconAtZoom(chain, z) : _makePinIcon(count, urgente, separacao, z);
+        const icon      = chain ? _makeChainIconAtZoom(chain, z, urgente, separacao) : _makePinIcon(count, urgente, separacao, z);
         const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMap);
         marker._hipMeta = { nome, count, urgente, separacao };
         const lat = coords.lat, lng = coords.lng;
@@ -5605,7 +5605,7 @@ async function _openPatMapPanel() {
                 if (!m._hipMeta) return;
                 const { nome, count, urgente, separacao } = m._hipMeta;
                 const chain = _CHAIN_ICONS.find(c => c.match.test(nome));
-                m.setIcon(chain ? _makeChainIconAtZoom(chain, z) : _makePinIcon(count, urgente, separacao, z));
+                m.setIcon(chain ? _makeChainIconAtZoom(chain, z, urgente, separacao) : _makePinIcon(count, urgente, separacao, z));
             });
         });
     } else {
