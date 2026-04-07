@@ -4923,7 +4923,7 @@ function _makePinIcon(count, urgente, separacao, zoom) {
 
 function _makeChainIconAtZoom(chain, zoom, urgente, separacao) {
     const { w } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 7));
-    const color = chain.color || '#334155';
+    const color = '#334155';
     const tailH = Math.round(w * 0.25);
     const border = Math.max(2, Math.round(w * 0.07));
     const fs = Math.max(8, Math.round(w * 0.32));
