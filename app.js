@@ -4900,7 +4900,7 @@ function _getChainIcon(nomeEstab, zoom) {
 
 // Tamanho do pin escala com o zoom: zoom7→22px, zoom10→32px, zoom14→44px
 function _pinSizeForZoom(zoom) {
-    const w = Math.round(Math.max(18, Math.min(60, 32 * Math.pow(1.22, zoom - 10))));
+    const w = Math.round(Math.max(16, Math.min(40, 28 * Math.pow(1.18, zoom - 10))));
     return { w, h: Math.round(w * 1.22) };
 }
 
@@ -5465,9 +5465,11 @@ async function openPatMap() {
         const separacao = items.some(([, p]) => !!p.separacao);
         const nomeEstab = items[0][1].estabelecimento || '';
         const chainIcon = _getChainIcon(nomeEstab);
-        const icon = chainIcon || _makePinIcon(items.length, urgente, separacao);
+        const z = _patMap ? _patMap.getZoom() : 7;
+        const icon = chainIcon || _makePinIcon(items.length, urgente, separacao, z);
         const marker = L.marker([coords.lat, coords.lng], { icon })
             .addTo(_patMap);
+        marker._hipMeta = { nome: nomeEstab, count: items.length, urgente, separacao };
         const _lat   = coords.lat;
         const _lng   = coords.lng;
         marker.on('click', () => {
@@ -5502,7 +5504,7 @@ async function openPatMap() {
 
     if (geocoded > 0) {
         if (loadingEl) loadingEl.style.display = 'none';
-        if (bounds.length === 1) { _patMap.setView(bounds[0], 13); }
+        if (bounds.length === 1) { _patMap.setView(bounds[0], 10); }
         else if (bounds.length > 1) { _patMap.fitBounds(bounds, { padding: [40, 40] }); }
         const pendingTxt = ''; // sem mensagem de 'a localizar novos'
         subtitleEl.textContent = `${geocoded} estabelecimento${geocoded !== 1 ? 's' : ''} no mapa${pendingTxt}`;
@@ -5597,6 +5599,15 @@ async function _openPatMapPanel() {
         }).addTo(_patMapPanel);
         _patMapPanel.fitBounds(PT_BOUNDS, { padding: [10, 10] });
         _patMapPanel.on('click', () => { if (_markerJustClicked) { _markerJustClicked = false; return; } closeMapPinSheet(); });
+        _patMapPanel.on('zoomend', () => {
+            const z = _patMapPanel.getZoom();
+            _patMapPanelMkrs.forEach(m => {
+                if (!m._hipMeta) return;
+                const { nome, count, urgente, separacao } = m._hipMeta;
+                const chain = _CHAIN_ICONS.find(c => c.match.test(nome));
+                m.setIcon(chain ? _makeChainIconAtZoom(chain, z) : _makePinIcon(count, urgente, separacao, z));
+            });
+        });
     } else {
         _patMapPanelMkrs.forEach(m => m.remove());
         _patMapPanelMkrs = [];
@@ -5629,8 +5640,9 @@ async function _openPatMapPanel() {
         const separacao = items.some(([, p]) => !!p.separacao);
         const nomeEstab = items[0][1].estabelecimento || '';
         const chainIcon = _getChainIcon(nomeEstab);
-        const icon      = chainIcon || _makePinIcon(items.length, urgente, separacao);
+        const icon      = chainIcon || _makePinIcon(items.length, urgente, separacao, 7);
         const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMapPanel);
+        marker._hipMeta = { nome: nomeEstab, count: items.length, urgente, separacao };
         const _lat = coords.lat, _lng = coords.lng;
         marker.on('click', () => {
             const cur = _getMapPendingPatsForEstab(items[0]?.[1]?.estabelecimento || k);
@@ -5642,7 +5654,7 @@ async function _openPatMapPanel() {
         bounds.push([coords.lat, coords.lng]);
     });
 
-    if (bounds.length === 1) { _patMapPanel.setView(bounds[0], 13); }
+    if (bounds.length === 1) { _patMapPanel.setView(bounds[0], 10); }
     else if (bounds.length > 1) { _patMapPanel.fitBounds(bounds, { padding: [20, 20] }); }
     _patMapPanel.invalidateSize();
 }
@@ -6156,7 +6168,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // REGISTO PWA
 // =============================================
 const SW_EXPECTED_VERSION = 'hiperfrio-v6.55';
-const SW_SCRIPT_URL = 'sw.js?v=6.55';
+const SW_SCRIPT_URL = 'sw.js?v=6.48';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados
