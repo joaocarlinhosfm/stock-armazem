@@ -3437,7 +3437,7 @@ function _applyTheme(theme) {
     };
     let metaTheme = document.querySelector('meta[name="theme-color"]');
     if (!metaTheme) {
-        metaTheme = $id('meta');
+        metaTheme = document.createElement('meta');
         metaTheme.name = 'theme-color';
         document.head.appendChild(metaTheme);
     }
