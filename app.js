@@ -4899,7 +4899,7 @@ function _getChainIcon(nomeEstab, zoom) {
 
 // Tamanho do pin escala com o zoom: zoom7→22px, zoom10→32px, zoom14→44px
 function _pinSizeForZoom(zoom) {
-    const w = Math.round(Math.max(28, Math.min(48, 28 * Math.pow(1.15, zoom - 7))));
+    const w = Math.round(Math.max(31, Math.min(53, 31 * Math.pow(1.15, zoom - 7))));
     return { w, h: Math.round(w * 1.22) };
 }
 

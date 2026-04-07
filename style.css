@@ -4529,7 +4529,7 @@ body.is-offline #app-layout {
     .pat-col-right {
         display: flex;
         flex-direction: column;
-        width: 500px;
+        width: 520px;
         flex-shrink: 0;
         background: var(--card-bg);
     }
