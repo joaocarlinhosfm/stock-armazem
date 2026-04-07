@@ -23,6 +23,31 @@
     --shadow-card: 0 1px 3px rgba(0,0,0,.07), 0 4px 12px rgba(0,0,0,.04);
 }
 
+/* ── DESKTOP LAYOUT — definido aqui para garantir prioridade máxima ── */
+@media screen and (min-width: 768px) {
+    #side-menu {
+        position: fixed !important;
+        top: var(--header-h) !important;
+        left: 0 !important;
+        width: var(--sidebar-w) !important;
+        height: calc(100vh - var(--header-h)) !important;
+        overflow-y: auto !important;
+        flex-shrink: 0 !important;
+        z-index: 100 !important;
+        box-shadow: none !important;
+        transition: none !important;
+    }
+    #close-menu    { display: none !important; }
+    #menu-overlay  { display: none !important; }
+    #bottom-nav    { display: none !important; }
+    #main-content  {
+        margin-left: var(--sidebar-w) !important;
+        padding: 24px 32px 40px !important;
+        width: auto !important;
+    }
+    #toast-container { bottom: 20px !important; }
+}
+
 /* ══════════════════════════════════════════════════════
    PAT — TABS, SELEÇÃO, LEVANTADAS, GUIAS
    ══════════════════════════════════════════════════════ */
@@ -6448,36 +6473,6 @@ body.is-offline #app-layout {
 }
 .admin-mobile-detail-enter { animation: adminSlideIn 0.22s cubic-bezier(0.2, 0, 0, 1) both; }
 .admin-mobile-menu-exit    { animation: adminSlideOut 0.18s ease both; }
-
-@media (min-width: 768px) {
-    /* Sidebar fixa — não participa no scroll da página */
-    #side-menu {
-        position: fixed;
-        top: var(--header-h);
-        left: 0 !important;
-        width: var(--sidebar-w);
-        height: calc(100vh - var(--header-h));
-        overflow-y: auto;
-        flex-shrink: 0;
-        z-index: 100;
-        box-shadow: none;
-        transition: none;
-    }
-
-    /* Esconder controlos mobile */
-    #close-menu    { display: none; }
-    #menu-overlay  { display: none !important; }
-    #bottom-nav    { display: none !important; }
-
-    /* Main: empurrado para a direita da sidebar, scroll normal da página */
-    #main-content {
-        margin-left: var(--sidebar-w);
-        padding: 24px 32px 40px;
-        width: auto;
-    }
-
-    #toast-container { bottom: 20px; }
-}
 
 /* =============================================
    SWIPE GESTURES — STOCK CARDS
