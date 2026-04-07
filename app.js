@@ -559,10 +559,6 @@ function openSwitchRoleModal() {
     focusModal('switch-role-modal');
 }
 
-function checkAdminAccess() {
-    return requireManagerAccess();
-}
-
 // Inicializa a app após o perfil estar definido
 async function bootApp() {
     // Garante token válido antes de qualquer fetch — crítico após login
@@ -779,7 +775,7 @@ document.addEventListener('click', function(e) {
 // ARQUITECTURA (#18): esta função gere routing + side-effects.
 // Para refactor futuro: separar em _activateView(id) e callbacks por vista.
 function nav(viewId) {
-    if (viewId === 'view-admin' && !checkAdminAccess()) return;
+    if (viewId === 'view-admin' && !requireManagerAccess()) return;
 
     // Actualiza título do header
     const pageTitles = {
@@ -1533,8 +1529,12 @@ function _closeSortMenu() {
 window.addEventListener('scroll', () => {
     if ($id('sort-menu')?.classList.contains('open')) _closeSortMenu();
 }, { passive: true });
+let _sortResizeTimer = null;
 window.addEventListener('resize', () => {
-    if ($id('sort-menu')?.classList.contains('open')) _closeSortMenu();
+    clearTimeout(_sortResizeTimer);
+    _sortResizeTimer = setTimeout(() => {
+        if ($id('sort-menu')?.classList.contains('open')) _closeSortMenu();
+    }, 100);
 });
 
 function setStockSort(val) {
@@ -4115,7 +4115,7 @@ function invSearchInput(q) {
                 const row = $el('div');
                 row.className = 'inv-search-ctx-row' + (ni === _invIdx ? ' ctx-current' : '');
                 const confirmed = _invChanges[i] !== undefined;
-                row.innerHTML = `<span>${p.codigo || '—'} · ${(p.nome||'').slice(0,22)}</span>`
+                row.innerHTML = `<span>${escapeHtml(p.codigo || '—')} · ${escapeHtml((p.nome||'').slice(0,22))}</span>`
                     + `<span style="color:${confirmed?'var(--success)':'var(--text-muted)'}">${confirmed ? '✓' : '–'}</span>`;
                 ctx.appendChild(row);
             });
@@ -5311,7 +5311,7 @@ async function expandPatMap() {
         const z         = _patMap.getZoom();
         const chain     = _CHAIN_ICONS.find(c => c.match.test(nome));
         const icon      = chain ? _makeChainIconAtZoom(chain, z, urgente, separacao, nome) : _makePinIcon(count, urgente, separacao, z, nome);
-        const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMapCluster);
+        const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMapCluster || _patMap);
         marker._hipMeta = { nome, count, urgente, separacao };
         const lat = coords.lat, lng = coords.lng;
         marker.on('click', () => {
@@ -5503,7 +5503,7 @@ async function openPatMap() {
         const z = _patMap ? _patMap.getZoom() : 7;
         const icon = chain ? _makeChainIconAtZoom(chain, z, urgente, separacao, nomeEstab) : _makePinIcon(items.length, urgente, separacao, z, nomeEstab);
         const marker = L.marker([coords.lat, coords.lng], { icon })
-            .addTo(_patMapCluster);
+            .addTo(_patMapCluster || _patMap);
         marker._hipMeta = { nome: nomeEstab, count: items.length, urgente, separacao };
         const _lat   = coords.lat;
         const _lng   = coords.lng;
@@ -5680,7 +5680,7 @@ async function _openPatMapPanel() {
         const nomeEstab = items[0][1].estabelecimento || '';
         const chain     = _CHAIN_ICONS.find(c => c.match.test(nomeEstab));
         const icon      = chain ? _makeChainIconAtZoom(chain, 7, urgente, separacao, nomeEstab) : _makePinIcon(items.length, urgente, separacao, 7, nomeEstab);
-        const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMapPanelCluster);
+        const marker    = L.marker([coords.lat, coords.lng], { icon }).addTo(_patMapPanelCluster || _patMapPanel);
         marker._hipMeta = { nome: nomeEstab, count: items.length, urgente, separacao };
         const _lat = coords.lat, _lng = coords.lng;
         marker.on('click', () => {
@@ -6219,7 +6219,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // REGISTO PWA
 // =============================================
 const SW_EXPECTED_VERSION = 'hiperfrio-v6.55';
-const SW_SCRIPT_URL = 'sw.js?v=6.48';
+const SW_SCRIPT_URL = 'sw.js?v=6.55';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados
@@ -7065,7 +7065,7 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
     const USER_SVG = '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>';
     const CAL_SVG  = '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
     if (pat.funcionario || pat.criadoEm) {
-        if (pat.funcionario) metaRow.innerHTML += `<span>${USER_SVG} ${pat.funcionario}</span>`;
+        if (pat.funcionario) metaRow.innerHTML += `<span>${USER_SVG} ${escapeHtml(pat.funcionario)}</span>`;
         if (pat.criadoEm)   metaRow.innerHTML += `<span>${CAL_SVG} ${new Date(pat.criadoEm).toLocaleDateString('pt-PT')}</span>`;
     }
 
@@ -7250,7 +7250,7 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
     const metaMobile = $el('div', { className: 'pat-card-meta-mobile' });
     const _M_USER = '<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>';
     const _M_CAL  = '<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
-    if (pat.funcionario) metaMobile.innerHTML += `<span>${_M_USER} ${pat.funcionario}</span>`;
+    if (pat.funcionario) metaMobile.innerHTML += `<span>${_M_USER} ${escapeHtml(pat.funcionario)}</span>`;
     if (pat.criadoEm)    metaMobile.innerHTML += `<span>${_M_CAL} ${new Date(pat.criadoEm).toLocaleDateString('pt-PT')}</span>`;
 
     const prodsDiv = $el('div', { className: 'pat-card-produtos' });
@@ -8149,14 +8149,8 @@ async function imgSearchAuto() {
         });
 
     } catch(e) {
-        console.error('[imgSearch] Excepção capturada:', e?.name, e?.message, e);
-        // Dica específica para o erro CORS
         if (e?.message === 'Failed to fetch' || e?.name === 'TypeError') {
-            showToast('Erro CORS — precisas de um Cloudflare Worker como proxy. Ver consola.', 'error');
-            console.error('[imgSearch] ❌ CORS: o SerpApi bloqueia chamadas directas do browser.');
-            console.error('[imgSearch] ✅ SOLUÇÃO: cria um Cloudflare Worker gratuito que faça proxy ao SerpApi,');
-            console.error('[imgSearch]    depois em Definições cola o URL do Worker em vez da chave SerpApi.');
-            console.error('[imgSearch]    Código do Worker: https://developers.cloudflare.com/workers/');
+            showToast('Erro CORS — configura um Cloudflare Worker como proxy em Definições.', 'error');
         } else {
             showToast('Erro na pesquisa: ' + (e?.message || e), 'error');
         }
