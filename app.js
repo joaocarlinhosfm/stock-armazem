@@ -4568,7 +4568,7 @@ async function _invClearResume() {
 function _createClusterGroup() {
     return L.markerClusterGroup({
         maxClusterRadius: 40,
-        disableClusteringAtZoom: 11,
+        disableClusteringAtZoom: 9,
         spiderfyOnMaxZoom: true,
         showCoverageOnHover: false,
         zoomToBoundsOnClick: true,
