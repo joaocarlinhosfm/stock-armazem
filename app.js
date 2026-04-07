@@ -6156,7 +6156,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // REGISTO PWA
 // =============================================
 const SW_EXPECTED_VERSION = 'hiperfrio-v6.55';
-const SW_SCRIPT_URL = 'sw.js?v=6.55';
+cconst SW_SCRIPT_URL = 'sw.js?v=6.55';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados
