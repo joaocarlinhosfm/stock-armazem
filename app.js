@@ -6,13 +6,13 @@ const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase
 // ── DOM HELPERS — evitam repetição de document.getElementById / createElement
 
 /** Atalho para document.getElementById — retorna null sem lançar erro */
-const $id = id => document.getElementById(id); // Isto define '$id'
+const $id = id => $id(id); // Isto define '$id'
 
 /** Cria um elemento e aplica propriedades de uma só vez.
  *  Exemplo: $el('div', { className: 'card', textContent: 'Olá' })
  */
 function $el(tag, props = {}) {
-    const el = document.createElement(tag);
+    const el = $el(tag);
     Object.assign(el, props);
     return el;
 }
@@ -565,6 +565,7 @@ function checkAdminAccess() {
 
 // Inicializa a app após o perfil estar definido
 async function bootApp() {
+    console.log('[DIAG] bootApp iniciou | innerWidth:', window.innerWidth, '| currentRole:', currentRole);
     // Garante token válido antes de qualquer fetch — crítico após login
     try {
         await getAuthToken();
@@ -779,6 +780,8 @@ document.addEventListener('click', function(e) {
 // ARQUITECTURA (#18): esta função gere routing + side-effects.
 // Para refactor futuro: separar em _activateView(id) e callbacks por vista.
 function nav(viewId) {
+    const _sm = $id('side-menu');
+    console.log('[DIAG] nav('+viewId+') | innerWidth:', window.innerWidth, '| sideMenu display:', _sm ? getComputedStyle(_sm).display : 'N/A', '| left:', _sm ? getComputedStyle(_sm).left : 'N/A');
     if (viewId === 'view-admin' && !checkAdminAccess()) return;
 
     // Actualiza título do header
@@ -1256,9 +1259,7 @@ async function renderDashboard(force = false, fromBtn = false) {
     const trendEncomendas = _getDashTrend('encActivas',  encActivas,  snapYesterday);
 
     el.innerHTML = '';
-    // Preservar 'view' e 'active' — não usar className= que apagaria as classes de routing
-    el.classList.remove('dv3-loading');
-    el.classList.add('dash-v3');
+    el.className = 'dash-v3';
 
     _renderDashGreeting(el, greeting, displayName, dateStr, timeStr);
     _renderDashAlert(el, patUrgentes);
@@ -2049,7 +2050,7 @@ async function renderList(filter = '', force = false) {
         const nomEl = $el('div', { className: 'card-nome' });
         nomEl.textContent = item.nome || '';
 
-        const hr = $el('hr', { className: 'card-divider' });
+        const hr = ('hr', { className: 'card-divider' });
 
         const row = $el('div', { className: 'card-bottom-row' });
 
@@ -3209,7 +3210,7 @@ function _buildAdminMobileMenu() {
     backBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg> Administração';
 
     // Título da secção como h2
-    const detailTitle = $el('h2', { className: 'admin-mobile-detail-title' });
+    const detailTitle = ('h2', { className: 'admin-mobile-detail-title' });
     detailTitle.id = 'admin-mobile-detail-title';
     detailTitle.style.cssText = 'font-size:1.35rem;font-weight:800;color:var(--text-main);letter-spacing:-0.4px;margin:4px 0 16px;padding:0;line-height:1.2;';
 
@@ -3437,7 +3438,7 @@ function _applyTheme(theme) {
     };
     let metaTheme = document.querySelector('meta[name="theme-color"]');
     if (!metaTheme) {
-        metaTheme = document.createElement('meta');
+        metaTheme = $id('meta');
         metaTheme.name = 'theme-color';
         document.head.appendChild(metaTheme);
     }
@@ -5790,6 +5791,7 @@ function bnavAddChoose(viewId) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('[DIAG] DOMContentLoaded disparou | innerWidth:', window.innerWidth, '| isDesktop:', window.innerWidth >= 768);
     // PAT: só aceita dígitos
     $id('pat-numero')?.addEventListener('input', function() {
         this.value = this.value.replace(/\D/g, '').slice(0, 6);
@@ -5803,20 +5805,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-
-    // Desktop layout — apenas esconde/mostra elementos que o CSS não controla via media query
-    // O CSS já gere position:fixed da sidebar e margin-left do main-content
-    function applyDesktopLayout() {
-        const isDesktop = window.innerWidth >= 768;
-        const fab = $id('fab-add');
-        if (isDesktop) {
-            if (fab) fab.style.display = 'none';
-        } else {
-            if (fab) fab.style.display = '';
-        }
-    }
-    applyDesktopLayout();
-    window.addEventListener('resize', applyDesktopLayout);
 
     // Tema
     const savedTheme = localStorage.getItem('hiperfrio-tema') || 'light';
@@ -6679,8 +6667,6 @@ async function importClientesExcel(input) {
 
 // ── Exportar Excel de clientes ─────────────────────────────────────────────
 
-
-const _patCache = { data: null, lastFetch: 0 };
 
 async function _fetchPats(force = false) {
     const now = Date.now();
@@ -9301,6 +9287,62 @@ function _relBuildInsight(snap) {
     return null;
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('[DIAG] 2º DOMContentLoaded disparou | innerWidth:', window.innerWidth);
+    // Desktop layout: sidebar visível, bottom nav escondido
+    function applyDesktopLayout() {
+        const isDesktop = window.innerWidth >= 768;
+        const bottomNav = $id('bottom-nav');
+        const sideMenu  = $id('side-menu');
+        const appLayout = $id('app-layout');
+        console.log('[DIAG] applyDesktopLayout | innerWidth:', window.innerWidth, '| isDesktop:', isDesktop);
+        console.log('[DIAG] elementos | bottomNav:', !!bottomNav, '| sideMenu:', !!sideMenu, '| appLayout:', !!appLayout);
+        if (sideMenu) console.log('[DIAG] sideMenu.style.left:', sideMenu.style.left, '| computed left:', getComputedStyle(sideMenu).left, '| position:', getComputedStyle(sideMenu).position);
+
+        if (isDesktop) {
+            if (bottomNav) bottomNav.style.display = 'none';
+            const fab = $id('fab-add');
+            if (fab) fab.style.display = 'none';
+            const closeBtn = $id('close-menu');
+            if (closeBtn) closeBtn.style.display = 'none';
+            if (sideMenu) {
+                sideMenu.style.position = 'relative';
+                sideMenu.style.left = '0';
+                sideMenu.style.top = '0';
+                sideMenu.style.height = 'calc(100vh - 60px)';
+                sideMenu.style.boxShadow = 'none';
+                sideMenu.style.zIndex = '100';
+                sideMenu.style.overflowY = 'auto';
+            }
+            if (appLayout) {
+                appLayout.style.flexDirection = 'row';
+                appLayout.style.alignItems = 'flex-start';
+            }
+        } else {
+            if (bottomNav) bottomNav.style.display = '';
+            const fab = $id('fab-add');
+            if (fab) fab.style.display = '';
+            const closeBtn = $id('close-menu');
+            if (closeBtn) closeBtn.style.display = '';
+            if (sideMenu) {
+                sideMenu.style.position = '';
+                sideMenu.style.left = '';
+                sideMenu.style.top = '';
+                sideMenu.style.height = '';
+                sideMenu.style.boxShadow = '';
+                sideMenu.style.zIndex = '';
+                sideMenu.style.overflowY = '';
+            }
+            if (appLayout) {
+                appLayout.style.flexDirection = '';
+                appLayout.style.alignItems = '';
+            }
+        }
+    }
+
+    applyDesktopLayout();
+    window.addEventListener('resize', applyDesktopLayout);
+});
 
 // ── Render lista ──────────────────────────────────────────────────────────
 function renderEncList() {
