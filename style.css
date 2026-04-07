@@ -1146,11 +1146,13 @@ header h1 { display: none; }
     height: 1px;
     background: var(--border) !important;
     margin: 4px 10px;
-    opacity: 0.35;
+    opacity: 0.3;
     list-style: none;
     padding: 0;
+    border: none;
     border-radius: 0;
     pointer-events: none;
+    flex-shrink: 0;
 }
 
 .menu-items li {
@@ -1198,12 +1200,20 @@ header h1 { display: none; }
 .menu-items li:hover svg { opacity: 1; }
 
 .menu-divider {
-    border: 0;
-    border-top: 1px solid var(--border);
+    height: 1px;
+    background: var(--border) !important;
     margin: 4px 10px;
-    opacity: 0.35;
+    opacity: 0.3;
     list-style: none;
-    background: none !important;
+    padding: 0;
+    border: none !important;
+    border-top: none !important;
+    border-radius: 0;
+    pointer-events: none;
+    flex-shrink: 0;
+    display: block;
+    box-sizing: content-box;
+    overflow: visible;
 }
 
 .menu-footer {
