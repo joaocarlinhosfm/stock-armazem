@@ -2040,7 +2040,7 @@ body.worker-mode .tool-card {
     touch-action: pan-y;
 }
 
-.ref-label { font-size: 0.55rem; font-weight: 800; color: var(--primary); letter-spacing: 0.5px; }
+.ref-label { font-size: 0.55rem; font-weight: 800; color: var(--primary);  }
 .ref-value { font-size: 1rem; font-weight: 900; color: var(--text-main); display: block; margin-bottom: 2px; }
 
 .loc-pill {
@@ -3461,7 +3461,7 @@ body.is-offline #app-layout {
     margin-bottom: 4px;
 }
 .dv3-kpi-val {
-    font-family: 'DM Mono', 'Courier New', monospace;
+    font-family: 'DM Sans', 'Inter', sans-serif;
     font-size: 1.75rem;
     font-weight: 500;
     color: var(--text-main);
@@ -3522,7 +3522,7 @@ body.is-offline #app-layout {
     margin-bottom: 3px;
 }
 .dv3-mini-val {
-    font-family: 'DM Mono', 'Courier New', monospace;
+    font-family: 'DM Sans', 'Inter', sans-serif;
     font-size: 1.2rem;
     font-weight: 500;
     line-height: 1;
@@ -3599,7 +3599,7 @@ body.is-offline #app-layout {
     text-overflow: ellipsis;
 }
 .dv3-list-age {
-    font-family: 'DM Mono', 'Courier New', monospace;
+    font-family: 'DM Sans', 'Inter', sans-serif;
     font-size: 0.72rem;
     font-weight: 500;
     color: var(--text-muted);
@@ -3667,7 +3667,7 @@ body.is-offline #app-layout {
     flex-shrink: 0;
 }
 .dv3-mono {
-    font-family: 'DM Mono', 'Courier New', monospace;
+    font-family: 'DM Sans', 'Inter', sans-serif;
 }
 
 /* Dark mode overrides for dash-v3 */
@@ -4726,7 +4726,7 @@ body.is-offline #app-layout {
     padding: 2px 8px;
     font-size: 0.60rem;
     font-weight: 700;
-    letter-spacing: 0.03em;
+    
     text-transform: uppercase;
     border: 1px solid var(--primary-mid);
     white-space: nowrap;
@@ -4986,7 +4986,7 @@ body.is-offline #app-layout {
 .pat-kpi-val {
     font-size: 1.3rem;
     font-weight: 800;
-    font-family: 'DM Mono', monospace;
+    font-family: 'DM Sans', 'Inter', sans-serif;
     color: var(--primary);
     margin-top: 1px;
 }
@@ -5107,7 +5107,7 @@ body.is-offline #app-layout {
 }
 .pat-dd-option:last-child { border-bottom: none; }
 .pat-dd-option:hover, .pat-dd-option.focused { background: var(--primary-soft); }
-.pat-dd-code { font-size: 0.75rem; font-weight: 800; color: var(--primary); letter-spacing: 0.5px; flex-shrink: 0; min-width: 60px; }
+.pat-dd-code { font-size: 0.75rem; font-weight: 800; color: var(--primary);  flex-shrink: 0; min-width: 60px; }
 .pat-dd-name { font-size: 0.83rem; color: var(--text-main); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pat-dd-stock { font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
 .pat-dd-empty { padding: 12px 14px; font-size: 0.83rem; color: var(--text-muted); text-align: center; }
@@ -5125,7 +5125,7 @@ body.is-offline #app-layout {
     padding: 10px 12px;
 }
 .pat-chip-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.pat-chip-code { font-size: 0.74rem; font-weight: 800; color: var(--primary); letter-spacing: 0.4px; }
+.pat-chip-code { font-size: 0.74rem; font-weight: 800; color: var(--primary);  }
 .pat-chip-name { font-size: 0.80rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pat-chip-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .pat-chip-stock-label { font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; }
@@ -5215,7 +5215,7 @@ body.is-offline #app-layout {
     color: var(--text-muted);
     margin-left: auto;
     white-space: nowrap;
-    font-family: 'DM Mono', monospace;
+    font-family: 'DM Sans', 'Inter', sans-serif;
 }
 .pat-detail-actions {
     display: flex;
@@ -5841,25 +5841,41 @@ body.is-offline #app-layout {
 .enc-prod-stat-danger .enc-prod-stat-val { color: var(--danger); }
 .enc-prod-stat-ok    .enc-prod-stat-val { color: var(--success); }
 
-.enc-prod-table-wrap {
+.enc-prod-group {
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 12px;
     overflow: hidden;
+    margin-bottom: 14px;
 }
+.enc-prod-group-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+}
+.enc-prod-group-title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.enc-prod-group-num  { font-size: 0.88rem; font-weight: 800; color: var(--text-main); }
+.enc-prod-group-sep  { color: var(--border); }
+.enc-prod-group-date { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); }
+.enc-prod-group-forn { font-size: 0.78rem; color: var(--text-muted); }
+.enc-prod-group-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.enc-prod-group-pct  { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+
 .enc-prod-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.82rem;
 }
-.enc-prod-table thead {
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-}
+.enc-prod-table thead { background: var(--bg); border-bottom: 1px solid var(--border); }
 .enc-prod-table th {
-    padding: 10px 14px;
+    padding: 8px 14px;
     text-align: left;
-    font-size: 0.68rem;
+    font-size: 0.67rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.07em;
@@ -5870,14 +5886,12 @@ body.is-offline #app-layout {
 .enc-prod-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
 .enc-prod-table tbody tr:last-child { border-bottom: none; }
 .enc-prod-table tbody tr:hover { background: var(--bg); }
-.enc-prod-row td { padding: 10px 14px; vertical-align: middle; }
-.enc-prod-ref  { font-size: 0.75rem; font-weight: 700; color: var(--primary); font-family: 'DM Mono', monospace; white-space: nowrap; }
+.enc-prod-row td { padding: 9px 14px; vertical-align: middle; }
+.enc-prod-ref  { font-size: 0.78rem; font-weight: 700; color: var(--primary); white-space: nowrap; }
 .enc-prod-nome { color: var(--text-main); font-weight: 500; }
 .enc-prod-td-num { text-align: right; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
 .enc-prod-falta { color: var(--danger) !important; font-weight: 700 !important; }
-.enc-prod-row-ok      { opacity: 0.6; }
-.enc-prod-row-pending { }
-.enc-prod-row-partial { }
+.enc-prod-row-ok { opacity: 0.55; }
 .enc-prod-badge {
     display: inline-block;
     padding: 2px 8px;
@@ -5889,6 +5903,7 @@ body.is-offline #app-layout {
 .enc-prod-badge-ok      { background: rgba(22,163,74,.12);  color: #16a34a; }
 .enc-prod-badge-partial { background: rgba(245,158,11,.12); color: #d97706; }
 .enc-prod-badge-pending { background: rgba(239,68,68,.12);  color: #dc2626; }
+
 
 /* Estado vazio genérico rico — usado em PAT, ferramentas, stock */
 .empty-state {
@@ -7450,7 +7465,7 @@ body.is-offline #app-layout {
 }
 .ec-input-coord {
     font-size: 0.82rem;
-    font-family: 'Courier New', monospace;
+    font-family: 'DM Sans', 'Inter', sans-serif;
 }
 .ec-section-title {
     display: flex;
@@ -7623,7 +7638,7 @@ body.is-offline #app-layout {
     font-size: 1.5rem;
     font-weight: 800;
     color: var(--text-main);
-    font-family: 'DM Mono', 'Courier New', monospace;
+    font-family: 'DM Sans', 'Inter', sans-serif;
     line-height: 1;
     display: block;
 }
@@ -7665,7 +7680,7 @@ body.is-offline #app-layout {
     color: var(--text-muted);
     padding: 1px 6px;
     border-radius: 10px;
-    font-family: 'DM Mono', monospace;
+    font-family: 'DM Sans', 'Inter', sans-serif;
 }
 .sdh-tab-count-red   { background: #fee2e2; color: #dc2626; }
 .sdh-tab-count-green { background: #dcfce7; color: #16a34a; }
@@ -7736,8 +7751,8 @@ body.is-offline #app-layout {
     font-size: 0.62rem;
     font-weight: 700;
     color: var(--primary);
-    letter-spacing: .05em;
-    font-family: 'DM Mono', monospace;
+    
+    font-family: 'DM Sans', 'Inter', sans-serif;
 }
 .sdc-nome {
     font-size: 0.88rem;
@@ -7760,7 +7775,7 @@ body.is-offline #app-layout {
     font-size: 0.7rem;
     font-weight: 700;
     align-self: flex-start;
-    font-family: 'DM Mono', monospace;
+    font-family: 'DM Sans', 'Inter', sans-serif;
 }
 .dark-mode .sdc-loc {
     background: rgba(14,165,233,.15);
@@ -7800,7 +7815,7 @@ body.is-offline #app-layout {
     font-size: 1.4rem;
     font-weight: 800;
     color: var(--text-main);
-    font-family: 'DM Mono', monospace;
+    font-family: 'DM Sans', 'Inter', sans-serif;
     line-height: 1;
 }
 .sdc-stock-zero .sdc-qty { color: #dc2626; }
@@ -7834,7 +7849,7 @@ body.is-offline #app-layout {
 .sdc-qty-display {
     min-width: 36px;
     text-align: center;
-    font-family: 'DM Mono', monospace;
+    font-family: 'DM Sans', 'Inter', sans-serif;
     font-size: 0.9rem;
     font-weight: 700;
     color: var(--text-main);
@@ -8115,8 +8130,8 @@ body.is-offline #app-layout {
     font-size: 0.62rem !important;
     font-weight: 700;
     color: var(--primary) !important;
-    letter-spacing: .06em;
-    font-family: 'DM Mono', monospace;
+    
+    font-family: 'DM Sans', 'Inter', sans-serif;
     margin-bottom: 4px;
     text-transform: uppercase;
 }
@@ -8156,7 +8171,7 @@ body.is-offline #app-layout {
     font-weight: 700;
     color: var(--text-main) !important;
     text-align: right;
-    font-family: 'DM Mono', monospace;
+    font-family: 'DM Sans', 'Inter', sans-serif;
 }
 .pdm-qty {
     font-size: 1.4rem !important;

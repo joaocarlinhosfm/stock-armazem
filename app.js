@@ -9294,52 +9294,31 @@ function renderEncProdutos() {
     const wrap = $id('enc-produtos-view');
     if (!wrap) return;
 
-    // Agregar todos os produtos de encomendas pendentes + parciais
-    const prodMap = {}; // key: ref|nome → { ref, nome, encomendas: [{num, fornecedor, qtd, recebido}], totalQtd, totalRec }
+    // Recolher encomendas activas ordenadas por data
+    const encs = Object.entries(_encData || {})
+        .filter(([, e]) => e.estado !== 'recebida')
+        .sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0));
 
-    Object.values(_encData || {}).forEach(enc => {
-        if (enc.estado === 'recebida') return; // só activas
-        const linhas = Object.values(enc.linhas || {});
-        linhas.forEach(l => {
-            const ref  = (l.ref  || '').trim().toUpperCase();
-            const nome = (l.nome || l.desc || '').trim();
-            const key  = ref || nome || '?';
-            if (!prodMap[key]) {
-                prodMap[key] = { ref, nome, encomendas: [], totalQtd: 0, totalRec: 0 };
-            }
-            const qtd = parseFloat(l.qtd)      || 0;
-            const rec = Math.min(parseFloat(l.recebido) || 0, qtd);
-            prodMap[key].totalQtd += qtd;
-            prodMap[key].totalRec += rec;
-            prodMap[key].encomendas.push({
-                num:       enc.num || '—',
-                fornecedor: enc.fornecedor || '—',
-                qtd,
-                rec,
-            });
-        });
-    });
-
-    const entries = Object.values(prodMap).sort((a, b) => {
-        // Primeiro os incompletos (falta receber), depois os completos
-        const aFalta = a.totalQtd - a.totalRec;
-        const bFalta = b.totalQtd - b.totalRec;
-        return bFalta - aFalta;
-    });
-
-    if (entries.length === 0) {
+    if (encs.length === 0) {
         wrap.innerHTML = `<div class="enc-empty"><div class="enc-empty-title">Sem produtos em encomendas activas</div></div>`;
         return;
     }
 
-    const totalProd = entries.length;
-    const totalFalta = entries.filter(e => e.totalRec < e.totalQtd).length;
-    const totalCompleto = entries.filter(e => e.totalRec >= e.totalQtd).length;
+    // KPIs globais
+    let totalRefs = 0, totalFalta = 0, totalCompleto = 0;
+    encs.forEach(([, enc]) => {
+        Object.values(enc.linhas || {}).forEach(l => {
+            const qtd = parseFloat(l.qtd) || 0;
+            const rec = Math.min(parseFloat(l.recebido) || 0, qtd);
+            totalRefs++;
+            if (rec >= qtd) totalCompleto++; else totalFalta++;
+        });
+    });
 
     let html = `
         <div class="enc-prod-summary">
             <div class="enc-prod-stat">
-                <span class="enc-prod-stat-val">${totalProd}</span>
+                <span class="enc-prod-stat-val">${totalRefs}</span>
                 <span class="enc-prod-stat-lbl">Referências</span>
             </div>
             <div class="enc-prod-stat enc-prod-stat-danger">
@@ -9350,49 +9329,80 @@ function renderEncProdutos() {
                 <span class="enc-prod-stat-val">${totalCompleto}</span>
                 <span class="enc-prod-stat-lbl">Completas</span>
             </div>
-        </div>
-        <div class="enc-prod-table-wrap">
+        </div>`;
+
+    encs.forEach(([, enc]) => {
+        const linhas   = Object.values(enc.linhas || {});
+        if (linhas.length === 0) return;
+        const dataFmt  = enc.data ? enc.data.split('-').reverse().join('/') : '—';
+        const estadoLabel = { pendente: 'Pendente', parcial: 'Parcial', recebida: 'Recebida' }[enc.estado] || 'Pendente';
+        const totalQtd = linhas.reduce((s, l) => s + (parseFloat(l.qtd) || 0), 0);
+        const totalRec = linhas.reduce((s, l) => s + Math.min(parseFloat(l.recebido) || 0, parseFloat(l.qtd) || 0), 0);
+        const pct      = totalQtd > 0 ? Math.round(totalRec / totalQtd * 100) : 0;
+
+        html += `
+        <div class="enc-prod-group">
+            <div class="enc-prod-group-hdr">
+                <div class="enc-prod-group-title">
+                    <span class="enc-prod-group-num">Encomenda ${escapeHtml(enc.num || '—')}</span>
+                    <span class="enc-prod-group-sep">·</span>
+                    <span class="enc-prod-group-date">${escapeHtml(dataFmt)}</span>
+                    ${enc.fornecedor ? `<span class="enc-prod-group-sep">·</span><span class="enc-prod-group-forn">${escapeHtml(enc.fornecedor)}</span>` : ''}
+                </div>
+                <div class="enc-prod-group-meta">
+                    <span class="enc-badge enc-badge-${enc.estado || 'pendente'}">${estadoLabel}</span>
+                    <span class="enc-prod-group-pct">${totalRec}/${totalQtd} un · ${pct}%</span>
+                </div>
+            </div>
             <table class="enc-prod-table">
                 <thead>
                     <tr>
                         <th>Referência</th>
                         <th>Designação</th>
-                        <th class="enc-prod-th-num">Encomendado</th>
-                        <th class="enc-prod-th-num">Recebido</th>
-                        <th class="enc-prod-th-num">Em falta</th>
+                        <th class="enc-prod-th-num">Enc.</th>
+                        <th class="enc-prod-th-num">Rec.</th>
+                        <th class="enc-prod-th-num">Falta</th>
                         <th class="enc-prod-th-num">Estado</th>
                     </tr>
                 </thead>
                 <tbody>`;
 
-    entries.forEach(p => {
-        const falta   = p.totalQtd - p.totalRec;
-        const pct     = p.totalQtd > 0 ? Math.round(p.totalRec / p.totalQtd * 100) : 0;
-        const completo = falta <= 0;
-        const rowClass = completo ? 'enc-prod-row-ok' : falta === p.totalQtd ? 'enc-prod-row-pending' : 'enc-prod-row-partial';
-        const badge    = completo
-            ? `<span class="enc-prod-badge enc-prod-badge-ok">Recebido</span>`
-            : pct > 0
-                ? `<span class="enc-prod-badge enc-prod-badge-partial">${pct}%</span>`
-                : `<span class="enc-prod-badge enc-prod-badge-pending">Pendente</span>`;
+        // Ordenar: por receber primeiro
+        const sorted = [...linhas].sort((a, b) => {
+            const fa = (parseFloat(a.qtd)||0) - Math.min(parseFloat(a.recebido)||0, parseFloat(a.qtd)||0);
+            const fb = (parseFloat(b.qtd)||0) - Math.min(parseFloat(b.recebido)||0, parseFloat(b.qtd)||0);
+            return fb - fa;
+        });
 
-        // Tooltip com detalhes por encomenda
-        const encDetail = p.encomendas.map(e =>
-            `Enc.${e.num} (${e.fornecedor}): ${e.rec}/${e.qtd}`
-        ).join(' · ');
+        sorted.forEach(l => {
+            const qtd     = parseFloat(l.qtd) || 0;
+            const rec     = Math.min(parseFloat(l.recebido) || 0, qtd);
+            const falta   = qtd - rec;
+            const pctL    = qtd > 0 ? Math.round(rec / qtd * 100) : 0;
+            const completo = falta <= 0;
+            const rowClass = completo ? 'enc-prod-row-ok' : rec > 0 ? 'enc-prod-row-partial' : 'enc-prod-row-pending';
+            const badge   = completo
+                ? `<span class="enc-prod-badge enc-prod-badge-ok">Recebido</span>`
+                : rec > 0
+                    ? `<span class="enc-prod-badge enc-prod-badge-partial">${pctL}%</span>`
+                    : `<span class="enc-prod-badge enc-prod-badge-pending">Pendente</span>`;
+            const ref  = (l.ref  || '').trim().toUpperCase();
+            const nome = (l.nome || l.desc || '').trim();
 
-        html += `
-            <tr class="enc-prod-row ${rowClass}" title="${escapeHtml(encDetail)}">
-                <td class="enc-prod-ref">${escapeHtml(p.ref || '—')}</td>
-                <td class="enc-prod-nome">${escapeHtml(p.nome || '—')}</td>
-                <td class="enc-prod-td-num">${p.totalQtd}</td>
-                <td class="enc-prod-td-num">${p.totalRec}</td>
-                <td class="enc-prod-td-num ${completo ? '' : 'enc-prod-falta'}">${completo ? '—' : falta}</td>
-                <td class="enc-prod-td-num">${badge}</td>
-            </tr>`;
+            html += `
+                <tr class="enc-prod-row ${rowClass}">
+                    <td class="enc-prod-ref">${escapeHtml(ref || '—')}</td>
+                    <td class="enc-prod-nome">${escapeHtml(nome || '—')}</td>
+                    <td class="enc-prod-td-num">${qtd}</td>
+                    <td class="enc-prod-td-num">${rec}</td>
+                    <td class="enc-prod-td-num ${completo ? '' : 'enc-prod-falta'}">${completo ? '—' : falta}</td>
+                    <td class="enc-prod-td-num">${badge}</td>
+                </tr>`;
+        });
+
+        html += `</tbody></table></div>`;
     });
 
-    html += `</tbody></table></div>`;
     wrap.innerHTML = html;
 }
 
