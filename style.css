@@ -5805,6 +5805,91 @@ body.is-offline #app-layout {
 }
 .enc-empty-action:hover { background: #dbeafe; }
 
+/* ── Vista de produtos agregados das encomendas ── */
+.enc-filter-produtos {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: auto;
+    border: 1.5px solid var(--primary) !important;
+    color: var(--primary) !important;
+}
+.enc-filter-produtos.active {
+    background: var(--primary) !important;
+    color: #fff !important;
+}
+.enc-produtos-view { padding: 0 0 60px; }
+.enc-prod-summary {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.enc-prod-stat {
+    flex: 1;
+    min-width: 80px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.enc-prod-stat-val { font-size: 1.4rem; font-weight: 800; color: var(--text-main); line-height: 1; }
+.enc-prod-stat-lbl { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+.enc-prod-stat-danger .enc-prod-stat-val { color: var(--danger); }
+.enc-prod-stat-ok    .enc-prod-stat-val { color: var(--success); }
+
+.enc-prod-table-wrap {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.enc-prod-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+.enc-prod-table thead {
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+}
+.enc-prod-table th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.enc-prod-th-num { text-align: right !important; }
+.enc-prod-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+.enc-prod-table tbody tr:last-child { border-bottom: none; }
+.enc-prod-table tbody tr:hover { background: var(--bg); }
+.enc-prod-row td { padding: 10px 14px; vertical-align: middle; }
+.enc-prod-ref  { font-size: 0.75rem; font-weight: 700; color: var(--primary); font-family: 'DM Mono', monospace; white-space: nowrap; }
+.enc-prod-nome { color: var(--text-main); font-weight: 500; }
+.enc-prod-td-num { text-align: right; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+.enc-prod-falta { color: var(--danger) !important; font-weight: 700 !important; }
+.enc-prod-row-ok      { opacity: 0.6; }
+.enc-prod-row-pending { }
+.enc-prod-row-partial { }
+.enc-prod-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.enc-prod-badge-ok      { background: rgba(22,163,74,.12);  color: #16a34a; }
+.enc-prod-badge-partial { background: rgba(245,158,11,.12); color: #d97706; }
+.enc-prod-badge-pending { background: rgba(239,68,68,.12);  color: #dc2626; }
+
 /* Estado vazio genérico rico — usado em PAT, ferramentas, stock */
 .empty-state {
     text-align: center;

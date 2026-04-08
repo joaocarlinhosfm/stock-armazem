@@ -652,9 +652,14 @@
                     <button class="enc-filter-btn active" data-filter="all" onclick="encFilterSet(this,'all')">Todas</button>
                     <button class="enc-filter-btn" data-filter="parcial" onclick="encFilterSet(this,'parcial')">Parciais</button>
                     <button class="enc-filter-btn" data-filter="recebida" onclick="encFilterSet(this,'recebida')">Recebidas</button>
+                    <button class="enc-filter-btn enc-filter-produtos" id="enc-btn-produtos" onclick="encToggleProdutosView(this)">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        Produtos
+                    </button>
                 </div>
             </div>
             <div id="enc-list" class="enc-list-wrap"></div>
+            <div id="enc-produtos-view" class="enc-produtos-view" style="display:none"></div>
         </div>
 
                 <div id="view-tools" class="view">

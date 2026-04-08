@@ -9275,6 +9275,127 @@ function _relBuildInsight(snap) {
 }
 
 // ── Render lista ──────────────────────────────────────────────────────────
+let _encProdutosActive = false;
+
+function encToggleProdutosView(btn) {
+    _encProdutosActive = !_encProdutosActive;
+    btn.classList.toggle('active', _encProdutosActive);
+    $id('enc-list').style.display          = _encProdutosActive ? 'none' : '';
+    $id('enc-produtos-view').style.display = _encProdutosActive ? '' : 'none';
+    // Desactivar filtros de estado quando em modo produtos
+    document.querySelectorAll('.enc-filter-btn:not(.enc-filter-produtos)').forEach(b => {
+        b.style.opacity        = _encProdutosActive ? '0.4' : '';
+        b.style.pointerEvents  = _encProdutosActive ? 'none' : '';
+    });
+    if (_encProdutosActive) renderEncProdutos();
+}
+
+function renderEncProdutos() {
+    const wrap = $id('enc-produtos-view');
+    if (!wrap) return;
+
+    // Agregar todos os produtos de encomendas pendentes + parciais
+    const prodMap = {}; // key: ref|nome → { ref, nome, encomendas: [{num, fornecedor, qtd, recebido}], totalQtd, totalRec }
+
+    Object.values(_encData || {}).forEach(enc => {
+        if (enc.estado === 'recebida') return; // só activas
+        const linhas = Object.values(enc.linhas || {});
+        linhas.forEach(l => {
+            const ref  = (l.ref  || '').trim().toUpperCase();
+            const nome = (l.nome || l.desc || '').trim();
+            const key  = ref || nome || '?';
+            if (!prodMap[key]) {
+                prodMap[key] = { ref, nome, encomendas: [], totalQtd: 0, totalRec: 0 };
+            }
+            const qtd = parseFloat(l.qtd)      || 0;
+            const rec = Math.min(parseFloat(l.recebido) || 0, qtd);
+            prodMap[key].totalQtd += qtd;
+            prodMap[key].totalRec += rec;
+            prodMap[key].encomendas.push({
+                num:       enc.num || '—',
+                fornecedor: enc.fornecedor || '—',
+                qtd,
+                rec,
+            });
+        });
+    });
+
+    const entries = Object.values(prodMap).sort((a, b) => {
+        // Primeiro os incompletos (falta receber), depois os completos
+        const aFalta = a.totalQtd - a.totalRec;
+        const bFalta = b.totalQtd - b.totalRec;
+        return bFalta - aFalta;
+    });
+
+    if (entries.length === 0) {
+        wrap.innerHTML = `<div class="enc-empty"><div class="enc-empty-title">Sem produtos em encomendas activas</div></div>`;
+        return;
+    }
+
+    const totalProd = entries.length;
+    const totalFalta = entries.filter(e => e.totalRec < e.totalQtd).length;
+    const totalCompleto = entries.filter(e => e.totalRec >= e.totalQtd).length;
+
+    let html = `
+        <div class="enc-prod-summary">
+            <div class="enc-prod-stat">
+                <span class="enc-prod-stat-val">${totalProd}</span>
+                <span class="enc-prod-stat-lbl">Referências</span>
+            </div>
+            <div class="enc-prod-stat enc-prod-stat-danger">
+                <span class="enc-prod-stat-val">${totalFalta}</span>
+                <span class="enc-prod-stat-lbl">Por receber</span>
+            </div>
+            <div class="enc-prod-stat enc-prod-stat-ok">
+                <span class="enc-prod-stat-val">${totalCompleto}</span>
+                <span class="enc-prod-stat-lbl">Completas</span>
+            </div>
+        </div>
+        <div class="enc-prod-table-wrap">
+            <table class="enc-prod-table">
+                <thead>
+                    <tr>
+                        <th>Referência</th>
+                        <th>Designação</th>
+                        <th class="enc-prod-th-num">Encomendado</th>
+                        <th class="enc-prod-th-num">Recebido</th>
+                        <th class="enc-prod-th-num">Em falta</th>
+                        <th class="enc-prod-th-num">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+    entries.forEach(p => {
+        const falta   = p.totalQtd - p.totalRec;
+        const pct     = p.totalQtd > 0 ? Math.round(p.totalRec / p.totalQtd * 100) : 0;
+        const completo = falta <= 0;
+        const rowClass = completo ? 'enc-prod-row-ok' : falta === p.totalQtd ? 'enc-prod-row-pending' : 'enc-prod-row-partial';
+        const badge    = completo
+            ? `<span class="enc-prod-badge enc-prod-badge-ok">Recebido</span>`
+            : pct > 0
+                ? `<span class="enc-prod-badge enc-prod-badge-partial">${pct}%</span>`
+                : `<span class="enc-prod-badge enc-prod-badge-pending">Pendente</span>`;
+
+        // Tooltip com detalhes por encomenda
+        const encDetail = p.encomendas.map(e =>
+            `Enc.${e.num} (${e.fornecedor}): ${e.rec}/${e.qtd}`
+        ).join(' · ');
+
+        html += `
+            <tr class="enc-prod-row ${rowClass}" title="${escapeHtml(encDetail)}">
+                <td class="enc-prod-ref">${escapeHtml(p.ref || '—')}</td>
+                <td class="enc-prod-nome">${escapeHtml(p.nome || '—')}</td>
+                <td class="enc-prod-td-num">${p.totalQtd}</td>
+                <td class="enc-prod-td-num">${p.totalRec}</td>
+                <td class="enc-prod-td-num ${completo ? '' : 'enc-prod-falta'}">${completo ? '—' : falta}</td>
+                <td class="enc-prod-td-num">${badge}</td>
+            </tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+    wrap.innerHTML = html;
+}
+
 function renderEncList() {
     const wrap = $id('enc-list');
     if (!wrap) return;
