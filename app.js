@@ -3883,11 +3883,25 @@ function _renderInvStep() {
     }
 
     const zona = (item.localizacao||'').trim().toUpperCase();
-    $id('inv-local').textContent = zona ? ` ${zona}` : ' SEM LOCAL';
+    $id('inv-local').textContent = zona ? zona : 'SEM LOCAL';
     $id('inv-ref').textContent   = item.codigo  || '';
     $id('inv-nome').textContent  = item.nome    || '';
     $id('inv-unidade').textContent =
         item.unidade && item.unidade !== 'un' ? item.unidade : '';
+
+    // Foto do produto
+    const photoImg = $id('inv-photo-img');
+    const photoPlaceholder = $id('inv-photo-placeholder');
+    if (photoImg && photoPlaceholder) {
+        if (item.imgUrl) {
+            photoImg.src = item.imgUrl;
+            photoImg.style.display = 'block';
+            photoPlaceholder.style.display = 'none';
+        } else {
+            photoImg.style.display = 'none';
+            photoPlaceholder.style.display = 'flex';
+        }
+    }
 
     // Limpar search ao navegar
     invSearchClear();
