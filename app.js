@@ -6689,8 +6689,11 @@ async function _autoLimparHistorico() {
         .filter(([, p]) => p.status === 'historico' && p.saidaEm && _calcDias(p.saidaEm) >= 15);
     if (!expirados.length) return;
     for (const [id, pat] of expirados) {
+        // Guardar snapshot ANTES de apagar — PAT ainda está na cache e Firebase
         await _relSalvarPatAntesDeApagar(pat);
-        apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'DELETE' }).catch(e => console.warn('[Histórico] falha auto-limpeza:', id, e?.message));
+        // Só depois apagar da Firebase e da cache local
+        await apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'DELETE' })
+            .catch(e => console.warn('[Histórico] falha auto-limpeza:', id, e?.message));
         delete _patCache.data[id];
     }
 }
@@ -8617,9 +8620,10 @@ let _relMesOffset = 0; // 0 = mês actual, -1 = anterior, etc.
 let _relDonutChart = null; // instância Chart.js — destruída antes de recriar
 
 // ── Limpeza automática de movimentos antigos ──────────────────────────────
-// Corre em background no arranque. Apaga movimentos com >90 dias — os snapshots
-// mensais já foram gerados, por isso os relatórios antigos não são afectados.
-// Usa um timestamp local para não repetir a limpeza mais de uma vez por semana.
+// Corre em background no arranque. Apaga movimentos com >90 dias.
+// NOTA Firebase: requer índice em /movimentos por campo "ts".
+// Adicionar em Firebase Console → Realtime Database → Regras:
+//   "movimentos": { ".indexOn": ["ts", "mes"] }
 const _PRUNE_MOV_KEY     = 'hiperfrio-prune-mov-ts';
 const _PRUNE_MOV_FREQ_MS = 7 * 24 * 60 * 60 * 1000;  // só limpa 1x por semana
 const _PRUNE_MOV_TTL_MS  = 90 * 24 * 60 * 60 * 1000; // apaga movimentos >90 dias
@@ -8627,27 +8631,26 @@ const _PRUNE_MOV_TTL_MS  = 90 * 24 * 60 * 60 * 1000; // apaga movimentos >90 dia
 async function _pruneMovimentos() {
     if (!navigator.onLine) return;
     const lastRun = parseInt(localStorage.getItem(_PRUNE_MOV_KEY) || '0');
-    if (Date.now() - lastRun < _PRUNE_MOV_FREQ_MS) return; // já correu esta semana
+    if (Date.now() - lastRun < _PRUNE_MOV_FREQ_MS) return;
 
     try {
-        // Busca todos os movimentos (sem filtro — precisamos dos IDs para apagar)
-        const url  = await authUrl(`${MOV_URL}.json`);
+        // Filtrar directamente por timestamp no Firebase em vez de descarregar tudo
+        const cutoff = Date.now() - _PRUNE_MOV_TTL_MS;
+        const url  = await authUrl(`${MOV_URL}.json?orderBy="ts"&endAt=${cutoff}`);
         const res  = await fetch(url);
         if (!res.ok) return;
         const data = await res.json();
-        if (!data || typeof data !== 'object') return;
+        if (!data || typeof data !== 'object' || Array.isArray(data)) {
+            localStorage.setItem(_PRUNE_MOV_KEY, Date.now().toString());
+            return;
+        }
 
-        const cutoff  = Date.now() - _PRUNE_MOV_TTL_MS;
-        const expirados = Object.entries(data)
-            .filter(([, m]) => m?.ts && m.ts < cutoff)
-            .map(([id]) => id);
-
+        const expirados = Object.keys(data);
         if (expirados.length === 0) {
             localStorage.setItem(_PRUNE_MOV_KEY, Date.now().toString());
             return;
         }
 
-        // Apaga em lotes de 20 para não sobrecarregar a Firebase
         const BATCH = 20;
         for (let i = 0; i < expirados.length; i += BATCH) {
             const lote = expirados.slice(i, i + BATCH);
@@ -8678,8 +8681,10 @@ function _mesLabel(key) {
 }
 function _mesRange(key) {
     const [y, m] = key.split('-').map(Number);
-    const ini = new Date(y, m-1, 1).getTime();
-    const fim = new Date(y, m, 1).getTime() - 1;
+    // Usar UTC para evitar problemas de timezone nos limites do mês.
+    // Date.UTC garante que meia-noite é meia-noite UTC independentemente do fuso local.
+    const ini = Date.UTC(y, m-1, 1, 0, 0, 0, 0);
+    const fim = Date.UTC(y, m,   1, 0, 0, 0, 0) - 1;
     return { ini, fim };
 }
 
@@ -8696,48 +8701,67 @@ async function registarMovimento(tipo, itemId, codigo, nome, quantidade) {
         ts:        Date.now(),
         mes:       _mesKey(0),
     };
-    apiFetch(`${MOV_URL}.json`, { method: 'POST', body: JSON.stringify(mov) })
-        .catch(e => console.warn('[Movimentos] falha ao registar:', e?.message));
+    // Usar apiFetch com queue offline — garante que movimentos offline são sincronizados
+    try {
+        await apiFetch(`${MOV_URL}.json`, { method: 'POST', body: JSON.stringify(mov) });
+    } catch(e) {
+        // Se falhou e está offline, guardar na queue manual para tentar depois
+        if (!navigator.onLine) {
+            queueAdd({ url: `${MOV_URL}.json`, method: 'POST', body: JSON.stringify(mov) });
+        }
+    }
 }
 
 // ── Snapshot mensal ────────────────────────────────────────────────────────
 async function _buildSnapshot(mesKey) {
     const { ini, fim } = _mesRange(mesKey);
 
-    // Fetch movimentos do mês
-    const movUrl = await authUrl(`${MOV_URL}.json?orderBy="mes"&equalTo="${mesKey}"`);
-    const movRes = await fetch(movUrl);
-    const movData = movRes.ok ? (await movRes.json() || {}) : {};
+    // Ponto 1: forçar fetch fresco de PATs e ferramentas para dados correctos
+    const [patData, ferrDataRaw] = await Promise.all([
+        _fetchPats(true),
+        fetchCollection('ferramentas', true),
+    ]);
+    const pats     = Object.values(patData    || {});
+    const ferrData = ferrDataRaw || {};
 
-    // Fetch PATs (todas — pendentes, levantadas, histórico)
-    const pats = Object.values(_patCache.data || {});
+    // Fetch movimentos do mês (ponto 8: query com índice firebase)
+    let movData = {};
+    try {
+        const movUrl = await authUrl(`${MOV_URL}.json?orderBy="mes"&equalTo="${mesKey}"`);
+        const movRes = await fetch(movUrl);
+        movData = movRes.ok ? (await movRes.json() || {}) : {};
+        // Firebase retorna array se não há índice — converter para objeto
+        if (Array.isArray(movData)) movData = {};
+    } catch(e) {}
 
     // PATs criadas neste mês
     const patsMes = pats.filter(p => p.criadoEm >= ini && p.criadoEm <= fim);
 
-    // PATs levantadas neste mês
-    const patsLevantadas = pats.filter(p =>
-        p.levantadoEm && p.levantadoEm >= ini && p.levantadoEm <= fim);
+    // PATs levantadas neste mês (ponto 6: incluir historico com saidaEm)
+    const patsLevantadas = pats.filter(p => {
+        const levTs = p.levantadoEm || p.saidaEm;
+        return levTs && levTs >= ini && levTs <= fim;
+    });
 
-    // Duração média (criação → levantamento, só levantadas com ambos os campos)
+    // Duração média (criação → levantamento)
     let duracaoMedia = null;
-    const comDuracao = patsLevantadas.filter(p => p.criadoEm && p.levantadoEm);
+    const comDuracao = patsLevantadas.filter(p => p.criadoEm && (p.levantadoEm || p.saidaEm));
     if (comDuracao.length) {
         const totalDias = comDuracao.reduce((acc, p) =>
-            acc + _calcDias(p.criadoEm, p.levantadoEm), 0);
+            acc + _calcDias(p.criadoEm, p.levantadoEm || p.saidaEm), 0);
         duracaoMedia = Math.round(totalDias / comDuracao.length);
     }
 
-    // PATs pendentes incluídas na média parcial
-    // Filtro correcto: qualquer PAT que não esteja levantada nem em histórico
-    const pendentes = pats.filter(p =>
-        p.status !== 'levantado' && p.status !== 'historico' && p.criadoEm >= ini
+    // Ponto 2: pendentes = PATs criadas NESTE mês que NÃO foram levantadas NESTE mês
+    // (não misturar com PATs de outros meses ainda em aberto)
+    const patsLevantadasIds = new Set(patsLevantadas.map(p => p.numero || ''));
+    const pendentes = patsMes.filter(p =>
+        p.status !== 'levantado' && p.status !== 'historico'
     );
-
-    // Duração média combinada (levantadas do mês + pendentes ainda em aberto)
+    // Duração média dos pendentes do mês (só dias desde criação até hoje)
     const totalN = comDuracao.length + pendentes.length;
     const mediaGlobal = totalN > 0
-        ? Math.round((comDuracao.reduce((a,p) => a + _calcDias(p.criadoEm, p.levantadoEm),0)
+        ? Math.round((comDuracao.reduce((a,p) => a + _calcDias(p.criadoEm, p.levantadoEm || p.saidaEm), 0)
             + pendentes.reduce((a,p) => a + _calcDias(p.criadoEm), 0)) / totalN)
         : null;
 
@@ -8748,10 +8772,12 @@ async function _buildSnapshot(mesKey) {
         porFunc[f] = (porFunc[f] || 0) + 1;
     });
 
-    // Top 5 referências saídas (movimentos)
+    // Ponto 7: total real de saídas (todos os movimentos, não só top 5)
     const refCount = {};
+    let totalSaidasReal = 0;
     Object.values(movData).forEach(m => {
         if (!m.codigo) return;
+        totalSaidasReal += m.quantidade || 1;
         if (!refCount[m.codigo]) refCount[m.codigo] = { codigo: m.codigo, nome: m.nome, qty: 0 };
         refCount[m.codigo].qty += m.quantidade || 1;
     });
@@ -8760,7 +8786,6 @@ async function _buildSnapshot(mesKey) {
         .slice(0, 5);
 
     // Ferramentas mais requisitadas
-    const ferrData = cache.ferramentas.data || {};
     const ferrCount = {};
     Object.values(ferrData).forEach(t => {
         const hist = t.historico ? Object.values(t.historico) : [];
@@ -8777,7 +8802,7 @@ async function _buildSnapshot(mesKey) {
         .slice(0, 6)
         .map(([nome, count]) => ({ nome, count }));
 
-    // Top clientes (estabelecimentos) com mais PATs no mês
+    // Top clientes
     const clienteCount = {};
     patsMes.forEach(p => {
         const nome = (p.estabelecimento || 'Sem estabelecimento').trim();
@@ -8789,7 +8814,7 @@ async function _buildSnapshot(mesKey) {
         .sort((a, b) => b.total - a.total)
         .slice(0, 5);
 
-    // Ferramentas com mais dias fora do armazém no mês
+    // Ferramentas com mais dias fora do armazém
     const ferrDias = [];
     Object.values(ferrData).forEach(t => {
         if (!t.nome) return;
@@ -8801,16 +8826,13 @@ async function _buildSnapshot(mesKey) {
         hist.forEach(ev => {
             const evTs = ev.data ? new Date(ev.data).getTime() : 0;
             if (ev.acao === 'atribuida') {
-                // Conta só se a atribuição foi dentro ou antes do mês
                 lastAtrib = Math.max(evTs, ini);
             } else if (ev.acao === 'devolvida' && lastAtrib) {
-                // Conta dias dentro do intervalo do mês
                 const devTs = Math.min(evTs, fim);
                 if (devTs > lastAtrib) diasFora += Math.round((devTs - lastAtrib) / 86400000);
                 lastAtrib = null;
             }
         });
-        // Se ainda está alocada no fim do mês, conta até fim do mês
         if (lastAtrib && t.status === 'alocada') {
             diasFora += Math.round((fim - lastAtrib) / 86400000);
         }
@@ -8818,19 +8840,29 @@ async function _buildSnapshot(mesKey) {
     });
     const topFerrDias = ferrDias.sort((a, b) => b.dias - a.dias).slice(0, 5);
 
+    // Ponto 4: comGuia = PATs levantadas COM guia (sem sobreposição no donut)
+    // donut será: levantadas_sem_guia | levantadas_com_guia | pendentes | historico
+    const levantadasComGuia    = patsLevantadas.filter(p => !!p.separacao).length;
+    const levantadasSemGuia    = patsLevantadas.length - levantadasComGuia;
+    const historicoMes         = patsMes.filter(p => p.status === 'historico').length;
+
     return {
-        mes:           mesKey,
-        totalPats:     patsMes.length,
-        levantadas:    patsLevantadas.length,
-        comGuia:       patsLevantadas.filter(p => !!p.separacao).length,
-        pendentes:     pendentes.length,
-        duracaoMedia:  mediaGlobal,
+        mes:               mesKey,
+        totalPats:         patsMes.length,
+        levantadas:        patsLevantadas.length,
+        levantadasComGuia,
+        levantadasSemGuia,
+        comGuia:           levantadasComGuia,
+        pendentes:         pendentes.length,
+        historico:         historicoMes,
+        duracaoMedia:      mediaGlobal,
+        totalSaidas:       totalSaidasReal,
         porFunc,
         top5,
         topFerr,
         topClientes,
         topFerrDias,
-        ts:            Date.now(),
+        ts:                Date.now(),
     };
 }
 
@@ -8854,15 +8886,19 @@ async function _guardarSnapshot(mesKey) {
 
 // ── Auto-fechar mês no dia 1 ──────────────────────────────────────────────
 const _REL_LAST_CLOSE_KEY = 'hiperfrio-rel-last-close';
+let _autoFecharRunning = false; // lock para evitar race condition multi-utilizador
 async function _autoFecharMesSeNecessario() {
-    const today = new Date();
-    if (today.getDate() !== 1) return; // só no dia 1
-    const mesAnterior = _mesKey(-1);
-    const lastClose   = localStorage.getItem(_REL_LAST_CLOSE_KEY);
-    if (lastClose === mesAnterior) return; // já fechado
-
-    // Verificar se já existe snapshot no Firebase
+    if (_autoFecharRunning) return;
+    _autoFecharRunning = true;
     try {
+        const today = new Date();
+        const mesAnterior = _mesKey(-1);
+        const lastClose   = localStorage.getItem(_REL_LAST_CLOSE_KEY);
+        if (lastClose === mesAnterior) return;
+
+        const deveVerificar = today.getDate() === 1 || !lastClose;
+        if (!deveVerificar) return;
+
         const url = await authUrl(`${REL_URL}/${mesAnterior}.json`);
         const res = await fetch(url);
         const existing = res.ok ? await res.json() : null;
@@ -8870,28 +8906,34 @@ async function _autoFecharMesSeNecessario() {
         localStorage.setItem(_REL_LAST_CLOSE_KEY, mesAnterior);
     } catch(e) {
         console.warn('[Relatório] auto-fechar falhou:', e?.message);
+    } finally {
+        _autoFecharRunning = false;
     }
 }
 
 // ── Guardar antes de apagar PATs expiradas ────────────────────────────────
 async function _relSalvarPatAntesDeApagar(pat) {
     if (!pat?.criadoEm) return;
-    const mesKey = (() => {
-        const d = new Date(pat.levantadoEm || pat.saidaEm || pat.criadoEm);
-        d.setDate(1);
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    })();
+    // Determinar o mês da PAT pelo levantamento/saída, não pela criação
+    const refTs = pat.levantadoEm || pat.saidaEm || pat.criadoEm;
+    const d = new Date(refTs);
+    d.setDate(1);
+    const mesKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
     const mesCorrente = _mesKey(0);
     try {
-        // Mês corrente: snapshot sempre regenerado (PATs ainda podem mudar)
-        // Meses anteriores: só guardar se não existir snapshot
         if (mesKey === mesCorrente) {
+            // Mês corrente: guardar snapshot com a PAT ainda presente na cache
+            // (a deleção acontece depois desta chamada em _autoLimparHistorico)
             await _guardarSnapshot(mesKey);
         } else {
+            // Meses anteriores: guardar se não existe OU se snapshot está em formato antigo
             const url = await authUrl(`${REL_URL}/${mesKey}.json`);
             const res = await fetch(url);
             const existing = res.ok ? await res.json() : null;
-            if (!existing) await _guardarSnapshot(mesKey);
+            // Regenerar se não existe ou se não tem totalSaidas (formato antigo)
+            if (!existing || existing.totalSaidas === undefined) {
+                await _guardarSnapshot(mesKey);
+            }
         }
     } catch(e) { /* silencioso — não bloquear apagar */ }
 }
@@ -8899,6 +8941,17 @@ async function _relSalvarPatAntesDeApagar(pat) {
 // ── Fechar mês manualmente ────────────────────────────────────────────────
 async function relFecharMes() {
     const mesKey = _mesKey(_relMesOffset);
+    // Só permite fechar o mês actual ou regenerar meses sem snapshot
+    // Meses passados com snapshot existente não devem ser sobrescritos via botão
+    if (_relMesOffset < 0) {
+        const url = await authUrl(`${REL_URL}/${mesKey}.json`);
+        const res = await fetch(url);
+        const existing = res.ok ? await res.json() : null;
+        if (existing) {
+            showToast(`Relatório de ${_mesLabel(mesKey)} já existe. Navega para o mês actual para fechar.`, 'error');
+            return;
+        }
+    }
     const btn = $id('rel-fechar-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'A guardar...'; }
     const snap = await _guardarSnapshot(mesKey);
@@ -8910,7 +8963,8 @@ async function relFecharMes() {
 // ── Navegação de mês ──────────────────────────────────────────────────────
 function relMoveMonth(delta) {
     _relMesOffset += delta;
-    if (_relMesOffset > 0) _relMesOffset = 0; // não ir para o futuro
+    if (_relMesOffset > 0)   _relMesOffset = 0;   // não ir para o futuro
+    if (_relMesOffset < -24) _relMesOffset = -24;  // máximo 2 anos para trás
     renderRelatorio();
 }
 
@@ -8953,7 +9007,7 @@ async function renderRelatorio() {
     } catch(e) {}
 
     // ── Actualizar summary strip com animação ───────────────────────────
-    const totalSaidas = (snap.top5 || []).reduce((a, b) => a + (b.qty || 0), 0);
+    const totalSaidas = snap.totalSaidas ?? (snap.top5 || []).reduce((a, b) => a + (b.qty || 0), 0);
     _relAnimCount('rel-sum-pats',   snap.totalPats ?? 0);
     _relAnimCount('rel-sum-saidas', totalSaidas);
     const durEl = $id('rel-sum-dur');
@@ -9028,11 +9082,13 @@ async function renderRelatorio() {
 
     // ── 3: Donut — distribuição PATs ─────────────────────────────────────
     const donutCard = $el('div', { className: 'rel-card' });
-    const totalPats  = snap.totalPats  || 0;
-    const levantadas = snap.levantadas || 0;
-    const comGuia    = snap.comGuia    ?? (snap.topClientes || []).reduce((a, c) => a + (c.comGuia || 0), 0);
-    const pendentes  = snap.pendentes  || 0;
-    const historico  = Math.max(0, totalPats - levantadas - pendentes);
+    const totalPats        = snap.totalPats         || 0;
+    const levantadas       = snap.levantadas        || 0;
+    const levantadasComGuia = snap.levantadasComGuia ?? snap.comGuia ?? 0;
+    const levantadasSemGuia = snap.levantadasSemGuia ?? Math.max(0, levantadas - levantadasComGuia);
+    const pendentes        = snap.pendentes         || 0;
+    // historico = PATs do mês que não são levantadas nem pendentes
+    const historico        = snap.historico ?? Math.max(0, totalPats - levantadas - pendentes);
     donutCard.innerHTML = `
         ${_cardHdr('Distribuição de PATs', _mesLabel(mesKey))}
         <div class="rel-donut-wrap">
@@ -9044,8 +9100,8 @@ async function renderRelatorio() {
                 </div>
             </div>
             <div class="rel-donut-legend">
-                <div class="rel-leg-row"><div class="rel-leg-left"><div class="rel-leg-dot" style="background:#1e3a5f"></div>Levantadas</div><span class="rel-leg-val">${levantadas}</span></div>
-                <div class="rel-leg-row"><div class="rel-leg-left"><div class="rel-leg-dot" style="background:#2563eb"></div>Com guia</div><span class="rel-leg-val">${comGuia}</span></div>
+                <div class="rel-leg-row"><div class="rel-leg-left"><div class="rel-leg-dot" style="background:#1e3a5f"></div>Levantadas</div><span class="rel-leg-val">${levantadasSemGuia}</span></div>
+                <div class="rel-leg-row"><div class="rel-leg-left"><div class="rel-leg-dot" style="background:#2563eb"></div>C/ guia transp.</div><span class="rel-leg-val">${levantadasComGuia}</span></div>
                 <div class="rel-leg-row"><div class="rel-leg-left"><div class="rel-leg-dot" style="background:#f59e0b"></div>Pendentes</div><span class="rel-leg-val">${pendentes}</span></div>
                 <div class="rel-leg-row"><div class="rel-leg-left"><div class="rel-leg-dot" style="background:#e2e8f0"></div>Histórico</div><span class="rel-leg-val">${historico}</span></div>
             </div>
@@ -9195,7 +9251,7 @@ async function renderRelatorio() {
                 type: 'doughnut',
                 data: {
                     datasets: [{
-                        data: [levantadas, comGuia, pendentes, historico].map(v => Math.max(v, 0)),
+                        data: [levantadasSemGuia, levantadasComGuia, pendentes, historico].map(v => Math.max(v, 0)),
                         backgroundColor: ['#1e3a5f','#2563eb','#f59e0b','#e2e8f0'],
                         borderWidth: 0,
                         hoverOffset: 4,
