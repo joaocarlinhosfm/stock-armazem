@@ -7473,8 +7473,7 @@ async function limparTabActual() {
                 const mesesVistos = new Set();
                 for (const [, pat] of alvo) {
                     const d = new Date(pat.levantadoEm || pat.saidaEm || pat.criadoEm || Date.now());
-                    d.setDate(1);
-                    const mk = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                    const mk = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
                     if (!mesesVistos.has(mk)) {
                         mesesVistos.add(mk);
                         await _relSalvarPatAntesDeApagar(pat);
@@ -8715,14 +8714,24 @@ async function registarMovimento(tipo, itemId, codigo, nome, quantidade) {
 // ── Snapshot mensal ────────────────────────────────────────────────────────
 async function _buildSnapshot(mesKey) {
     const { ini, fim } = _mesRange(mesKey);
+    const mesCorrente = _mesKey(0);
+    const isMesCorrente = mesKey === mesCorrente;
 
-    // Ponto 1: forçar fetch fresco de PATs e ferramentas para dados correctos
-    const [patData, ferrDataRaw] = await Promise.all([
-        _fetchPats(true),
-        fetchCollection('ferramentas', true),
-    ]);
-    const pats     = Object.values(patData    || {});
-    const ferrData = ferrDataRaw || {};
+    // Para o mês corrente: forçar fetch fresco (dados ainda podem mudar)
+    // Para meses passados: usar cache — PATs apagadas não estão mais no Firebase,
+    // por isso fetch fresco OMITE-as. O snapshot deve ter sido gerado antes da deleção.
+    let pats, ferrData;
+    if (isMesCorrente) {
+        const [patData, ferrDataRaw] = await Promise.all([
+            _fetchPats(true),
+            fetchCollection('ferramentas', true),
+        ]);
+        pats     = Object.values(patData    || {});
+        ferrData = ferrDataRaw || {};
+    } else {
+        pats     = Object.values(_patCache.data    || {});
+        ferrData = cache.ferramentas.data || {};
+    }
 
     // Fetch movimentos do mês (ponto 8: query com índice firebase)
     let movData = {};
@@ -8914,11 +8923,10 @@ async function _autoFecharMesSeNecessario() {
 // ── Guardar antes de apagar PATs expiradas ────────────────────────────────
 async function _relSalvarPatAntesDeApagar(pat) {
     if (!pat?.criadoEm) return;
-    // Determinar o mês da PAT pelo levantamento/saída, não pela criação
+    // Usar UTC para determinar o mês — consistente com _mesRange
     const refTs = pat.levantadoEm || pat.saidaEm || pat.criadoEm;
     const d = new Date(refTs);
-    d.setDate(1);
-    const mesKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const mesKey = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
     const mesCorrente = _mesKey(0);
     try {
         if (mesKey === mesCorrente) {
