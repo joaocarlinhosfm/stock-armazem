@@ -4,15 +4,8 @@
 // Carrega DEPOIS de utils.js e ANTES de app.js.
 //
 // Dependências (globais fornecidas por outros ficheiros):
-//   • utils.js     → $id, $el, showToast, escapeHtml, modalClose, focusModal
-//   • index.html   → BASE_URL (definido em app.js — ver nota abaixo)
-//   • app.js       → cache, apiFetch, openConfirmModal (ainda em app.js)
-//   • app.js       → renderList, fetchCollection, _fetchClientes, _fetchPats,
-//                    _autoFecharMesSeNecessario, _pruneMovimentos,
-//                    updateOfflineBanner, nav  (chamadas em bootApp)
-//
-// NOTA: BASE_URL está definido no topo de app.js. Na Fase 3 será movido para
-//       um ficheiro config.js partilhado.
+//   utils.js → BASE_URL, $id, $el, showToast, escapeHtml, modalClose, focusModal
+//   app.js   → cache, apiFetch, openConfirmModal, renderList, nav, etc.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Token Firebase ────────────────────────────────────────────────────────────

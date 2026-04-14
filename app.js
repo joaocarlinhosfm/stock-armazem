@@ -1,12 +1,11 @@
-// NOTA DE SEGURANÇA (#24): a apiKey do Firebase é pública por design.
-// A protecção real é feita pelas Firebase Security Rules (exigem Anonymous Auth).
-// Confirmar que as rules não permitem leitura/escrita sem token válido.
+// ─────────────────────────────────────────────────────────────────────────────
+// app.js — Hiperfrio v6.55
+// Lógica principal: stock, ferramentas, PATs, encomendas, mapa, inventário.
 //
-// DEPENDÊNCIAS (carregadas antes deste ficheiro via index.html):
-//   utils.js — $id, $el, modalOpen/Close, escapeHtml, showToast, fmtQty,
-//              _calcDias, _debounce, _fetchWithTimeout, UNITS, SVG_*, etc.
+// DEPENDÊNCIAS (carregadas antes via index.html):
+//   utils.js — BASE_URL, $id, $el, escapeHtml, showToast, fmtQty, UNITS, etc.
 //   auth.js  — getAuthToken, authUrl, applyRole, handleLogin, bootApp, etc.
-const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
+// ─────────────────────────────────────────────────────────────────────────────
 
 // CACHE EM MEMÓRIA — TTL 60s
 const CACHE_TTL = 300_000; // 5 min — stock de armazém não muda por segundo

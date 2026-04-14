@@ -3,6 +3,13 @@
 // Fase 1 da modularização: utilitários puros sem dependências externas.
 // Carrega ANTES de auth.js e app.js.
 //
+// BASE_URL está aqui para ser acessível a auth.js e app.js.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// NOTA DE SEGURANÇA: a apiKey do Firebase é pública por design.
+// A protecção real é feita pelas Firebase Security Rules (exigem Anonymous Auth).
+const BASE_URL = "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app";
+
 // Contém:
 //   • Constantes SVG
 //   • Helpers DOM ($id, $el, modalOpen, modalClose, focusModal)
