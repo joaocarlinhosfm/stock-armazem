@@ -1655,9 +1655,11 @@ const SWIPE_THRESHOLD = 80;
 let _swipeCard    = null;
 let _swipeWrapper = null;
 let _swipeStartX  = 0;
+let _swipeStartY  = 0;
 let _swipeCurrentX = 0;
 let _swipeDragging = false;
 let _swipeMeta    = null; // { id, item }
+let _swipeIntent  = null; // 'horizontal' | 'vertical' | null
 
 document.addEventListener('mousemove', e => {
     if (!_swipeDragging) return;
@@ -1690,9 +1692,6 @@ function attachSwipe(card, wrapper, id, item) {
         e.preventDefault();
     });
 }
-
-let _swipeStartY  = 0;
-let _swipeIntent  = null; // 'horizontal' | 'vertical' | null
 
 function _onSwipeStart(card, wrapper, id, item, x, y = 0) {
     _swipeCard     = card;
