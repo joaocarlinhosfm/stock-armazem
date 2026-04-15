@@ -133,8 +133,9 @@ async function renderTools() {
             retBtn.onclick = e => {
                 e.stopPropagation();
                 openConfirmModal({
-                    icon: '↩', title: 'Confirmar devolução?',
+                    title: 'Confirmar devolução?',
                     desc: `"${escapeHtml(t.nome)}" será marcada como disponível.`,
+                    type: 'confirm', okLabel: 'Devolver',
                     onConfirm: () => returnTool(id)
                 });
             };
@@ -200,8 +201,9 @@ async function renderAdminTools() {
         const delBtn = $el('button', { className: 'admin-tool-btn admin-tool-btn-del' });
         delBtn.innerHTML   = '🗑️ <span>Eliminar</span>';
         delBtn.onclick     = () => openConfirmModal({
-            icon:'', title:'Apagar ferramenta?',
-            desc:`"${escapeHtml(t.nome)}" será removida permanentemente.`,
+            title: 'Apagar ferramenta?',
+            desc: `"${escapeHtml(t.nome)}" será removida permanentemente.`,
+            type: 'danger',
             onConfirm: () => deleteTool(id)
         });
 
@@ -373,9 +375,9 @@ async function deleteTool(id) {
     };
     if (tool?.status === 'alocada') {
         openConfirmModal({
-            icon: '',
             title: 'Ferramenta alocada!',
             desc: `"${escapeHtml(tool.nome)}" está com ${escapeHtml(tool.colaborador || '?')}. Apagar irá forçar a devolução sem registo. Confirmas?`,
+            type: 'warn', okLabel: 'Forçar apagar',
             onConfirm: _doDelete
         });
     } else {
@@ -411,8 +413,9 @@ async function renderWorkers() {
         const btn = $el('button', { className: 'admin-list-delete' });
         btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>';
         btn.onclick = () => openConfirmModal({
-            icon:'👤', title:'Apagar funcionário?',
-            desc:`"${escapeHtml(w.nome)}" será removido permanentemente.`,
+            title: 'Apagar funcionário?',
+            desc: `"${escapeHtml(w.nome)}" será removido permanentemente.`,
+            type: 'danger',
             onConfirm: () => deleteWorker(w.id)
         });
         row.appendChild(avatar); row.appendChild(lbl); row.appendChild(btn);
@@ -466,16 +469,41 @@ async function openModal(id) {
 // MODAL — confirmação genérica
 let confirmCallback = null;
 
-function openConfirmModal({ icon='', title, desc, onConfirm }) {
+// SVGs para cada tipo de confirmação
+const _CONFIRM_ICONS = {
+    danger:  { svg: '<svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>', color: '#dc2626' },
+    success: { svg: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>', color: '#16a34a' },
+    confirm: { svg: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>', color: '#2563eb' },
+    warn:    { svg: '<svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" style="color:#ca8a04"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>', color: '#ca8a04' },
+};
+
+function openConfirmModal({ title, desc, onConfirm, type = 'danger', okLabel = null }) {
     confirmCallback = onConfirm;
-    $id('confirm-modal-icon').textContent  = icon;
+    const cfg = _CONFIRM_ICONS[type] || _CONFIRM_ICONS.danger;
+
+    const iconWrap = $id('confirm-modal-icon-wrap');
+    if (iconWrap) {
+        iconWrap.innerHTML = cfg.svg;
+        iconWrap.className = 'confirm-modal-icon-wrap type-' + type;
+    }
     $id('confirm-modal-title').textContent = title;
-    $id('confirm-modal-desc').textContent  = desc;
+    $id('confirm-modal-desc').textContent  = desc || '';
+
+    const okBtn = $id('confirm-modal-ok');
+    okBtn.className = 'confirm-btn-ok type-' + type;
+    okBtn.textContent = okLabel || (type === 'danger' ? 'Apagar' : 'Confirmar');
+
+    // Limpar slot (inventário, etc.)
+    const slot = $id('confirm-modal-slot');
+    if (slot) slot.innerHTML = '';
+
     modalOpen('confirm-modal');
     focusModal('confirm-modal');
 }
 function closeConfirmModal() {
     confirmCallback = null;
+    const slot = $id('confirm-modal-slot');
+    if (slot) slot.innerHTML = '';
     modalClose('confirm-modal');
 }
 
@@ -484,14 +512,20 @@ let pendingDeleteId = null;
 
 function openDeleteModal(id, item) {
     pendingDeleteId = id;
-    $id('delete-modal-desc').textContent =
-        `"${String(item.codigo||'').toUpperCase()} — ${item.nome}" será removido permanentemente.`;
-    modalOpen('delete-modal');
-    focusModal('delete-modal');
+    openConfirmModal({
+        title: 'Apagar produto?',
+        desc: `"${String(item.codigo||'').toUpperCase()} — ${item.nome}" será removido permanentemente.`,
+        type: 'danger',
+        okLabel: 'Apagar',
+        onConfirm: () => {
+            pendingDeleteId = null;
+            if (typeof window._deleteProductCallback === 'function') window._deleteProductCallback(id, item);
+        }
+    });
 }
 function closeDeleteModal() {
     pendingDeleteId = null;
-    modalClose('delete-modal');
+    closeConfirmModal();
 }
 
 // MODAL — editar produto (swipe right)

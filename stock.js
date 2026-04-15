@@ -185,9 +185,9 @@ function closeBatch() {
     if (_bulkCount === 0) { nav('view-search'); return; }
     const zona = $id('bulk-loc')?.value?.trim() || '?';
     openConfirmModal({
-        icon: '📦',
         title: 'Fechar lote?',
         desc: `${_bulkCount} produto${_bulkCount > 1 ? 's' : ''} adicionado${_bulkCount > 1 ? 's' : ''} na zona "${zona}". Fechar e ir para o stock?`,
+        type: 'confirm', okLabel: 'Fechar lote',
         onConfirm: () => {
             // Limpa o formulário completo
             $id('form-bulk')?.reset();

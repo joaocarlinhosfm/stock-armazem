@@ -603,8 +603,8 @@ function _buildPatDetail([id, pat], allPats) {
     levBtn.onclick = () => {
         // Confirmação via modal existente da app
         openConfirmModal({
-            icon: '✓',
             title: 'Confirmar levantamento',
+            type: 'success', okLabel: 'Levantar',
             desc: `PAT ${pat.numero || id} — ${escapeHtml(pat.estabelecimento || '')}`,
             onConfirm: async () => {
                 levBtn.classList.add('loading');
@@ -1418,7 +1418,7 @@ async function renderClientesList() {
                 delBtn.onclick = (e) => {
                     e.stopPropagation();
                     openConfirmModal({
-                        icon: '', title: 'Apagar cliente?',
+                        title: 'Apagar cliente?', type: 'danger',
                         desc: `${escapeHtml(c.numero)} — ${escapeHtml(c.nome)}`,
                         onConfirm: async () => {
                             try {
@@ -2333,8 +2333,8 @@ async function levantarSelectedPats() {
     const worker = _patSelWorker;
 
     openConfirmModal({
-        icon: '✅',
         title: `Levantar ${ids.length} PAT${ids.length > 1 ? 's' : ''}?`,
+        type: 'success', okLabel: 'Levantar',
         desc: `Serão marcadas como levantadas por ${worker}. As que têm guia de transporte descontam stock.`,
         onConfirm: async () => {
             // Mostrar feedback imediato
@@ -2407,8 +2407,8 @@ async function levantarSelectedPats() {
 async function darSaidaPat(id) {
     const pat = _patCache.data?.[id];
     openConfirmModal({
-        icon: '✅',
         title: 'Dar saída a esta PAT?',
+        type: 'success', okLabel: 'Dar saída',
         desc: pat?.separacao
             ? 'A PAT vai para o histórico (15 dias). Guia de transporte concluída.'
             : 'A PAT vai para o histórico onde ficará 15 dias.',
@@ -2436,8 +2436,8 @@ async function limparTabActual() {
 
     const label = statusAlvo === 'historico' ? 'histórico' : 'levantadas';
     openConfirmModal({
-        icon: '🗑',
         title: `Limpar ${alvo.length} registo${alvo.length > 1 ? 's' : ''}?`,
+        type: 'danger',
         desc: `Remove todas as PATs do ${label}. Esta acção é irreversível.`,
         onConfirm: async () => {
             try {
@@ -2867,8 +2867,8 @@ async function runDedup() {
         }).join('\n');
 
         openConfirmModal({
-            icon: '🧹',
             title: `Apagar ${totalApagar} produto${totalApagar > 1 ? 's' : ''} duplicado${totalApagar > 1 ? 's' : ''}?`,
+            type: 'danger',
             desc: `Referências com duplicados (${duplicados.length}):\n\n${linhas}\n\nO produto com maior quantidade (ou mais informação) é mantido. Esta acção não pode ser desfeita.`,
             onConfirm: async () => {
                 if (btn) btn.textContent = 'A apagar…';
@@ -3378,8 +3378,8 @@ async function marcarPatLevantado(id) {
         : 'O pedido será removido dos pendentes. O stock não será alterado.';
 
     openConfirmModal({
-        icon: '✅',
         title: 'Marcar como levantado?',
+        type: 'success', okLabel: 'Levantar',
         desc,
         onConfirm: async () => {
             try {
@@ -3428,8 +3428,8 @@ async function marcarPatLevantado(id) {
 
 async function apagarPat(id) {
     openConfirmModal({
-        icon: '',
         title: 'Apagar pedido?',
+        type: 'danger',
         desc: 'O pedido será eliminado permanentemente. O stock não é alterado.',
         onConfirm: async () => {
             try {

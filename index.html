@@ -1403,15 +1403,7 @@
         </div>
     </div>
 
-    <div id="delete-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
-        <div class="modal-content">
-            <div class="modal-icon"><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg></div>
-            <h3 id="delete-modal-title">Apagar Produto?</h3>
-            <p id="delete-modal-desc" class="modal-desc"></p>
-            <button id="delete-confirm-btn" class="btn-danger-full">Apagar</button>
-            <button onclick="closeDeleteModal()" class="btn-cancel">Cancelar</button>
-        </div>
-    </div>
+    <!-- delete-modal unificado no confirm-modal abaixo -->
 
     <!-- Modal: Editar produto -->
     <div id="edit-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
@@ -1503,14 +1495,23 @@
         </div>
     </div>
 
-    <!-- Modal: Confirmação genérica (substitui confirm() nativo) -->
+    <!-- Modal: Confirmação genérica unificada -->
     <div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
-        <div class="modal-content">
-            <div class="modal-icon" id="confirm-modal-icon"><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg></div>
-            <h3 id="confirm-modal-title">Tens a certeza?</h3>
-            <p id="confirm-modal-desc" class="modal-desc"></p>
-            <button id="confirm-modal-ok" class="btn-danger-full">Confirmar</button>
-            <button onclick="closeConfirmModal()" class="btn-cancel">Cancelar</button>
+        <div class="modal-content confirm-modal-content">
+            <div class="confirm-modal-header">
+                <div class="confirm-modal-icon-wrap" id="confirm-modal-icon-wrap">
+                    <span id="confirm-modal-icon"></span>
+                </div>
+                <div class="confirm-modal-text">
+                    <h3 id="confirm-modal-title" class="confirm-modal-title">Tens a certeza?</h3>
+                    <p id="confirm-modal-desc" class="confirm-modal-desc"></p>
+                </div>
+            </div>
+            <div id="confirm-modal-slot"></div>
+            <div class="confirm-modal-actions">
+                <button onclick="closeConfirmModal()" class="confirm-btn-cancel">Cancelar</button>
+                <button id="confirm-modal-ok" class="confirm-btn-ok">Confirmar</button>
+            </div>
         </div>
     </div>
 

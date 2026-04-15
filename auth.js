@@ -392,9 +392,9 @@ async function deleteUser(username) {
         return;
     }
     openConfirmModal({
-        icon: '👤',
         title: 'Eliminar utilizador?',
         desc: `"${username}" será removido permanentemente.`,
+        type: 'danger',
         onConfirm: async () => {
             try {
                 await apiFetch(`${USERS_BASE_URL}/${username}.json`, { method: 'DELETE' });

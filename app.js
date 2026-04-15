@@ -1767,9 +1767,9 @@ function _invSearchConfirmOnly(id, item) {
     const inp = $id('inv-search-input');
     // Abre modal rápido de confirmação para este produto
     openConfirmModal({
-        icon: '📦',
         title: `Confirmar ${item.codigo || id}`,
-        desc: `Qual a quantidade actual de "${item.nome || id}"? (Sistema: ${item.quantidade || 0})`,
+        desc: `Quantidade actual de "${item.nome || id}"? (Sistema: ${item.quantidade || 0})`,
+        type: 'confirm', okLabel: 'Confirmar',
         onConfirm: () => {
             const val = parseFloat($id('inv-qtd')?.value);
             if (!isNaN(val) && val >= 0) {
@@ -1781,20 +1781,19 @@ function _invSearchConfirmOnly(id, item) {
             }
         },
     });
-    // Injecto um input de quantidade no modal
-    setTimeout(() => {
-        const desc = $id('confirm-modal-desc');
-        if (!desc) return;
+    // Injecta input no slot dedicado do modal
+    const slot = $id('confirm-modal-slot');
+    if (slot) {
         const qInput = $el('input');
         qInput.type = 'number'; qInput.min = '0'; qInput.step = 'any';
         qInput.value = _invChanges[id] !== undefined ? _invChanges[id] : (item.quantidade || 0);
         qInput.className = 'inv-qty-input';
-        qInput.id = 'inv-qtd'; // reutiliza o mesmo id para o onConfirm ler
-        qInput.style.cssText = 'margin-top:12px;width:100%;text-align:center';
+        qInput.id = 'inv-qtd';
+        qInput.style.cssText = 'width:100%;text-align:center';
         qInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $id('confirm-modal-ok').click(); }});
-        desc.parentNode.insertBefore(qInput, desc.nextSibling);
-        qInput.focus(); qInput.select();
-    }, 50);
+        slot.appendChild(qInput);
+        setTimeout(() => { qInput.focus(); qInput.select(); }, 50);
+    }
 }
 
 // ── Guardar progresso parcial ─────────────────────────────────────────────────
@@ -2291,7 +2290,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key !== 'Escape') return;
         const modals = [
             { id: 'worker-modal',       close: () => modalClose('worker-modal') },
-            { id: 'delete-modal',       close: closeDeleteModal },
             { id: 'edit-modal',         close: () => modalClose('edit-modal') },
             { id: 'confirm-modal',      close: closeConfirmModal },
             { id: 'switch-role-modal',  close: () => modalClose('switch-role-modal') },
@@ -2388,12 +2386,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Delete confirm
-    $id('delete-confirm-btn').onclick = async () => {
-        if (!pendingDeleteId) return;
-        const id   = pendingDeleteId;
-        const item = cache.stock.data[id];
-        closeDeleteModal();
+    // Delete confirm — chamado pelo openDeleteModal via _deleteProductCallback
+    window._deleteProductCallback = async (id, item) => {
         delete cache.stock.data[id];
         if (item) registarMovimento('remocao', id, item.codigo, item.nome, item.quantidade || 0);
         renderList(window._searchInputEl?.value || '', true);
@@ -3155,9 +3149,9 @@ async function deleteEncomenda() {
     if (!_encEditId) return;
     const enc = _encData[_encEditId];
     openConfirmModal({
-        icon: '🗑',
         title: 'Apagar encomenda?',
         desc: `Encomenda Nº ${enc?.num} será apagada permanentemente.`,
+        type: 'danger',
         onConfirm: async () => {
             try {
                 await apiFetch(`${ENC_URL}/${_encEditId}.json`, { method: 'DELETE' });
