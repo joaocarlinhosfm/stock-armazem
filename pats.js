@@ -3465,36 +3465,68 @@ function openPatDetail(id, pat) {
         return d;
     }
 
-    // ── Header badges ────────────────────────────────────────────────────
+    // ── Header colorido ──────────────────────────────────────────────────
     const hdr = $el('div', { className: 'pat-detail-header' });
+    hdr.style.cssText = [
+        'text-align:left',
+        'margin:-16px -16px 16px',
+        'padding:16px',
+        urgente
+            ? 'background:#fef2f2;border-bottom:1px solid #fecaca'
+            : 'background:var(--bg);border-bottom:1px solid var(--border)',
+    ].join(';');
 
-    const badge = $el('span');
-    badge.className   = 'pat-badge' + (urgente ? ' pat-badge-urgente' : '');
-    badge.style.cssText = 'font-size:1rem;padding:6px 14px';
-    badge.textContent = 'PAT ' + (pat.numero || '—');
-    hdr.appendChild(badge);
+    // Linha 1: número PAT + badge estado
+    const hdrTop = $el('div');
+    hdrTop.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px';
 
-    if (pat.clienteNumero) {
-        const cb = $el('span', { className: 'pat-cliente-badge' });
-        cb.style.cssText = 'font-size:0.9rem;padding:5px 12px';
-        cb.textContent = pat.clienteNumero;
-        hdr.appendChild(cb);
-    }
+    const numEl = $el('span');
+    numEl.style.cssText = `font-size:1.1rem;font-weight:600;color:${urgente ? '#7f1d1d' : 'var(--text-main)'}`;
+    numEl.textContent = 'PAT ' + (pat.numero || '—');
+    hdrTop.appendChild(numEl);
+
+    const estadoBadge = $el('span');
+    estadoBadge.style.cssText = urgente
+        ? 'font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5'
+        : 'font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;background:rgba(202,138,4,0.12);color:#92400e;border:1px solid rgba(202,138,4,0.25)';
+    estadoBadge.textContent = (urgente ? '🔴 Urgente' : '🟡 Pendente') + ' · ' + (dias === 0 ? 'hoje' : `${dias}d`);
+    hdrTop.appendChild(estadoBadge);
+
     if (separacao) {
         const st = $el('span', { className: 'pat-sep-tag' });
-        st.style.marginTop = '8px';
-        st.textContent = ' Guia Transporte de Material';
-        hdr.appendChild(st);
+        st.textContent = 'Guia Transporte';
+        hdrTop.appendChild(st);
     }
+    hdr.appendChild(hdrTop);
+
+    // Linha 2: nome do estabelecimento em destaque
+    const estabEl = $el('p');
+    estabEl.style.cssText = `margin:0 0 2px;font-size:15px;font-weight:500;color:${urgente ? '#7f1d1d' : 'var(--text-main)'}`;
+    estabEl.textContent = pat.estabelecimento || 'Não especificado';
+    hdr.appendChild(estabEl);
+
+    // Linha 3: data
+    const dateEl = $el('p');
+    dateEl.style.cssText = `margin:0;font-size:12px;color:${urgente ? '#b91c1c' : 'var(--text-muted)'}`;
+    dateEl.textContent = 'Criado em ' + dataStr;
+    hdr.appendChild(dateEl);
+
     body.appendChild(hdr);
 
     // ── Linhas de informação ─────────────────────────────────────────────
-    if (pat.clienteNumero) body.appendChild(_row('Nº Cliente', pat.clienteNumero));
-    body.appendChild(_row('Estabelecimento', pat.estabelecimento || 'Não especificado'));
-    body.appendChild(_row('Criado em', dataStr));
-    body.appendChild(_row('Desconto stock', separacao ? '✅ Sim (ao levantar)' : '⊘ Não'));
-    body.appendChild(_row('Estado', (urgente ? '🔴 Urgente' : '🟡 Pendente') + ' (' + (dias === 0 ? 'hoje' : `${dias}d`) + ')'));
     if (pat.funcionario) body.appendChild(_row('Levantado por', pat.funcionario));
+
+    // ── Observações ──────────────────────────────────────────────────────
+    if (pat.obs) {
+        const obsLbl = $el('div', { className: 'pat-detail-lbl' });
+        obsLbl.style.cssText = 'margin-top:14px;margin-bottom:6px';
+        obsLbl.textContent = 'Observações';
+        body.appendChild(obsLbl);
+        const obsBox = $el('div');
+        obsBox.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:0.875rem;color:var(--text-main);line-height:1.5;white-space:pre-wrap';
+        obsBox.textContent = pat.obs;
+        body.appendChild(obsBox);
+    }
 
     // ── Produtos ─────────────────────────────────────────────────────────
     if (pat.produtos?.length) {
