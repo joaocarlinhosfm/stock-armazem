@@ -111,6 +111,7 @@
 .pat-sel-bar {
     display: flex;
     align-items: center;
+    flex-wrap: nowrap;
     gap: 8px;
     background: #1e3a5f;
     border: none;
@@ -119,13 +120,13 @@
     animation: fadeSlideIn 0.2s ease;
     margin-bottom: 10px;
     box-sizing: border-box;
-    overflow: hidden;
+    min-width: 0;
 }
 .pat-sel-label {
     font-size: 0.80rem;
     color: #cbd5e1;
     font-weight: 500;
-    flex: 1;
+    flex: 1 1 0;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -134,9 +135,11 @@
 .pat-sel-label strong { color: #ffffff; font-weight: 700; }
 .pat-sel-actions {
     display: flex;
+    flex-wrap: nowrap;
     gap: 6px;
     align-items: center;
     flex-shrink: 0;
+    min-width: 0;
 }
 .pat-sel-all-btn {
     padding: 6px 10px;
@@ -4257,6 +4260,7 @@ body.is-offline #app-layout {
     gap: 10px;
     background: var(--card-bg);
     border-bottom: 1px solid var(--border);
+    min-width: 0;
 }
 /* Alinha título do pat-toolbar com os outros */
 .pat-toolbar-top { padding: 0; }
