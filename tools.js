@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// tools.js — Hiperfrio v6.55
+// tools.js — Hiperfrio v6.56
 // Ferramentas, histórico, funcionários, timeline.
 // Carrega DEPOIS de reports.js e ANTES de pats.js.
 //
@@ -145,6 +145,9 @@ async function renderTools() {
         return div;
     }
 
+    // Um único fragment para toda a lista — 1 reflow em vez de 6
+    const listFrag = document.createDocumentFragment();
+
     function _addSection(label, items) {
         let added = 0;
         const frag = document.createDocumentFragment();
@@ -155,8 +158,8 @@ async function renderTools() {
         if (added > 0) {
             const lbl = $el('div', { className: 'tools-section-label' });
             lbl.textContent = label;
-            list.appendChild(lbl);
-            list.appendChild(frag);
+            listFrag.appendChild(lbl);
+            listFrag.appendChild(frag);
         }
         return added;
     }
@@ -165,6 +168,8 @@ async function renderTools() {
     total += _addSection('Em atraso', overdueList);
     total += _addSection('Alocadas', alocList);
     total += _addSection('Disponíveis', dispList);
+
+    list.appendChild(listFrag);
 
     if (total === 0) {
         list.innerHTML = '<div class="empty-msg">Nenhuma ferramenta encontrada.</div>';

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// reports.js — Hiperfrio v6.55
+// reports.js — Hiperfrio v6.56
 // Relatório mensal, snapshots, movimentos de stock, Chart.js.
 // Carrega DEPOIS de auth.js e ANTES de stock.js, tools.js, pats.js.
 //
@@ -379,6 +379,9 @@ function relMoveMonth(delta) {
 
 // ── Renderizar relatório ──────────────────────────────────────────────────
 async function renderRelatorio() {
+    // Lazy load do Chart.js — só entra em cache após 1ª visita a Relatórios
+    try { await loadChart(); } catch(_e) { console.warn('[Relatório] Chart.js não carregou:', _e?.message); }
+
     const mesKey  = _mesKey(_relMesOffset);
     const lblEl   = $id('rel-month-label');
     const content = $id('rel-content');

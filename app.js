@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// app.js — Hiperfrio v6.55
+// app.js — Hiperfrio v6.56
 // Lógica principal: stock, ferramentas, PATs, encomendas, mapa, inventário.
 //
 // DEPENDÊNCIAS (carregadas antes via index.html):
@@ -45,22 +45,48 @@ async function fetchCollection(name, force = false) {
 function invalidateCache(name) { cache[name].lastFetch = 0; }
 
 // FILA OFFLINE — localStorage persistente
+// Cópia em memória para evitar JSON.parse/stringify a cada mutação.
+// Writes ao localStorage são debounced (400ms) + forçados no 'pagehide'/'beforeunload'.
 const QUEUE_KEY = 'hiperfrio-offline-queue';
 let isSyncing   = false; // FIX: evita execuções paralelas de syncQueue
-
-function queueLoad() {
-    try {
-        const raw = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
-        return _pruneQueue(raw); // PONTO 10: remove entradas expiradas
-    }
-    catch { return []; }
-}
-function queueSave(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }
 
 const QUEUE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 function _pruneQueue(q) {
     const cutoff = Date.now() - QUEUE_TTL_MS;
     return q.filter(op => !op.ts || op.ts > cutoff);
+}
+
+// Inicialização: lê uma vez da localStorage
+let _queueMem = (() => {
+    try { return _pruneQueue(JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]')); }
+    catch { return []; }
+})();
+
+let _queueSaveTimer = null;
+function _queueFlush() {
+    clearTimeout(_queueSaveTimer);
+    _queueSaveTimer = null;
+    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(_queueMem)); }
+    catch(e) { console.warn('[Queue] falha ao persistir:', e?.message); }
+}
+function _queueScheduleSave() {
+    if (_queueSaveTimer) return;
+    _queueSaveTimer = setTimeout(_queueFlush, 400);
+}
+
+// Garante persistência quando a aba fecha / fica em background
+window.addEventListener('pagehide', _queueFlush);
+window.addEventListener('beforeunload', _queueFlush);
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') _queueFlush();
+});
+
+// Mantém a assinatura antiga para o resto do código
+function queueLoad() { return _queueMem; }
+function queueSave(q) {
+    // Substitui a referência em memória e agenda persistência
+    _queueMem = q;
+    _queueScheduleSave();
 }
 
 function queueAdd(op) {
@@ -71,17 +97,21 @@ function queueAdd(op) {
     // FIX: só aceita mutações na fila, nunca GETs
     if (!op.method || op.method === 'GET') return;
     op.ts = Date.now(); // timestamp para TTL
-    const q = _pruneQueue(queueLoad());
+
+    // Prune in-place (não recria array para operações baratas)
+    const cutoff = Date.now() - QUEUE_TTL_MS;
+    _queueMem = _queueMem.filter(o => !o.ts || o.ts > cutoff);
+
     // Colapsar PATCHes repetidos ao mesmo URL
     if (op.method === 'PATCH') {
-        const idx = q.findIndex(o => o.method === 'PATCH' && o.url === op.url);
-        if (idx !== -1) { q[idx] = op; } else { q.push(op); }
+        const idx = _queueMem.findIndex(o => o.method === 'PATCH' && o.url === op.url);
+        if (idx !== -1) { _queueMem[idx] = op; } else { _queueMem.push(op); }
     } else {
         // FIX: ignorar operações em IDs temporários (_tmp_) para não enviar URLs inválidos
         if (op.url && op.url.includes('/_tmp_')) return;
-        q.push(op);
+        _queueMem.push(op);
     }
-    queueSave(q);
+    _queueScheduleSave();
     updateOfflineBanner();
 }
 
@@ -625,14 +655,17 @@ async function renderDashboard(force = false, fromBtn = false) {
     el.classList.remove('dv3-loading');
     el.classList.add('dash-v3');
 
-    _renderDashGreeting(el, greeting, displayName, dateStr, timeStr);
-    _renderDashAlert(el, patUrgentes);
-    _renderDashKpis(el, { total, comStock, semStock, alocadas, totalFerr, alocadasHaMuito,
+    // Monta tudo num fragment detached — um único appendChild final = 1 reflow
+    const scratch = document.createDocumentFragment();
+    _renderDashGreeting(scratch, greeting, displayName, dateStr, timeStr);
+    _renderDashAlert(scratch, patUrgentes);
+    _renderDashKpis(scratch, { total, comStock, semStock, alocadas, totalFerr, alocadasHaMuito,
                           patPendentes, patUrgentes, patComGuia, patHoje,
                           encActivas, encPendentes, encParciais,
                           trendPats, trendEncomendas, trendSemStock });
-    _renderGasCard(stockData, el);
-    _renderDashSections(el, { patsPend, ferraEntries, encData: _encData, total, comStock, semStock, ALERTA_DIAS });
+    _renderGasCard(stockData, scratch);
+    _renderDashSections(scratch, { patsPend, ferraEntries, encData: _encData, total, comStock, semStock, ALERTA_DIAS });
+    el.appendChild(scratch);
 
     el.classList.remove('dv3-loading');
     $id('dv3-refresh-btn')?.classList.remove('spinning');

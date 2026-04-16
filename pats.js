@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// pats.js — Hiperfrio v6.55
+// pats.js — Hiperfrio v6.56
 // Pedidos PAT: render, cards, mapa Leaflet, geocoding, clientes, levantar.
 // Carrega DEPOIS de stock.js (usa _commitStockDelta) e ANTES de app.js.
 //
@@ -658,6 +658,9 @@ function centerMapOnPin() {
 
 // expandPatMap — abre SEMPRE o mapa fullscreen com geocodificação completa e pins dinâmicos
 async function expandPatMap() {
+    // Lazy load de Leaflet — só no primeiro uso do mapa
+    try { await loadLeaflet(); } catch(e) { console.error('[Mapa] Leaflet não carregou:', e?.message); return; }
+
     _patMapOpen = true;
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     $id('view-map')?.classList.add('active');
@@ -818,6 +821,9 @@ async function expandPatMap() {
 }
 
 async function openPatMap() {
+    // Lazy load de Leaflet — só no primeiro uso do mapa
+    try { await loadLeaflet(); } catch(e) { console.error('[Mapa] Leaflet não carregou:', e?.message); return; }
+
     const isDesktop = window.innerWidth >= 768;
 
     // ── Desktop: inicializa mapa no painel lateral inline ─────────────────
@@ -1062,6 +1068,9 @@ let _patMapPanelCluster = null; // MarkerClusterGroup do painel
 let _patMapPanelMkrs = [];    // markers do painel
 
 async function _openPatMapPanel() {
+    // Lazy load de Leaflet — só no primeiro uso do mapa
+    try { await loadLeaflet(); } catch(e) { console.error('[Mapa] Leaflet não carregou:', e?.message); return; }
+
     const container  = $id('pat-map-panel-container');
     const loadingEl  = $id('pat-map-panel-loading');
     if (!container) return;
@@ -1796,6 +1805,8 @@ async function renderPats() {
         const urgentes = entries.filter(([, p]) => _calcDias(p.criadoEm) >= 20).length;
         const isMobile = window.innerWidth < 768;
 
+        const fragP = document.createDocumentFragment();
+
         if (isMobile) {
             // ── KPI row mobile: pills + botão Levantar várias ──────────────
             const kpiRow = $el('div', { className: 'pat-kpi-row' });
@@ -1818,16 +1829,17 @@ async function renderPats() {
                 e.stopPropagation();
                 openLevantarModal();
             };
-            el.appendChild(kpiRow);
+            fragP.appendChild(kpiRow);
         } else {
             // ── Count bar desktop (mantém comportamento original) ──────────
             const countBar = $el('div', { className: 'pat-count-bar' });
             countBar.innerHTML = `<span class="pat-count-lbl">${entries.length} pedido${entries.length !== 1 ? 's' : ''} pendente${entries.length !== 1 ? 's' : ''}</span>`
                 + (urgentes > 0 ? `<span class="pat-count-badge">${urgentes} urgente${urgentes !== 1 ? 's' : ''} (+15 dias)</span>` : '');
-            el.appendChild(countBar);
+            fragP.appendChild(countBar);
         }
 
-        entries.forEach(([id, pat]) => el.appendChild(_buildPatCard(id, pat, 'pendentes', estabCount)));
+        entries.forEach(([id, pat]) => fragP.appendChild(_buildPatCard(id, pat, 'pendentes', estabCount)));
+        el.appendChild(fragP);
         updatePatCount();
 
         // Actualizar contador na tab
@@ -1849,6 +1861,7 @@ async function renderPats() {
     });
     const sortedGroups = Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b, 'pt'));
 
+    const fragG = document.createDocumentFragment();
     sortedGroups.forEach(([func, items]) => {
         // Cabeçalho do grupo
         const header = $el('div', { className: 'pat-group-header' });
@@ -1858,10 +1871,11 @@ async function renderPats() {
                 <span class="pat-group-name">${func === '—' ? 'Sem funcionário' : func}</span>
                 <span class="pat-group-count">${items.length}</span>
             </div>`;
-        el.appendChild(header);
+        fragG.appendChild(header);
 
-        items.forEach(([id, pat]) => el.appendChild(_buildPatCard(id, pat, _patTab, {})));
+        items.forEach(([id, pat]) => fragG.appendChild(_buildPatCard(id, pat, _patTab, {})));
     });
+    el.appendChild(fragG);
     updatePatCount();
 }
 

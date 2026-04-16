@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// stock.js — Hiperfrio v6.55
+// stock.js — Hiperfrio v6.56
 // Gestão de stock: render, ordenação, filtros, swipe, changeQtd, exportCSV.
 // Carrega DEPOIS de reports.js e ANTES de tools.js, pats.js.
 //
@@ -124,6 +124,19 @@ function getSortedEntries(entries) {
         default:         return copy.reverse(); // mais recente primeiro
     }
 }
+
+// Cache do sort — reutiliza o array ordenado enquanto dados + modo não mudam.
+// Filtrar enquanto o utilizador escreve deixa de ordenar 500 itens por tecla.
+let _sortedCache = null;
+let _sortedCacheKey = '';
+function _getSortedEntriesCached(entries) {
+    const key = `${cache.stock.lastFetch}|${_stockSort}|${entries.length}`;
+    if (_sortedCache && _sortedCacheKey === key) return _sortedCache;
+    _sortedCache = getSortedEntries(entries);
+    _sortedCacheKey = key;
+    return _sortedCache;
+}
+function _invalidateSortedCache() { _sortedCache = null; _sortedCacheKey = ''; }
 
 // STOCK — RENDER
 // FIX: usa [...entries].reverse() para não mutar o cache
@@ -466,6 +479,9 @@ async function renderList(filter = '', force = false) {
     const listEl = $id('stock-list');
     if (!listEl) return;
 
+    // Liga event delegation uma só vez (noop após primeiro call)
+    _ensureStockListDelegation();
+
     if (!cache.stock.data) listEl.innerHTML = '<div class="empty-msg">A carregar...</div>';
 
     const data    = await fetchCollection('stock', force);
@@ -498,13 +514,15 @@ async function renderList(filter = '', force = false) {
         }
 
         const filterLowerD = filter.toLowerCase();
-        getSortedEntries(entries).forEach(([id, item]) => {
+        const fragD = document.createDocumentFragment();
+        _getSortedEntriesCached(entries).forEach(([id, item]) => {
             const passFilter = _desktopFilterMatch(item);
             const passSearch = _itemMatchesFilter(item, filterLowerD, filter.toUpperCase());
             const card = _buildDesktopCard(id, item);
             card.style.display = (passFilter && passSearch) ? '' : 'none';
-            listEl.appendChild(card);
+            fragD.appendChild(card);
         });
+        listEl.appendChild(fragD);
 
         if (_pendingZeroFilter) {
             _pendingZeroFilter = false;
@@ -518,34 +536,9 @@ async function renderList(filter = '', force = false) {
     listEl.className = '';
     $id('stock-desktop-hdr')?.remove();
 
-    // Se DOM já tem cards (re-render por filtro), apenas faz show/hide
-    const existingCards = listEl.querySelectorAll('.swipe-wrapper[data-id]');
-    if (existingCards.length > 0 && !force) {
-        // Remove "Mostrar mais" antes de filtrar — contagem pode mudar
-        $id('load-more-btn')?.remove();
-        const filterLower = filter.toLowerCase();
-        let visible = 0;
-        existingCards.forEach(wrapper => {
-            const id   = wrapper.dataset.id;
-            const item = data[id];
-            if (!item) { wrapper.style.display = 'none'; return; }
-            const matches = _itemMatchesFilter(item, filterLower, filter.toUpperCase());
-            wrapper.style.display = matches ? '' : 'none';
-            if (matches) visible++;
-        });
-        let noResult = listEl.querySelector('.empty-msg');
-        if (filter && visible === 0) {
-            if (!noResult) {
-                noResult = $el('div');
-                noResult.className = 'empty-msg';
-                listEl.appendChild(noResult);
-            }
-            noResult.textContent = 'Nenhum resultado encontrado.';
-        } else if (noResult) {
-            noResult.remove();
-        }
-        return;
-    }
+    // Paginação real: cada mudança de filtro força re-render completo.
+    // Como só materializamos PAGE_SIZE cards, o re-render é rápido (~30-60ms
+    // para 80 cards); evita manter 500 wrappers no DOM com display:none.
 
     // Full render
     listEl.innerHTML = '';
@@ -573,122 +566,30 @@ async function renderList(filter = '', force = false) {
     }
 
     const filterLower = filter.toLowerCase();
-    let found = 0;
-    const PAGE_SIZE = 80; // PONTO 9: paginação
-    let _shownCount = 0;
+    const PAGE_SIZE = 80;
 
-    // Ordenação configurável
-    getSortedEntries(entries).forEach(([id, item]) => {
-        const matches = _itemMatchesFilter(item, filterLower, filter.toUpperCase());
-
-        const wrapper = $el('div', { className: 'swipe-wrapper' });
-        wrapper.dataset.id   = id;
-        wrapper.style.display = matches ? '' : 'none';
-        if (matches) found++;
-
-        // Swipe backgrounds
-        const bgL = $el('div'); bgL.className = 'swipe-bg swipe-bg-left';
-        const iL  = $el('span'); iL.className = 'swipe-bg-icon'; iL.textContent = '';
-        bgL.appendChild(iL);
-        const bgR = $el('div'); bgR.className = 'swipe-bg swipe-bg-right';
-        const iR  = $el('span'); iR.className = 'swipe-bg-icon'; iR.textContent = '';
-        bgR.appendChild(iR);
-        wrapper.appendChild(bgL); wrapper.appendChild(bgR);
-
-        // Card content — tudo via textContent (sem XSS)
-        const el = $el('div', { className: 'item-card' });
-
-        const refLabel = $el('div', { className: 'ref-label', textContent: 'REFERÊNCIA' });
-
-        const refVal = $el('div', { className: 'ref-value' });
-        refVal.textContent = String(item.codigo || '').toUpperCase();
-
-        const nomEl = $el('div', { className: 'card-nome' });
-        nomEl.textContent = item.nome || '';
-
-        const hr = $el('hr', { className: 'card-divider' });
-
-        const row = $el('div', { className: 'card-bottom-row' });
-
-        const pill = $el('div', { className: 'loc-pill' });
-        const pinIcon = $el('span');
-        pinIcon.style.fontSize = '0.85rem';
-        pinIcon.textContent    = '';
-        pill.appendChild(pinIcon);
-        pill.appendChild(document.createTextNode(' ' + (item.localizacao ? item.localizacao.toUpperCase() : 'SEM LOCAL')));
-
-        const qtyBox = $el('div', { className: 'qty-pill-box' });
-
-        const qty = item.quantidade || 0;
-
-        const btnM = $el('button', { className: 'btn-qty', textContent: '−' });
-        btnM.disabled    = qty === 0;
-        btnM.id          = `btn-minus-${id}`;
-        btnM.onclick     = () => changeQtd(id, -1);
-
-        const qtySpan = $el('span');
-        qtySpan.className   = 'qty-display' + (qty === 0 ? ' is-zero' : '');
-        qtySpan.id          = `qty-${id}`;
-        qtySpan.textContent = fmtQty(qty, item.unidade);
-        // Duplo-toque/duplo-clique abre edição inline de quantidade
-        let _tapTimer = null;
-        qtySpan.addEventListener('click', () => {
-            if (_tapTimer) {
-                clearTimeout(_tapTimer);
-                _tapTimer = null;
-                openInlineQtyEdit(id, item);
-            } else {
-                _tapTimer = setTimeout(() => { _tapTimer = null; }, 350);
-            }
-        });
-
-        const btnP = $el('button', { className: 'btn-qty', textContent: '+' });
-        btnP.onclick     = () => changeQtd(id, 1);
-
-        qtyBox.appendChild(btnM); qtyBox.appendChild(qtySpan); qtyBox.appendChild(btnP);
-        row.appendChild(pill); row.appendChild(qtyBox);
-        if (item.notas) {
-            const notasRow = $el('div', { className: 'card-notas' });
-            notasRow.title       = item.notas;
-            notasRow.textContent = `📝 ${item.notas}`;
-            el.appendChild(refLabel); el.appendChild(refVal); el.appendChild(nomEl);
-            el.appendChild(notasRow);
-        } else {
-            el.appendChild(refLabel); el.appendChild(refVal); el.appendChild(nomEl);
-        }
-        el.appendChild(hr); el.appendChild(row);
-
-        attachSwipe(el, wrapper, id, item);
-        wrapper.appendChild(el);
-        if (!matches) { listEl.appendChild(wrapper); return; }
-        if (_shownCount < PAGE_SIZE) {
-            listEl.appendChild(wrapper);
-        } else {
-            wrapper.style.display = 'none';
-            wrapper.dataset.deferred = '1';
-            listEl.appendChild(wrapper);
-        }
-        _shownCount++;
-    });
-
-    // Botão "Mostrar mais" se há cards diferidos
-    const deferred = listEl.querySelectorAll('.swipe-wrapper[data-deferred="1"]').length;
-    const existingBtn = $id('load-more-btn');
-    if (existingBtn) existingBtn.remove();
-    if (deferred > 0) {
-        const btn = $el('button');
-        btn.id = 'load-more-btn';
-        btn.className = 'btn-load-more';
-        btn.textContent = `Mostrar mais ${deferred} produto${deferred > 1 ? 's' : ''}`;
-        btn.onclick = () => {
-            listEl.querySelectorAll('.swipe-wrapper[data-deferred="1"]').forEach(w => {
-                w.style.display = '';
-                delete w.dataset.deferred;
-            });
-            btn.remove();
-        };
-        listEl.appendChild(btn);
+    // Filtra primeiro, materializa DOM depois — paginação real.
+    // Entries fora da página não geram DOM, só ficam em _stockDeferredEntries.
+    const sorted = _getSortedEntriesCached(entries);
+    const matched = [];
+    for (const e of sorted) {
+        if (_itemMatchesFilter(e[1], filterLower, filter.toUpperCase())) matched.push(e);
     }
+    const found = matched.length;
+
+    // Primeiros PAGE_SIZE viram DOM agora, restantes ficam em fila
+    const shown = matched.slice(0, PAGE_SIZE);
+    _stockDeferredEntries = matched.slice(PAGE_SIZE);
+
+    // DocumentFragment evita N reflows — um único appendChild no fim
+    const frag = document.createDocumentFragment();
+    for (const [id, item] of shown) {
+        frag.appendChild(_buildStockCardMobile(id, item));
+    }
+    listEl.appendChild(frag);
+
+    // Botão "Mostrar mais" — materializa o próximo batch só quando tocado
+    _renderLoadMoreBtn(listEl);
 
     if (filter && found === 0) {
         const em = $el('div', { className: 'empty-msg', textContent: 'Nenhum resultado encontrado.' });
@@ -700,6 +601,102 @@ async function renderList(filter = '', force = false) {
         _pendingZeroFilter = false;
         filterZeroStock();
     }
+}
+
+// Entries que passaram o filtro mas estão além do PAGE_SIZE inicial.
+// Materializadas em batches quando o utilizador toca "Mostrar mais".
+let _stockDeferredEntries = [];
+
+function _renderLoadMoreBtn(listEl) {
+    $id('load-more-btn')?.remove();
+    if (_stockDeferredEntries.length === 0) return;
+    const PAGE_SIZE = 80;
+    const n = _stockDeferredEntries.length;
+    const btn = $el('button');
+    btn.id = 'load-more-btn';
+    btn.className = 'btn-load-more';
+    btn.textContent = `Mostrar mais ${n} produto${n > 1 ? 's' : ''}`;
+    btn.onclick = () => {
+        const batch = _stockDeferredEntries.splice(0, PAGE_SIZE);
+        const frag = document.createDocumentFragment();
+        for (const [id, item] of batch) {
+            frag.appendChild(_buildStockCardMobile(id, item));
+        }
+        btn.remove();
+        listEl.appendChild(frag);
+        _renderLoadMoreBtn(listEl); // refaz o botão se ainda há mais
+    };
+    listEl.appendChild(btn);
+}
+
+// Constrói um card de stock para a vista mobile. Listeners tratados por
+// delegation no contentor — nada de onclick/addEventListener individuais.
+function _buildStockCardMobile(id, item) {
+    const wrapper = $el('div', { className: 'swipe-wrapper' });
+    wrapper.dataset.id = id;
+
+    // Swipe backgrounds
+    const bgL = $el('div'); bgL.className = 'swipe-bg swipe-bg-left';
+    const iL  = $el('span'); iL.className = 'swipe-bg-icon'; iL.textContent = '';
+    bgL.appendChild(iL);
+    const bgR = $el('div'); bgR.className = 'swipe-bg swipe-bg-right';
+    const iR  = $el('span'); iR.className = 'swipe-bg-icon'; iR.textContent = '';
+    bgR.appendChild(iR);
+    wrapper.appendChild(bgL); wrapper.appendChild(bgR);
+
+    const el = $el('div', { className: 'item-card' });
+
+    const refLabel = $el('div', { className: 'ref-label', textContent: 'REFERÊNCIA' });
+
+    const refVal = $el('div', { className: 'ref-value' });
+    refVal.textContent = String(item.codigo || '').toUpperCase();
+
+    const nomEl = $el('div', { className: 'card-nome' });
+    nomEl.textContent = item.nome || '';
+
+    const hr = $el('hr', { className: 'card-divider' });
+
+    const row = $el('div', { className: 'card-bottom-row' });
+
+    const pill = $el('div', { className: 'loc-pill' });
+    const pinIcon = $el('span');
+    pinIcon.style.fontSize = '0.85rem';
+    pinIcon.textContent = '';
+    pill.appendChild(pinIcon);
+    pill.appendChild(document.createTextNode(' ' + (item.localizacao ? item.localizacao.toUpperCase() : 'SEM LOCAL')));
+
+    const qtyBox = $el('div', { className: 'qty-pill-box' });
+
+    const qty = item.quantidade || 0;
+
+    const btnM = $el('button', { className: 'btn-qty', textContent: '−' });
+    btnM.disabled = qty === 0;
+    btnM.id = `btn-minus-${id}`;
+
+    const qtySpan = $el('span');
+    qtySpan.className = 'qty-display' + (qty === 0 ? ' is-zero' : '');
+    qtySpan.id = `qty-${id}`;
+    qtySpan.textContent = fmtQty(qty, item.unidade);
+
+    const btnP = $el('button', { className: 'btn-qty', textContent: '+' });
+    btnP.id = `btn-plus-${id}`;
+
+    qtyBox.appendChild(btnM); qtyBox.appendChild(qtySpan); qtyBox.appendChild(btnP);
+    row.appendChild(pill); row.appendChild(qtyBox);
+
+    if (item.notas) {
+        const notasRow = $el('div', { className: 'card-notas' });
+        notasRow.title = item.notas;
+        notasRow.textContent = `📝 ${item.notas}`;
+        el.appendChild(refLabel); el.appendChild(refVal); el.appendChild(nomEl);
+        el.appendChild(notasRow);
+    } else {
+        el.appendChild(refLabel); el.appendChild(refVal); el.appendChild(nomEl);
+    }
+    el.appendChild(hr); el.appendChild(row);
+
+    wrapper.appendChild(el);
+    return wrapper;
 }
 
 // Edição inline de quantidade — abre mini-form no lugar do span
@@ -724,6 +721,7 @@ function openInlineQtyEdit(id, item) {
         qtyEl.classList.toggle('is-zero', newVal === 0);
         $id(`btn-minus-${id}`)?.toggleAttribute('disabled', newVal === 0);
         if (cache.stock.data?.[id]) cache.stock.data[id].quantidade = newVal;
+        if (_stockSort === 'qtd-asc' || _stockSort === 'qtd-desc') _invalidateSortedCache();
         if (newVal < oldValInline) {
             registarMovimento('saida_manual', id, item.codigo, item.nome, oldValInline - newVal);
         }
@@ -812,6 +810,8 @@ async function changeQtd(id, delta) {
 
     // Actualiza cache + DOM imediatamente (optimistic)
     stockData[id].quantidade = newQty;
+    // Invalida o cache do sort — ordenações qtd-asc/qtd-desc precisam de recalcular
+    if (_stockSort === 'qtd-asc' || _stockSort === 'qtd-desc') _invalidateSortedCache();
     const qtyEl   = $id(`qty-${id}`);
     const minusEl = $id(`btn-minus-${id}`);
     const itemUnidade = stockData[id]?.unidade;
@@ -871,37 +871,100 @@ document.addEventListener('mouseup', () => {
     _onSwipeEnd();
 });
 
-function attachSwipe(card, wrapper, id, item) {
-    // Workers: tap simples abre popup de detalhe (sem swipe)
-    if (currentRole === 'worker') {
-        card.addEventListener('click', (e) => {
-            if (e.target.closest('.btn-qty')) return;
-            openProductDetail(id, item);
-        });
-        return;
+// ── Event delegation no contentor #stock-list ─────────────────────────────────
+// Um único conjunto de listeners no contentor trata de todos os cards,
+// em vez de 4+ listeners por card × N cards. Reduz memória e melhora filtros.
+// Chamado uma só vez em _ensureStockListDelegation().
+let _stockDelegationReady = false;
+function _ensureStockListDelegation() {
+    if (_stockDelegationReady) return;
+    const listEl = $id('stock-list');
+    if (!listEl) return; // view ainda não no DOM — tentará de novo no próximo renderList
+    _stockDelegationReady = true;
+
+    // Resolve card/wrapper/id/item de um evento sobre um descendente
+    function _resolveCtx(target) {
+        const wrapper = target.closest('.swipe-wrapper[data-id]');
+        if (!wrapper) return null;
+        const id = wrapper.dataset.id;
+        const item = cache.stock.data?.[id];
+        if (!item) return null;
+        const card = wrapper.querySelector('.item-card');
+        return { wrapper, card, id, item };
     }
-    card.addEventListener('touchstart', e => {
-        // Não interceptar toques nos botões +/− — deixar o browser gerar o click nativo
-        if (e.target.closest('.btn-qty')) return;
-        e.stopPropagation();
-        _onSwipeStart(card, wrapper, id, item, e.touches[0].clientX, e.touches[0].clientY);
+
+    // Click nos botões +/− e no qty-display (double-tap abre edição inline).
+    // Worker: click em qualquer parte do card que não seja botão abre detalhe.
+    const _qtyTapState = new Map(); // id → { timer }
+    listEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-qty');
+        if (btn) {
+            const ctx = _resolveCtx(btn);
+            if (!ctx) return;
+            const isPlus = btn.id?.startsWith('btn-plus-') || btn.textContent.trim() === '+';
+            const isMinus = btn.id?.startsWith('btn-minus-') || btn.textContent.trim() === '−';
+            if (isPlus)  changeQtd(ctx.id,  1);
+            if (isMinus) changeQtd(ctx.id, -1);
+            return;
+        }
+        const qty = e.target.closest('.qty-display');
+        if (qty) {
+            const ctx = _resolveCtx(qty);
+            if (!ctx) return;
+            const state = _qtyTapState.get(ctx.id) || {};
+            if (state.timer) {
+                clearTimeout(state.timer);
+                _qtyTapState.delete(ctx.id);
+                openInlineQtyEdit(ctx.id, ctx.item);
+            } else {
+                state.timer = setTimeout(() => _qtyTapState.delete(ctx.id), 350);
+                _qtyTapState.set(ctx.id, state);
+            }
+            return;
+        }
+        // Worker: click no card abre popup de detalhe
+        if (currentRole === 'worker') {
+            const ctx = _resolveCtx(e.target);
+            if (ctx) openProductDetail(ctx.id, ctx.item);
+        }
+    });
+
+    // Swipe: só para gestores. Touchstart começa o drag, mousedown idem.
+    // Exclui .btn-qty (cliques no +/-) e .qty-display (double-tap para edição inline)
+    // para evitar conflito entre tap/double-tap e abrir detalhe.
+    listEl.addEventListener('touchstart', (e) => {
+        if (currentRole === 'worker') return;
+        if (e.target.closest('.btn-qty, .qty-display')) return;
+        const ctx = _resolveCtx(e.target);
+        if (!ctx || !ctx.card) return;
+        _onSwipeStart(ctx.card, ctx.wrapper, ctx.id, ctx.item, e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: true });
-    card.addEventListener('touchmove', e => {
-        if (e.target.closest('.btn-qty')) return;
+
+    listEl.addEventListener('touchmove', (e) => {
+        if (!_swipeDragging) return;
+        if (e.target.closest('.btn-qty, .qty-display')) return;
         _onSwipeMove(e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: true });
-    card.addEventListener('touchend', e => {
-        if (e.target.closest('.btn-qty')) return;
-        e.stopPropagation();
+
+    listEl.addEventListener('touchend', (e) => {
+        if (!_swipeDragging) return;
+        if (e.target.closest('.btn-qty, .qty-display')) return;
         _onSwipeEnd();
     }, { passive: true });
-    card.addEventListener('mousedown',  e => {
-        // Não interferir com cliques nos botões +/−
-        if (e.target.closest('.btn-qty')) return;
-        _onSwipeStart(card, wrapper, id, item, e.clientX, e.clientY);
+
+    listEl.addEventListener('mousedown', (e) => {
+        if (currentRole === 'worker') return;
+        if (e.target.closest('.btn-qty, .qty-display')) return;
+        const ctx = _resolveCtx(e.target);
+        if (!ctx || !ctx.card) return;
+        _onSwipeStart(ctx.card, ctx.wrapper, ctx.id, ctx.item, e.clientX, e.clientY);
         e.preventDefault();
     });
 }
+
+// Função no-op para manter compatibilidade com call-sites antigos (openProductDetail tap-no-swipe).
+// O comportamento real de swipe+tap+click já é tratado por _ensureStockListDelegation().
+function attachSwipe(_card, _wrapper, _id, _item) { /* noop — substituído por delegation */ }
 
 function _onSwipeStart(card, wrapper, id, item, x, y = 0) {
     _swipeCard     = card;

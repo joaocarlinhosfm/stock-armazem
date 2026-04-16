@@ -8,10 +8,10 @@
     <link rel="manifest" href="manifest.json">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.gstatic.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' data: blob: https://*.firebasedatabase.app https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://api.anthropic.com https://serpapi.com https://*.workers.dev https://nominatim.openstreetmap.org https://*.basemaps.cartocdn.com; font-src https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://serpapi.com https:; worker-src 'self' blob: https://cdn.jsdelivr.net;">
     <meta name="theme-color" content="#2563eb">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=1775318582">
 
     <style id="sheet-critical">/* v1775211637 */
@@ -1745,12 +1745,17 @@
     <div id="toast-container"></div>
     <!-- Firebase SDK (Auth anónima — token para REST API) -->
     <!-- XLSX carregado sob pedido via loadXlsx() em app.js -->
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <!-- App Check: descomenta após configurar no Firebase Console -->
-    <!-- <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check-compat.js"></script> -->
+    <!-- <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check-compat.js"></script> -->
     <script>
+        // Inicia a Promise de token já — resolvida quando o SDK deferido estiver pronto
         window._firebaseTokenPromise = new Promise((resolve, reject) => {
+            window._firebaseTokenResolve = resolve;
+            window._firebaseTokenReject  = reject;
+        });
+        document.addEventListener('DOMContentLoaded', () => {
             firebase.initializeApp({
                 apiKey:      "AIzaSyCJS8Ev4EZcUbIO0AA4ckw10w8lvkZ3U_8",
                 authDomain:  "stock-f477e.firebaseapp.com",
@@ -1766,7 +1771,7 @@
                 .then(token => {
                     window._firebaseUser = firebase.auth().currentUser;
                     window._firebaseReady = true;
-                    resolve(token);
+                    window._firebaseTokenResolve(token);
                     // Activar botão de login agora que Firebase está pronto
                     const btn = document.getElementById('ls-submit-btn');
                     const fbSpinner = document.getElementById('ls-firebase-spinner');
@@ -1784,7 +1789,7 @@
                     if (btn2) btn2.disabled = false;
                     if (fbSpinner2) fbSpinner2.style.display = 'none';
                     if (btnText2) btnText2.textContent = 'Entrar';
-                    reject(err);
+                    window._firebaseTokenReject(err);
                 });
         });
     </script>
@@ -2083,21 +2088,15 @@
         </div>
     </div>
 
-    <!-- Leaflet CSS + JS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+    <!-- Chart.js, Leaflet + MarkerCluster são carregados sob demanda por loadChart() e loadLeaflet() em utils.js -->
     <!-- Módulos extraídos — Fase 1+2+3+4 da modularização -->
-    <!-- ORDEM OBRIGATÓRIA: utils → auth → reports → stock → tools → pats → app -->
-    <script src="utils.js?v=6.55"></script>
-    <script src="auth.js?v=6.55"></script>
-    <script src="reports.js?v=6.55"></script>
-    <script src="stock.js?v=6.55"></script>
-    <script src="tools.js?v=6.55"></script>
-    <script src="pats.js?v=6.55"></script>
-    <script src="app.js?v=6.55"></script>
+    <!-- ORDEM OBRIGATÓRIA: utils → auth → reports → stock → tools → pats → app (preservada por defer) -->
+    <script defer src="utils.js?v=6.56"></script>
+    <script defer src="auth.js?v=6.56"></script>
+    <script defer src="reports.js?v=6.56"></script>
+    <script defer src="stock.js?v=6.56"></script>
+    <script defer src="tools.js?v=6.56"></script>
+    <script defer src="pats.js?v=6.56"></script>
+    <script defer src="app.js?v=6.56"></script>
 </body>
 </html>

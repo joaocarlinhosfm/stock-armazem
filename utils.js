@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// utils.js — Hiperfrio v6.55
+// utils.js — Hiperfrio v6.56
 // Fase 1 da modularização: utilitários puros sem dependências externas.
 // Carrega ANTES de auth.js e app.js.
 //
@@ -132,11 +132,46 @@ function _loadScript(src) {
         document.head.appendChild(s);
     });
 }
+function _loadStyle(href) {
+    return new Promise((resolve, reject) => {
+        const l = document.createElement('link');
+        l.rel = 'stylesheet';
+        l.href = href;
+        l.onload = resolve; l.onerror = reject;
+        document.head.appendChild(l);
+    });
+}
 let _xlsxLoading = null;
 async function loadXlsx() {
     if (typeof XLSX !== 'undefined') return;
     if (!_xlsxLoading) _xlsxLoading = _loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
     await _xlsxLoading;
+}
+
+// Chart.js (~70 KB gzip) — só carrega ao entrar em Relatórios
+let _chartLoading = null;
+async function loadChart() {
+    if (typeof Chart !== 'undefined') return;
+    if (!_chartLoading) _chartLoading = _loadScript('https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js');
+    await _chartLoading;
+}
+
+// Leaflet + MarkerCluster (~50 KB gzip + 3 CSS) — só carrega ao abrir o mapa de PATs
+let _leafletLoading = null;
+async function loadLeaflet() {
+    if (typeof L !== 'undefined' && L.markerClusterGroup) return;
+    if (!_leafletLoading) _leafletLoading = (async () => {
+        // CSS em paralelo (não bloqueiam entre si)
+        await Promise.all([
+            _loadStyle('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'),
+            _loadStyle('https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css'),
+            _loadStyle('https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css'),
+        ]).catch(() => {}); // CSS em falha não é fatal
+        // JS sequencial — markercluster depende de L
+        await _loadScript('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js');
+        await _loadScript('https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js');
+    })();
+    await _leafletLoading;
 }
 
 // ── XSS — escapar sempre dados do utilizador ──────────────────────────────────

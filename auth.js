@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// auth.js — Hiperfrio v6.55
+// auth.js — Hiperfrio v6.56
 // Fase 2 da modularização: autenticação, perfis e gestão de utilizadores.
 // Carrega DEPOIS de utils.js e ANTES de app.js.
 //
