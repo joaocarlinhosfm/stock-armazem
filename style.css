@@ -111,15 +111,15 @@
 .pat-sel-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 8px;
     background: #1e3a5f;
     border: none;
     border-radius: 12px;
-    padding: 10px 14px;
+    padding: 8px 10px;
     animation: fadeSlideIn 0.2s ease;
     margin-bottom: 10px;
-    flex-wrap: wrap;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 .pat-sel-label {
     font-size: 0.80rem;
@@ -137,10 +137,9 @@
     gap: 6px;
     align-items: center;
     flex-shrink: 0;
-    margin-left: auto;
 }
 .pat-sel-all-btn {
-    padding: 6px 12px;
+    padding: 6px 10px;
     border-radius: 8px;
     border: 1.5px solid rgba(255,255,255,0.2);
     background: transparent;
@@ -149,13 +148,16 @@
     font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
+    white-space: nowrap;
     transition: background 0.15s;
 }
 .pat-sel-all-btn:hover { background: rgba(255,255,255,0.1); }
 .pat-levantar-btn {
+    width: auto !important;
     flex: none;
+    white-space: nowrap;
     font-size: 0.78rem !important;
-    padding: 7px 14px !important;
+    padding: 7px 12px !important;
     border-radius: 8px !important;
 }
 .pat-levantar-btn:disabled {
