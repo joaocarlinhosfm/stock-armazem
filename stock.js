@@ -185,9 +185,9 @@ function closeBatch() {
     if (_bulkCount === 0) { nav('view-search'); return; }
     const zona = $id('bulk-loc')?.value?.trim() || '?';
     openConfirmModal({
+        icon: '📦',
         title: 'Fechar lote?',
         desc: `${_bulkCount} produto${_bulkCount > 1 ? 's' : ''} adicionado${_bulkCount > 1 ? 's' : ''} na zona "${zona}". Fechar e ir para o stock?`,
-        type: 'confirm', okLabel: 'Fechar lote',
         onConfirm: () => {
             // Limpa o formulário completo
             $id('form-bulk')?.reset();
@@ -881,11 +881,20 @@ function attachSwipe(card, wrapper, id, item) {
         return;
     }
     card.addEventListener('touchstart', e => {
+        // Não interceptar toques nos botões +/− — deixar o browser gerar o click nativo
+        if (e.target.closest('.btn-qty')) return;
         e.stopPropagation();
         _onSwipeStart(card, wrapper, id, item, e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: true });
-    card.addEventListener('touchmove',  e => _onSwipeMove(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
-    card.addEventListener('touchend',   e => { e.stopPropagation(); _onSwipeEnd(); }, { passive: true });
+    card.addEventListener('touchmove', e => {
+        if (e.target.closest('.btn-qty')) return;
+        _onSwipeMove(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+    card.addEventListener('touchend', e => {
+        if (e.target.closest('.btn-qty')) return;
+        e.stopPropagation();
+        _onSwipeEnd();
+    }, { passive: true });
     card.addEventListener('mousedown',  e => {
         // Não interferir com cliques nos botões +/−
         if (e.target.closest('.btn-qty')) return;
