@@ -119,11 +119,17 @@
     padding: 10px 14px;
     animation: fadeSlideIn 0.2s ease;
     margin-bottom: 10px;
+    flex-wrap: wrap;
 }
 .pat-sel-label {
     font-size: 0.80rem;
     color: #cbd5e1;
     font-weight: 500;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .pat-sel-label strong { color: #ffffff; font-weight: 700; }
 .pat-sel-actions {
@@ -131,6 +137,7 @@
     gap: 6px;
     align-items: center;
     flex-shrink: 0;
+    margin-left: auto;
 }
 .pat-sel-all-btn {
     padding: 6px 12px;
@@ -2149,91 +2156,21 @@ body.worker-mode .tool-card {
 /* =============================================
    MODAL EXTRAS
    ============================================= */
-.confirm-modal-content {
-    text-align: left !important;
-    padding: 20px 20px 16px !important;
+.modal-icon {
+    font-size: 2.5rem;
+    text-align: center;
+    margin-bottom: 8px;
 }
-.confirm-modal-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    margin-bottom: 16px;
-}
-.confirm-modal-icon-wrap {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    background: rgba(220,38,38,0.1);
-}
-.confirm-modal-icon-wrap.type-success { background: rgba(22,163,74,0.1); }
-.confirm-modal-icon-wrap.type-confirm { background: rgba(37,99,235,0.1); }
-.confirm-modal-icon-wrap.type-warn    { background: rgba(202,138,4,0.1); }
-.confirm-modal-icon-wrap svg { display: block; }
-.confirm-modal-text { flex: 1; min-width: 0; padding-top: 2px; }
-.confirm-modal-title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text-main);
-    margin: 0 0 4px;
-    text-align: left;
-}
-.confirm-modal-desc {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    margin: 0;
-    line-height: 1.5;
-    max-height: 140px;
-    overflow-y: auto;
-    text-align: left;
-    white-space: pre-wrap;
-}
-#confirm-modal-slot:not(:empty) {
-    margin-bottom: 14px;
-}
-.confirm-modal-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 16px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border);
-}
-.confirm-btn-cancel {
-    flex: 1;
-    padding: 11px 0;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-family: 'Inter', sans-serif;
-}
-.confirm-btn-cancel:hover { background: var(--border); }
-.confirm-btn-ok {
-    flex: 2;
-    padding: 11px 0;
-    background: var(--danger);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 0.9rem;
-    font-weight: 700;
-    cursor: pointer;
-    font-family: 'Inter', sans-serif;
-    transition: opacity 0.15s;
-}
-.confirm-btn-ok.type-success { background: #16a34a; }
-.confirm-btn-ok.type-confirm { background: var(--primary); }
-.confirm-btn-ok.type-warn    { background: #ca8a04; }
-.confirm-btn-ok:active { opacity: 0.85; }
-.confirm-btn-ok:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* Mantém compatibilidade com código legado que ainda use btn-danger-full */
+.modal-desc {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin: 8px 0 20px;
+    line-height: 1.4;
+}
+
 .btn-danger-full {
     width: 100%;
     padding: 14px;
@@ -2247,22 +2184,8 @@ body.worker-mode .tool-card {
     cursor: pointer;
     margin-bottom: 8px;
 }
-.btn-danger-full:active { opacity: 0.8; }
 
-/* modal-icon e modal-desc mantidos para outros modais que os usam */
-.modal-icon {
-    font-size: 2.5rem;
-    text-align: center;
-    margin-bottom: 8px;
-}
-.modal-desc {
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.88rem;
-    font-weight: 600;
-    margin: 8px 0 20px;
-    line-height: 1.4;
-}
+.btn-danger-full:active { opacity: 0.8; }
 
 
 /* =============================================
@@ -5191,11 +5114,12 @@ body.is-offline #app-layout {
 
 /* ── Modal detalhe ── */
 .pat-detail-header {
-    text-align: left;
-    margin: -16px -16px 16px;
-    padding: 16px;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
+    text-align: center;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
 }
 .pat-detail-row {
     display: flex;
