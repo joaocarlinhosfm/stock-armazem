@@ -2408,6 +2408,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.addEventListener('message', async e => {
             if (e.data?.type === 'SYNC_QUEUE') { await syncQueue(); }
+            if (e.data?.type === 'SW_UPDATED') {
+                // Nova versão do SW activou — recarrega a página para garantir
+                // que CSS/JS em cache de memória são substituídos.
+                // Evita loop: só recarrega uma vez por sessão.
+                if (!sessionStorage.getItem('sw-reload-done')) {
+                    sessionStorage.setItem('sw-reload-done', '1');
+                    console.log('[SW] Nova versão activa, a recarregar...');
+                    // Pequeno delay para toast aparecer se estiver visível
+                    setTimeout(() => window.location.reload(), 200);
+                }
+            }
         });
     }
 

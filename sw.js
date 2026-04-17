@@ -4,7 +4,7 @@
 // Pré-cache de app shell garante que a PWA arranca offline no primeiro uso
 // após instalação (antes disto, abrir offline no primeiro boot deixava ecrã branco).
 // ─────────────────────────────────────────────────────────────────────────────
-const SW_VERSION = 'hiperfrio-v6.57';
+const SW_VERSION = 'hiperfrio-v6.58';
 
 // Libs externas imutáveis — cache-first eterno (hash na URL)
 const IMMUTABLE_ASSETS = [
@@ -47,7 +47,9 @@ self.addEventListener('install', e => {
     );
 });
 
-// Activate: apaga caches antigas e toma controlo imediato
+// Activate: apaga caches antigas, toma controlo imediato, e força reload
+// de clientes existentes para garantir que carregam a versão nova do CSS/JS.
+// Sem isto, clientes abertos durante o upgrade ficam com CSS velho em cache de memória.
 self.addEventListener('activate', e => {
     e.waitUntil(
         caches.keys()
@@ -55,6 +57,11 @@ self.addEventListener('activate', e => {
                 keys.filter(k => k !== SW_VERSION).map(k => caches.delete(k))
             ))
             .then(() => self.clients.claim())
+            .then(() => self.clients.matchAll({ type: 'window' }))
+            .then(clients => {
+                // Notifica clientes existentes — eles decidem se recarregam
+                clients.forEach(c => c.postMessage({ type: 'SW_UPDATED', version: SW_VERSION }));
+            })
     );
 });
 
