@@ -156,10 +156,23 @@ function _buildGuiaCard(id, g) {
     const hdrRight = $el('div', { className: 'guia-card-hdr-right' });
     const badge = $el('span', { className: `guia-badge guia-badge-${g.status || 'pendente'}` });
     badge.textContent = g.status === 'separado' ? 'Separada' : g.status === 'historico' ? 'Histórico' : 'Pendente';
+
     const progress = $el('span', { className: 'guia-card-progress' });
     progress.textContent = `${recolhidasL}/${totalL} · ${pct}%`;
     hdrRight.appendChild(badge);
     hdrRight.appendChild(progress);
+
+    // Na tab Separadas, adicionar botão "Arquivar" → move para histórico
+    if (_guiasTab === 'separadas' && currentRole !== 'worker') {
+        const archiveBtn = $el('button', { className: 'guia-card-btn guia-card-btn-archive' });
+        archiveBtn.innerHTML = SVG_CHECK + ' Arquivar';
+        archiveBtn.title = 'Mover para histórico';
+        archiveBtn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            arquivarGuia(id);
+        });
+        hdrRight.appendChild(archiveBtn);
+    }
 
     hdr.appendChild(hdrLeft);
     hdr.appendChild(hdrRight);
@@ -196,25 +209,25 @@ function _buildGuiaCard(id, g) {
 
             const estado = $el('div', { className: 'guia-card-td guia-card-td-estado' });
             const btn = $el('button', { className: 'guia-card-btn' });
-            // Não deixa o click propagar para o card (que navega para detalhe)
-            btn.addEventListener('click', (ev) => {
-                ev.stopPropagation();
-                toggleLinhaRecolhida(id, lid, !l.recolhido);
-            });
 
             if (l.recolhido) {
                 btn.className += ' recolhido';
                 btn.innerHTML = SVG_CHECK + ' Recolhido';
-                btn.title = 'Toca para desfazer';
             } else {
                 btn.textContent = 'Recolher';
             }
 
-            // Guardar role só os workers não recolhem (gestor decide)
-            if (currentRole === 'worker') {
+            // Em Pendentes, botões são funcionais (só gestor).
+            // Em Separadas/Histórico, todos são read-only — nenhum clique desfaz.
+            if (_guiasTab === 'pendentes' && currentRole !== 'worker') {
+                btn.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    toggleLinhaRecolhida(id, lid, !l.recolhido);
+                });
+            } else {
                 btn.disabled = true;
-                btn.style.opacity = '0.5';
-                btn.style.cursor = 'not-allowed';
+                btn.style.opacity = '0.65';
+                btn.style.cursor = 'default';
             }
 
             estado.appendChild(btn);
@@ -484,10 +497,11 @@ async function toggleLinhaRecolhida(gid, lid, makeRecolhido) {
         showToast('Erro ao guardar: ' + (e?.message || e), 'error');
     }
 
-    // Verificar se todas as linhas estão recolhidas → marcar como separada
+    // Se todas as linhas estão recolhidas → guia passa a "separado" automaticamente.
+    // Reverter uma linha em Pendentes (antes de separada) apenas desfaz a linha;
+    // o status só avança quando todas estão recolhidas, nunca recua.
     const todas = Object.values(g.linhas || {});
     const todasRecolhidas = todas.length > 0 && todas.every(x => x.recolhido);
-    const algumaRecolhida = todas.some(x => x.recolhido);
 
     if (todasRecolhidas && g.status !== 'separado') {
         g.status = 'separado';
@@ -499,20 +513,30 @@ async function toggleLinhaRecolhida(gid, lid, makeRecolhido) {
             });
             showToast('Guia separada ✓', 'success');
         } catch(e) { console.warn('[Guias] falha status separado:', e?.message); }
-    } else if (!todasRecolhidas && g.status === 'separado') {
-        // Caso: utilizador desfez uma recolha numa guia já separada → volta a pendente
-        g.status = 'pendente';
-        g.separadoEm = null;
-        try {
-            await apiFetch(`${GUIAS_URL}/${gid}.json`, {
-                method: 'PATCH',
-                body: JSON.stringify({ status: 'pendente', separadoEm: null }),
-            });
-        } catch(e) { console.warn('[Guias] revert separado:', e?.message); }
     }
 
     _renderGuiaDetailLinhas(g);
     renderGuias();
+    updateGuiasCount(); // actualiza badge no menu lateral
+}
+
+// Arquiva manualmente: move de 'separado' → 'historico'
+async function arquivarGuia(gid) {
+    const g = _guiasCache.data?.[gid];
+    if (!g) return;
+    if (g.status !== 'separado') return;
+    try {
+        await apiFetch(`${GUIAS_URL}/${gid}.json`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: 'historico' }),
+        });
+        g.status = 'historico';
+        showToast('Guia arquivada ✓', 'success');
+        renderGuias();
+        updateGuiasCount();
+    } catch(e) {
+        showToast('Erro ao arquivar: ' + (e?.message || e), 'error');
+    }
 }
 
 async function deleteGuia() {
