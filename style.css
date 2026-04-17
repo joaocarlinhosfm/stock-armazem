@@ -8172,3 +8172,122 @@ body.is-offline #app-layout {
 .dark-mode .pdm-img-wrap   { background: #0f172a; }
 .dark-mode .pdm-btn-edit   { background: rgba(37,99,235,.18); border-color: #3b82f6; color: #60a5fa !important; }
 .dark-mode .pdm-btn-del    { background: rgba(220,38,38,.18); border-color: #f87171; color: #f87171 !important; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   GUIAS TÉCNICOS — v6.56
+   Reutiliza padrões visuais de PATs (tabs, toolbar) e encomendas (linhas, modais)
+   ─────────────────────────────────────────────────────────────────────────── */
+.guias-toolbar { padding: 14px 16px 10px; border-bottom: 1px solid var(--border, #e2e8f0); background: var(--bg-surface, #fff); }
+.guias-toolbar-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+.guias-toolbar-actions { display: flex; gap: 8px; align-items: center; }
+.guias-add-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; padding: 7px 12px; }
+
+/* Cards da lista */
+.guia-card {
+    background: var(--bg-surface, #fff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.guia-card:active { transform: scale(0.98); }
+.guia-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.guia-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.guia-card-left { flex: 1; min-width: 0; }
+.guia-card-tecnico { font-size: 1rem; font-weight: 800; color: var(--text, #0f172a); line-height: 1.2; margin-bottom: 3px; }
+.guia-card-meta { font-size: 0.75rem; color: var(--text-muted, #64748b); font-weight: 600; }
+.guia-card-right { flex-shrink: 0; }
+
+/* Badges de estado */
+.guia-badge { display: inline-flex; padding: 3px 9px; border-radius: 20px; font-size: 0.68rem; font-weight: 700; border: 1px solid; }
+.guia-badge-pendente  { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.guia-badge-separado  { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.guia-badge-historico { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+
+/* Progress bar */
+.guia-progress-wrap { display: flex; flex-direction: column; gap: 4px; }
+.guia-progress-bar { height: 6px; background: var(--border, #e2e8f0); border-radius: 3px; overflow: hidden; }
+.guia-progress-fill { height: 100%; background: var(--accent, #2563eb); border-radius: 3px; transition: width 0.3s; }
+.guia-progress-label { font-size: 0.7rem; color: var(--text-muted, #64748b); font-weight: 600; }
+
+/* Modal de detalhe — linhas com botão de recolha */
+.guia-detail-linha {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    align-items: center;
+    background: var(--bg-surface, #fff);
+}
+.guia-detail-linha.is-recolhido { background: #ecfdf5; border-color: #a7f3d0; }
+.guia-detail-linha-info { flex: 1; min-width: 0; }
+.guia-detail-linha-top { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
+.guia-detail-linha-ref { font-size: 0.78rem; font-weight: 800; color: var(--text, #0f172a); letter-spacing: 0.02em; }
+.guia-detail-linha-qty { font-size: 0.78rem; font-weight: 700; color: var(--accent, #2563eb); }
+.guia-detail-linha-nome { font-size: 0.82rem; color: var(--text-muted, #475569); }
+.guia-detail-linha-btn {
+    padding: 6px 12px;
+    background: var(--accent, #2563eb);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.15s;
+}
+.guia-detail-linha-btn:hover { filter: brightness(1.05); }
+.guia-detail-linha-btn:active { transform: scale(0.96); }
+.guia-detail-linha-btn.recolhido { background: #10b981; }
+
+/* Modal nova guia — linhas editáveis */
+.guia-linha { display: grid; grid-template-columns: 90px 1fr 80px 32px; gap: 6px; margin-bottom: 6px; }
+.guia-linha input { font-size: 0.85rem; padding: 6px 8px; }
+.guia-linha-del {
+    background: #fee2e2;
+    color: #991b1b;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+.guia-linha-del:hover { background: #fecaca; }
+
+/* Badge de contagem no menu */
+.guias-count-badge {
+    display: inline-block;
+    margin-left: 6px;
+    background: var(--accent, #2563eb);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+}
+
+/* Dark mode */
+.dark-mode .guia-card { background: #1e293b; border-color: #334155; }
+.dark-mode .guia-card-tecnico { color: #f1f5f9; }
+.dark-mode .guia-card-meta,
+.dark-mode .guia-progress-label,
+.dark-mode .guia-detail-linha-nome { color: #94a3b8; }
+.dark-mode .guia-progress-bar { background: #334155; }
+.dark-mode .guia-detail-linha { background: #1e293b; border-color: #334155; }
+.dark-mode .guia-detail-linha.is-recolhido { background: rgba(16,185,129,0.12); border-color: #10b981; }
+.dark-mode .guia-detail-linha-ref { color: #f1f5f9; }
+.dark-mode .guia-badge-pendente  { background: rgba(37,99,235,0.18); color: #93c5fd; border-color: #3b82f6; }
+.dark-mode .guia-badge-separado  { background: rgba(16,185,129,0.18); color: #6ee7b7; border-color: #10b981; }
+.dark-mode .guia-badge-historico { background: rgba(100,116,139,0.18); color: #cbd5e1; border-color: #64748b; }
+.dark-mode .guia-linha-del { background: rgba(220,38,38,0.18); color: #fca5a5; }

@@ -24,6 +24,7 @@ const APP_SHELL = [
     './stock.js?v=6.56',
     './tools.js?v=6.56',
     './pats.js?v=6.56',
+    './guias.js?v=6.56',
     './app.js?v=6.56',
     './icon-192.png',
     './icon-512.png',

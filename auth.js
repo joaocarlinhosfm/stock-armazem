@@ -463,9 +463,27 @@ async function bootApp() {
         fetchCollection('funcionarios'),
         _fetchClientes(),
         _fetchPats(),
+        _fetchGuias(),
     ]).catch(e => console.warn('bootApp fetch error:', e));
     _autoFecharMesSeNecessario();
     _pruneMovimentos().catch(() => {});
     updateOfflineBanner();
+    updateGuiasCount().catch(() => {});
     nav('view-dashboard');
+
+    // Remove o form de login do DOM após autenticação.
+    // Sem isto, o Chrome mantém ls-username indexado e oferece autocomplete
+    // de "username" em qualquer <input type="text"> da app (search bars, etc).
+    // Fica pendurado num setTimeout para o Chrome já ter guardado as credenciais.
+    setTimeout(() => {
+        const lsForm = document.querySelector('.ls-form');
+        if (lsForm && lsForm.parentNode) {
+            // Primeiro limpa os valores — alguns Chromium re-indexam ao remover
+            const u = document.getElementById('ls-username');
+            const p = document.getElementById('ls-password');
+            if (u) u.value = '';
+            if (p) p.value = '';
+            lsForm.remove();
+        }
+    }, 500);
 }

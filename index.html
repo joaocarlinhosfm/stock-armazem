@@ -510,6 +510,7 @@
                 <li id="nav-pedidos" onclick="nav('view-pedidos')"><span><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg></span> Pedidos PAT</li>
                 <li id="nav-search" class="active" onclick="nav('view-search')"><span><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg></span> Consultar Stock</li>
                 <li id="nav-encomendas" onclick="nav('view-encomendas')"><span><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z"/><path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd"/></svg></span> Encomendas</li>
+                <li id="nav-guias" onclick="nav('view-guias')"><span><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 2a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V4a2 2 0 00-2-2H5zm3 5a1 1 0 000 2h4a1 1 0 100-2H8zm-1 5a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1zm1 3a1 1 0 100 2h4a1 1 0 100-2H8z" clip-rule="evenodd"/></svg></span> Guias Técnicos <span class="guias-count-badge" style="display:none"></span></li>
                 <li id="nav-tools" onclick="nav('view-tools')"><span><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg></span> Ferramentas</li>
 
                 <li class="menu-group-divider"></li>
@@ -534,7 +535,9 @@
             <div class="search-container">
                 <!-- Input box com botões embutidos -->
                 <div class="search-input-wrap">
-                    <input type="text" id="inp-search" placeholder="Pesquisar por nome, ref. ou local..." autocomplete="off">
+                    <input type="search" id="inp-search" placeholder="Pesquisar por nome, ref. ou local..."
+                        name="search_q" autocomplete="off" data-lpignore="true" data-form-type="other"
+                        autocorrect="off" autocapitalize="none" spellcheck="false">
                     <button id="inp-search-clear" class="search-clear-btn hidden" onclick="clearSearch()" title="Limpar"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="2" y1="2" x2="14" y2="14"/><line x1="14" y1="2" x2="2" y2="14"/></svg></button>
                     <div class="sort-dropdown-wrap" data-manager-only id="sort-dropdown-wrap">
                         <button class="sort-dropdown-btn" id="sort-dropdown-btn" onclick="toggleSortMenu()" title="Ordenar">⇅</button>
@@ -603,9 +606,11 @@
                         </label>
                         <button class="pat-guia-limpar-btn" id="pat-guia-limpar-btn" onclick="limparTabActual()">Limpar</button>
                     </div>
-                    <input type="text" id="pat-search" class="blue-input pat-search-input"
+                    <input type="search" id="pat-search" class="blue-input pat-search-input"
                         placeholder="Pesquisar por PAT ou estabelecimento..."
-                        oninput="patSearchFilter(this.value)" autocomplete="off">
+                        name="pat_search_q" oninput="patSearchFilter(this.value)"
+                        autocomplete="off" data-lpignore="true" data-form-type="other"
+                        autocorrect="off" autocapitalize="none" spellcheck="false">
                 </div>
                 <div id="pat-list" class="pat-list-wrap"></div>
               </div><!-- /pat-col-left -->
@@ -662,6 +667,37 @@
             <div id="enc-produtos-view" class="enc-produtos-view" style="display:none"></div>
         </div>
 
+        <div id="view-guias" class="view">
+            <div class="guias-toolbar">
+                <div class="guias-toolbar-top">
+                    <h2 class="dash-view-title">Guias Técnicos</h2>
+                    <div class="guias-toolbar-actions">
+                        <label class="btn-icon-toolbar" for="guia-pdf-file" title="Importar PDF de guia" id="guia-pdf-label">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                        </label>
+                        <input type="file" id="guia-pdf-file" accept="application/pdf" style="display:none" onchange="guiaImportPdf(this)">
+                        <button class="btn-primary guias-add-btn" onclick="openNovaGuia()" aria-label="Nova Guia">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                            Nova Guia
+                        </button>
+                    </div>
+                </div>
+                <div class="pat-tabs-row">
+                    <button id="guias-tab-pendentes" class="pat-tab-btn active" onclick="guiasSetTab('pendentes')">Pendentes</button>
+                    <button id="guias-tab-separadas" class="pat-tab-btn" onclick="guiasSetTab('separadas')">Separadas</button>
+                    <button id="guias-tab-historico" class="pat-tab-btn" onclick="guiasSetTab('historico')">Histórico</button>
+                </div>
+                <input type="search" id="guias-search" class="blue-input pat-search-input"
+                    placeholder="Pesquisar por nº ou técnico..."
+                    name="guias_search_q" autocomplete="off" data-lpignore="true" data-form-type="other"
+                    autocorrect="off" autocapitalize="none" spellcheck="false"
+                    oninput="guiasSearchFilter(this.value)">
+            </div>
+            <div id="guias-list" class="pat-list-wrap"></div>
+        </div>
+
                 <div id="view-tools" class="view">
             <div class="tools-header">
                 <div>
@@ -679,8 +715,10 @@
             </div>
             <div class="tools-search-wrap">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--text-muted);flex-shrink:0"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" id="inp-tools-search" class="tools-search-input"
-                    placeholder="Pesquisar ferramenta..." autocomplete="off">
+                <input type="search" id="inp-tools-search" class="tools-search-input"
+                    placeholder="Pesquisar ferramenta..."
+                    name="tools_search_q" autocomplete="off" data-lpignore="true" data-form-type="other"
+                    autocorrect="off" autocapitalize="none" spellcheck="false">
             </div>
             <div class="tools-filter-row">
                 <button class="tools-filter-btn active" data-filter="all" onclick="toolsFilterSet(this,'all')">Todas</button>
@@ -720,7 +758,7 @@
 
         <div id="view-register" class="view">
             <div class="view-header"><h2>Novo Produto</h2></div>
-            <form id="form-add" class="pro-form">
+            <form id="form-add" class="pro-form" autocomplete="off">
                 <div class="form-group"><label for="inp-codigo">REFERÊNCIA</label><input type="text" id="inp-codigo" class="blue-input" required oninput="this.value=this.value.toUpperCase()"></div>
                 <div class="form-group"><label for="inp-nome">NOME</label><input type="text" id="inp-nome" class="blue-input" required oninput="this.value=this.value.toUpperCase()"></div>
                 <div class="form-group">
@@ -772,7 +810,7 @@
         <div id="view-bulk" class="view">
             <div class="view-header"><h2>Catalogar Lote</h2></div>
                         <div id="bulk-counter" class="bulk-counter hidden"></div>
-            <form id="form-bulk" class="pro-form">
+            <form id="form-bulk" class="pro-form" autocomplete="off">
                 <div class="form-group"><label for="bulk-loc">ZONA</label>
                     <input type="text" id="bulk-loc" class="blue-input" required list="zone-datalist" autocomplete="off" oninput="this.value=this.value.toUpperCase()">
                     <datalist id="zone-datalist"></datalist>
@@ -879,7 +917,7 @@
                             <div class="admin-ws-card-desc">Cria um novo registo na equipa</div>
                         </div>
                     </div>
-                    <form id="form-worker" class="pro-form-inline">
+                    <form id="form-worker" class="pro-form-inline" autocomplete="off">
                         <input type="text" id="worker-name" class="blue-input" placeholder="Nome do funcionário" required oninput="this.value=this.value.toUpperCase()">
                         <button type="submit" class="btn-primary">+ Adicionar</button>
                     </form>
@@ -908,7 +946,7 @@
                             <div class="admin-ws-card-desc">Adiciona uma nova ferramenta ao sistema</div>
                         </div>
                     </div>
-                    <form id="form-tool-reg" class="pro-form-inline">
+                    <form id="form-tool-reg" class="pro-form-inline" autocomplete="off">
                         <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required oninput="this.value=this.value.toUpperCase()">
                         <button type="submit" class="btn-primary">+ Registar</button>
                     </form>
@@ -1252,9 +1290,10 @@
             <p class="modal-desc" style="text-align:left;margin-bottom:12px" id="pat-refs-estab"></p>
             <div class="pat-field">
                 <div class="pat-product-input-wrap">
-                    <input type="text" id="pat-refs-search" class="blue-input pat-input"
+                    <input type="search" id="pat-refs-search" class="blue-input pat-input"
                         placeholder="Código ou nome... (Enter para adicionar manual)"
-                        autocomplete="off"
+                        name="pat_refs_q" autocomplete="off" data-lpignore="true" data-form-type="other"
+                        autocorrect="off" autocapitalize="none" spellcheck="false"
                         oninput="patRefsSearch(this.value)"
                         onkeydown="patRefsKeydown(event)">
                     <div id="pat-refs-dropdown" class="pat-product-dropdown"></div>
@@ -1409,7 +1448,7 @@
     <div id="edit-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
         <div class="modal-content">
             <h3 id="edit-modal-title"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg> Editar Produto</h3>
-            <form id="form-edit" class="pro-form form-edit-modal">
+            <form id="form-edit" class="pro-form form-edit-modal" autocomplete="off">
                 <input type="hidden" id="edit-id">
                 <div class="form-group">
                     <label for="edit-codigo">REFERÊNCIA</label>
@@ -1542,7 +1581,7 @@
     <div id="edit-tool-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-tool-title">
         <div class="modal-content">
             <h3 id="edit-tool-title"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg> Editar Ferramenta</h3>
-            <form id="form-edit-tool" class="pro-form form-edit-modal">
+            <form id="form-edit-tool" class="pro-form form-edit-modal" autocomplete="off">
                 <input type="hidden" id="edit-tool-id">
                 <div class="form-group">
                     <label class="tool-reg-label">NOME DA FERRAMENTA</label>
@@ -1989,6 +2028,75 @@
         </div>
     </div>
 
+    <!-- ═══════════════════════════════════════════════════════════
+         MODAL: Nova Guia Técnica
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="guia-modal" class="modal-overlay" role="dialog" aria-modal="true">
+        <div class="modal-content enc-modal-content">
+            <div class="modal-header">
+                <span class="modal-icon"><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 2a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V4a2 2 0 00-2-2H5zm3 5a1 1 0 000 2h4a1 1 0 100-2H8zm-1 5a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1zm1 3a1 1 0 100 2h4a1 1 0 100-2H8z" clip-rule="evenodd"/></svg></span>
+                <h3 id="guia-modal-title" class="modal-title">Nova Guia</h3>
+            </div>
+
+            <div class="enc-form-header">
+                <div class="enc-form-row">
+                    <div class="enc-form-group" style="flex:0.45">
+                        <label class="enc-label">Nº Guia</label>
+                        <input id="guia-numero" class="blue-input" type="text" name="guia_num_q"
+                            autocomplete="off" data-lpignore="true" data-form-type="other" maxlength="20"
+                            oninput="this.value=this.value.toUpperCase()">
+                    </div>
+                    <div class="enc-form-group" style="flex:0.55">
+                        <label class="enc-label">Data</label>
+                        <input id="guia-data" class="blue-input" type="date">
+                    </div>
+                </div>
+                <div class="enc-form-group">
+                    <label class="enc-label">Técnico</label>
+                    <input id="guia-tecnico" class="blue-input" type="text" name="guia_tec_q"
+                        autocomplete="off" data-lpignore="true" data-form-type="other" list="guia-tecnicos-datalist"
+                        placeholder="Nome do técnico"
+                        oninput="this.value=this.value.toUpperCase()">
+                    <datalist id="guia-tecnicos-datalist"></datalist>
+                </div>
+            </div>
+
+            <div class="enc-linhas-header">
+                <span class="enc-section-title">Materiais</span>
+                <button class="enc-add-linha-btn" onclick="guiaAddLinha()">+ Linha</button>
+            </div>
+            <div id="guia-linhas-wrap" class="enc-linhas-wrap"></div>
+
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeGuiaModal()">Cancelar</button>
+                <button class="btn-primary" onclick="saveGuia()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         MODAL: Detalhe Guia — recolha de materiais
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="guia-detail-modal" class="modal-overlay" role="dialog" aria-modal="true">
+        <div class="modal-content enc-detail-content">
+            <div class="modal-header">
+                <span class="modal-icon"><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 2a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V4a2 2 0 00-2-2H5zm3 5a1 1 0 000 2h4a1 1 0 100-2H8zm-1 5a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1zm1 3a1 1 0 100 2h4a1 1 0 100-2H8z" clip-rule="evenodd"/></svg></span>
+                <div>
+                    <h3 id="guia-detail-title" class="modal-title"></h3>
+                    <div id="guia-detail-sub" class="enc-detail-sub"></div>
+                </div>
+            </div>
+            <div id="guia-detail-linhas" class="enc-detail-linhas"></div>
+            <div class="modal-footer" style="justify-content:flex-end;gap:8px">
+                <button class="btn-cancel" onclick="modalClose('guia-detail-modal')">Fechar</button>
+                <button class="btn-danger" onclick="deleteGuia()"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Apagar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Mini-modal: dar entrada quantidade ─────────────────────── -->
     <div id="enc-entrada-modal" class="modal-overlay" role="dialog" aria-modal="true">
         <div class="modal-content" style="max-width:320px">
@@ -2090,13 +2198,14 @@
 
     <!-- Chart.js, Leaflet + MarkerCluster são carregados sob demanda por loadChart() e loadLeaflet() em utils.js -->
     <!-- Módulos extraídos — Fase 1+2+3+4 da modularização -->
-    <!-- ORDEM OBRIGATÓRIA: utils → auth → reports → stock → tools → pats → app (preservada por defer) -->
+    <!-- ORDEM OBRIGATÓRIA: utils → auth → reports → stock → tools → pats → guias → app (preservada por defer) -->
     <script defer src="utils.js?v=6.56"></script>
     <script defer src="auth.js?v=6.56"></script>
     <script defer src="reports.js?v=6.56"></script>
     <script defer src="stock.js?v=6.56"></script>
     <script defer src="tools.js?v=6.56"></script>
     <script defer src="pats.js?v=6.56"></script>
+    <script defer src="guias.js?v=6.56"></script>
     <script defer src="app.js?v=6.56"></script>
 </body>
 </html>

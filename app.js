@@ -191,6 +191,7 @@ function nav(viewId) {
         'view-register':  'Novo Artigo',
         'view-bulk':      'Entrada de Lote',
         'view-encomendas':'Encomendas',
+        'view-guias':     'Guias Técnicos',
         'view-map':       'Mapa PAT',
     };
     const titleEl = $id('header-page-title');
@@ -232,6 +233,12 @@ function nav(viewId) {
     if (viewId === 'view-tools')  renderTools();
     if (viewId === 'view-dashboard') { renderDashboard(true); }
     if (viewId === 'view-encomendas') { loadEncomendas(); }
+    if (viewId === 'view-guias') {
+        _guiasSearchQ = '';
+        const gs = $id('guias-search');
+        if (gs) gs.value = '';
+        renderGuias();
+    }
 
     if (viewId === 'view-admin') {
         // Mesmo comportamento em mobile e desktop — menu full-screen com cards
@@ -253,7 +260,8 @@ function nav(viewId) {
         'view-dashboard':'nav-dashboard',
         'view-pedidos':'nav-pedidos',
         'view-search':'nav-search','view-tools':'nav-tools','view-register':'nav-register',
-        'view-bulk':'nav-bulk','view-admin':'nav-admin','view-encomendas':'nav-encomendas'
+        'view-bulk':'nav-bulk','view-admin':'nav-admin','view-encomendas':'nav-encomendas',
+        'view-guias':'nav-guias'
     };
     $id(sideMap[viewId])?.classList.add('active');
 
