@@ -14,6 +14,236 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=1776419000">
 
+    <style id="sheet-guias">
+    /* CSS das Guias Técnicos — inline para bypass de cache.
+       Carregado depois do style.css, ganha na cascata em caso de conflito. */
+
+    /* Toolbar da view-guias */
+    .guias-toolbar { padding: 14px 16px 10px; border-bottom: 1px solid #e2e8f0; background: #fff; }
+    .guias-toolbar-top {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 8px; margin-bottom: 12px;
+    }
+    .guias-toolbar-actions {
+        display: flex; align-items: center; gap: 6px;
+        flex-shrink: 0; margin-left: auto;
+    }
+    .btn-primary.guias-add-btn {
+        display: inline-flex !important; align-items: center; gap: 4px;
+        padding: 6px 10px !important; font-size: 0.75rem !important;
+        white-space: nowrap; flex-shrink: 0;
+        width: auto !important; border-radius: 8px !important;
+    }
+
+    /* Card da guia — layout tipo encomenda */
+    .guia-card {
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+        margin: 10px 16px; overflow: hidden; transition: box-shadow 0.15s;
+    }
+    .guia-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+
+    .guia-card-hdr {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 10px; padding: 10px 14px; background: #fff;
+        border-bottom: 1px solid #e2e8f0; cursor: pointer;
+    }
+    .guia-card-hdr:hover { background: #f8fafc; }
+    .guia-card-hdr-left {
+        display: flex; align-items: center; gap: 14px;
+        min-width: 0; flex-wrap: wrap;
+    }
+    .guia-card-tec {
+        font-size: 0.88rem; font-weight: 800; color: #0f172a;
+        letter-spacing: 0.01em;
+    }
+    .guia-card-num { font-size: 0.82rem; color: #0f172a; font-weight: 600; }
+    .guia-card-date { font-size: 0.78rem; color: #64748b; font-weight: 500; }
+    .guia-card-hdr-right {
+        display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    }
+    .guia-card-progress {
+        font-size: 0.75rem; color: #64748b; font-weight: 600;
+    }
+
+    /* Badges */
+    .guia-badge {
+        display: inline-flex; padding: 2px 10px; border-radius: 20px;
+        font-size: 0.68rem; font-weight: 700; border: 1px solid;
+        text-transform: uppercase; letter-spacing: 0.03em;
+    }
+    .guia-badge-pendente  { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+    .guia-badge-separado  { background: #d1fae5; color: #047857; border-color: #6ee7b7; }
+    .guia-badge-historico { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+
+    /* Tabela de materiais */
+    .guia-card-thead {
+        display: grid; grid-template-columns: 110px 1fr 80px 120px;
+        gap: 8px; padding: 10px 14px; background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .guia-card-th {
+        font-size: 0.65rem; font-weight: 700; color: #64748b;
+        letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .guia-card-th:last-child, .guia-card-td-estado { text-align: right; }
+    .guia-card-tr {
+        display: grid; grid-template-columns: 110px 1fr 80px 120px;
+        gap: 8px; padding: 10px 14px; align-items: center;
+        border-bottom: 1px solid #f1f5f9; transition: background 0.12s;
+    }
+    .guia-card-tr:last-child { border-bottom: none; }
+    .guia-card-tr.is-recolhido { background: #f0fdf4; }
+    .guia-card-td {
+        font-size: 0.82rem; color: #0f172a;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .guia-card-td-ref {
+        font-weight: 700; color: #2563eb; letter-spacing: 0.01em;
+    }
+    .guia-card-td-nome { color: #0f172a; font-weight: 500; }
+    .guia-card-td-qty { font-weight: 600; color: #0f172a; }
+    .guia-card-td-estado { display: flex; justify-content: flex-end; }
+    .guia-card-tr.is-recolhido .guia-card-td-ref,
+    .guia-card-tr.is-recolhido .guia-card-td-nome { opacity: 0.7; }
+    .guia-card-empty {
+        padding: 16px; text-align: center; color: #64748b;
+        font-size: 0.82rem; font-style: italic;
+    }
+
+    /* Botão inline Recolher/Recolhido */
+    .guia-card-btn {
+        padding: 5px 12px; background: #2563eb; color: #fff;
+        border: none; border-radius: 6px;
+        font-size: 0.72rem; font-weight: 700; cursor: pointer;
+        white-space: nowrap; display: inline-flex; align-items: center;
+        gap: 4px; transition: filter 0.15s, transform 0.1s;
+    }
+    .guia-card-btn:hover:not(:disabled) { filter: brightness(1.08); }
+    .guia-card-btn:active:not(:disabled) { transform: scale(0.96); }
+    .guia-card-btn.recolhido { background: #10b981; }
+
+    /* Tabs padrão pat (reutilizado pelas guias) — fallback caso style.css falhe */
+    .pat-tabs-row {
+        display: flex; gap: 4px; margin-bottom: 10px;
+        border-bottom: 1px solid #e2e8f0; padding: 0 4px;
+    }
+    .pat-tab-btn {
+        padding: 8px 14px; background: none; border: none;
+        font-size: 0.82rem; font-weight: 600; color: #64748b;
+        cursor: pointer; border-bottom: 2px solid transparent;
+        transition: color 0.15s, border-color 0.15s;
+    }
+    .pat-tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; }
+    .pat-tab-btn:hover { color: #0f172a; }
+    .pat-tab-cnt {
+        display: inline-block; margin-left: 6px;
+        background: #e2e8f0; color: #475569;
+        font-size: 0.68rem; font-weight: 700;
+        padding: 1px 7px; border-radius: 10px; min-width: 18px; text-align: center;
+    }
+    .pat-tab-btn.active .pat-tab-cnt { background: #dbeafe; color: #1d4ed8; }
+
+    .pat-count-bar {
+        padding: 10px 16px; font-size: 0.78rem; color: #64748b;
+        font-weight: 600;
+    }
+    .pat-count-lbl { font-weight: 600; }
+    .pat-empty {
+        padding: 40px 20px; text-align: center; color: #94a3b8;
+        font-size: 0.9rem; font-style: italic;
+    }
+    .pat-loading {
+        padding: 40px 20px; text-align: center; color: #64748b;
+        font-size: 0.85rem;
+    }
+
+    /* Linhas editáveis do modal Nova Guia */
+    .guia-linha {
+        display: grid; grid-template-columns: 90px 1fr 80px 32px;
+        gap: 6px; margin-bottom: 6px;
+    }
+    .guia-linha input { font-size: 0.85rem; padding: 6px 8px; }
+    .guia-linha-del {
+        background: #fee2e2; color: #991b1b; border: none;
+        border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.9rem;
+    }
+    .guia-linha-del:hover { background: #fecaca; }
+
+    /* Badge de contagem no menu */
+    .guias-count-badge {
+        display: inline-block; margin-left: 6px;
+        background: #2563eb; color: #fff;
+        font-size: 0.7rem; font-weight: 700;
+        padding: 1px 7px; border-radius: 10px;
+        min-width: 18px; text-align: center;
+    }
+
+    /* Modal detalhe — linhas (usado quando abres guia em modal para apagar) */
+    .guia-detail-linha {
+        display: flex; gap: 10px; padding: 10px;
+        border: 1px solid #e2e8f0; border-radius: 10px;
+        margin-bottom: 8px; align-items: center; background: #fff;
+    }
+    .guia-detail-linha.is-recolhido { background: #ecfdf5; border-color: #a7f3d0; }
+    .guia-detail-linha-info { flex: 1; min-width: 0; }
+    .guia-detail-linha-top { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
+    .guia-detail-linha-ref { font-size: 0.78rem; font-weight: 800; color: #0f172a; }
+    .guia-detail-linha-qty { font-size: 0.78rem; font-weight: 700; color: #2563eb; }
+    .guia-detail-linha-nome { font-size: 0.82rem; color: #475569; }
+    .guia-detail-linha-btn {
+        padding: 6px 12px; background: #2563eb; color: #fff;
+        border: none; border-radius: 8px; font-size: 0.78rem; font-weight: 700;
+        cursor: pointer; white-space: nowrap; flex-shrink: 0;
+        display: inline-flex; align-items: center; gap: 5px;
+    }
+    .guia-detail-linha-btn.recolhido { background: #10b981; }
+
+    /* Mobile responsivo */
+    @media (max-width: 640px) {
+        .guia-card { margin: 10px 12px; }
+        .guia-card-thead { display: none; }
+        .guia-card-tr {
+            grid-template-columns: 1fr auto;
+            grid-template-areas: "ref estado" "nome estado" "qty estado";
+            gap: 2px 10px; padding: 10px 14px;
+        }
+        .guia-card-td-ref { grid-area: ref; }
+        .guia-card-td-nome {
+            grid-area: nome; white-space: normal;
+            font-size: 0.78rem; color: #64748b;
+        }
+        .guia-card-td-qty {
+            grid-area: qty; font-size: 0.75rem; color: #64748b;
+        }
+        .guia-card-td-estado { grid-area: estado; }
+        .guia-card-hdr-left { font-size: 0.8rem; gap: 8px; }
+        .guia-card-hdr-right { gap: 6px; }
+        .guia-card-progress { display: none; }
+    }
+
+    /* Dark mode */
+    .dark-mode .guia-card { background: #1e293b; border-color: #334155; }
+    .dark-mode .guia-card-hdr { background: #1e293b; border-bottom-color: #334155; }
+    .dark-mode .guia-card-hdr:hover { background: #0f172a; }
+    .dark-mode .guia-card-tec,
+    .dark-mode .guia-card-num { color: #f1f5f9; }
+    .dark-mode .guia-card-date,
+    .dark-mode .guia-card-progress,
+    .dark-mode .guia-card-td-nome,
+    .dark-mode .guia-card-empty { color: #94a3b8; }
+    .dark-mode .guia-card-thead { background: #0f172a; border-bottom-color: #334155; }
+    .dark-mode .guia-card-tr { border-bottom-color: #334155; }
+    .dark-mode .guia-card-tr.is-recolhido { background: rgba(16,185,129,0.12); }
+    .dark-mode .guia-card-td,
+    .dark-mode .guia-card-td-nome,
+    .dark-mode .guia-card-td-qty { color: #f1f5f9; }
+    .dark-mode .guia-card-td-ref { color: #60a5fa; }
+    .dark-mode .guia-badge-pendente { background: rgba(234,179,8,0.18); color: #fde047; border-color: #eab308; }
+    .dark-mode .guia-badge-separado { background: rgba(16,185,129,0.18); color: #6ee7b7; border-color: #10b981; }
+    .dark-mode .guia-badge-historico { background: rgba(100,116,139,0.18); color: #cbd5e1; border-color: #64748b; }
+    .dark-mode .guia-linha-del { background: rgba(220,38,38,0.18); color: #fca5a5; }
+    </style>
+
     <style id="sheet-critical">/* v1775211637 */
     .map-pin-sheet {
         display: none;
