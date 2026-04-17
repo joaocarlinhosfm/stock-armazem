@@ -117,7 +117,48 @@ async function renderGuias() {
         frag.appendChild(countBar);
     }
 
-    entries.forEach(([id, g]) => frag.appendChild(_buildGuiaCard(id, g)));
+    // Agrupar por técnico — técnicos com 2+ guias ganham header de grupo.
+    // Técnicos com 1 só guia aparecem avulsos (evita poluir com headers triviais).
+    const porTec = {};
+    entries.forEach(([id, g]) => {
+        const key = (g.tecnico || 'Sem técnico').toUpperCase();
+        (porTec[key] = porTec[key] || []).push([id, g]);
+    });
+
+    // Separar em dois baldes: grupos (2+) e avulsos (1)
+    const grupos  = [];
+    const avulsos = [];
+    Object.entries(porTec).forEach(([tec, arr]) => {
+        if (arr.length >= 2) grupos.push([tec, arr]);
+        else avulsos.push(...arr);
+    });
+
+    // Grupos ordenados por maior primeiro; dentro do grupo mantém ordem já vinda de entries
+    grupos.sort((a, b) => b[1].length - a[1].length);
+
+    grupos.forEach(([tec, arr]) => {
+        const header = $el('div', { className: 'guia-group-header' });
+        const avatar = $el('span', { className: 'guia-group-avatar' });
+        avatar.textContent = tec === 'SEM TÉCNICO' ? '?' : tec[0];
+        const name = $el('span', { className: 'guia-group-name' });
+        name.textContent = tec;
+        const count = $el('span', { className: 'guia-group-count' });
+        count.textContent = arr.length;
+        header.appendChild(avatar);
+        header.appendChild(name);
+        header.appendChild(count);
+        frag.appendChild(header);
+        arr.forEach(([id, g]) => {
+            const card = _buildGuiaCard(id, g, { grouped: true });
+            frag.appendChild(card);
+        });
+    });
+
+    // Avulsos mantêm a ordem original (mais recentes primeiro)
+    avulsos
+        .sort((a, b) => (b[1].criadoEm || 0) - (a[1].criadoEm || 0))
+        .forEach(([id, g]) => frag.appendChild(_buildGuiaCard(id, g)));
+
     el.appendChild(frag);
 
     // Actualizar contador de tab
@@ -130,7 +171,7 @@ async function renderGuias() {
     updateGuiasCount();
 }
 
-function _buildGuiaCard(id, g) {
+function _buildGuiaCard(id, g, { grouped = false } = {}) {
     const linhas = g.linhas || {};
     const linhasArr = Object.entries(linhas);
     const totalL = linhasArr.length;
@@ -139,13 +180,17 @@ function _buildGuiaCard(id, g) {
     const dataFmt = g.data ? g.data.split('-').reverse().join('/') : '—';
 
     const card = $el('div', { className: 'guia-card' });
+    if (grouped) card.classList.add('guia-card-grouped');
 
     // ── Header: técnico + nº + data à esquerda, badge + progresso à direita ──
     const hdr = $el('div', { className: 'guia-card-hdr' });
     const hdrLeft = $el('div', { className: 'guia-card-hdr-left' });
-    const tec = $el('span', { className: 'guia-card-tec' });
-    tec.textContent = (g.tecnico || 'SEM TÉCNICO').toUpperCase();
-    hdrLeft.appendChild(tec);
+    // Dentro de um grupo o técnico já está no header do grupo — não repetir
+    if (!grouped) {
+        const tec = $el('span', { className: 'guia-card-tec' });
+        tec.textContent = (g.tecnico || 'SEM TÉCNICO').toUpperCase();
+        hdrLeft.appendChild(tec);
+    }
     // No histórico o número da guia é ruído — só mostramos técnico + data
     if (_guiasTab !== 'historico') {
         const numSpan = $el('span', { className: 'guia-card-num' });
