@@ -8291,3 +8291,13 @@ body.is-offline #app-layout {
 .dark-mode .guia-badge-separado  { background: rgba(16,185,129,0.18); color: #6ee7b7; border-color: #10b981; }
 .dark-mode .guia-badge-historico { background: rgba(100,116,139,0.18); color: #cbd5e1; border-color: #64748b; }
 .dark-mode .guia-linha-del { background: rgba(220,38,38,0.18); color: #fca5a5; }
+
+/* Botão + Nova Guia em formato ícone no canto superior direito */
+.guias-add-icon {
+    background: var(--accent, #2563eb);
+    color: #fff;
+    border-color: var(--accent, #2563eb);
+}
+.guias-add-icon:hover { filter: brightness(1.05); }
+.guias-add-icon:active { transform: scale(0.96); }
+.dark-mode .guias-add-icon { background: #3b82f6; border-color: #3b82f6; }
