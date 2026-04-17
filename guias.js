@@ -145,12 +145,15 @@ function _buildGuiaCard(id, g) {
     const hdrLeft = $el('div', { className: 'guia-card-hdr-left' });
     const tec = $el('span', { className: 'guia-card-tec' });
     tec.textContent = (g.tecnico || 'SEM TÉCNICO').toUpperCase();
-    const numSpan = $el('span', { className: 'guia-card-num' });
-    numSpan.textContent = `Guia ${g.numero || '—'}`;
+    hdrLeft.appendChild(tec);
+    // No histórico o número da guia é ruído — só mostramos técnico + data
+    if (_guiasTab !== 'historico') {
+        const numSpan = $el('span', { className: 'guia-card-num' });
+        numSpan.textContent = `Guia ${g.numero || '—'}`;
+        hdrLeft.appendChild(numSpan);
+    }
     const dtSpan = $el('span', { className: 'guia-card-date' });
     dtSpan.textContent = dataFmt;
-    hdrLeft.appendChild(tec);
-    hdrLeft.appendChild(numSpan);
     hdrLeft.appendChild(dtSpan);
 
     const hdrRight = $el('div', { className: 'guia-card-hdr-right' });
@@ -530,10 +533,12 @@ async function arquivarGuia(gid) {
             method: 'PATCH',
             body: JSON.stringify({ status: 'historico' }),
         });
+        // Actualiza cache local imediatamente
         g.status = 'historico';
+        _guiasCache.lastFetch = 0; // força _fetchGuias a ir ao servidor no próximo render
         showToast('Guia arquivada ✓', 'success');
-        renderGuias();
-        updateGuiasCount();
+        await renderGuias();
+        await updateGuiasCount();
     } catch(e) {
         showToast('Erro ao arquivar: ' + (e?.message || e), 'error');
     }
