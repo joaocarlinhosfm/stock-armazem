@@ -8178,9 +8178,30 @@ body.is-offline #app-layout {
    Reutiliza padrões visuais de PATs (tabs, toolbar) e encomendas (linhas, modais)
    ─────────────────────────────────────────────────────────────────────────── */
 .guias-toolbar { padding: 14px 16px 10px; border-bottom: 1px solid var(--border, #e2e8f0); background: var(--bg-surface, #fff); }
-.guias-toolbar-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
-.guias-toolbar-actions { display: flex; gap: 8px; align-items: center; }
-.guias-add-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; padding: 7px 12px; }
+.guias-toolbar-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.guias-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+.guias-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    width: auto;
+}
 
 /* Cards da lista */
 .guia-card {
@@ -8292,12 +8313,3 @@ body.is-offline #app-layout {
 .dark-mode .guia-badge-historico { background: rgba(100,116,139,0.18); color: #cbd5e1; border-color: #64748b; }
 .dark-mode .guia-linha-del { background: rgba(220,38,38,0.18); color: #fca5a5; }
 
-/* Botão + Nova Guia em formato ícone no canto superior direito */
-.guias-add-icon {
-    background: var(--accent, #2563eb);
-    color: #fff;
-    border-color: var(--accent, #2563eb);
-}
-.guias-add-icon:hover { filter: brightness(1.05); }
-.guias-add-icon:active { transform: scale(0.96); }
-.dark-mode .guias-add-icon { background: #3b82f6; border-color: #3b82f6; }
