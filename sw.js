@@ -4,7 +4,7 @@
 // Pré-cache de app shell garante que a PWA arranca offline no primeiro uso
 // após instalação (antes disto, abrir offline no primeiro boot deixava ecrã branco).
 // ─────────────────────────────────────────────────────────────────────────────
-const SW_VERSION = 'hiperfrio-v6.56';
+const SW_VERSION = 'hiperfrio-v6.57';
 
 // Libs externas imutáveis — cache-first eterno (hash na URL)
 const IMMUTABLE_ASSETS = [
@@ -17,7 +17,7 @@ const APP_SHELL = [
     './',
     './index.html',
     './manifest.json',
-    './style.css?v=1775318582',
+    './style.css?v=1776419000',
     './utils.js?v=6.56',
     './auth.js?v=6.56',
     './reports.js?v=6.56',

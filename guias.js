@@ -140,39 +140,98 @@ function _buildGuiaCard(id, g) {
 
     const card = $el('div', { className: 'guia-card' });
 
-    // Header: técnico primeiro, depois nº e data
-    const top = $el('div', { className: 'guia-card-top' });
-    const left = $el('div', { className: 'guia-card-left' });
-    const tec = $el('div', { className: 'guia-card-tecnico' });
-    tec.textContent = (g.tecnico || 'Sem técnico').toUpperCase();
-    const meta = $el('div', { className: 'guia-card-meta' });
-    meta.textContent = `Nº ${g.numero || '—'} · ${dataFmt}`;
-    left.appendChild(tec);
-    left.appendChild(meta);
+    // ── Header: técnico + nº + data à esquerda, badge + progresso à direita ──
+    const hdr = $el('div', { className: 'guia-card-hdr' });
+    const hdrLeft = $el('div', { className: 'guia-card-hdr-left' });
+    const tec = $el('span', { className: 'guia-card-tec' });
+    tec.textContent = (g.tecnico || 'SEM TÉCNICO').toUpperCase();
+    const numSpan = $el('span', { className: 'guia-card-num' });
+    numSpan.textContent = `Guia ${g.numero || '—'}`;
+    const dtSpan = $el('span', { className: 'guia-card-date' });
+    dtSpan.textContent = dataFmt;
+    hdrLeft.appendChild(tec);
+    hdrLeft.appendChild(numSpan);
+    hdrLeft.appendChild(dtSpan);
 
-    const right = $el('div', { className: 'guia-card-right' });
+    const hdrRight = $el('div', { className: 'guia-card-hdr-right' });
     const badge = $el('span', { className: `guia-badge guia-badge-${g.status || 'pendente'}` });
     badge.textContent = g.status === 'separado' ? 'Separada' : g.status === 'historico' ? 'Histórico' : 'Pendente';
-    right.appendChild(badge);
+    const progress = $el('span', { className: 'guia-card-progress' });
+    progress.textContent = `${recolhidasL}/${totalL} · ${pct}%`;
+    hdrRight.appendChild(badge);
+    hdrRight.appendChild(progress);
 
-    top.appendChild(left);
-    top.appendChild(right);
+    hdr.appendChild(hdrLeft);
+    hdr.appendChild(hdrRight);
+    card.appendChild(hdr);
 
-    // Progress bar
-    const progWrap = $el('div', { className: 'guia-progress-wrap' });
-    const bar = $el('div', { className: 'guia-progress-bar' });
-    const fill = $el('div', { className: 'guia-progress-fill' });
-    fill.style.width = pct + '%';
-    bar.appendChild(fill);
-    const progLbl = $el('div', { className: 'guia-progress-label' });
-    progLbl.textContent = `${recolhidasL} / ${totalL} recolhido${totalL !== 1 ? 's' : ''} (${pct}%)`;
-    progWrap.appendChild(bar);
-    progWrap.appendChild(progLbl);
+    // ── Tabela de materiais ────────────────────────────────────────────
+    const table = $el('div', { className: 'guia-card-table' });
 
-    card.appendChild(top);
-    card.appendChild(progWrap);
+    // Header da tabela
+    const thead = $el('div', { className: 'guia-card-thead' });
+    const cols = ['REFERÊNCIA', 'DESIGNAÇÃO', 'QTD.', 'ESTADO'];
+    cols.forEach(c => {
+        const th = $el('div', { className: 'guia-card-th', textContent: c });
+        thead.appendChild(th);
+    });
+    table.appendChild(thead);
 
-    card.onclick = () => openGuiaDetail(id);
+    // Linhas
+    if (linhasArr.length === 0) {
+        const empty = $el('div', { className: 'guia-card-empty', textContent: 'Sem materiais.' });
+        table.appendChild(empty);
+    } else {
+        linhasArr.forEach(([lid, l]) => {
+            const row = $el('div', { className: 'guia-card-tr' + (l.recolhido ? ' is-recolhido' : '') });
+
+            const ref = $el('div', { className: 'guia-card-td guia-card-td-ref' });
+            ref.textContent = l.codigo || '—';
+
+            const nome = $el('div', { className: 'guia-card-td guia-card-td-nome' });
+            nome.textContent = l.nome || '';
+
+            const qty = $el('div', { className: 'guia-card-td guia-card-td-qty' });
+            qty.textContent = fmtQty(l.quantidade, l.unidade);
+
+            const estado = $el('div', { className: 'guia-card-td guia-card-td-estado' });
+            const btn = $el('button', { className: 'guia-card-btn' });
+            // Não deixa o click propagar para o card (que navega para detalhe)
+            btn.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                toggleLinhaRecolhida(id, lid, !l.recolhido);
+            });
+
+            if (l.recolhido) {
+                btn.className += ' recolhido';
+                btn.innerHTML = SVG_CHECK + ' Recolhido';
+                btn.title = 'Toca para desfazer';
+            } else {
+                btn.textContent = 'Recolher';
+            }
+
+            // Guardar role só os workers não recolhem (gestor decide)
+            if (currentRole === 'worker') {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+            }
+
+            estado.appendChild(btn);
+
+            row.appendChild(ref);
+            row.appendChild(nome);
+            row.appendChild(qty);
+            row.appendChild(estado);
+            table.appendChild(row);
+        });
+    }
+
+    card.appendChild(table);
+
+    // Click no header (fora dos botões) abre detalhe para apagar/editar
+    hdr.addEventListener('click', () => openGuiaDetail(id));
+
     return card;
 }
 
@@ -310,6 +369,7 @@ function openGuiaDetail(id) {
 
 function _renderGuiaDetailLinhas(g) {
     const wrap = $id('guia-detail-linhas');
+    if (!wrap) return; // modal não aberto — recolha veio do card inline
     wrap.innerHTML = '';
     const linhas = g.linhas || {};
     const entries = Object.entries(linhas);

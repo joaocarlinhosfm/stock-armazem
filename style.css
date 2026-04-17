@@ -8192,7 +8192,7 @@ body.is-offline #app-layout {
     flex-shrink: 0;
     margin-left: auto;
 }
-.guias-add-btn {
+.btn-primary.guias-add-btn {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -8201,39 +8201,194 @@ body.is-offline #app-layout {
     white-space: nowrap;
     flex-shrink: 0;
     width: auto;
+    border-radius: 8px;
 }
 
-/* Cards da lista */
+/* ── Card de guia — estilo tabela (equivalente às encomendas) ────────────── */
 .guia-card {
     background: var(--bg-surface, #fff);
     border: 1px solid var(--border, #e2e8f0);
-    border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
+    border-radius: 10px;
+    margin: 10px 16px;
+    overflow: hidden;
+    transition: box-shadow 0.15s;
 }
-.guia-card:active { transform: scale(0.98); }
-.guia-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.guia-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
-.guia-card-left { flex: 1; min-width: 0; }
-.guia-card-tecnico { font-size: 1rem; font-weight: 800; color: var(--text, #0f172a); line-height: 1.2; margin-bottom: 3px; }
-.guia-card-meta { font-size: 0.75rem; color: var(--text-muted, #64748b); font-weight: 600; }
-.guia-card-right { flex-shrink: 0; }
+.guia-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+
+/* Header do card */
+.guia-card-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg-surface, #fff);
+    border-bottom: 1px solid var(--border, #e2e8f0);
+    cursor: pointer;
+}
+.guia-card-hdr:hover { background: var(--bg-soft, #f8fafc); }
+.guia-card-hdr-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+.guia-card-tec {
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: var(--text-main, #0f172a);
+    letter-spacing: 0.01em;
+}
+.guia-card-num {
+    font-size: 0.82rem;
+    color: var(--text-main, #0f172a);
+    font-weight: 600;
+}
+.guia-card-date {
+    font-size: 0.78rem;
+    color: var(--text-muted, #64748b);
+    font-weight: 500;
+}
+.guia-card-hdr-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+.guia-card-progress {
+    font-size: 0.75rem;
+    color: var(--text-muted, #64748b);
+    font-weight: 600;
+}
 
 /* Badges de estado */
-.guia-badge { display: inline-flex; padding: 3px 9px; border-radius: 20px; font-size: 0.68rem; font-weight: 700; border: 1px solid; }
-.guia-badge-pendente  { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
-.guia-badge-separado  { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.guia-badge {
+    display: inline-flex;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    border: 1px solid;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.guia-badge-pendente  { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.guia-badge-separado  { background: #d1fae5; color: #047857; border-color: #6ee7b7; }
 .guia-badge-historico { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
 
-/* Progress bar */
-.guia-progress-wrap { display: flex; flex-direction: column; gap: 4px; }
-.guia-progress-bar { height: 6px; background: var(--border, #e2e8f0); border-radius: 3px; overflow: hidden; }
-.guia-progress-fill { height: 100%; background: var(--accent, #2563eb); border-radius: 3px; transition: width 0.3s; }
-.guia-progress-label { font-size: 0.7rem; color: var(--text-muted, #64748b); font-weight: 600; }
+/* Tabela de materiais */
+.guia-card-table {
+    padding: 0;
+}
+.guia-card-thead {
+    display: grid;
+    grid-template-columns: 110px 1fr 80px 120px;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--bg-soft, #f8fafc);
+    border-bottom: 1px solid var(--border, #e2e8f0);
+}
+.guia-card-th {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-muted, #64748b);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.guia-card-th:last-child,
+.guia-card-td-estado { text-align: right; }
+.guia-card-tr {
+    display: grid;
+    grid-template-columns: 110px 1fr 80px 120px;
+    gap: 8px;
+    padding: 10px 14px;
+    align-items: center;
+    border-bottom: 1px solid var(--border-soft, #f1f5f9);
+    transition: background 0.12s;
+}
+.guia-card-tr:last-child { border-bottom: none; }
+.guia-card-tr.is-recolhido { background: #f0fdf4; }
+.guia-card-td {
+    font-size: 0.82rem;
+    color: var(--text-main, #0f172a);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.guia-card-td-ref {
+    font-weight: 700;
+    color: var(--accent, #2563eb);
+    letter-spacing: 0.01em;
+}
+.guia-card-td-nome {
+    color: var(--text-main, #0f172a);
+    font-weight: 500;
+}
+.guia-card-td-qty {
+    font-weight: 600;
+    color: var(--text-main, #0f172a);
+}
+.guia-card-td-estado {
+    display: flex;
+    justify-content: flex-end;
+}
+.guia-card-tr.is-recolhido .guia-card-td-ref,
+.guia-card-tr.is-recolhido .guia-card-td-nome { opacity: 0.7; }
+.guia-card-empty {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-muted, #64748b);
+    font-size: 0.82rem;
+    font-style: italic;
+}
 
-/* Modal de detalhe — linhas com botão de recolha */
+/* Botão "Recolher" / "Recolhido" inline na tabela */
+.guia-card-btn {
+    padding: 5px 12px;
+    background: var(--accent, #2563eb);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: background 0.15s, transform 0.1s;
+}
+.guia-card-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.guia-card-btn:active:not(:disabled) { transform: scale(0.96); }
+.guia-card-btn.recolhido {
+    background: #10b981;
+    color: #fff;
+}
+
+/* Responsivo: em mobile colapsa a tabela em 2 linhas compactas por material */
+@media (max-width: 640px) {
+    .guia-card { margin: 10px 12px; }
+    .guia-card-thead { display: none; }
+    .guia-card-tr {
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "ref estado"
+            "nome estado"
+            "qty  estado";
+        gap: 2px 10px;
+        padding: 10px 14px;
+    }
+    .guia-card-td-ref   { grid-area: ref; }
+    .guia-card-td-nome  { grid-area: nome; white-space: normal; font-size: 0.78rem; color: var(--text-muted, #64748b); }
+    .guia-card-td-qty   { grid-area: qty; font-size: 0.75rem; color: var(--text-muted, #64748b); }
+    .guia-card-td-estado { grid-area: estado; }
+    .guia-card-hdr-left { font-size: 0.8rem; gap: 8px; }
+    .guia-card-hdr-right { gap: 6px; }
+    .guia-card-progress { display: none; }
+}
+
+/* Modal de detalhe — (padrão antigo mantido, pode apagar-se se não for usado) */
 .guia-detail-linha {
     display: flex;
     gap: 10px;
@@ -8247,7 +8402,7 @@ body.is-offline #app-layout {
 .guia-detail-linha.is-recolhido { background: #ecfdf5; border-color: #a7f3d0; }
 .guia-detail-linha-info { flex: 1; min-width: 0; }
 .guia-detail-linha-top { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
-.guia-detail-linha-ref { font-size: 0.78rem; font-weight: 800; color: var(--text, #0f172a); letter-spacing: 0.02em; }
+.guia-detail-linha-ref { font-size: 0.78rem; font-weight: 800; color: var(--text-main, #0f172a); letter-spacing: 0.02em; }
 .guia-detail-linha-qty { font-size: 0.78rem; font-weight: 700; color: var(--accent, #2563eb); }
 .guia-detail-linha-nome { font-size: 0.82rem; color: var(--text-muted, #475569); }
 .guia-detail-linha-btn {
