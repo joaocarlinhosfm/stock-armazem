@@ -484,6 +484,664 @@
     .dark-mode .sdc-controls{background:rgba(37,99,235,.1);border-color:#334155}
     .dark-mode .sdc-loc{display:inline-flex;align-items:center;gap:4px;background:#e0f2fe;color:#0369a1;border:1.5px solid #7dd3fc;padding:2px 8px;border-radius:50px;font-size:.7rem;font-weight:700;align-self:flex-start;font-family:'DM Mono',monospace}
     </style>
+
+<style id="sheet-relatorio">
+/* ═══════════════════════════════════════════════════════════════════════════
+   Relatório operacional — painel denso com acento laranja sobre navy.
+   Fontes: Fraunces (display) · Inter (body) · DM Mono (números)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Fraunces precisa de ser carregada separadamente; fallback para serif */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700;900&display=swap');
+
+:root {
+    --relx-ink:        #0f172a;       /* navy dominante */
+    --relx-ink-soft:   #1e293b;
+    --relx-muted:      #64748b;
+    --relx-line:       #e2e8f0;
+    --relx-line-soft:  #f1f5f9;
+    --relx-bg:         #f8fafc;
+    --relx-card:       #ffffff;
+    --relx-accent:     #f97316;       /* orange — acento principal */
+    --relx-accent-soft: #fed7aa;
+    --relx-warn:       #f59e0b;
+    --relx-danger:     #dc2626;
+    --relx-good:       #10b981;
+    --relx-shadow:     0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.04);
+    --relx-shadow-hov: 0 2px 4px rgba(15, 23, 42, 0.06), 0 12px 24px rgba(15, 23, 42, 0.08);
+    --relx-font-display: 'Fraunces', Georgia, serif;
+    --relx-font-mono:    'DM Mono', 'JetBrains Mono', Consolas, monospace;
+}
+
+/* ── Range buttons no header ── */
+.relx-range-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 16px 4px;
+    font-size: 0.78rem;
+}
+.relx-range-lbl {
+    color: var(--relx-muted);
+    font-weight: 500;
+    margin-right: 4px;
+}
+.relx-range-btn {
+    padding: 5px 12px;
+    background: transparent;
+    border: 1px solid var(--relx-line);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--relx-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--relx-font-mono);
+}
+.relx-range-btn:hover { background: var(--relx-line-soft); color: var(--relx-ink); }
+.relx-range-btn.active {
+    background: var(--relx-ink);
+    color: #fff;
+    border-color: var(--relx-ink);
+}
+
+/* ── Empty / loading ── */
+.relx-loading {
+    display: flex; align-items: center; gap: 10px;
+    padding: 60px 20px;
+    color: var(--relx-muted);
+    font-size: 0.9rem;
+    justify-content: center;
+}
+.relx-spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--relx-line);
+    border-top-color: var(--relx-accent);
+    border-radius: 50%;
+    animation: relx-spin 0.9s linear infinite;
+}
+@keyframes relx-spin { to { transform: rotate(360deg); } }
+.relx-empty {
+    padding: 80px 20px;
+    text-align: center;
+    color: var(--relx-muted);
+}
+.relx-empty-icon {
+    display: block;
+    font-size: 2rem;
+    margin-bottom: 12px;
+    color: var(--relx-accent);
+}
+.relx-empty small { display: block; margin-top: 4px; opacity: 0.7; font-size: 0.78rem; }
+.relx-empty-inline {
+    padding: 24px 12px;
+    text-align: center;
+    color: var(--relx-muted);
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+/* ── Grid wrapper (desktop-only, min-width 1024px) ── */
+.relx-grid {
+    display: grid;
+    grid-template-rows: auto auto auto auto;
+    gap: 16px;
+    padding: 20px;
+    background: var(--relx-bg);
+    font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.relx-row-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+}
+.relx-row-main {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+}
+.relx-row-secondary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+/* ── KPI cards ── */
+.relx-kpi {
+    position: relative;
+    padding: 18px 20px 14px;
+    background: var(--relx-card);
+    border-radius: 12px;
+    border: 1px solid var(--relx-line);
+    overflow: hidden;
+    animation: relx-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    transition: box-shadow 0.25s, transform 0.25s;
+}
+.relx-kpi:hover {
+    box-shadow: var(--relx-shadow-hov);
+    transform: translateY(-1px);
+}
+/* Linha vertical accent à esquerda */
+.relx-kpi::before {
+    content: '';
+    position: absolute; left: 0; top: 20px; bottom: 20px;
+    width: 3px;
+    background: var(--relx-accent);
+    border-radius: 0 2px 2px 0;
+    transform: scaleY(0);
+    transform-origin: center;
+    animation: relx-line-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+}
+@keyframes relx-line-grow { to { transform: scaleY(1); } }
+@keyframes relx-rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.relx-kpi-label {
+    font-size: 0.72rem;
+    color: var(--relx-muted);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+.relx-kpi-value {
+    display: flex; align-items: baseline; gap: 6px;
+    margin-bottom: 4px;
+}
+.relx-kpi-num {
+    font-family: var(--relx-font-display);
+    font-weight: 700;
+    font-size: 2.4rem;
+    line-height: 1;
+    color: var(--relx-ink);
+    letter-spacing: -0.02em;
+    font-feature-settings: 'tnum' 1;
+}
+.relx-kpi-sub {
+    font-size: 0.76rem;
+    color: var(--relx-muted);
+    margin-bottom: 10px;
+}
+
+/* Chip de trend */
+.relx-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    font-family: var(--relx-font-mono);
+    letter-spacing: 0.02em;
+}
+.relx-chip-up  { background: rgba(16, 185, 129, 0.1); color: var(--relx-good); }
+.relx-chip-dn  { background: rgba(220, 38, 38, 0.1);  color: var(--relx-danger); }
+.relx-chip-neu { background: var(--relx-line-soft);   color: var(--relx-muted); }
+
+/* Sparkline */
+.relx-kpi-spark {
+    margin-top: 10px;
+    height: 32px;
+    opacity: 0;
+    animation: relx-fade-in 0.5s 0.8s forwards;
+}
+@keyframes relx-fade-in { to { opacity: 1; } }
+.relx-spark-svg {
+    width: 100%; height: 32px;
+    display: block;
+}
+.relx-spark-line {
+    animation: relx-spark-draw 1.4s cubic-bezier(0.65, 0, 0.35, 1) 0.9s forwards;
+}
+@keyframes relx-spark-draw { to { stroke-dashoffset: 0; } }
+.relx-spark-dot {
+    opacity: 0;
+    animation: relx-dot-pop 0.3s 2.1s forwards;
+}
+@keyframes relx-dot-pop {
+    from { opacity: 0; transform: scale(0.2); transform-origin: center; }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── Block base (card) ── */
+.relx-block {
+    position: relative;
+    background: var(--relx-card);
+    border: 1px solid var(--relx-line);
+    border-radius: 12px;
+    padding: 18px 20px;
+    box-shadow: var(--relx-shadow);
+    animation: relx-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    transition: box-shadow 0.25s;
+}
+.relx-block:hover { box-shadow: var(--relx-shadow-hov); }
+
+.relx-block-hdr {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--relx-line-soft);
+}
+.relx-block-title {
+    font-family: var(--relx-font-display);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--relx-ink);
+    letter-spacing: -0.01em;
+    margin: 0;
+}
+.relx-star {
+    display: inline-block;
+    color: var(--relx-accent);
+    margin-right: 4px;
+    animation: relx-pulse 2.4s ease-in-out infinite;
+}
+@keyframes relx-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.7; transform: scale(1.15); }
+}
+.relx-block-pill {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    background: var(--relx-line-soft);
+    color: var(--relx-muted);
+    font-family: var(--relx-font-mono);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+.relx-pill-orange {
+    background: rgba(249, 115, 22, 0.12);
+    color: var(--relx-accent);
+}
+.relx-pill-live {
+    background: rgba(249, 115, 22, 0.1);
+    color: var(--relx-accent);
+    position: relative;
+    padding-left: 18px;
+}
+.relx-pill-live::before {
+    content: '';
+    position: absolute; left: 7px; top: 50%;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--relx-accent);
+    transform: translateY(-50%);
+    animation: relx-beat 1.6s ease-in-out infinite;
+}
+@keyframes relx-beat {
+    0%, 100% { opacity: 1; transform: translateY(-50%) scale(1); }
+    50%      { opacity: 0.4; transform: translateY(-50%) scale(0.7); }
+}
+
+/* ── Mini tabs ── */
+.relx-minitabs {
+    display: inline-flex;
+    background: var(--relx-line-soft);
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+}
+.relx-minitab {
+    padding: 5px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--relx-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+}
+.relx-minitab:hover { color: var(--relx-ink); }
+.relx-minitab.active {
+    background: var(--relx-card);
+    color: var(--relx-ink);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
+}
+
+/* ── Bar list (top refs, guias, ferramentas) ── */
+.relx-barlist {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.relx-bar-row {
+    animation: relx-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.relx-bar-meta {
+    display: flex; align-items: baseline;
+    gap: 10px;
+    margin-bottom: 5px;
+    font-size: 0.82rem;
+}
+.relx-bar-code {
+    font-family: var(--relx-font-mono);
+    font-weight: 700;
+    color: var(--relx-ink);
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+}
+.relx-bar-name {
+    color: var(--relx-ink);
+    font-weight: 500;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.82rem;
+}
+.relx-bar-val {
+    font-family: var(--relx-font-mono);
+    font-weight: 700;
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+.relx-bar-track {
+    position: relative;
+    height: 6px;
+    background: var(--relx-line-soft);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.relx-bar-fill {
+    height: 100%;
+    width: 0;
+    border-radius: 3px;
+    transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+    position: relative;
+}
+.relx-bar-fill::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateX(-100%);
+    animation: relx-shimmer 2.2s ease-in-out infinite;
+    animation-delay: 1.5s;
+}
+@keyframes relx-shimmer {
+    0%   { transform: translateX(-100%); }
+    60%  { transform: translateX(200%); }
+    100% { transform: translateX(200%); }
+}
+
+/* ── Distribuição donut ── */
+.relx-block-distrib {
+    display: flex;
+    flex-direction: column;
+}
+.relx-donut-wrap {
+    position: relative;
+    width: 160px; height: 160px;
+    margin: 8px auto 12px;
+}
+.relx-donut-canvas {
+    display: block;
+    width: 160px !important; height: 160px !important;
+}
+.relx-donut-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    pointer-events: none;
+}
+.relx-donut-big {
+    font-family: var(--relx-font-display);
+    font-weight: 700;
+    font-size: 2.1rem;
+    line-height: 1;
+    color: var(--relx-ink);
+    letter-spacing: -0.02em;
+}
+.relx-donut-small {
+    font-size: 0.66rem;
+    color: var(--relx-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 3px;
+    font-weight: 600;
+}
+
+.relx-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 0;
+    border-top: 1px solid var(--relx-line-soft);
+}
+.relx-legend-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.82rem;
+}
+.relx-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.relx-legend-txt {
+    flex: 1;
+    color: var(--relx-ink-soft);
+}
+.relx-legend-val {
+    font-family: var(--relx-font-mono);
+    font-weight: 700;
+    color: var(--relx-ink);
+}
+
+.relx-conclusao {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--relx-line-soft);
+}
+.relx-conclusao-lbl {
+    font-size: 0.7rem;
+    color: var(--relx-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+}
+.relx-conclusao-val {
+    font-family: var(--relx-font-display);
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--relx-accent);
+    line-height: 1.1;
+    margin: 4px 0 8px;
+}
+.relx-conclusao-bar {
+    height: 4px;
+    background: var(--relx-line-soft);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.relx-conclusao-fill {
+    height: 100%;
+    background: var(--relx-accent);
+    width: 0;
+    animation: relx-pct-fill 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards;
+}
+@keyframes relx-pct-fill { to { width: var(--pct, 0%); } }
+
+/* ── Ranking clientes ── */
+.relx-ranking {
+    list-style: none; margin: 0; padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.relx-rank-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 4px;
+    border-radius: 6px;
+    transition: background 0.15s;
+    animation: relx-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.relx-rank-row:hover { background: var(--relx-line-soft); }
+.relx-rank-pos {
+    width: 28px; height: 28px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    font-family: var(--relx-font-mono);
+    font-weight: 700;
+    font-size: 0.84rem;
+    background: var(--relx-line-soft);
+    color: var(--relx-ink);
+    flex-shrink: 0;
+}
+.relx-rank-1 { background: #fef3c7; color: #92400e; box-shadow: inset 0 0 0 2px #fbbf24; }
+.relx-rank-2 { background: #e2e8f0; color: #334155; box-shadow: inset 0 0 0 2px #94a3b8; }
+.relx-rank-3 { background: #fed7aa; color: #9a3412; box-shadow: inset 0 0 0 2px #fb923c; }
+.relx-rank-info { flex: 1; min-width: 0; }
+.relx-rank-name {
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--relx-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.relx-rank-sub {
+    font-size: 0.74rem;
+    color: var(--relx-muted);
+    margin-top: 2px;
+}
+.relx-rank-val {
+    text-align: right;
+    flex-shrink: 0;
+}
+.relx-rank-num {
+    font-family: var(--relx-font-display);
+    font-weight: 700;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--relx-accent);
+    letter-spacing: -0.02em;
+}
+.relx-rank-unit {
+    font-size: 0.65rem;
+    color: var(--relx-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+/* ── Insights ── */
+.relx-block-insights {
+    background: linear-gradient(135deg, var(--relx-ink) 0%, var(--relx-ink-soft) 100%);
+    color: #fff;
+    border-color: var(--relx-ink);
+}
+.relx-block-insights .relx-block-title { color: #fff; }
+.relx-block-insights .relx-block-hdr { border-bottom-color: rgba(255,255,255,0.12); }
+.relx-insights-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.relx-insight {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    font-size: 0.86rem;
+    line-height: 1.5;
+    color: #e2e8f0;
+    border-left: 3px solid var(--relx-muted);
+    animation: relx-slide-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+@keyframes relx-slide-in {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+.relx-insight b { color: #fff; font-weight: 700; }
+.relx-insight-warn  { border-left-color: var(--relx-warn); }
+.relx-insight-alert { border-left-color: var(--relx-accent); }
+.relx-insight-info  { border-left-color: #60a5fa; }
+.relx-insight-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+    opacity: 0.9;
+}
+.relx-insight-text { flex: 1; }
+
+/* ── Dark mode ── */
+.dark-mode .relx-grid {
+    background: #0a0f1a;
+}
+.dark-mode .relx-kpi,
+.dark-mode .relx-block {
+    background: #131b2e;
+    border-color: #1e2a44;
+    color: #e2e8f0;
+}
+.dark-mode .relx-kpi-num,
+.dark-mode .relx-block-title,
+.dark-mode .relx-bar-code,
+.dark-mode .relx-bar-name,
+.dark-mode .relx-rank-name,
+.dark-mode .relx-legend-val,
+.dark-mode .relx-donut-big { color: #f1f5f9; }
+.dark-mode .relx-kpi-label,
+.dark-mode .relx-kpi-sub,
+.dark-mode .relx-bar-val,
+.dark-mode .relx-rank-sub,
+.dark-mode .relx-rank-unit,
+.dark-mode .relx-legend-txt,
+.dark-mode .relx-donut-small,
+.dark-mode .relx-muted { color: #94a3b8; }
+.dark-mode .relx-bar-track,
+.dark-mode .relx-conclusao-bar,
+.dark-mode .relx-minitabs { background: #1e2a44; }
+.dark-mode .relx-minitab.active { background: #2a3655; color: #f1f5f9; }
+.dark-mode .relx-range-btn { border-color: #1e2a44; color: #94a3b8; }
+.dark-mode .relx-range-btn:hover { background: #1e2a44; color: #e2e8f0; }
+.dark-mode .relx-range-btn.active { background: #f1f5f9; color: #0a0f1a; }
+.dark-mode .relx-rank-1 { background: rgba(251,191,36,0.18); }
+.dark-mode .relx-rank-2 { background: rgba(148,163,184,0.18); }
+.dark-mode .relx-rank-3 { background: rgba(251,146,60,0.18); }
+.dark-mode .relx-block-hdr { border-bottom-color: #1e2a44; }
+.dark-mode .relx-legend, .dark-mode .relx-conclusao { border-top-color: #1e2a44; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Mobile: relatório oculto sob 1024px — mostrar aviso em vez do grid.
+   ══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1023px) {
+    /* Esconde o item de menu "Relatórios" na admin tabs em mobile */
+    #panel-relatorio .rel-hero,
+    #panel-relatorio #rel-content {
+        display: none !important;
+    }
+    #panel-relatorio::before {
+        content: '';
+        display: block; height: 40px;
+    }
+    #panel-relatorio::after {
+        content: 'O módulo Relatórios está optimizado para ecrãs maiores (≥ 1024 px). Abre no computador para aceder à análise completa.';
+        display: block;
+        max-width: 340px; margin: 40px auto;
+        padding: 28px 24px;
+        text-align: center;
+        background: var(--relx-card, #fff);
+        border: 1px solid var(--relx-line, #e2e8f0);
+        border-radius: 12px;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: var(--relx-muted, #64748b);
+    }
+    .dark-mode #panel-relatorio::after {
+        background: #131b2e;
+        border-color: #1e2a44;
+        color: #94a3b8;
+    }
+}
+</style>
 <style>
 /* ── Stock desktop grid — critical inline CSS (bypass SW cache) ── */
 .stock-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding-bottom:40px}
@@ -1350,6 +2008,13 @@
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                     </button>
                 </div>
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Token para script local</span>
+                        <span class="settings-item-desc">Copia para processar PDFs em batch no PC (expira em ~1h)</span>
+                    </div>
+                    <button class="btn-settings-action" onclick="exportFirebaseToken()">Exportar</button>
+                </div>
 
                 <div class="settings-group-label">PERFIL</div>
                 <div class="settings-item">
@@ -1429,7 +2094,7 @@
                 </div>
                 <div class="rel-hero">
                     <div class="rel-hero-top">
-                        <span class="rel-hero-label">Relatório mensal</span>
+                        <span class="rel-hero-label">Relatório operacional</span>
                         <button class="rel-fechar-btn" id="rel-fechar-btn" onclick="relFecharMes()" aria-label="Fechar mês">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v14a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                             Fechar mês
@@ -1443,6 +2108,13 @@
                         <button class="rel-month-arr" onclick="relMoveMonth(1)" aria-label="Próximo mês">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
                         </button>
+                    </div>
+                    <div class="relx-range-row">
+                        <span class="relx-range-lbl">Período:</span>
+                        <button class="relx-range-btn active" data-range="mes" onclick="relSetRange('mes')">Mês</button>
+                        <button class="relx-range-btn" data-range="30"  onclick="relSetRange('30')">30d</button>
+                        <button class="relx-range-btn" data-range="14"  onclick="relSetRange('14')">14d</button>
+                        <button class="relx-range-btn" data-range="7"   onclick="relSetRange('7')">7d</button>
                     </div>
                     <div class="rel-summary-strip" id="rel-summary-strip">
                         <div class="rel-sum-item">

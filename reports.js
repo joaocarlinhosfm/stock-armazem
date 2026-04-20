@@ -162,6 +162,19 @@ async function _buildSnapshot(mesKey) {
         if (Array.isArray(movData)) movData = {};
     } catch(e) {}
 
+    // Fetch guias separadas no mês — para métrica "Guias técnicas" no KPI
+    let guiasCount = 0;
+    try {
+        const guiasUrl = await authUrl(
+            `${BASE_URL}/guias.json?orderBy="separadoEm"&startAt=${ini}&endAt=${fim}`
+        );
+        const guiasRes  = await fetch(guiasUrl);
+        const guiasData = guiasRes.ok ? (await guiasRes.json() || {}) : {};
+        if (guiasData && typeof guiasData === 'object' && !Array.isArray(guiasData)) {
+            guiasCount = Object.keys(guiasData).length;
+        }
+    } catch(_e) { /* requer .indexOn: ["separadoEm"] em /guias */ }
+
     // PATs criadas neste mês
     const patsMes = pats.filter(p => p.criadoEm >= ini && p.criadoEm <= fim);
 
@@ -202,13 +215,26 @@ async function _buildSnapshot(mesKey) {
     // Ponto 7: total real de saídas (todos os movimentos, não só top 5)
     const refCount = {};
     let totalSaidasReal = 0;
+    // Decomposição por tipo + agregação SÓ para guias (base para planear encomendas)
+    const saidasPorTipo = { saida_pat: 0, saida_manual: 0, saida_guia: 0, remocao: 0 };
+    const refCountGuias = {};
     Object.values(movData).forEach(m => {
         if (!m.codigo) return;
-        totalSaidasReal += m.quantidade || 1;
+        const qtd = m.quantidade || 1;
+        totalSaidasReal += qtd;
+        if (saidasPorTipo[m.tipo] !== undefined) saidasPorTipo[m.tipo] += qtd;
         if (!refCount[m.codigo]) refCount[m.codigo] = { codigo: m.codigo, nome: m.nome, qty: 0 };
-        refCount[m.codigo].qty += m.quantidade || 1;
+        refCount[m.codigo].qty += qtd;
+        // Materiais saídos VIA GUIAS — ranking separado para planeamento de encomendas
+        if (m.tipo === 'saida_guia') {
+            if (!refCountGuias[m.codigo]) refCountGuias[m.codigo] = { codigo: m.codigo, nome: m.nome, qty: 0 };
+            refCountGuias[m.codigo].qty += qtd;
+        }
     });
     const top5 = Object.values(refCount)
+        .sort((a, b) => b.qty - a.qty)
+        .slice(0, 5);
+    const topGuias = Object.values(refCountGuias)
         .sort((a, b) => b.qty - a.qty)
         .slice(0, 5);
 
@@ -292,6 +318,9 @@ async function _buildSnapshot(mesKey) {
         totalSaidas:       totalSaidasReal,
         porFunc,
         top5,
+        topGuias,          // novo: top 5 materiais saídos via guias técnicas
+        saidasPorTipo,     // novo: decomposição das saídas por tipo
+        guiasCount,        // novo: guias separadas no mês
         topFerr,
         topClientes,
         topFerrDias,
@@ -505,325 +534,723 @@ function relMoveMonth(delta) {
 }
 
 // ── Renderizar relatório ──────────────────────────────────────────────────
+// ── Renderizar relatório ──────────────────────────────────────────────────
+// Layout: painel operacional denso com 4 linhas + mini-tabs em blocos densos.
+// Data actual: snapshot do mês (ou semana/janela móvel via filtro).
+// Animações: staggered reveal + count-up + sparkline desenho + donut rotate
 async function renderRelatorio() {
-    // Lazy load do Chart.js — só entra em cache após 1ª visita a Relatórios
     try { await loadChart(); } catch(_e) { console.warn('[Relatório] Chart.js não carregou:', _e?.message); }
 
     const mesKey  = _mesKey(_relMesOffset);
     const lblEl   = $id('rel-month-label');
     const content = $id('rel-content');
     const strip   = $id('rel-summary-strip');
-    if (lblEl) lblEl.textContent = _mesLabel(mesKey);
+    if (lblEl) {
+        lblEl.textContent = _relRange === 'mes'
+            ? _mesLabel(mesKey)
+            : `últimos ${_relRange} dias`;
+    }
     if (!content) return;
 
-    // Botão fechar mês — só no mês actual
+    // Botão fechar mês — só no mês actual e range 'mes'
     const btnFechar = $id('rel-fechar-btn');
-    if (btnFechar) btnFechar.style.display = _relMesOffset === 0 ? 'inline-flex' : 'none';
+    if (btnFechar) btnFechar.style.display = (_relMesOffset === 0 && _relRange === 'mes') ? 'inline-flex' : 'none';
 
-    content.innerHTML = '<div class="rel-loading">A carregar relatório...</div>';
+    // Setas de mês desactivadas em janela móvel
+    document.querySelectorAll('.rel-month-arr').forEach(a => {
+        a.style.opacity = _relRange === 'mes' ? '' : '0.35';
+        a.style.pointerEvents = _relRange === 'mes' ? '' : 'none';
+    });
+
+    content.innerHTML = '<div class="relx-loading"><div class="relx-spinner"></div>A preparar dados…</div>';
     if (strip) { ['rel-sum-pats','rel-sum-dur','rel-sum-saidas'].forEach(id => { const el = $id(id); if (el) el.textContent = '—'; }); }
 
-    // Fetch snapshot — _lerSnapshot tolera formato legacy e versionado (S5).
+    // Snapshot do período actual
     let snap = null;
-    let fetchFailed = false;
-    try {
-        snap = await _lerSnapshot(mesKey);
-    } catch(e) {
-        fetchFailed = true;
-    }
-    // Se não há snapshot mas estamos no mês actual, construir em memória
+    try { snap = await _relFetchPeriod(mesKey, _relRange); } catch(_e) {}
     if (!snap && _relMesOffset === 0) snap = await _buildSnapshot(mesKey);
 
     if (!snap) {
-        // S3 audit: distinguir offline de "sem dados"
         if (!navigator.onLine) {
-            content.innerHTML = `<div class="rel-empty">Sem ligação — não foi possível carregar ${_mesLabel(mesKey)}.<br><small>Volta a tentar quando estiveres online.</small></div>`;
+            content.innerHTML = `<div class="relx-empty"><span class="relx-empty-icon">⚡</span><div>Sem ligação</div><small>Não foi possível carregar ${_mesLabel(mesKey)}. Volta quando estiveres online.</small></div>`;
         } else {
-            content.innerHTML = `<div class="rel-empty">Sem dados para ${_mesLabel(mesKey)}.<br><small>Gerado automaticamente no dia 1 do mês seguinte.</small></div>`;
+            content.innerHTML = `<div class="relx-empty"><span class="relx-empty-icon">○</span><div>Sem dados para ${_mesLabel(mesKey)}</div><small>O snapshot será gerado no dia 1 do mês seguinte.</small></div>`;
         }
         return;
     }
 
-    // Fetch snap anterior — igualmente tolerante a formatos
-    let snapAnt = null;
-    try {
-        snapAnt = await _lerSnapshot(_mesKey(_relMesOffset - 1));
-    } catch(_e) {}
+    // Histórico de 6 meses para sparklines
+    const sparkData = await _relFetchHistorico(6, mesKey);
 
-    // ── Actualizar summary strip com animação ───────────────────────────
-    // totalSaidas é campo novo — snapshots antigos (pre-v6.56) só tinham top5.
-    // Se falta, somamos top5 mas marcamos como aproximado porque subestima
-    // (ignora saídas fora do top 5).
+    // Snapshot mês anterior para trends
+    let snapAnt = null;
+    try { snapAnt = await _lerSnapshot(_mesKey(_relMesOffset - 1)); } catch(_e) {}
+
+    // Summary strip (topo fixo)
     const hasTotal = snap.totalSaidas != null;
     const totalSaidas = hasTotal ? snap.totalSaidas : (snap.top5 || []).reduce((a, b) => a + (b.qty || 0), 0);
     _relAnimCount('rel-sum-pats',   snap.totalPats ?? 0);
     _relAnimCount('rel-sum-saidas', totalSaidas, 800, hasTotal ? '' : '~');
-    // Tooltip explicativo só quando o valor é estimado
     const saidasEl = $id('rel-sum-saidas');
-    if (saidasEl) {
-        saidasEl.title = hasTotal
-            ? ''
-            : 'Valor aproximado — snapshot antigo só regista top 5 referências';
-    }
+    if (saidasEl) saidasEl.title = hasTotal ? '' : 'Valor aproximado — snapshot antigo';
     const durEl = $id('rel-sum-dur');
     if (durEl) durEl.textContent = snap.duracaoMedia != null ? snap.duracaoMedia + 'd' : '—';
 
-    content.innerHTML = '';
+    // ── Builder HTML — um único template string para toda a grid ──────────
+    content.innerHTML = _relBuildLayout(snap, snapAnt, sparkData, totalSaidas, hasTotal);
 
-    // ── helpers ──────────────────────────────────────────────────────────
-    function _trend(val, ant, invertido = false, unidade = '') {
-        if (ant == null || val == null) return '';
-        const diff = val - ant;
-        if (Math.abs(diff) < 0.05) return `<div class="rel-kpi-chip chip-neu">= igual ao mês ant.</div>`;
-        const up = diff > 0, bom = up !== invertido;
-        const cls = bom ? 'chip-up' : 'chip-dn';
-        const ico = up ? '▲' : '▼';
-        return `<div class="rel-kpi-chip ${cls}">${ico} ${Math.abs(diff)}${unidade} vs mês ant.</div>`;
-    }
-
-    function _card(content_html, delay_class = '') {
-        const d = $el('div');
-        d.className = 'rel-card' + (delay_class ? ' ' + delay_class : '');
-        d.innerHTML = content_html;
-        return d;
-    }
-
-    function _cardHdr(title, pillText, pillClass = 'rel-pill-blue') {
-        return `<div class="rel-card-hdr"><span class="rel-card-title">${title}</span><span class="rel-pill ${pillClass}">${pillText}</span></div>`;
-    }
-
-    function _emptyInline(msg) {
-        return `<div class="rel-empty-inline">${msg}</div>`;
-    }
-
-    // ── 1: KPI Cards ────────────────────────────────────────────────────
-    const kpiCard = $el('div', { className: 'rel-card' });
-    kpiCard.style.padding = '10px';
-    const durColor = (snap.duracaoMedia > 7) ? '#dc2626' : (snap.duracaoMedia > 3) ? '#f59e0b' : '#4ade80';
-    kpiCard.innerHTML = `
-        <div class="rel-kpi-grid">
-            <div class="rel-kpi-dark rel-kpi-navy">
-                <div class="rel-kpi-bg-icon"><svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2"><path d="M14 2H6a2 2 0 0 0-2 2v16h16V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-                <div class="rel-kpi-lbl">PATs registadas</div>
-                <div class="rel-kpi-num" id="kpi-pats">0</div>
-                <div class="rel-kpi-sub">${snap.levantadas ?? 0} levant. · ${snap.pendentes ?? 0} pend.</div>
-                ${_trend(snap.totalPats, snapAnt?.totalPats)}
-            </div>
-            <div class="rel-kpi-dark rel-kpi-forest">
-                <div class="rel-kpi-bg-icon"><svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                <div class="rel-kpi-lbl">Duração média</div>
-                <div class="rel-kpi-num">${snap.duracaoMedia != null ? snap.duracaoMedia + 'd' : '—'}</div>
-                <div class="rel-kpi-sub">criação → levantamento</div>
-                ${_trend(snap.duracaoMedia, snapAnt?.duracaoMedia, true, 'd')}
-            </div>
-        </div>`;
-    content.appendChild(kpiCard);
-    setTimeout(() => _relAnimCount('kpi-pats', snap.totalPats ?? 0, 900), 100);
-
-    // ── 2: Insight automático ────────────────────────────────────────────
-    const insightMsg = _relBuildInsight(snap);
-    if (insightMsg) {
-        const ins = $el('div', { className: 'rel-insight' });
-        ins.innerHTML = `
-            <div class="rel-insight-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            </div>
-            <div class="rel-insight-body">
-                <div class="rel-insight-lbl">Alerta automático</div>
-                <div class="rel-insight-msg">${escapeHtml(insightMsg)}</div>
-            </div>`;
-        content.appendChild(ins);
-    }
-
-    // ── 3: Donut — distribuição PATs ─────────────────────────────────────
-    const donutCard = $el('div', { className: 'rel-card' });
-    const totalPats        = snap.totalPats         || 0;
-    const levantadas       = snap.levantadas        || 0;
-    const levantadasComGuia = snap.levantadasComGuia ?? snap.comGuia ?? 0;
-    const levantadasSemGuia = snap.levantadasSemGuia ?? Math.max(0, levantadas - levantadasComGuia);
-    const pendentes        = snap.pendentes         || 0;
-    // historico = PATs do mês que não são levantadas nem pendentes
-    const historico        = snap.historico ?? Math.max(0, totalPats - levantadas - pendentes);
-    donutCard.innerHTML = `
-        ${_cardHdr('Distribuição de PATs', _mesLabel(mesKey))}
-        <div class="rel-donut-wrap">
-            <div class="rel-donut-canvas">
-                <canvas id="rel-donut" width="110" height="110" class="rel-gauge-canvas"></canvas>
-                <div class="rel-donut-center">
-                    <span class="rel-donut-center-val">${totalPats}</span>
-                    <span class="rel-donut-center-lbl">total</span>
-                </div>
-            </div>
-            <div class="rel-donut-legend">
-                <div class="rel-leg-row"><div class="rel-leg-left"><div class="rel-leg-dot" style="background:#1e3a5f"></div>Levantadas</div><span class="rel-leg-val">${levantadasSemGuia}</span></div>
-                <div class="rel-leg-row"><div class="rel-leg-left"><div class="rel-leg-dot" style="background:#2563eb"></div>C/ guia transp.</div><span class="rel-leg-val">${levantadasComGuia}</span></div>
-                <div class="rel-leg-row"><div class="rel-leg-left"><div class="rel-leg-dot" style="background:#f59e0b"></div>Pendentes</div><span class="rel-leg-val">${pendentes}</span></div>
-                <div class="rel-leg-row"><div class="rel-leg-left"><div class="rel-leg-dot" style="background:#e2e8f0"></div>Histórico</div><span class="rel-leg-val">${historico}</span></div>
-            </div>
-        </div>`;
-    content.appendChild(donutCard);
-
-    // ── 4: Top Clientes ──────────────────────────────────────────────────
-    const cliCard = $el('div', { className: 'rel-card' });
-    const cliLen = snap.topClientes?.length || 0;
-    cliCard.innerHTML = _cardHdr('Top clientes', cliLen + ' estabelec.', 'rel-pill-blue');
-    if (cliLen) {
-        const list = $el('div', { className: 'rel-rank-list' });
-        snap.topClientes.forEach((cli, i) => {
-            const badges = ['rb1','rb2','rb3'];
-            const bc = i < 3 ? badges[i] : 'rbn';
-            const row = $el('div', { className: 'rel-rank-row' });
-            row.innerHTML = `
-                <div class="rel-rank-badge ${bc}">${i+1}</div>
-                <div class="rel-rank-info">
-                    <div class="rel-rank-name">${escapeHtml(cli.nome)}</div>
-                    <div class="rel-rank-sub">${cli.comGuia > 0 ? cli.comGuia + ' com guia transporte' : 'sem guia'}</div>
-                </div>
-                <div class="rel-rank-end">
-                    <div class="rel-rank-big">${cli.total}</div>
-                    <div class="rel-rank-unit">PATs</div>
-                </div>`;
-            list.appendChild(row);
-        });
-        cliCard.appendChild(list);
-    } else { cliCard.innerHTML += _emptyInline('Sem PATs registadas este mês'); }
-    content.appendChild(cliCard);
-
-    // ── 5: Top referências ───────────────────────────────────────────────
-    const refsCard = $el('div', { className: 'rel-card' });
-    refsCard.innerHTML = _cardHdr('Top referências saídas', 'unidades', 'rel-pill-blue');
-    if (snap.top5?.length) {
-        const blist = $el('div', { className: 'rel-bar-list' });
-        const maxQ = snap.top5[0]?.qty || 1;
-        const colors = ['#1e3a5f','#2563eb','#2563eb','#60a5fa','#93c5fd'];
-        snap.top5.forEach((item, i) => {
-            const pct = Math.round((item.qty / maxQ) * 100);
-            const el = $el('div', { className: 'rel-bar-row' });
-            el.innerHTML = `
-                <div class="rel-bar-meta">
-                    <span class="rel-bar-name">${escapeHtml(item.codigo)}${item.nome ? ' — ' + escapeHtml(item.nome) : ''}</span>
-                    <span class="rel-bar-val" style="color:${colors[i]}">${item.qty} un.</span>
-                </div>
-                <div class="rel-bar-track">
-                    <div class="rel-bar-fill" data-w="${pct}" style="background:${colors[i]}"></div>
-                </div>`;
-            blist.appendChild(el);
-        });
-        refsCard.appendChild(blist);
-    } else { refsCard.innerHTML += _emptyInline('Sem movimentos registados este mês'); }
-    content.appendChild(refsCard);
-
-    // ── 6: Ferramentas dias fora ─────────────────────────────────────────
-    const ferrCard = $el('div', { className: 'rel-card' });
-    // Dias do mês calculados a partir do mesKey para evitar ambiguidade de timezone.
-    // new Date(y, m, 0) dá o último dia do mês anterior = último dia do mês pedido.
-    const [_y, _m] = mesKey.split('-').map(Number);
-    const diasMes = new Date(_y, _m, 0).getDate();
-    ferrCard.innerHTML = _cardHdr('Dias fora do armazém', diasMes + ' dias no mês', 'rel-pill-amber');
-    if (snap.topFerrDias?.length) {
-        const blist2 = $el('div', { className: 'rel-bar-list' });
-        snap.topFerrDias.forEach(t => {
-            const pct  = Math.round((t.dias / diasMes) * 100);
-            const alerta = pct >= 80;
-            const warn   = pct >= 50 && pct < 80;
-            const color  = alerta ? '#dc2626' : warn ? '#f59e0b' : '#2563eb';
-            const valColor = alerta ? '#dc2626' : warn ? '#f59e0b' : '#2563eb';
-            const el = $el('div', { className: 'rel-bar-row' });
-            el.innerHTML = `
-                <div class="rel-bar-meta">
-                    <span class="rel-bar-name">${escapeHtml(t.nome)}</span>
-                    <span class="rel-bar-val" style="color:${valColor}">${t.dias}d · ${pct}%</span>
-                </div>
-                <div class="rel-bar-track">
-                    <div class="rel-bar-fill" data-w="${pct}" style="background:${color}"></div>
-                </div>`;
-            blist2.appendChild(el);
-        });
-        ferrCard.appendChild(blist2);
-    } else { ferrCard.innerHTML += _emptyInline('Sem dados de alocação registados'); }
-    content.appendChild(ferrCard);
-
-    // ── 7: Ferramentas mais requisitadas ─────────────────────────────────
-    if (snap.topFerr?.length) {
-        const ferrReqCard = $el('div', { className: 'rel-card' });
-        ferrReqCard.innerHTML = _cardHdr('Ferramentas mais requisitadas', snap.topFerr.length + ' ferramentas', 'rel-pill-blue');
-        const blist3 = $el('div', { className: 'rel-bar-list' });
-        const maxF = snap.topFerr[0]?.count || 1;
-        snap.topFerr.forEach(t => {
-            const pct = Math.round((t.count / maxF) * 100);
-            const el = $el('div', { className: 'rel-bar-row' });
-            el.innerHTML = `
-                <div class="rel-bar-meta">
-                    <span class="rel-bar-name">${escapeHtml(t.nome)}</span>
-                    <span class="rel-bar-val" style="color:#1e3a5f">${t.count}× requisitada${t.count > 1 ? 's' : ''}</span>
-                </div>
-                <div class="rel-bar-track">
-                    <div class="rel-bar-fill" data-w="${pct}" style="background:#1e3a5f"></div>
-                </div>`;
-            blist3.appendChild(el);
-        });
-        ferrReqCard.appendChild(blist3);
-        content.appendChild(ferrReqCard);
-    }
-
-    // ── 8: PATs por funcionário (gauges) ─────────────────────────────────
-    if (snap.porFunc && Object.keys(snap.porFunc).length) {
-        const funcCard = $el('div', { className: 'rel-card' });
-        const totalLev = Object.values(snap.porFunc).reduce((a, b) => a + b, 0) || 1;
-        const funcEntries = Object.entries(snap.porFunc).sort((a, b) => b[1] - a[1]).slice(0, 4);
-        funcCard.innerHTML = _cardHdr('PATs por funcionário', totalLev + ' levantadas', 'rel-pill-green');
-        const gaugeRow = $el('div', { className: 'rel-gauge-row' });
-        const gColors = ['#1e3a5f','#2563eb','#f59e0b','#16a34a'];
-        funcEntries.forEach(([nome, val], i) => {
-            const pct = Math.round((val / totalLev) * 100);
-            const col = gColors[i] || '#64748b';
-            const col_div = $el('div', { className: 'rel-gauge-col' });
-            col_div.innerHTML = `
-                <canvas id="rel-gauge-${i}" width="72" height="72" class="rel-gauge-canvas"></canvas>
-                <span class="rel-gauge-name">${escapeHtml(nome)}</span>
-                <span class="rel-gauge-pct" style="color:${col}">${val} PAT${val > 1 ? 's' : ''}</span>`;
-            gaugeRow.appendChild(col_div);
-        });
-        funcCard.appendChild(gaugeRow);
-        content.appendChild(funcCard);
-
-        // Desenhar gauges após DOM insert
-        setTimeout(() => {
-            funcEntries.forEach(([nome, val], i) => {
-                const pct = Math.round((val / totalLev) * 100);
-                _relDrawGauge('rel-gauge-' + i, pct, gColors[i] || '#64748b', i * 120);
-            });
-        }, 200);
-    }
-
-    // ── Animar barras + donut ────────────────────────────────────────────
-    setTimeout(() => {
-        content.querySelectorAll('.rel-bar-fill[data-w]').forEach((bar, i) => {
-            setTimeout(() => { bar.style.width = bar.dataset.w + '%'; }, i * 70);
-        });
-        // Donut Chart.js — destruir instância anterior para evitar flickering
-        const donutCanvas = $id('rel-donut');
-        if (donutCanvas && window.Chart) {
-            if (_relDonutChart) { _relDonutChart.destroy(); _relDonutChart = null; }
-            _relDonutChart = new Chart(donutCanvas, {
-                type: 'doughnut',
-                data: {
-                    datasets: [{
-                        data: [levantadasSemGuia, levantadasComGuia, pendentes, historico].map(v => Math.max(v, 0)),
-                        backgroundColor: ['#1e3a5f','#2563eb','#f59e0b','#e2e8f0'],
-                        borderWidth: 0,
-                        hoverOffset: 4,
-                    }]
-                },
-                options: {
-                    responsive: false, cutout: '68%',
-                    animation: { animateRotate: true, duration: 1100, easing: 'easeOutQuart' },
-                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                }
-            });
-        }
-    }, 150);
+    // ── Hooks pós-render: event listeners para mini-tabs + animações ──────
+    _relAttachMiniTabs(snap);
+    _relDrawSparklines(sparkData, snap);
+    _relDrawDonut(snap);
+    _relAnimateBars();
+    _relAnimateKPIs(snap);
 }
+
+// ── Layout builder — monta toda a grid numa string ────────────────────────
+function _relBuildLayout(snap, snapAnt, sparkData, totalSaidas, hasTotal) {
+    const mesKey = snap.mes || _mesKey(_relMesOffset);
+
+    // KPIs
+    const kpis = [
+        { id: 'pats',    label: 'PATs do período',      value: snap.totalPats || 0,   sub: `${snap.levantadas || 0} levant. · ${snap.pendentes || 0} pend.`, delta: _relDelta(snap.totalPats, snapAnt?.totalPats),       invert: false },
+        { id: 'saidas',  label: 'Saídas totais',        value: totalSaidas,            sub: 'unidades', suffix: hasTotal ? '' : '~',                                           delta: _relDelta(totalSaidas, snapAnt ? (snapAnt.totalSaidas ?? (snapAnt.top5||[]).reduce((a,b)=>a+(b.qty||0),0)) : null),  invert: false },
+        { id: 'duracao', label: 'Duração média',        value: snap.duracaoMedia || 0, sub: 'dias · criação → levant.',                                                          suffix: 'd',   delta: _relDelta(snap.duracaoMedia, snapAnt?.duracaoMedia),   invert: true  },
+        { id: 'guias',   label: 'Guias técnicas',       value: snap.guiasCount || 0,   sub: 'separadas',                                                                          delta: _relDelta(snap.guiasCount, snapAnt?.guiasCount),       invert: false },
+    ];
+
+    const kpisHtml = kpis.map((k, i) => `
+        <div class="relx-kpi" style="animation-delay:${i * 80}ms">
+            <div class="relx-kpi-label">${k.label}</div>
+            <div class="relx-kpi-value">
+                <span class="relx-kpi-num" data-target="${k.value}" data-prefix="${k.suffix || ''}">0${k.suffix || ''}</span>
+            </div>
+            <div class="relx-kpi-sub">${escapeHtml(k.sub)}</div>
+            ${k.delta.html}
+            <div class="relx-kpi-spark"><svg class="relx-spark-svg" data-metric="${k.id}" viewBox="0 0 120 32" preserveAspectRatio="none"></svg></div>
+        </div>
+    `).join('');
+
+    // Distribuição (donut)
+    const totalPats = snap.totalPats || 0;
+    const taxa = snap.levantadas && totalPats ? Math.round((snap.levantadas / totalPats) * 100) : 0;
+    const distribuicaoHtml = `
+        <div class="relx-block relx-block-distrib" style="animation-delay:340ms">
+            <div class="relx-block-hdr">
+                <h3 class="relx-block-title">Distribuição de PATs</h3>
+                <span class="relx-block-pill">${_mesLabel(mesKey)}</span>
+            </div>
+            <div class="relx-donut-wrap">
+                <canvas id="relx-donut" width="160" height="160" class="relx-donut-canvas"></canvas>
+                <div class="relx-donut-center">
+                    <div class="relx-donut-big" id="relx-donut-num">0</div>
+                    <div class="relx-donut-small">total</div>
+                </div>
+            </div>
+            <div class="relx-legend">
+                <div class="relx-legend-row"><span class="relx-dot" style="background:#0f172a"></span><span class="relx-legend-txt">Levant. s/guia</span><span class="relx-legend-val">${snap.levantadasSemGuia || 0}</span></div>
+                <div class="relx-legend-row"><span class="relx-dot" style="background:#f97316"></span><span class="relx-legend-txt">Levant. c/guia</span><span class="relx-legend-val">${snap.levantadasComGuia || 0}</span></div>
+                <div class="relx-legend-row"><span class="relx-dot" style="background:#f59e0b"></span><span class="relx-legend-txt">Pendentes</span><span class="relx-legend-val">${snap.pendentes || 0}</span></div>
+                <div class="relx-legend-row"><span class="relx-dot" style="background:#cbd5e1"></span><span class="relx-legend-txt">Histórico</span><span class="relx-legend-val">${snap.historico || 0}</span></div>
+            </div>
+            <div class="relx-conclusao">
+                <div class="relx-conclusao-lbl">Taxa de conclusão</div>
+                <div class="relx-conclusao-val" data-target="${taxa}" data-suffix="%">0%</div>
+                <div class="relx-conclusao-bar"><div class="relx-conclusao-fill" style="--pct:${taxa}%"></div></div>
+            </div>
+        </div>
+    `;
+
+    // Top saídas (com mini-tabs)
+    const tabsSaidas = [
+        { id: 'all',    label: 'Todas',    data: snap.top5 || [] },
+        { id: 'pat',    label: 'PATs',     data: [] }, // vazio por enquanto — preenchido via movimentos filtrados client-side se precisar
+        { id: 'guia',   label: 'Guias',    data: snap.topGuias || [] },
+        { id: 'manual', label: 'Manuais',  data: [] },
+    ];
+    // Por agora mostramos Todas + Guias (os mais relevantes); os outros ficam como placeholder
+    const saidasHtml = `
+        <div class="relx-block relx-block-saidas" style="animation-delay:420ms">
+            <div class="relx-block-hdr">
+                <h3 class="relx-block-title">Top referências — saídas</h3>
+                <div class="relx-minitabs" data-tabs-group="saidas">
+                    <button class="relx-minitab active" data-tab="all">Todas</button>
+                    <button class="relx-minitab" data-tab="guia">Só Guias</button>
+                </div>
+            </div>
+            <div class="relx-barlist" data-panel="saidas-all">
+                ${_relBarListHtml(snap.top5, 'saidas-all')}
+            </div>
+            <div class="relx-barlist" data-panel="saidas-guia" hidden>
+                ${_relBarListHtml(snap.topGuias, 'saidas-guia')}
+            </div>
+        </div>
+    `;
+
+    // Bloco separado: materiais em guias (destaque para planeamento de encomendas)
+    const guiasHtml = `
+        <div class="relx-block relx-block-guias" style="animation-delay:500ms">
+            <div class="relx-block-hdr">
+                <h3 class="relx-block-title"><span class="relx-star">⚑</span> Materiais em guias</h3>
+                <span class="relx-block-pill relx-pill-orange">planear encomendas</span>
+            </div>
+            ${snap.topGuias && snap.topGuias.length
+                ? `<div class="relx-barlist">${_relBarListHtml(snap.topGuias, 'guias', '#f97316')}</div>`
+                : '<div class="relx-empty-inline">Sem guias separadas no período</div>'
+            }
+        </div>
+    `;
+
+    // Ferramentas (com mini-tabs dias/requisições)
+    const ferramentasHtml = `
+        <div class="relx-block relx-block-ferr" style="animation-delay:580ms">
+            <div class="relx-block-hdr">
+                <h3 class="relx-block-title">Ferramentas</h3>
+                <div class="relx-minitabs" data-tabs-group="ferr">
+                    <button class="relx-minitab active" data-tab="dias">Dias fora</button>
+                    <button class="relx-minitab" data-tab="req">Requisições</button>
+                </div>
+            </div>
+            <div class="relx-barlist" data-panel="ferr-dias">
+                ${_relFerrDiasHtml(snap.topFerrDias, mesKey)}
+            </div>
+            <div class="relx-barlist" data-panel="ferr-req" hidden>
+                ${_relFerrReqHtml(snap.topFerr)}
+            </div>
+        </div>
+    `;
+
+    // Top clientes
+    const clientesHtml = `
+        <div class="relx-block relx-block-clientes" style="animation-delay:660ms">
+            <div class="relx-block-hdr">
+                <h3 class="relx-block-title">Top clientes</h3>
+                <span class="relx-block-pill">${(snap.topClientes || []).length} estab.</span>
+            </div>
+            ${snap.topClientes && snap.topClientes.length
+                ? `<ol class="relx-ranking">${
+                    snap.topClientes.map((c, i) => `
+                        <li class="relx-rank-row" style="animation-delay:${700 + i * 50}ms">
+                            <span class="relx-rank-pos relx-rank-${Math.min(i+1,5)}">${i + 1}</span>
+                            <div class="relx-rank-info">
+                                <div class="relx-rank-name">${escapeHtml(c.nome)}</div>
+                                <div class="relx-rank-sub">${c.comGuia > 0 ? c.comGuia + ' com guia transporte' : 'sem guia'}</div>
+                            </div>
+                            <div class="relx-rank-val">
+                                <div class="relx-rank-num">${c.total}</div>
+                                <div class="relx-rank-unit">PATs</div>
+                            </div>
+                        </li>
+                    `).join('')
+                }</ol>`
+                : '<div class="relx-empty-inline">Sem PATs no período</div>'
+            }
+        </div>
+    `;
+
+    // Insights avançados
+    const insights = _relBuildInsightsAvancados(snap, snapAnt, sparkData);
+    const insightsHtml = insights.length ? `
+        <div class="relx-block relx-block-insights" style="animation-delay:740ms">
+            <div class="relx-block-hdr">
+                <h3 class="relx-block-title">Observações automáticas</h3>
+                <span class="relx-block-pill relx-pill-live">${insights.length} alerta${insights.length > 1 ? 's' : ''}</span>
+            </div>
+            <div class="relx-insights-list">
+                ${insights.map((it, i) => `
+                    <div class="relx-insight relx-insight-${it.level}" style="animation-delay:${760 + i * 60}ms">
+                        <span class="relx-insight-icon">${it.icon}</span>
+                        <span class="relx-insight-text">${it.text}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    ` : '';
+
+    return `
+        <div class="relx-grid">
+            <div class="relx-row-kpis">${kpisHtml}</div>
+            <div class="relx-row-main">
+                <div class="relx-col-left">
+                    ${saidasHtml}
+                    ${guiasHtml}
+                </div>
+                <div class="relx-col-right">
+                    ${distribuicaoHtml}
+                </div>
+            </div>
+            <div class="relx-row-secondary">
+                ${ferramentasHtml}
+                ${clientesHtml}
+            </div>
+            ${insightsHtml}
+        </div>
+    `;
+}
+
+// ── Helpers de construção ─────────────────────────────────────────────────
+function _relBarListHtml(items, prefix, color) {
+    if (!items || !items.length) return '<div class="relx-empty-inline">Sem dados no período</div>';
+    const maxQ = items[0]?.qty || 1;
+    const defaultColor = '#0f172a';
+    return items.map((it, i) => {
+        const pct = Math.round((it.qty / maxQ) * 100);
+        const c = color || defaultColor;
+        return `
+            <div class="relx-bar-row" style="animation-delay:${i * 60}ms">
+                <div class="relx-bar-meta">
+                    <span class="relx-bar-code">${escapeHtml(it.codigo || '')}</span>
+                    <span class="relx-bar-name">${escapeHtml(it.nome || '')}</span>
+                    <span class="relx-bar-val" style="color:${c}">${it.qty} un.</span>
+                </div>
+                <div class="relx-bar-track">
+                    <div class="relx-bar-fill" data-w="${pct}" style="background:${c}"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function _relFerrDiasHtml(items, mesKey) {
+    if (!items || !items.length) return '<div class="relx-empty-inline">Sem dados de alocação</div>';
+    const [y, m] = mesKey.split('-').map(Number);
+    const diasMes = new Date(y, m, 0).getDate();
+    return items.map((t, i) => {
+        const pct = Math.round((t.dias / diasMes) * 100);
+        const color = pct >= 80 ? '#dc2626' : pct >= 50 ? '#f59e0b' : '#0f172a';
+        return `
+            <div class="relx-bar-row" style="animation-delay:${i * 60}ms">
+                <div class="relx-bar-meta">
+                    <span class="relx-bar-name">${escapeHtml(t.nome)}</span>
+                    <span class="relx-bar-val" style="color:${color}">${t.dias}d · ${pct}%</span>
+                </div>
+                <div class="relx-bar-track">
+                    <div class="relx-bar-fill" data-w="${pct}" style="background:${color}"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function _relFerrReqHtml(items) {
+    if (!items || !items.length) return '<div class="relx-empty-inline">Sem requisições no período</div>';
+    const max = items[0]?.count || 1;
+    return items.map((t, i) => {
+        const pct = Math.round((t.count / max) * 100);
+        return `
+            <div class="relx-bar-row" style="animation-delay:${i * 60}ms">
+                <div class="relx-bar-meta">
+                    <span class="relx-bar-name">${escapeHtml(t.nome)}</span>
+                    <span class="relx-bar-val">${t.count}× requisit.</span>
+                </div>
+                <div class="relx-bar-track">
+                    <div class="relx-bar-fill" data-w="${pct}" style="background:#0f172a"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ── Delta helper (chips de tendência) ─────────────────────────────────────
+function _relDelta(val, ant, suffix = '') {
+    if (ant == null || val == null) return { html: '<div class="relx-chip relx-chip-neu">—</div>', diff: 0 };
+    const diff = val - ant;
+    if (Math.abs(diff) < 0.5) return { html: '<div class="relx-chip relx-chip-neu">= igual</div>', diff: 0 };
+    const up = diff > 0;
+    const cls = up ? 'relx-chip-up' : 'relx-chip-dn';
+    const ico = up ? '▲' : '▼';
+    return {
+        html: `<div class="relx-chip ${cls}">${ico} ${Math.abs(diff).toFixed(diff % 1 ? 1 : 0)}${suffix} vs ant.</div>`,
+        diff,
+    };
+}
+
+// ── Fetch período / histórico ─────────────────────────────────────────────
+// _relRange: 'mes' | '30' | '14' | '7'
+// 'mes': usa snapshot do mês
+// '7'/'14'/'30': janela móvel a partir de hoje — constrói snapshot em memória
+async function _relFetchPeriod(mesKey, range) {
+    if (range === 'mes') {
+        return await _lerSnapshot(mesKey);
+    }
+    // Janela móvel
+    const ndays = parseInt(range, 10);
+    if (!ndays || ndays < 1) return await _lerSnapshot(mesKey);
+    return await _relBuildWindow(ndays);
+}
+
+// Constrói snapshot-like para últimos N dias
+async function _relBuildWindow(ndays) {
+    const now = Date.now();
+    const ini = now - ndays * 86400000;
+    const fim = now;
+
+    // Fetch pats (usa cache actual — não ideal mas adequado)
+    let pats = [];
+    try {
+        const patData = await _fetchPats(false);
+        pats = Object.values(patData || {});
+    } catch(_e) {}
+
+    // Ferramentas actuais
+    let ferrData = {};
+    try {
+        ferrData = (await fetchCollection('ferramentas', false)) || {};
+    } catch(_e) {}
+
+    // Movimentos no range — como não podemos query por ts (precisaria de índice),
+    // lemos os movimentos do mês actual E anterior para cobrir 30 dias
+    const mesActual = _mesKey(0);
+    const mesAnt    = _mesKey(-1);
+    const movData = {};
+    for (const mk of [mesAnt, mesActual]) {
+        try {
+            const movUrl = await authUrl(`${MOV_URL}.json?orderBy="mes"&equalTo="${mk}"`);
+            const res = await fetch(movUrl);
+            if (res.ok) {
+                const d = await res.json();
+                if (d && typeof d === 'object' && !Array.isArray(d)) Object.assign(movData, d);
+            }
+        } catch(_e) {}
+    }
+
+    // Filtrar por ts dentro do range
+    const movsRange = Object.values(movData).filter(m => m.ts && m.ts >= ini && m.ts <= fim);
+
+    // PATs criadas no range
+    const patsMes = pats.filter(p => p.criadoEm >= ini && p.criadoEm <= fim);
+    const patsLevantadas = pats.filter(p => {
+        const levTs = p.levantadoEm || p.saidaEm;
+        return levTs && levTs >= ini && levTs <= fim;
+    });
+
+    const pendentes = patsMes.filter(p => p.status !== 'levantado' && p.status !== 'historico');
+    const comDuracao = patsLevantadas.filter(p => p.criadoEm && (p.levantadoEm || p.saidaEm));
+    const totalN = comDuracao.length + pendentes.length;
+    const duracaoMedia = totalN > 0
+        ? Math.round((comDuracao.reduce((a,p) => a + _calcDias(p.criadoEm, p.levantadoEm || p.saidaEm), 0)
+            + pendentes.reduce((a,p) => a + _calcDias(p.criadoEm), 0)) / totalN)
+        : null;
+
+    // Saídas
+    const refCount = {};
+    const refCountGuias = {};
+    let totalSaidasReal = 0;
+    const saidasPorTipo = { saida_pat: 0, saida_manual: 0, saida_guia: 0, remocao: 0 };
+    movsRange.forEach(m => {
+        if (!m.codigo) return;
+        const qtd = m.quantidade || 1;
+        totalSaidasReal += qtd;
+        if (saidasPorTipo[m.tipo] !== undefined) saidasPorTipo[m.tipo] += qtd;
+        if (!refCount[m.codigo]) refCount[m.codigo] = { codigo: m.codigo, nome: m.nome, qty: 0 };
+        refCount[m.codigo].qty += qtd;
+        if (m.tipo === 'saida_guia') {
+            if (!refCountGuias[m.codigo]) refCountGuias[m.codigo] = { codigo: m.codigo, nome: m.nome, qty: 0 };
+            refCountGuias[m.codigo].qty += qtd;
+        }
+    });
+    const top5     = Object.values(refCount).sort((a,b) => b.qty - a.qty).slice(0, 5);
+    const topGuias = Object.values(refCountGuias).sort((a,b) => b.qty - a.qty).slice(0, 5);
+
+    // Clientes
+    const clienteCount = {};
+    patsMes.forEach(p => {
+        const nome = (p.estabelecimento || 'Sem estabelecimento').trim();
+        if (!clienteCount[nome]) clienteCount[nome] = { nome, total: 0, comGuia: 0 };
+        clienteCount[nome].total++;
+        if (p.separacao) clienteCount[nome].comGuia++;
+    });
+    const topClientes = Object.values(clienteCount).sort((a,b) => b.total - a.total).slice(0, 5);
+
+    // Ferramentas — dias fora no range
+    const ferrDias = [];
+    const ferrCount = {};
+    Object.values(ferrData).forEach(t => {
+        if (!t.nome) return;
+        const hist = t.historico ? Object.values(t.historico)
+            .sort((a,b) => _relParseEvTs(a.data) - _relParseEvTs(b.data)) : [];
+        let dias = 0, lastAtrib = null;
+        hist.forEach(ev => {
+            const evTs = _relParseEvTs(ev.data);
+            if (ev.acao === 'atribuida') {
+                if (evTs > fim) return;
+                lastAtrib = Math.max(evTs, ini);
+                ferrCount[t.nome] = (ferrCount[t.nome] || 0) + (evTs >= ini ? 1 : 0);
+            } else if (ev.acao === 'devolvida' && lastAtrib) {
+                const devTs = Math.min(evTs, fim);
+                if (devTs > lastAtrib) dias += Math.round((devTs - lastAtrib) / 86400000);
+                lastAtrib = null;
+            }
+        });
+        if (lastAtrib && t.status === 'alocada') {
+            const extra = Math.round((fim - lastAtrib) / 86400000);
+            if (extra > 0) dias += extra;
+        }
+        if (dias > 0) ferrDias.push({ nome: t.nome, dias });
+    });
+    const topFerrDias = ferrDias.sort((a,b) => b.dias - a.dias).slice(0, 5);
+    const topFerr = Object.entries(ferrCount).filter(([,c]) => c > 0)
+        .sort((a,b) => b[1] - a[1]).slice(0, 6)
+        .map(([nome, count]) => ({ nome, count }));
+
+    // Guias — não re-fetch aqui (estimamos via movs saida_guia > 0 ...)
+    const guiasCount = 0; // não fiável na janela móvel sem query adicional
+
+    const levantadasComGuia = patsLevantadas.filter(p => !!p.separacao).length;
+    const levantadasSemGuia = patsLevantadas.length - levantadasComGuia;
+    const historicoN        = patsMes.filter(p => p.status === 'historico').length;
+    const porFunc = {};
+    patsLevantadas.forEach(p => {
+        const f = p.funcionario || 'Sem funcionário';
+        porFunc[f] = (porFunc[f] || 0) + 1;
+    });
+
+    return {
+        mes: `${ndays}d`,
+        totalPats: patsMes.length,
+        levantadas: patsLevantadas.length,
+        levantadasComGuia, levantadasSemGuia,
+        comGuia: levantadasComGuia,
+        pendentes: pendentes.length,
+        historico: historicoN,
+        duracaoMedia,
+        totalSaidas: totalSaidasReal,
+        saidasPorTipo,
+        guiasCount,
+        porFunc,
+        top5, topGuias,
+        topFerr, topClientes, topFerrDias,
+        ts: Date.now(),
+    };
+}
+
+// Lê últimos N snapshots para sparklines
+async function _relFetchHistorico(n, mesKeyActual) {
+    const result = { pats: [], saidas: [], duracao: [], guias: [] };
+    for (let i = n - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() + _relMesOffset - i);
+        const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        let s = null;
+        try { s = await _lerSnapshot(mk); } catch(_e) {}
+        result.pats.push(s?.totalPats || 0);
+        const sai = s?.totalSaidas ?? (s?.top5 || []).reduce((a, b) => a + (b.qty || 0), 0);
+        result.saidas.push(sai || 0);
+        result.duracao.push(s?.duracaoMedia || 0);
+        result.guias.push(s?.guiasCount || 0);
+    }
+    return result;
+}
+
+// ── Desenhar sparkline SVG com animação de path ───────────────────────────
+function _relDrawSparklines(sparkData, snap) {
+    const metricMap = {
+        pats:    sparkData.pats,
+        saidas:  sparkData.saidas,
+        duracao: sparkData.duracao,
+        guias:   sparkData.guias,
+    };
+    document.querySelectorAll('.relx-spark-svg').forEach(svg => {
+        const metric = svg.dataset.metric;
+        const data   = metricMap[metric] || [];
+        if (!data.length) return;
+
+        const W = 120, H = 32, P = 2;
+        const max = Math.max(...data, 1);
+        const min = Math.min(...data, 0);
+        const range = max - min || 1;
+        const step = (W - P * 2) / Math.max(data.length - 1, 1);
+
+        const pts = data.map((v, i) => {
+            const x = P + i * step;
+            const y = H - P - ((v - min) / range) * (H - P * 2);
+            return [x, y];
+        });
+
+        const d = pts.map((p, i) => (i === 0 ? `M ${p[0]} ${p[1]}` : `L ${p[0]} ${p[1]}`)).join(' ');
+        const dFill = d + ` L ${W - P} ${H - P} L ${P} ${H - P} Z`;
+
+        // Ultimate point highlight
+        const last = pts[pts.length - 1];
+
+        svg.innerHTML = `
+            <defs>
+                <linearGradient id="sg-${metric}" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stop-color="#f97316" stop-opacity="0.32"/>
+                    <stop offset="100%" stop-color="#f97316" stop-opacity="0"/>
+                </linearGradient>
+            </defs>
+            <path d="${dFill}" fill="url(#sg-${metric})" class="relx-spark-area" />
+            <path d="${d}" fill="none" stroke="#f97316" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="relx-spark-line" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/>
+            <circle cx="${last[0]}" cy="${last[1]}" r="2.4" fill="#f97316" class="relx-spark-dot"/>
+        `;
+    });
+}
+
+// ── Donut (Chart.js) + número animado central ─────────────────────────────
+function _relDrawDonut(snap) {
+    const canvas = $id('relx-donut');
+    if (!canvas || !window.Chart) return;
+    if (_relDonutChart) { try { _relDonutChart.destroy(); } catch(_e) {} _relDonutChart = null; }
+    const data = [
+        Math.max(snap.levantadasSemGuia || 0, 0),
+        Math.max(snap.levantadasComGuia || 0, 0),
+        Math.max(snap.pendentes         || 0, 0),
+        Math.max(snap.historico         || 0, 0),
+    ];
+    _relDonutChart = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            datasets: [{
+                data,
+                backgroundColor: ['#0f172a', '#f97316', '#f59e0b', '#cbd5e1'],
+                borderWidth: 0,
+                hoverOffset: 5,
+            }]
+        },
+        options: {
+            responsive: false, cutout: '72%',
+            animation: { animateRotate: true, duration: 1200, easing: 'easeOutQuart' },
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        }
+    });
+    _relAnimCount('relx-donut-num', snap.totalPats || 0, 1100);
+
+    // Taxa de conclusão animação
+    const taxaEl = document.querySelector('.relx-conclusao-val[data-target]');
+    if (taxaEl) {
+        const target = parseInt(taxaEl.dataset.target) || 0;
+        _relAnimCountTo(taxaEl, target, 1000, '%');
+    }
+}
+
+// ── Animar barras ─────────────────────────────────────────────────────────
+function _relAnimateBars() {
+    // Usa requestAnimationFrame para garantir que o style.width aplica depois do reveal.
+    requestAnimationFrame(() => {
+        document.querySelectorAll('.relx-bar-fill[data-w]').forEach((bar, i) => {
+            setTimeout(() => { bar.style.width = bar.dataset.w + '%'; }, 200 + i * 40);
+        });
+    });
+}
+
+// ── Count up dos KPIs (pega os .relx-kpi-num com data-target) ─────────────
+function _relAnimateKPIs() {
+    document.querySelectorAll('.relx-kpi-num[data-target]').forEach((el, i) => {
+        const target = parseFloat(el.dataset.target) || 0;
+        const prefix = el.dataset.prefix || '';
+        setTimeout(() => _relAnimCountTo(el, target, 1100, prefix, true), 150 + i * 100);
+    });
+}
+
+// Variante do _relAnimCount que aceita elemento em vez de id + prefix/suffix
+function _relAnimCountTo(el, target, dur = 800, suffix = '', prefixed = false) {
+    if (!el) return;
+    // prefixed: se true, 'suffix' é na verdade prefixo (para "~")
+    const apply = (v) => {
+        const n = Math.round(v);
+        el.textContent = prefixed ? (suffix + n) : (n + suffix);
+    };
+    if (target === 0) { apply(0); return; }
+    const start = performance.now();
+    const step = ts => {
+        const p    = Math.min((ts - start) / dur, 1);
+        const ease = 1 - Math.pow(1 - p, 4);
+        apply(target * ease);
+        if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+}
+
+// ── Mini-tabs handler ─────────────────────────────────────────────────────
+function _relAttachMiniTabs(snap) {
+    document.querySelectorAll('.relx-minitabs').forEach(group => {
+        const groupId = group.dataset.tabsGroup;
+        group.querySelectorAll('.relx-minitab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                group.querySelectorAll('.relx-minitab').forEach(b => b.classList.toggle('active', b === btn));
+                const block = group.closest('.relx-block');
+                const tabId = btn.dataset.tab;
+                block.querySelectorAll('[data-panel]').forEach(p => {
+                    const match = p.dataset.panel === `${groupId}-${tabId}`;
+                    p.hidden = !match;
+                    if (match) {
+                        // Re-animar barras quando troca tab
+                        p.querySelectorAll('.relx-bar-fill[data-w]').forEach(bar => {
+                            bar.style.width = '0';
+                            requestAnimationFrame(() => {
+                                setTimeout(() => bar.style.width = bar.dataset.w + '%', 40);
+                            });
+                        });
+                    }
+                });
+            });
+        });
+    });
+}
+
+// ── Insights avançados (substitui _relBuildInsight) ───────────────────────
+function _relBuildInsightsAvancados(snap, snapAnt, sparkData) {
+    const out = [];
+
+    // 1. Ferramenta com muitos dias fora → considerar 2ª unidade
+    if (snap.topFerrDias?.length) {
+        const top = snap.topFerrDias[0];
+        const [y, m] = (snap.mes || _mesKey(0)).split('-').map(Number);
+        const diasMes = new Date(y, m, 0).getDate();
+        const pct = Math.round((top.dias / diasMes) * 100);
+        if (pct >= 80) {
+            out.push({ level: 'warn', icon: '⚠', text: `<b>${escapeHtml(top.nome)}</b> esteve <b>${pct}%</b> do período fora do armazém (${top.dias} dias). Considera adquirir uma segunda unidade.` });
+        }
+    }
+
+    // 2. Material com acréscimo súbito (saídas deste mês > 150% da média dos 3 anteriores)
+    if (snap.top5?.length && sparkData && sparkData.saidas?.length >= 3) {
+        // Para identificar os top com crescimento, precisamos das séries por ref — não temos no snapshot.
+        // Heurística geral: se totalSaidas > 1.5 × avg(últimos 3 meses), sinaliza o top1.
+        const recentes = sparkData.saidas.slice(-4, -1); // 3 meses antes do actual
+        const avg = recentes.reduce((a, b) => a + b, 0) / Math.max(recentes.length, 1);
+        const atual = sparkData.saidas[sparkData.saidas.length - 1];
+        if (avg > 0 && atual > avg * 1.5) {
+            const pct = Math.round(((atual - avg) / avg) * 100);
+            const topRef = snap.top5[0];
+            out.push({ level: 'alert', icon: '▲', text: `Saídas subiram <b>+${pct}%</b> vs média 3 meses. Líder: <b>${escapeHtml(topRef.codigo)} — ${escapeHtml(topRef.nome || '')}</b>. Vigiar stock.` });
+        }
+    }
+
+    // 3. PATs pendentes acumuladas
+    if (snap.pendentes > 5) {
+        out.push({ level: 'info', icon: 'ℹ', text: `<b>${snap.pendentes}</b> PATs ainda pendentes no fim do período. Garante que todas estão atribuídas a um técnico.` });
+    }
+
+    // 4. Duração média alta
+    if (snap.duracaoMedia != null && snap.duracaoMedia > 10) {
+        out.push({ level: 'warn', icon: '⏱', text: `Duração média em <b>${snap.duracaoMedia} dias</b> — acima do recomendado. Verifica pendências em aberto.` });
+    }
+
+    // 5. Crescimento guias técnicas
+    if (snapAnt && snap.guiasCount && snapAnt.guiasCount) {
+        const diff = snap.guiasCount - snapAnt.guiasCount;
+        if (Math.abs(diff) >= 5) {
+            const sinal = diff > 0 ? '+' : '';
+            out.push({ level: 'info', icon: '⚑', text: `Guias técnicas: <b>${sinal}${diff}</b> vs mês anterior (${snapAnt.guiasCount} → ${snap.guiasCount}).` });
+        }
+    }
+
+    return out;
+}
+
+// ── Filtro de range (mes / 30 / 14 / 7) ───────────────────────────────────
+let _relRange = 'mes';
+function relSetRange(range) {
+    _relRange = range;
+    document.querySelectorAll('.relx-range-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.range === range);
+    });
+    renderRelatorio();
+}
+
 
 // ── Limpeza de instâncias Chart.js ────────────────────────────────────────
 // Chamada quando o utilizador sai do tab Relatório. Evita leak de memória
@@ -851,65 +1278,5 @@ function _relAnimCount(elId, target, dur = 800, prefix = '') {
     requestAnimationFrame(step);
 }
 
-// ── Gauge canvas ──────────────────────────────────────────────────────────
-function _relDrawGauge(canvasId, pct, color, delayMs = 0) {
-    setTimeout(() => {
-        const c = $id(canvasId);
-        if (!c) return;
-        const ctx = c.getContext('2d');
-        const cx = 36, cy = 36, r = 26, lw = 7;
-        const isDark = document.body.classList.contains('dark-mode');
-        const trackCol = isDark ? 'rgba(255,255,255,.08)' : '#f1f5f9';
-        let cur = 0;
-        const target = pct / 100;
-        const start  = performance.now();
-        const step   = ts => {
-            const p    = Math.min((ts - start) / 900, 1);
-            const ease = 1 - Math.pow(1 - p, 4);
-            cur = target * ease;
-            ctx.clearRect(0, 0, 72, 72);
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, -Math.PI / 2, Math.PI * 2 - Math.PI / 2);
-            ctx.strokeStyle = trackCol;
-            ctx.lineWidth = lw;
-            ctx.lineCap = 'round';
-            ctx.stroke();
-            if (cur > 0) {
-                ctx.beginPath();
-                ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * cur);
-                ctx.strokeStyle = color;
-                ctx.lineWidth = lw;
-                ctx.lineCap = 'round';
-                ctx.stroke();
-            }
-            const textColor = isDark ? '#e2e8f0' : '#0f172a';
-            ctx.fillStyle = textColor;
-            ctx.font = 'bold 11px Inter,-apple-system,sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(Math.round(pct * ease) + '%', cx, cy);
-            if (p < 1) requestAnimationFrame(step);
-        };
-        requestAnimationFrame(step);
-    }, delayMs);
-}
 
-// ── Insight automático ────────────────────────────────────────────────────
-function _relBuildInsight(snap) {
-    if (snap.topFerrDias?.length) {
-        const top = snap.topFerrDias[0];
-        // Dias reais do mês a partir do mesKey — não hardcoded a 30
-        const [y, m] = (snap.mes || _mesKey(0)).split('-').map(Number);
-        const diasMes = new Date(y, m, 0).getDate(); // dia 0 do mês seguinte = último dia do mês
-        const pct = Math.round((top.dias / diasMes) * 100);
-        if (pct >= 80) return `"${top.nome}" esteve fora do armazém ${pct}% do mês (${top.dias} dias). Considera adquirir uma segunda unidade.`;
-    }
-    if (snap.duracaoMedia != null && snap.duracaoMedia > 10) {
-        return `Duração média das PATs está em ${snap.duracaoMedia} dias — acima do recomendado. Verifica pendências em aberto.`;
-    }
-    if (snap.pendentes > 5) {
-        return `${snap.pendentes} PATs ainda pendentes no final do mês. Garante que estão atribuídas a um técnico.`;
-    }
-    return null;
-}
 
