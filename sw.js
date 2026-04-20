@@ -4,7 +4,17 @@
 // Pré-cache de app shell garante que a PWA arranca offline no primeiro uso
 // após instalação (antes disto, abrir offline no primeiro boot deixava ecrã branco).
 // ─────────────────────────────────────────────────────────────────────────────
-const SW_VERSION = 'hiperfrio-v6.58';
+const SW_VERSION = 'hiperfrio-v6.60';
+
+// Ficheiro partilhado pendente (Web Share Target). Em memória do SW, expira em 60s
+// para evitar servir um ficheiro stale de uma partilha antiga.
+// ── Web Share Target — armazenamento persistente de PDF partilhado ──────────
+// Guardamos o Response em Cache API (não em variável de memória) porque o SW
+// pode ser terminado entre o POST de partilha e o GET do client. Cache persiste.
+const SHARE_CACHE_NAME = 'hiperfrio-share-pending';
+const SHARE_CACHE_KEY  = '/__shared_pdf__';       // chave interna (não precisa de existir)
+const SHARE_CACHE_META_KEY = '/__shared_pdf_meta__';
+const SHARED_FILE_TTL_MS = 60_000;
 
 // Libs externas imutáveis — cache-first eterno (hash na URL)
 const IMMUTABLE_ASSETS = [
@@ -54,7 +64,9 @@ self.addEventListener('activate', e => {
     e.waitUntil(
         caches.keys()
             .then(keys => Promise.all(
-                keys.filter(k => k !== SW_VERSION).map(k => caches.delete(k))
+                // Preservar SW_VERSION e SHARE_CACHE_NAME — tudo o resto pode ser purgado
+                keys.filter(k => k !== SW_VERSION && k !== SHARE_CACHE_NAME)
+                    .map(k => caches.delete(k))
             ))
             .then(() => self.clients.claim())
             .then(() => self.clients.matchAll({ type: 'window' }))
@@ -67,6 +79,39 @@ self.addEventListener('activate', e => {
 
 // Fetch: filtra sempre pedidos não-GET antes de qualquer lógica de cache
 self.addEventListener('fetch', e => {
+    // ── Web Share Target — intercepta POST de partilha de PDF ─────────────
+    // Android/Chrome envia POST multipart para ./index.html?share=pending quando
+    // o utilizador partilha um ficheiro. Guardamos o ficheiro na Cache API
+    // (persiste entre reinícios do SW) e redirigimos para URL GET que a app carrega.
+    if (e.request.method === 'POST' &&
+        new URL(e.request.url).searchParams.get('share') === 'pending') {
+        e.respondWith((async () => {
+            try {
+                const form = await e.request.formData();
+                const file = form.get('file');
+                if (file && file.size > 0) {
+                    const cache = await caches.open(SHARE_CACHE_NAME);
+                    // Guarda o blob do ficheiro
+                    await cache.put(SHARE_CACHE_KEY, new Response(file, {
+                        headers: { 'Content-Type': file.type || 'application/pdf' }
+                    }));
+                    // Guarda metadata (nome, tipo, timestamp) separadamente
+                    await cache.put(SHARE_CACHE_META_KEY, new Response(JSON.stringify({
+                        name: file.name,
+                        type: file.type,
+                        size: file.size,
+                        ts: Date.now(),
+                    }), { headers: { 'Content-Type': 'application/json' } }));
+                }
+            } catch(err) {
+                console.warn('[SW share] falha a ler formData:', err?.message);
+            }
+            // Redirige para URL GET que a app reconhece e pede o ficheiro ao SW
+            return Response.redirect('./index.html?share=ready', 303);
+        })());
+        return;
+    }
+
     // CRÍTICO: Cache API só suporta GET. POST/PUT/PATCH/DELETE nunca podem ir
     // para cache. Antes não filtrávamos — deixa o browser lidar com eles.
     if (e.request.method !== 'GET') return;
@@ -125,6 +170,41 @@ self.addEventListener('fetch', e => {
 self.addEventListener('message', e => {
     if (e.data && e.data.type === 'GET_VERSION') {
         e.ports[0].postMessage({ version: SW_VERSION });
+    }
+    // App pede o ficheiro partilhado — lê da cache e envia via MessageChannel
+    if (e.data && e.data.type === 'GET_SHARED_FILE') {
+        e.waitUntil((async () => {
+            try {
+                const cache = await caches.open(SHARE_CACHE_NAME);
+                const metaRes = await cache.match(SHARE_CACHE_META_KEY);
+                const fileRes = await cache.match(SHARE_CACHE_KEY);
+                if (!metaRes || !fileRes) {
+                    e.ports[0].postMessage({ file: null });
+                    return;
+                }
+                const meta = await metaRes.json();
+                const fresh = (Date.now() - (meta.ts || 0)) < SHARED_FILE_TTL_MS;
+                if (!fresh) {
+                    // Expirou — limpa cache
+                    await cache.delete(SHARE_CACHE_KEY);
+                    await cache.delete(SHARE_CACHE_META_KEY);
+                    e.ports[0].postMessage({ file: null });
+                    return;
+                }
+                const blob = await fileRes.blob();
+                // Reconstruir File a partir do Blob (preserva nome)
+                const file = new File([blob], meta.name || 'shared.pdf', {
+                    type: meta.type || 'application/pdf',
+                });
+                e.ports[0].postMessage({ file });
+                // Consome — apaga cache para não reutilizar
+                await cache.delete(SHARE_CACHE_KEY);
+                await cache.delete(SHARE_CACHE_META_KEY);
+            } catch(err) {
+                console.warn('[SW share] falha GET_SHARED_FILE:', err?.message);
+                e.ports[0].postMessage({ file: null });
+            }
+        })());
     }
 });
 

@@ -567,8 +567,16 @@ function relMoveMonth(delta) {
 // ── Renderizar relatório ──────────────────────────────────────────────────
 // Layout: painel operacional denso com 4 linhas + mini-tabs em blocos densos.
 // Data actual: snapshot do mês (ou semana/janela móvel via filtro).
-// Animações: staggered reveal + count-up + sparkline desenho + donut rotate
-async function renderRelatorio() {
+// resetToCurrent: se true, repõe offset a 0 e range a 'mes' antes de renderizar.
+async function renderRelatorio(resetToCurrent = false) {
+    if (resetToCurrent) {
+        _relMesOffset = 0;
+        _relRange     = 'mes';
+        // Actualizar UI dos botões de range imediatamente
+        document.querySelectorAll('.relx-range-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.range === 'mes');
+        });
+    }
     try { await loadChart(); } catch(_e) { console.warn('[Relatório] Chart.js não carregou:', _e?.message); }
 
     const mesKey  = _mesKey(_relMesOffset);
@@ -631,7 +639,7 @@ async function renderRelatorio() {
     if (durEl) durEl.textContent = snap.duracaoMedia != null ? snap.duracaoMedia + 'd' : '—';
 
     // ── Builder HTML — um único template string para toda a grid ──────────
-    content.innerHTML = _relBuildLayout(snap, snapAnt, sparkData, totalSaidas, hasTotal);
+    content.innerHTML = _relBuildLayout(snap, snapAnt, sparkData, totalSaidas, hasTotal, snapAnt2, snapAnt3);
 
     // ── Hooks pós-render: event listeners para mini-tabs + animações ──────
     _relAttachMiniTabs(snap);
@@ -642,7 +650,7 @@ async function renderRelatorio() {
 }
 
 // ── Layout builder — monta toda a grid numa string ────────────────────────
-function _relBuildLayout(snap, snapAnt, sparkData, totalSaidas, hasTotal) {
+function _relBuildLayout(snap, snapAnt, sparkData, totalSaidas, hasTotal, snapAnt2, snapAnt3) {
     const mesKey = snap.mes || _mesKey(_relMesOffset);
 
     // KPIs

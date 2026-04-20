@@ -1091,15 +1091,9 @@ function switchAdminTab(tab, animate = true) {
     if (tab === 'users')    renderUsersList();
     if (tab === 'settings') { _updateOcrKeyStatus(); _updateGimgStatus(); _loadOcrKeywordsInput(); _loadInvEmailInput(); }
     if (tab === 'relatorio') {
-        // Sempre que entramos no tab, voltamos ao mês actual e range 'mes'
-        // (utilizador pode ter deixado em M-2 na sessão anterior)
-        if (typeof _relMesOffset !== 'undefined') _relMesOffset = 0;
-        if (typeof _relRange !== 'undefined')     _relRange     = 'mes';
-        // Actualizar botões activos visualmente
-        document.querySelectorAll('.relx-range-btn').forEach(b => {
-            b.classList.toggle('active', b.dataset.range === 'mes');
-        });
-        renderRelatorio();
+        // Sempre que entramos no tab, pedimos reset ao mês actual.
+        // A lógica de reset está dentro de renderRelatorio (reports.js).
+        renderRelatorio(true);
     }
     if (tab === 'workers')  renderWorkers();
     if (tab === 'tools')    renderAdminTools();
