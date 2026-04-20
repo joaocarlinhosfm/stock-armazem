@@ -807,8 +807,14 @@
 .relx-barlist {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
+    padding-top: 4px;
 }
+/* Override user-agent "display:flex" conflict quando hidden — sem !important
+   o display:flex acima vence a regra UA de hidden. */
+.relx-barlist[hidden] { display: none; }
+.relx-barlist.is-hidden { display: none; }
+.relx-bar-row:first-child { margin-top: 2px; }
 .relx-bar-row {
     animation: relx-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
@@ -1062,6 +1068,7 @@
 .relx-insight-warn  { border-left-color: var(--relx-warn); }
 .relx-insight-alert { border-left-color: var(--relx-accent); }
 .relx-insight-info  { border-left-color: #60a5fa; }
+.relx-insight-good  { border-left-color: var(--relx-good); }
 .relx-insight-icon {
     font-size: 1.1rem;
     flex-shrink: 0;

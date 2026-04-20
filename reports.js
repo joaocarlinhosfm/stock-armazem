@@ -175,6 +175,23 @@ async function _buildSnapshot(mesKey) {
         }
     } catch(_e) { /* requer .indexOn: ["separadoEm"] em /guias */ }
 
+    // Map código → unidade (para gás mostrar kg em vez de unidades).
+    // Movimentos não guardam unidade, mas stock sim. Fazemos lookup por código.
+    // Também conta quantos produtos têm stock = 0 (input para alerta).
+    const unidadePorCodigo = {};
+    let stockZero = 0;
+    const stockByCodigo = {}; // para cross-check de consumo por ref
+    try {
+        const stockRaw = await fetchCollection('stock', false);
+        Object.values(stockRaw || {}).forEach(item => {
+            if (!item.codigo) return;
+            const codU = item.codigo.toUpperCase();
+            unidadePorCodigo[codU] = item.unidade || 'un';
+            stockByCodigo[codU] = item;
+            if ((item.quantidade || 0) === 0) stockZero++;
+        });
+    } catch(_e) {}
+
     // PATs criadas neste mês
     const patsMes = pats.filter(p => p.criadoEm >= ini && p.criadoEm <= fim);
 
@@ -223,12 +240,14 @@ async function _buildSnapshot(mesKey) {
         const qtd = m.quantidade || 1;
         totalSaidasReal += qtd;
         if (saidasPorTipo[m.tipo] !== undefined) saidasPorTipo[m.tipo] += qtd;
-        if (!refCount[m.codigo]) refCount[m.codigo] = { codigo: m.codigo, nome: m.nome, qty: 0 };
-        refCount[m.codigo].qty += qtd;
+        const codU = m.codigo.toUpperCase();
+        const unidade = unidadePorCodigo[codU] || 'un';
+        if (!refCount[codU]) refCount[codU] = { codigo: m.codigo, nome: m.nome, qty: 0, unidade };
+        refCount[codU].qty += qtd;
         // Materiais saídos VIA GUIAS — ranking separado para planeamento de encomendas
         if (m.tipo === 'saida_guia') {
-            if (!refCountGuias[m.codigo]) refCountGuias[m.codigo] = { codigo: m.codigo, nome: m.nome, qty: 0 };
-            refCountGuias[m.codigo].qty += qtd;
+            if (!refCountGuias[codU]) refCountGuias[codU] = { codigo: m.codigo, nome: m.nome, qty: 0, unidade };
+            refCountGuias[codU].qty += qtd;
         }
     });
     const top5 = Object.values(refCount)
@@ -237,6 +256,15 @@ async function _buildSnapshot(mesKey) {
     const topGuias = Object.values(refCountGuias)
         .sort((a, b) => b.qty - a.qty)
         .slice(0, 5);
+
+    // Top refs do período que estão a zero no stock actualmente — alerta crítico
+    const topEsgotados = Object.values(refCount)
+        .filter(r => {
+            const item = stockByCodigo[r.codigo.toUpperCase()];
+            return item && (item.quantidade || 0) === 0;
+        })
+        .sort((a, b) => b.qty - a.qty)
+        .slice(0, 3);
 
     // Ferramentas mais requisitadas
     const ferrCount = {};
@@ -318,9 +346,11 @@ async function _buildSnapshot(mesKey) {
         totalSaidas:       totalSaidasReal,
         porFunc,
         top5,
-        topGuias,          // novo: top 5 materiais saídos via guias técnicas
-        saidasPorTipo,     // novo: decomposição das saídas por tipo
-        guiasCount,        // novo: guias separadas no mês
+        topGuias,
+        saidasPorTipo,
+        guiasCount,
+        stockZero,         // novo: nº produtos a 0 no stock
+        topEsgotados,      // novo: top refs do período que estão esgotadas agora
         topFerr,
         topClientes,
         topFerrDias,
@@ -582,9 +612,13 @@ async function renderRelatorio() {
     // Histórico de 6 meses para sparklines
     const sparkData = await _relFetchHistorico(6, mesKey);
 
-    // Snapshot mês anterior para trends
-    let snapAnt = null;
-    try { snapAnt = await _lerSnapshot(_mesKey(_relMesOffset - 1)); } catch(_e) {}
+    // Snapshot mês anterior + dois meses antes (para detectar mudanças de padrão).
+    // Fetch em paralelo para não penalizar o load.
+    const [snapAnt, snapAnt2, snapAnt3] = await Promise.all([
+        _lerSnapshot(_mesKey(_relMesOffset - 1)).catch(() => null),
+        _lerSnapshot(_mesKey(_relMesOffset - 2)).catch(() => null),
+        _lerSnapshot(_mesKey(_relMesOffset - 3)).catch(() => null),
+    ]);
 
     // Summary strip (topo fixo)
     const hasTotal = snap.totalSaidas != null;
@@ -616,7 +650,7 @@ function _relBuildLayout(snap, snapAnt, sparkData, totalSaidas, hasTotal) {
         { id: 'pats',    label: 'PATs do período',      value: snap.totalPats || 0,   sub: `${snap.levantadas || 0} levant. · ${snap.pendentes || 0} pend.`, delta: _relDelta(snap.totalPats, snapAnt?.totalPats),       invert: false },
         { id: 'saidas',  label: 'Saídas totais',        value: totalSaidas,            sub: 'unidades', suffix: hasTotal ? '' : '~',                                           delta: _relDelta(totalSaidas, snapAnt ? (snapAnt.totalSaidas ?? (snapAnt.top5||[]).reduce((a,b)=>a+(b.qty||0),0)) : null),  invert: false },
         { id: 'duracao', label: 'Duração média',        value: snap.duracaoMedia || 0, sub: 'dias · criação → levant.',                                                          suffix: 'd',   delta: _relDelta(snap.duracaoMedia, snapAnt?.duracaoMedia),   invert: true  },
-        { id: 'guias',   label: 'Guias técnicas',       value: snap.guiasCount || 0,   sub: 'separadas',                                                                          delta: _relDelta(snap.guiasCount, snapAnt?.guiasCount),       invert: false },
+        { id: 'guias',   label: 'Guias Técnicos',       value: snap.guiasCount || 0,   sub: 'separações',                                                                         delta: _relDelta(snap.guiasCount, snapAnt?.guiasCount),       invert: false },
     ];
 
     const kpisHtml = kpis.map((k, i) => `
@@ -681,7 +715,7 @@ function _relBuildLayout(snap, snapAnt, sparkData, totalSaidas, hasTotal) {
             <div class="relx-barlist" data-panel="saidas-all">
                 ${_relBarListHtml(snap.top5, 'saidas-all')}
             </div>
-            <div class="relx-barlist" data-panel="saidas-guia" hidden>
+            <div class="relx-barlist is-hidden" data-panel="saidas-guia">
                 ${_relBarListHtml(snap.topGuias, 'saidas-guia')}
             </div>
         </div>
@@ -714,7 +748,7 @@ function _relBuildLayout(snap, snapAnt, sparkData, totalSaidas, hasTotal) {
             <div class="relx-barlist" data-panel="ferr-dias">
                 ${_relFerrDiasHtml(snap.topFerrDias, mesKey)}
             </div>
-            <div class="relx-barlist" data-panel="ferr-req" hidden>
+            <div class="relx-barlist is-hidden" data-panel="ferr-req">
                 ${_relFerrReqHtml(snap.topFerr)}
             </div>
         </div>
@@ -749,7 +783,7 @@ function _relBuildLayout(snap, snapAnt, sparkData, totalSaidas, hasTotal) {
     `;
 
     // Insights avançados
-    const insights = _relBuildInsightsAvancados(snap, snapAnt, sparkData);
+    const insights = _relBuildInsightsAvancados(snap, snapAnt, sparkData, snapAnt2, snapAnt3);
     const insightsHtml = insights.length ? `
         <div class="relx-block relx-block-insights" style="animation-delay:740ms">
             <div class="relx-block-hdr">
@@ -796,12 +830,16 @@ function _relBarListHtml(items, prefix, color) {
     return items.map((it, i) => {
         const pct = Math.round((it.qty / maxQ) * 100);
         const c = color || defaultColor;
+        // Usa a unidade do stock (ex: kg para gás) em vez de "un." fixo.
+        // Se não houver unidade resolvida, assume 'un'.
+        const unidade = it.unidade && it.unidade !== 'un' ? it.unidade : 'un.';
+        const qtyFmt  = `${it.qty} ${unidade}`;
         return `
             <div class="relx-bar-row" style="animation-delay:${i * 60}ms">
                 <div class="relx-bar-meta">
                     <span class="relx-bar-code">${escapeHtml(it.codigo || '')}</span>
                     <span class="relx-bar-name">${escapeHtml(it.nome || '')}</span>
-                    <span class="relx-bar-val" style="color:${c}">${it.qty} un.</span>
+                    <span class="relx-bar-val" style="color:${c}">${qtyFmt}</span>
                 </div>
                 <div class="relx-bar-track">
                     <div class="relx-bar-fill" data-w="${pct}" style="background:${c}"></div>
@@ -898,6 +936,21 @@ async function _relBuildWindow(ndays) {
         ferrData = (await fetchCollection('ferramentas', false)) || {};
     } catch(_e) {}
 
+    // Map código → unidade (stock lookup)
+    const unidadePorCodigo = {};
+    let stockZero = 0;
+    const stockByCodigo = {};
+    try {
+        const stockRaw = await fetchCollection('stock', false);
+        Object.values(stockRaw || {}).forEach(item => {
+            if (!item.codigo) return;
+            const codU = item.codigo.toUpperCase();
+            unidadePorCodigo[codU] = item.unidade || 'un';
+            stockByCodigo[codU] = item;
+            if ((item.quantidade || 0) === 0) stockZero++;
+        });
+    } catch(_e) {}
+
     // Movimentos no range — como não podemos query por ts (precisaria de índice),
     // lemos os movimentos do mês actual E anterior para cobrir 30 dias
     const mesActual = _mesKey(0);
@@ -942,11 +995,13 @@ async function _relBuildWindow(ndays) {
         const qtd = m.quantidade || 1;
         totalSaidasReal += qtd;
         if (saidasPorTipo[m.tipo] !== undefined) saidasPorTipo[m.tipo] += qtd;
-        if (!refCount[m.codigo]) refCount[m.codigo] = { codigo: m.codigo, nome: m.nome, qty: 0 };
-        refCount[m.codigo].qty += qtd;
+        const codU = m.codigo.toUpperCase();
+        const unidade = unidadePorCodigo[codU] || 'un';
+        if (!refCount[codU]) refCount[codU] = { codigo: m.codigo, nome: m.nome, qty: 0, unidade };
+        refCount[codU].qty += qtd;
         if (m.tipo === 'saida_guia') {
-            if (!refCountGuias[m.codigo]) refCountGuias[m.codigo] = { codigo: m.codigo, nome: m.nome, qty: 0 };
-            refCountGuias[m.codigo].qty += qtd;
+            if (!refCountGuias[codU]) refCountGuias[codU] = { codigo: m.codigo, nome: m.nome, qty: 0, unidade };
+            refCountGuias[codU].qty += qtd;
         }
     });
     const top5     = Object.values(refCount).sort((a,b) => b.qty - a.qty).slice(0, 5);
@@ -1017,6 +1072,7 @@ async function _relBuildWindow(ndays) {
         totalSaidas: totalSaidasReal,
         saidasPorTipo,
         guiasCount,
+        stockZero,
         porFunc,
         top5, topGuias,
         topFerr, topClientes, topFerrDias,
@@ -1174,7 +1230,7 @@ function _relAttachMiniTabs(snap) {
                 const tabId = btn.dataset.tab;
                 block.querySelectorAll('[data-panel]').forEach(p => {
                     const match = p.dataset.panel === `${groupId}-${tabId}`;
-                    p.hidden = !match;
+                    p.classList.toggle('is-hidden', !match);
                     if (match) {
                         // Re-animar barras quando troca tab
                         p.querySelectorAll('.relx-bar-fill[data-w]').forEach(bar => {
@@ -1190,32 +1246,34 @@ function _relAttachMiniTabs(snap) {
     });
 }
 
-// ── Insights avançados (substitui _relBuildInsight) ───────────────────────
-function _relBuildInsightsAvancados(snap, snapAnt, sparkData) {
+// ── Insights avançados ───────────────────────────────────────────────────
+// Gera uma lista de observações automáticas com base no snapshot actual e
+// nos 3 snapshots anteriores. Cada item: { level, icon, text }.
+// Níveis: 'alert' (laranja) · 'warn' (amarelo) · 'info' (azul) · 'good' (verde)
+function _relBuildInsightsAvancados(snap, snapAnt, sparkData, snapAnt2, snapAnt3) {
     const out = [];
 
     // 1. Ferramenta com muitos dias fora → considerar 2ª unidade
     if (snap.topFerrDias?.length) {
         const top = snap.topFerrDias[0];
         const [y, m] = (snap.mes || _mesKey(0)).split('-').map(Number);
-        const diasMes = new Date(y, m, 0).getDate();
+        const diasMes = new Date(y, m, 0).getDate() || 30;
         const pct = Math.round((top.dias / diasMes) * 100);
         if (pct >= 80) {
             out.push({ level: 'warn', icon: '⚠', text: `<b>${escapeHtml(top.nome)}</b> esteve <b>${pct}%</b> do período fora do armazém (${top.dias} dias). Considera adquirir uma segunda unidade.` });
         }
     }
 
-    // 2. Material com acréscimo súbito (saídas deste mês > 150% da média dos 3 anteriores)
-    if (snap.top5?.length && sparkData && sparkData.saidas?.length >= 3) {
-        // Para identificar os top com crescimento, precisamos das séries por ref — não temos no snapshot.
-        // Heurística geral: se totalSaidas > 1.5 × avg(últimos 3 meses), sinaliza o top1.
-        const recentes = sparkData.saidas.slice(-4, -1); // 3 meses antes do actual
+    // 2. Saídas totais disparadas vs média 3 meses
+    if (sparkData && sparkData.saidas?.length >= 4) {
+        const recentes = sparkData.saidas.slice(-4, -1);
         const avg = recentes.reduce((a, b) => a + b, 0) / Math.max(recentes.length, 1);
         const atual = sparkData.saidas[sparkData.saidas.length - 1];
         if (avg > 0 && atual > avg * 1.5) {
             const pct = Math.round(((atual - avg) / avg) * 100);
-            const topRef = snap.top5[0];
-            out.push({ level: 'alert', icon: '▲', text: `Saídas subiram <b>+${pct}%</b> vs média 3 meses. Líder: <b>${escapeHtml(topRef.codigo)} — ${escapeHtml(topRef.nome || '')}</b>. Vigiar stock.` });
+            const topRef = snap.top5?.[0];
+            const lider = topRef ? ` Líder: <b>${escapeHtml(topRef.codigo)} — ${escapeHtml(topRef.nome || '')}</b>.` : '';
+            out.push({ level: 'alert', icon: '▲', text: `Saídas subiram <b>+${pct}%</b> vs média 3 meses.${lider} Vigiar stock.` });
         }
     }
 
@@ -1229,13 +1287,76 @@ function _relBuildInsightsAvancados(snap, snapAnt, sparkData) {
         out.push({ level: 'warn', icon: '⏱', text: `Duração média em <b>${snap.duracaoMedia} dias</b> — acima do recomendado. Verifica pendências em aberto.` });
     }
 
-    // 5. Crescimento guias técnicas
+    // 5. Crescimento guias técnicas vs mês anterior
     if (snapAnt && snap.guiasCount && snapAnt.guiasCount) {
         const diff = snap.guiasCount - snapAnt.guiasCount;
         if (Math.abs(diff) >= 5) {
             const sinal = diff > 0 ? '+' : '';
-            out.push({ level: 'info', icon: '⚑', text: `Guias técnicas: <b>${sinal}${diff}</b> vs mês anterior (${snapAnt.guiasCount} → ${snap.guiasCount}).` });
+            out.push({ level: 'info', icon: '⚑', text: `Guias Técnicos: <b>${sinal}${diff}</b> separações vs mês anterior (${snapAnt.guiasCount} → ${snap.guiasCount}).` });
         }
+        // 5b. Crescimento muito forte (>50%)
+        else if (snapAnt.guiasCount > 0 && snap.guiasCount > snapAnt.guiasCount * 1.5) {
+            const pct = Math.round(((snap.guiasCount - snapAnt.guiasCount) / snapAnt.guiasCount) * 100);
+            out.push({ level: 'alert', icon: '⚑', text: `Separações para técnicos cresceram <b>+${pct}%</b> vs mês anterior. Sinal de intensificação da actividade no terreno.` });
+        }
+    }
+
+    // 6. NOVO: Cliente novo no top 3 (não estava no top 3 do mês anterior)
+    if (snap.topClientes?.length && snapAnt?.topClientes?.length) {
+        const top3Ant = new Set(snapAnt.topClientes.slice(0, 3).map(c => (c.nome || '').trim().toUpperCase()));
+        const top3Atual = snap.topClientes.slice(0, 3);
+        const novos = top3Atual.filter(c => !top3Ant.has((c.nome || '').trim().toUpperCase()));
+        if (novos.length > 0) {
+            const nomes = novos.map(c => `<b>${escapeHtml(c.nome)}</b> (${c.total} PATs)`).join(', ');
+            out.push({ level: 'good', icon: '★', text: `Cliente${novos.length > 1 ? 's' : ''} novo${novos.length > 1 ? 's' : ''} no top 3: ${nomes}. Potencial para expandir relação.` });
+        }
+    }
+
+    // 7. NOVO: Ferramenta inactiva — esteve nos últimos 3 meses mas este não
+    if (snapAnt && snapAnt2 && snapAnt3) {
+        const recentes = [snapAnt, snapAnt2, snapAnt3];
+        const aparecia = new Map(); // nome → quantos meses apareceu
+        recentes.forEach(s => {
+            (s.topFerr || []).forEach(t => {
+                aparecia.set(t.nome, (aparecia.get(t.nome) || 0) + 1);
+            });
+        });
+        const atuais = new Set((snap.topFerr || []).map(t => t.nome));
+        // Ferramentas que apareceram em ≥2 dos 3 meses anteriores mas NÃO este mês
+        const inactivas = [...aparecia.entries()]
+            .filter(([nome, count]) => count >= 2 && !atuais.has(nome))
+            .map(([nome]) => nome);
+        if (inactivas.length > 0) {
+            const nomes = inactivas.slice(0, 2).map(n => `<b>${escapeHtml(n)}</b>`).join(', ');
+            const extra = inactivas.length > 2 ? ` e mais ${inactivas.length - 2}` : '';
+            out.push({ level: 'info', icon: '○', text: `Ferramenta${inactivas.length > 1 ? 's' : ''} sem requisições este período: ${nomes}${extra}. Verifica se está acessível ou se pode ser libertada.` });
+        }
+    }
+
+    // 8. NOVO: Pico de uma referência específica — top 1 deste período não estava no top 5 há 2 meses
+    if (snap.top5?.length && snapAnt?.top5?.length && snapAnt2?.top5?.length) {
+        const top1Atual = snap.top5[0];
+        const codsAnteriores = new Set([
+            ...snapAnt.top5.map(r => (r.codigo || '').toUpperCase()),
+            ...snapAnt2.top5.map(r => (r.codigo || '').toUpperCase()),
+        ]);
+        if (!codsAnteriores.has((top1Atual.codigo || '').toUpperCase())) {
+            const unidade = top1Atual.unidade && top1Atual.unidade !== 'un' ? top1Atual.unidade : 'un';
+            out.push({ level: 'alert', icon: '✦', text: `Nova referência em 1º lugar: <b>${escapeHtml(top1Atual.codigo)} — ${escapeHtml(top1Atual.nome || '')}</b> (${top1Atual.qty} ${unidade}). Não aparecia no top 5 dos 2 meses anteriores.` });
+        }
+    }
+
+    // 9. NOVO: Saldo negativo — stock zero a crescer vs mês anterior
+    if (snapAnt && typeof snapAnt.stockZero === 'number' && typeof snap.stockZero === 'number') {
+        const diff = snap.stockZero - snapAnt.stockZero;
+        if (diff >= 3) {
+            out.push({ level: 'warn', icon: '◎', text: `Produtos a zero aumentaram em <b>+${diff}</b> (${snapAnt.stockZero} → ${snap.stockZero}). Pode valer a pena uma ronda de encomendas.` });
+        }
+    }
+
+    // 10. NOVO: Padrão saudável — feedback positivo quando tudo corre bem
+    if (out.length === 0 && snap.totalPats > 0) {
+        out.push({ level: 'good', icon: '✓', text: `Período estável: sem alertas automáticos. <b>${snap.totalPats}</b> PATs processadas, duração média de <b>${snap.duracaoMedia ?? '—'} dias</b>.` });
     }
 
     return out;
