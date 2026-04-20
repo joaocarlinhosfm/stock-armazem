@@ -8,6 +8,7 @@
 //                focusModal, _calcDias, _debounce, _fetchWithTimeout, loadXlsx
 //   auth.js    → currentRole, requireManagerAccess, apiFetch, authUrl
 //   reports.js → registarMovimento, _relSalvarPatAntesDeApagar,
+//                 _relSalvarSnapshotSePreciso, _autoFecharMesSeNecessario
 //                _autoFecharMesSeNecessario
 //   stock.js   → _commitStockDelta
 //   app.js     → cache, fetchCollection, invalidateCache, renderDashboard,
@@ -1669,10 +1670,30 @@ async function _autoLimparHistorico() {
     const expirados = Object.entries(_patCache.data || {})
         .filter(([, p]) => p.status === 'historico' && p.saidaEm && _calcDias(p.saidaEm) >= 15);
     if (!expirados.length) return;
-    for (const [id, pat] of expirados) {
-        // Guardar snapshot ANTES de apagar — PAT ainda está na cache e Firebase
-        await _relSalvarPatAntesDeApagar(pat);
-        // Só depois apagar da Firebase e da cache local
+
+    // ── FIX C1 (auditoria): agrupa por mês antes de apagar ─────────────
+    // Antes: cada PAT apagada regenerava o snapshot inteiro do mês
+    // (_fetchPats + movimentos + ferramentas). Com 20 PATs, 20 rebuilds.
+    // Agora: 1 snapshot por mês afectado, depois batch delete.
+    const mesesAfectados = new Set();
+    for (const [, pat] of expirados) {
+        const refTs = pat.levantadoEm || pat.saidaEm || pat.criadoEm;
+        if (!refTs) continue;
+        const d = new Date(refTs);
+        mesesAfectados.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+
+    // Um snapshot por mês afectado — PATs ainda estão na cache e Firebase
+    for (const mesKey of mesesAfectados) {
+        try {
+            await _relSalvarSnapshotSePreciso(mesKey);
+        } catch(e) {
+            console.warn('[Histórico] falha snapshot antes de apagar:', mesKey, e?.message);
+        }
+    }
+
+    // Agora sim, apagar todas as PATs em batch
+    for (const [id] of expirados) {
         await apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'DELETE' })
             .catch(e => console.warn('[Histórico] falha auto-limpeza:', id, e?.message));
         delete _patCache.data[id];
@@ -2455,14 +2476,15 @@ async function limparTabActual() {
         desc: `Remove todas as PATs do ${label}. Esta acção é irreversível.`,
         onConfirm: async () => {
             try {
-                // Guardar snapshots de todos os meses afectados ANTES de apagar
+                // Guardar snapshots de todos os meses afectados ANTES de apagar.
+                // Dedup por mês (local time — consistente com _mesRange/_calcDias).
                 const mesesVistos = new Set();
                 for (const [, pat] of alvo) {
                     const d = new Date(pat.levantadoEm || pat.saidaEm || pat.criadoEm || Date.now());
-                    const mk = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
+                    const mk = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
                     if (!mesesVistos.has(mk)) {
                         mesesVistos.add(mk);
-                        await _relSalvarPatAntesDeApagar(pat);
+                        await _relSalvarSnapshotSePreciso(mk);
                     }
                 }
                 for (const [id] of alvo) {

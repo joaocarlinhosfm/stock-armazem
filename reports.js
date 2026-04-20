@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// reports.js — Hiperfrio v6.56
+// reports.js — Hiperfrio v6.59
 // Relatório mensal, snapshots, movimentos de stock, Chart.js.
 // Carrega DEPOIS de auth.js e ANTES de stock.js, tools.js, pats.js.
 //
@@ -81,17 +81,21 @@ function _mesLabel(key) {
 }
 function _mesRange(key) {
     const [y, m] = key.split('-').map(Number);
-    // Usar UTC para evitar problemas de timezone nos limites do mês.
-    // Date.UTC garante que meia-noite é meia-noite UTC independentemente do fuso local.
-    const ini = Date.UTC(y, m-1, 1, 0, 0, 0, 0);
-    const fim = Date.UTC(y, m,   1, 0, 0, 0, 0) - 1;
+    // Local time — consistente com _calcDias (que usa Date.getFullYear/Month/Date)
+    // e com a expectativa do utilizador que um evento criado "no dia 1" pertence ao
+    // mês em que o calendário dele diz que é. Usar UTC criava um bug nas fronteiras
+    // do mês em Portugal (eventos entre 00h-01h WEST caíam no mês anterior).
+    const ini = new Date(y, m - 1, 1, 0, 0, 0, 0).getTime();
+    const fim = new Date(y, m,     1, 0, 0, 0, 0).getTime() - 1;
     return { ini, fim };
 }
 
 // ── Registar movimento de stock ───────────────────────────────────────────
-// tipo: 'saida_pat' | 'saida_manual' | 'remocao'
+// tipo: 'saida_pat' | 'saida_manual' | 'saida_guia' | 'remocao'
 async function registarMovimento(tipo, itemId, codigo, nome, quantidade) {
-    if (!itemId && !codigo) return;
+    // Exigir só o codigo — itemId pode ser temporário (_tmp_) em modo offline
+    // para produtos criados antes de sincronizar. O relatório agrega por codigo.
+    if (!codigo) return;
     const mov = {
         tipo,
         itemId:    itemId || null,
@@ -164,7 +168,6 @@ async function _buildSnapshot(mesKey) {
 
     // Ponto 2: pendentes = PATs criadas NESTE mês que NÃO foram levantadas NESTE mês
     // (não misturar com PATs de outros meses ainda em aberto)
-    const patsLevantadasIds = new Set(patsLevantadas.map(p => p.numero || ''));
     const pendentes = patsMes.filter(p =>
         p.status !== 'levantado' && p.status !== 'historico'
     );
@@ -321,30 +324,39 @@ async function _autoFecharMesSeNecessario() {
     }
 }
 
+// ── Guardar snapshot de um mês específico se ainda não existe / formato antigo ──
+// Usada pelo auto-cleanup para deduplicar rebuilds: chamada uma vez por mês afectado.
+async function _relSalvarSnapshotSePreciso(mesKey) {
+    const mesCorrente = _mesKey(0);
+    if (mesKey === mesCorrente) {
+        // Mês corrente: regenerar sempre (dados ainda podem mudar e a PAT ainda
+        // está na cache antes de ser apagada)
+        await _guardarSnapshot(mesKey);
+        return;
+    }
+    // Meses anteriores: só regenerar se não existe ou está em formato antigo
+    try {
+        const url = await authUrl(`${REL_URL}/${mesKey}.json`);
+        const res = await fetch(url);
+        const existing = res.ok ? await res.json() : null;
+        if (!existing || existing.totalSaidas === undefined) {
+            await _guardarSnapshot(mesKey);
+        }
+    } catch(e) {
+        // silencioso — não bloquear cleanup
+    }
+}
+
 // ── Guardar antes de apagar PATs expiradas ────────────────────────────────
+// Mantida para compatibilidade (pode ser chamada em contexto individual).
+// Para batch use _relSalvarSnapshotSePreciso diretamente.
 async function _relSalvarPatAntesDeApagar(pat) {
     if (!pat?.criadoEm) return;
-    // Usar UTC para determinar o mês — consistente com _mesRange
+    // Determinar mês usando local time — consistente com _mesRange/_calcDias.
     const refTs = pat.levantadoEm || pat.saidaEm || pat.criadoEm;
     const d = new Date(refTs);
-    const mesKey = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
-    const mesCorrente = _mesKey(0);
-    try {
-        if (mesKey === mesCorrente) {
-            // Mês corrente: guardar snapshot com a PAT ainda presente na cache
-            // (a deleção acontece depois desta chamada em _autoLimparHistorico)
-            await _guardarSnapshot(mesKey);
-        } else {
-            // Meses anteriores: guardar se não existe OU se snapshot está em formato antigo
-            const url = await authUrl(`${REL_URL}/${mesKey}.json`);
-            const res = await fetch(url);
-            const existing = res.ok ? await res.json() : null;
-            // Regenerar se não existe ou se não tem totalSaidas (formato antigo)
-            if (!existing || existing.totalSaidas === undefined) {
-                await _guardarSnapshot(mesKey);
-            }
-        }
-    } catch(e) { /* silencioso — não bloquear apagar */ }
+    const mesKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    await _relSalvarSnapshotSePreciso(mesKey);
 }
 
 // ── Fechar mês manualmente ────────────────────────────────────────────────
@@ -572,7 +584,10 @@ async function renderRelatorio() {
 
     // ── 6: Ferramentas dias fora ─────────────────────────────────────────
     const ferrCard = $el('div', { className: 'rel-card' });
-    const diasMes = new Date(_mesRange(mesKey).fim).getDate();
+    // Dias do mês calculados a partir do mesKey para evitar ambiguidade de timezone.
+    // new Date(y, m, 0) dá o último dia do mês anterior = último dia do mês pedido.
+    const [_y, _m] = mesKey.split('-').map(Number);
+    const diasMes = new Date(_y, _m, 0).getDate();
     ferrCard.innerHTML = _cardHdr('Dias fora do armazém', diasMes + ' dias no mês', 'rel-pill-amber');
     if (snap.topFerrDias?.length) {
         const blist2 = $el('div', { className: 'rel-bar-list' });
