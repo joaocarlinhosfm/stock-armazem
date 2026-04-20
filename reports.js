@@ -92,6 +92,20 @@ function _mesRange(key) {
 
 // ── Registar movimento de stock ───────────────────────────────────────────
 // tipo: 'saida_pat' | 'saida_manual' | 'saida_guia' | 'remocao'
+// Helper: parse de ev.data (string ISO) tratando date-only como local.
+// "2026-04-15" em new Date() vira UTC midnight; em Portugal WEST (UTC+1) isto
+// cai às 01:00 local do dia 15. Para consistência com ranges locais, tratamos
+// date-only como local midnight.
+function _relParseEvTs(s) {
+    if (!s) return 0;
+    // Se for estritamente YYYY-MM-DD (10 chars, 2 hífens), interpretar como local
+    if (typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        const [y, m, d] = s.split('-').map(Number);
+        return new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+    }
+    // Datetime completo (com T ou espaço) — delegar ao Date parser
+    return new Date(s).getTime();
+}
 async function registarMovimento(tipo, itemId, codigo, nome, quantidade) {
     // Exigir só o codigo — itemId pode ser temporário (_tmp_) em modo offline
     // para produtos criados antes de sincronizar. O relatório agrega por codigo.
@@ -204,7 +218,7 @@ async function _buildSnapshot(mesKey) {
         const hist = t.historico ? Object.values(t.historico) : [];
         hist.forEach(ev => {
             if (ev.acao !== 'atribuida') return;
-            const evTs = ev.data ? new Date(ev.data).getTime() : 0;
+            const evTs = _relParseEvTs(ev.data);
             if (evTs < ini || evTs > fim) return;
             const nome = t.nome || '?';
             ferrCount[nome] = (ferrCount[nome] || 0) + 1;
@@ -232,13 +246,17 @@ async function _buildSnapshot(mesKey) {
     Object.values(ferrData).forEach(t => {
         if (!t.nome) return;
         const hist = t.historico ? Object.values(t.historico)
-            .sort((a, b) => new Date(a.data) - new Date(b.data)) : [];
+            .sort((a, b) => _relParseEvTs(a.data) - _relParseEvTs(b.data)) : [];
 
         let diasFora = 0;
         let lastAtrib = null;
         hist.forEach(ev => {
-            const evTs = ev.data ? new Date(ev.data).getTime() : 0;
+            const evTs = _relParseEvTs(ev.data);
             if (ev.acao === 'atribuida') {
+                // M6 fix: ignorar atribuições cuja data é posterior ao fim do mês —
+                // senão o "status alocada actual" no fim do loop apanha eventos que
+                // só aconteceram após o fim do range e subestima/enviesa os dias.
+                if (evTs > fim) return;
                 lastAtrib = Math.max(evTs, ini);
             } else if (ev.acao === 'devolvida' && lastAtrib) {
                 const devTs = Math.min(evTs, fim);
@@ -246,8 +264,10 @@ async function _buildSnapshot(mesKey) {
                 lastAtrib = null;
             }
         });
+        // Só se a última atribuição efectiva (≤ fim) continua sem devolução
         if (lastAtrib && t.status === 'alocada') {
-            diasFora += Math.round((fim - lastAtrib) / 86400000);
+            const extra = Math.round((fim - lastAtrib) / 86400000);
+            if (extra > 0) diasFora += extra;
         }
         if (diasFora > 0) ferrDias.push({ nome: t.nome, dias: diasFora });
     });
@@ -281,15 +301,91 @@ async function _buildSnapshot(mesKey) {
 
 // _calcDias unificada — ver definição global no topo do ficheiro
 
-// ── Guardar snapshot ──────────────────────────────────────────────────────
+// ── Guardar snapshot (S5: com versioning) ────────────────────────────────
+// Estrutura do Firebase:
+//   /relatorios/{mesKey}/current    → 'v3' (ponteiro para versão activa)
+//   /relatorios/{mesKey}/v1         → snapshot antigo
+//   /relatorios/{mesKey}/v2         → snapshot intermédio
+//   /relatorios/{mesKey}/v3         → snapshot actual
+// Retenção: máximo de SNAPSHOT_VERSIONS_KEEP versões, mais antigas são apagadas.
+// Compat: leitura antiga tolera formato legacy (sem 'current'), ver _lerSnapshot.
+const SNAPSHOT_VERSIONS_KEEP = 5;
+
 async function _guardarSnapshot(mesKey) {
     try {
         const snap = await _buildSnapshot(mesKey);
-        await apiFetch(`${REL_URL}/${mesKey}.json`, {
-            method: 'PUT',
-            body: JSON.stringify(snap),
-        });
-        console.warn(`[Relatório] snapshot guardado: ${mesKey}`);
+
+        // Ler estrutura actual para descobrir próxima versão
+        const url = await authUrl(`${REL_URL}/${mesKey}.json`);
+        let nextN = 1;
+        let existingVersions = []; // lista ordenada de 'v1','v2',...
+        try {
+            const res  = await fetch(url);
+            const data = res.ok ? await res.json() : null;
+            if (data && typeof data === 'object') {
+                // Se tem 'current' já é formato novo
+                if (data.current) {
+                    existingVersions = Object.keys(data)
+                        .filter(k => /^v\d+$/.test(k))
+                        .sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
+                    const lastN = existingVersions.length > 0
+                        ? parseInt(existingVersions[existingVersions.length - 1].slice(1))
+                        : 0;
+                    nextN = lastN + 1;
+                } else if (data.ts || data.mes) {
+                    // Formato legacy — migrar: a versão antiga vira v1, nova vira v2
+                    existingVersions = ['v1'];
+                    nextN = 2;
+                }
+            }
+        } catch(_e) { /* sem histórico — começa em v1 */ }
+
+        const newVersion = `v${nextN}`;
+        const isMigracaoLegacy = (existingVersions.length === 1 && existingVersions[0] === 'v1' && nextN === 2);
+
+        // Caminho da migração: fazer PUT completo para apagar campos legacy
+        // no root (totalPats, top5, etc. que estão "soltos" no formato antigo).
+        if (isMigracaoLegacy) {
+            let dataOld = null;
+            try {
+                const resOld = await fetch(url);
+                dataOld = resOld.ok ? await resOld.json() : null;
+            } catch(_e) {}
+            const fullPayload = {
+                current: newVersion,
+                [newVersion]: snap,
+            };
+            if (dataOld && !dataOld.current && (dataOld.ts || dataOld.mes)) {
+                fullPayload.v1 = dataOld;
+            }
+            await apiFetch(`${REL_URL}/${mesKey}.json`, {
+                method: 'PUT',
+                body:   JSON.stringify(fullPayload),
+            });
+        } else {
+            // Updates normais: PATCH preserva versões anteriores + adiciona nova
+            const payload = {
+                [newVersion]: snap,
+                current:      newVersion,
+            };
+            await apiFetch(`${REL_URL}/${mesKey}.json`, {
+                method: 'PATCH',
+                body:   JSON.stringify(payload),
+            });
+        }
+
+        // Retenção: apagar versões mais antigas se exceder limite
+        const allVersions = [...existingVersions, newVersion];
+        if (allVersions.length > SNAPSHOT_VERSIONS_KEEP) {
+            const paraApagar = allVersions.slice(0, allVersions.length - SNAPSHOT_VERSIONS_KEEP);
+            for (const v of paraApagar) {
+                try {
+                    await apiFetch(`${REL_URL}/${mesKey}/${v}.json`, { method: 'DELETE' });
+                } catch(_e) { /* ignorar — não bloqueia */ }
+            }
+        }
+
+        console.warn(`[Relatório] snapshot guardado: ${mesKey}/${newVersion}`);
         return snap;
     } catch(e) {
         console.warn('[Relatório] falha ao guardar snapshot:', e?.message);
@@ -297,7 +393,32 @@ async function _guardarSnapshot(mesKey) {
     }
 }
 
+// Lê snapshot actual — tolera formato legacy e novo.
+async function _lerSnapshot(mesKey) {
+    try {
+        const url = await authUrl(`${REL_URL}/${mesKey}.json`);
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (!data) return null;
+        // Formato novo: tem 'current' → devolve a versão apontada
+        if (data.current && data[data.current]) return data[data.current];
+        // Formato legacy: tem campos do snapshot directamente
+        if (data.ts || data.mes || data.totalPats != null) return data;
+        return null;
+    } catch(_e) {
+        return null;
+    }
+}
+
 // ── Auto-fechar mês no dia 1 ──────────────────────────────────────────────
+// NOTA sobre race multi-dispositivo: dois dispositivos a arrancar simultaneamente
+// no dia 1 podem ler "sem snapshot", ambos gerar e fazer PUT — last-write-wins.
+// Normalmente benigno porque _buildSnapshot é determinístico (lê os mesmos dados
+// do Firebase), mas se um dispositivo tem _patCache desactualizado pode sobrescrever
+// com snapshot incompleto. O lock _autoFecharRunning é local, não distribuído.
+// Mitigação aceitável: o próximo arranque em qualquer dispositivo detecta o
+// snapshot já existe e não regenera. Para snapshots manuais usa relFecharMes.
 const _REL_LAST_CLOSE_KEY = 'hiperfrio-rel-last-close';
 let _autoFecharRunning = false; // lock para evitar race condition multi-utilizador
 async function _autoFecharMesSeNecessario() {
@@ -312,9 +433,7 @@ async function _autoFecharMesSeNecessario() {
         const deveVerificar = today.getDate() === 1 || !lastClose;
         if (!deveVerificar) return;
 
-        const url = await authUrl(`${REL_URL}/${mesAnterior}.json`);
-        const res = await fetch(url);
-        const existing = res.ok ? await res.json() : null;
+        const existing = await _lerSnapshot(mesAnterior);
         if (!existing) await _guardarSnapshot(mesAnterior);
         localStorage.setItem(_REL_LAST_CLOSE_KEY, mesAnterior);
     } catch(e) {
@@ -336,9 +455,7 @@ async function _relSalvarSnapshotSePreciso(mesKey) {
     }
     // Meses anteriores: só regenerar se não existe ou está em formato antigo
     try {
-        const url = await authUrl(`${REL_URL}/${mesKey}.json`);
-        const res = await fetch(url);
-        const existing = res.ok ? await res.json() : null;
+        const existing = await _lerSnapshot(mesKey);
         if (!existing || existing.totalSaidas === undefined) {
             await _guardarSnapshot(mesKey);
         }
@@ -365,9 +482,7 @@ async function relFecharMes() {
     // Só permite fechar o mês actual ou regenerar meses sem snapshot
     // Meses passados com snapshot existente não devem ser sobrescritos via botão
     if (_relMesOffset < 0) {
-        const url = await authUrl(`${REL_URL}/${mesKey}.json`);
-        const res = await fetch(url);
-        const existing = res.ok ? await res.json() : null;
+        const existing = await _lerSnapshot(mesKey);
         if (existing) {
             showToast(`Relatório de ${_mesLabel(mesKey)} já existe. Navega para o mês actual para fechar.`, 'error');
             return;
@@ -408,32 +523,48 @@ async function renderRelatorio() {
     content.innerHTML = '<div class="rel-loading">A carregar relatório...</div>';
     if (strip) { ['rel-sum-pats','rel-sum-dur','rel-sum-saidas'].forEach(id => { const el = $id(id); if (el) el.textContent = '—'; }); }
 
-    // Fetch snapshot
+    // Fetch snapshot — _lerSnapshot tolera formato legacy e versionado (S5).
     let snap = null;
+    let fetchFailed = false;
     try {
-        const url = await authUrl(`${REL_URL}/${mesKey}.json`);
-        const res = await fetch(url);
-        snap = res.ok ? await res.json() : null;
-    } catch(e) {}
+        snap = await _lerSnapshot(mesKey);
+    } catch(e) {
+        fetchFailed = true;
+    }
+    // Se não há snapshot mas estamos no mês actual, construir em memória
     if (!snap && _relMesOffset === 0) snap = await _buildSnapshot(mesKey);
 
     if (!snap) {
-        content.innerHTML = `<div class="rel-empty">Sem dados para ${_mesLabel(mesKey)}.<br><small>Gerado automaticamente no dia 1 do mês seguinte.</small></div>`;
+        // S3 audit: distinguir offline de "sem dados"
+        if (!navigator.onLine) {
+            content.innerHTML = `<div class="rel-empty">Sem ligação — não foi possível carregar ${_mesLabel(mesKey)}.<br><small>Volta a tentar quando estiveres online.</small></div>`;
+        } else {
+            content.innerHTML = `<div class="rel-empty">Sem dados para ${_mesLabel(mesKey)}.<br><small>Gerado automaticamente no dia 1 do mês seguinte.</small></div>`;
+        }
         return;
     }
 
-    // Fetch snap anterior
+    // Fetch snap anterior — igualmente tolerante a formatos
     let snapAnt = null;
     try {
-        const url2 = await authUrl(`${REL_URL}/${_mesKey(_relMesOffset - 1)}.json`);
-        const res2 = await fetch(url2);
-        snapAnt = res2.ok ? await res2.json() : null;
-    } catch(e) {}
+        snapAnt = await _lerSnapshot(_mesKey(_relMesOffset - 1));
+    } catch(_e) {}
 
     // ── Actualizar summary strip com animação ───────────────────────────
-    const totalSaidas = snap.totalSaidas ?? (snap.top5 || []).reduce((a, b) => a + (b.qty || 0), 0);
+    // totalSaidas é campo novo — snapshots antigos (pre-v6.56) só tinham top5.
+    // Se falta, somamos top5 mas marcamos como aproximado porque subestima
+    // (ignora saídas fora do top 5).
+    const hasTotal = snap.totalSaidas != null;
+    const totalSaidas = hasTotal ? snap.totalSaidas : (snap.top5 || []).reduce((a, b) => a + (b.qty || 0), 0);
     _relAnimCount('rel-sum-pats',   snap.totalPats ?? 0);
-    _relAnimCount('rel-sum-saidas', totalSaidas);
+    _relAnimCount('rel-sum-saidas', totalSaidas, 800, hasTotal ? '' : '~');
+    // Tooltip explicativo só quando o valor é estimado
+    const saidasEl = $id('rel-sum-saidas');
+    if (saidasEl) {
+        saidasEl.title = hasTotal
+            ? ''
+            : 'Valor aproximado — snapshot antigo só regista top 5 referências';
+    }
     const durEl = $id('rel-sum-dur');
     if (durEl) durEl.textContent = snap.duracaoMedia != null ? snap.duracaoMedia + 'd' : '—';
 
@@ -694,16 +825,27 @@ async function renderRelatorio() {
     }, 150);
 }
 
+// ── Limpeza de instâncias Chart.js ────────────────────────────────────────
+// Chamada quando o utilizador sai do tab Relatório. Evita leak de memória
+// e garante estado limpo ao voltar (especialmente se o zoom do browser mudou).
+function _relDestroyCharts() {
+    if (_relDonutChart) {
+        try { _relDonutChart.destroy(); } catch(_e) {}
+        _relDonutChart = null;
+    }
+}
+
 // ── Contador animado ──────────────────────────────────────────────────────
-function _relAnimCount(elId, target, dur = 800) {
+// prefix: opcional, prepended ao número (e.g. "~" quando o valor é aproximado)
+function _relAnimCount(elId, target, dur = 800, prefix = '') {
     const el = $id(elId);
     if (!el || target == null) return;
-    if (target === 0) { el.textContent = '0'; return; }
+    if (target === 0) { el.textContent = prefix + '0'; return; }
     const start = performance.now();
     const step  = ts => {
         const p    = Math.min((ts - start) / dur, 1);
         const ease = 1 - Math.pow(1 - p, 4);
-        el.textContent = Math.round(target * ease);
+        el.textContent = prefix + Math.round(target * ease);
         if (p < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);

@@ -465,11 +465,23 @@ async function bootApp() {
         _fetchPats(),
         _fetchGuias(),
     ]).catch(e => console.warn('bootApp fetch error:', e));
-    _autoFecharMesSeNecessario();
-    _pruneMovimentos().catch(() => {});
     updateOfflineBanner();
     updateGuiasCount().catch(() => {});
     nav('view-dashboard');
+
+    // M7 audit: auth pode ainda não estar pronto no tick imediato do bootApp.
+    // Pequeno delay dá tempo ao getAuthToken cachear o token antes destas
+    // operações que precisam de autenticação. Se falhar, retry no próximo arranque.
+    setTimeout(() => {
+        _autoFecharMesSeNecessario();
+        _pruneMovimentos().catch(() => {});
+    }, 500);
+
+    // Web Share Target — se chegámos aqui vindos de "Partilhar PDF",
+    // há um ficheiro pendente no SW pronto a ser processado.
+    if (new URLSearchParams(location.search).get('share') === 'ready') {
+        _handleSharedPdf().catch(e => console.warn('[share] falha:', e?.message));
+    }
 
     // Remove o form de login do DOM após autenticação.
     // Sem isto, o Chrome mantém ls-username indexado e oferece autocomplete

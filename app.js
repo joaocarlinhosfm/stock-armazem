@@ -1066,6 +1066,11 @@ function adminMobileBack() {
 function switchAdminTab(tab, animate = true) {
     const idx = ADMIN_TABS.indexOf(tab);
     if (idx < 0) return;
+    // Cleanup de recursos pesados ao sair de um tab (M4 audit)
+    const prevTab = ADMIN_TABS[_adminIdx];
+    if (prevTab === 'relatorio' && tab !== 'relatorio' && typeof _relDestroyCharts === 'function') {
+        _relDestroyCharts();
+    }
     _adminIdx = idx;
 
     // Actualiza botões
@@ -3087,6 +3092,83 @@ REGRAS:
             label.style.opacity = '';
         }
     }
+}
+
+// ─── Web Share Target: processar PDF partilhado de outra app ────────────────
+// Fluxo: Android partilha PDF → SW intercepta POST → redirige para ?share=ready
+// → bootApp chama esta função → pede o ficheiro ao SW → pergunta ao utilizador
+// se é Guia ou Encomenda → chama a pipeline correspondente.
+async function _handleSharedPdf() {
+    // Limpa o parâmetro da URL para não re-disparar em refresh
+    if (window.history?.replaceState) {
+        window.history.replaceState({}, '', location.pathname);
+    }
+
+    if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
+        console.warn('[share] sem service worker activo');
+        return;
+    }
+
+    // Pedir o ficheiro ao SW via MessageChannel
+    const file = await new Promise((resolve) => {
+        const ch = new MessageChannel();
+        ch.port1.onmessage = (ev) => resolve(ev.data?.file || null);
+        navigator.serviceWorker.controller.postMessage(
+            { type: 'GET_SHARED_FILE' },
+            [ch.port2]
+        );
+        // Fallback timeout
+        setTimeout(() => resolve(null), 3000);
+    });
+
+    if (!file) {
+        showToast('Ficheiro partilhado expirou ou não foi recebido', 'error');
+        return;
+    }
+
+    // Pergunta ao utilizador que tipo de documento é
+    const tipo = await _askShareType();
+    if (!tipo) return; // cancelou
+
+    // Monta um input fake que tem .files[0] e .value — as pipelines existentes
+    // esperam um <input type=file> mas nós só precisamos destes 2 atributos.
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    const fakeInp = { files: dt.files, value: '' };
+
+    if (tipo === 'guia')      await guiaImportPdf(fakeInp);
+    else if (tipo === 'enc')  await encImportPdf(fakeInp);
+}
+
+// Modal simples que pergunta "Guia ou Encomenda?" e devolve 'guia' / 'enc' / null
+function _askShareType() {
+    return new Promise((resolve) => {
+        const overlay = $el('div', { className: 'modal-overlay active share-type-modal' });
+        overlay.innerHTML = `
+            <div class="modal-content" style="max-width:380px">
+                <div class="modal-header">
+                    <span class="modal-icon">📄</span>
+                    <h3 class="modal-title">PDF partilhado — que tipo?</h3>
+                </div>
+                <div style="padding:8px 4px 20px;display:flex;flex-direction:column;gap:10px">
+                    <button class="btn-primary" data-choice="guia" style="padding:14px;font-size:0.95rem">
+                        📋 Guia Técnica
+                    </button>
+                    <button class="btn-primary" data-choice="enc" style="padding:14px;font-size:0.95rem;background:#059669">
+                        📦 Encomenda
+                    </button>
+                    <button class="btn-cancel" data-choice="cancel" style="padding:12px;font-size:0.88rem">Cancelar</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', (ev) => {
+            const b = ev.target.closest('[data-choice]');
+            if (!b) return;
+            const choice = b.dataset.choice;
+            overlay.remove();
+            resolve(choice === 'cancel' ? null : choice);
+        });
+    });
 }
 
 // ── Modal criar ───────────────────────────────────────────────────────────
