@@ -99,6 +99,20 @@
     }
     .guia-card-td-ref {
         font-weight: 700; color: #2563eb; letter-spacing: 0.01em;
+        display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+        min-width: 0; /* permite ellipsis funcionar dentro do flex */
+    }
+    .guia-card-td-ref-code {
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    /* Pill de localização — discreta, monospace para alinhamento visual
+       de códigos tipo 201-001A. Aparece a seguir à ref para poupar saltos
+       ao stock durante a separação. */
+    .guia-card-td-ref-loc {
+        font-size: 0.68rem; font-weight: 600; color: #475569;
+        background: #f1f5f9; padding: 1px 6px; border-radius: 4px;
+        letter-spacing: 0.02em; white-space: nowrap;
+        font-family: 'DM Mono', ui-monospace, Consolas, monospace;
     }
     .guia-card-td-nome { color: #0f172a; font-weight: 500; }
     .guia-card-td-qty { font-weight: 600; color: #0f172a; }
@@ -233,9 +247,17 @@
     }
     .guia-detail-linha.is-recolhido { background: #ecfdf5; border-color: #a7f3d0; }
     .guia-detail-linha-info { flex: 1; min-width: 0; }
-    .guia-detail-linha-top { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
+    .guia-detail-linha-top { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
     .guia-detail-linha-ref { font-size: 0.78rem; font-weight: 800; color: #0f172a; }
-    .guia-detail-linha-qty { font-size: 0.78rem; font-weight: 700; color: #2563eb; }
+    /* Pill de localização no modal detalhe. margin-left:auto no qty empurra-o
+       para a direita, deixando ref + loc agrupados à esquerda. */
+    .guia-detail-linha-loc {
+        font-size: 0.68rem; font-weight: 600; color: #475569;
+        background: #f1f5f9; padding: 1px 6px; border-radius: 4px;
+        letter-spacing: 0.02em; white-space: nowrap;
+        font-family: 'DM Mono', ui-monospace, Consolas, monospace;
+    }
+    .guia-detail-linha-qty { font-size: 0.78rem; font-weight: 700; color: #2563eb; margin-left: auto; }
     .guia-detail-linha-nome { font-size: 0.82rem; color: #475569; }
     .guia-detail-linha-btn {
         padding: 6px 12px; background: #2563eb; color: #fff;
@@ -285,6 +307,11 @@
     .dark-mode .guia-card-td-nome,
     .dark-mode .guia-card-td-qty { color: #f1f5f9; }
     .dark-mode .guia-card-td-ref { color: #60a5fa; }
+    /* Pills de localização em dark: fundo slate, texto cinza claro */
+    .dark-mode .guia-card-td-ref-loc,
+    .dark-mode .guia-detail-linha-loc {
+        background: rgba(148,163,184,0.18); color: #cbd5e1;
+    }
     .dark-mode .guia-badge-pendente { background: rgba(234,179,8,0.18); color: #fde047; border-color: #eab308; }
     .dark-mode .guia-badge-separado { background: rgba(16,185,129,0.18); color: #6ee7b7; border-color: #10b981; }
     .dark-mode .guia-badge-historico { background: rgba(100,116,139,0.18); color: #cbd5e1; border-color: #64748b; }
@@ -3155,13 +3182,13 @@
     <!-- Chart.js, Leaflet + MarkerCluster são carregados sob demanda por loadChart() e loadLeaflet() em utils.js -->
     <!-- Módulos extraídos — Fase 1+2+3+4 da modularização -->
     <!-- ORDEM OBRIGATÓRIA: utils → auth → reports → stock → tools → pats → guias → app (preservada por defer) -->
-    <script defer src="utils.js?v=6.61"></script>
-    <script defer src="auth.js?v=6.61"></script>
-    <script defer src="reports.js?v=6.61"></script>
-    <script defer src="stock.js?v=6.61"></script>
-    <script defer src="tools.js?v=6.61"></script>
-    <script defer src="pats.js?v=6.61"></script>
-    <script defer src="guias.js?v=6.61"></script>
-    <script defer src="app.js?v=6.61"></script>
+    <script defer src="utils.js?v=6.62"></script>
+    <script defer src="auth.js?v=6.62"></script>
+    <script defer src="reports.js?v=6.62"></script>
+    <script defer src="stock.js?v=6.62"></script>
+    <script defer src="tools.js?v=6.62"></script>
+    <script defer src="pats.js?v=6.62"></script>
+    <script defer src="guias.js?v=6.62"></script>
+    <script defer src="app.js?v=6.62"></script>
 </body>
 </html>

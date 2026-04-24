@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// guias.js — Hiperfrio v6.61
+// guias.js — Hiperfrio v6.62
 // Guias Técnicos: separação de material para técnicos.
 //
 // Fluxo: pendente → (todas linhas recolhidas) → separado → (30 dias) → histórico
@@ -27,6 +27,21 @@ const _guiasCache = { data: null, lastFetch: 0 };
 let _guiasTab      = 'pendentes'; // 'pendentes' | 'separadas' | 'historico'
 let _guiasEditId   = null;        // id da guia aberta em detalhe
 let _guiasSearchQ  = '';
+
+// Mapa codigo→localização construído uma vez por render de guias.
+// Evita scan linear sobre cache.stock.data por cada linha de cada guia.
+// Se a cache do stock não estiver carregada, devolve mapa vazio (sem localização).
+function _buildStockLocMap() {
+    const map = {};
+    const stockData = cache?.stock?.data;
+    if (!stockData) return map;
+    Object.values(stockData).forEach(item => {
+        if (!item?.codigo) return;
+        const loc = (item.localizacao || '').trim();
+        if (loc) map[item.codigo.toUpperCase()] = loc.toUpperCase();
+    });
+    return map;
+}
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 async function _fetchGuias(force = false) {
@@ -136,6 +151,9 @@ async function renderGuias() {
     // Grupos ordenados por maior primeiro; dentro do grupo mantém ordem já vinda de entries
     grupos.sort((a, b) => b[1].length - a[1].length);
 
+    // Construir mapa codigo→localização uma vez (partilhado por todos os cards)
+    const locMap = _buildStockLocMap();
+
     grupos.forEach(([tec, arr]) => {
         const header = $el('div', { className: 'guia-group-header' });
         const avatar = $el('span', { className: 'guia-group-avatar' });
@@ -149,7 +167,7 @@ async function renderGuias() {
         header.appendChild(count);
         frag.appendChild(header);
         arr.forEach(([id, g]) => {
-            const card = _buildGuiaCard(id, g, { grouped: true });
+            const card = _buildGuiaCard(id, g, { grouped: true, locMap });
             frag.appendChild(card);
         });
     });
@@ -157,7 +175,7 @@ async function renderGuias() {
     // Avulsos mantêm a ordem original (mais recentes primeiro)
     avulsos
         .sort((a, b) => (b[1].criadoEm || 0) - (a[1].criadoEm || 0))
-        .forEach(([id, g]) => frag.appendChild(_buildGuiaCard(id, g)));
+        .forEach(([id, g]) => frag.appendChild(_buildGuiaCard(id, g, { locMap })));
 
     el.appendChild(frag);
 
@@ -171,13 +189,16 @@ async function renderGuias() {
     updateGuiasCount();
 }
 
-function _buildGuiaCard(id, g, { grouped = false } = {}) {
+function _buildGuiaCard(id, g, { grouped = false, locMap = null } = {}) {
     const linhas = g.linhas || {};
     const linhasArr = Object.entries(linhas);
     const totalL = linhasArr.length;
     const recolhidasL = linhasArr.filter(([, l]) => l.recolhido).length;
     const pct = totalL > 0 ? Math.round((recolhidasL / totalL) * 100) : 0;
     const dataFmt = g.data ? g.data.split('-').reverse().join('/') : '—';
+    // locMap pode chegar a null se _buildGuiaCard for chamado de outro sítio
+    // sem passar o mapa — fallback a construir agora (raro).
+    const _locMap = locMap || _buildStockLocMap();
 
     const card = $el('div', { className: 'guia-card' });
     if (grouped) card.classList.add('guia-card-grouped');
@@ -246,8 +267,20 @@ function _buildGuiaCard(id, g, { grouped = false } = {}) {
         linhasArr.forEach(([lid, l]) => {
             const row = $el('div', { className: 'guia-card-tr' + (l.recolhido ? ' is-recolhido' : '') });
 
+            // Cell da ref: código + localização (se existir no stock).
+            // Localização aparece como pill discreta a seguir ao código para
+            // acelerar o workflow do separador (evita saltar ao stock).
             const ref = $el('div', { className: 'guia-card-td guia-card-td-ref' });
-            ref.textContent = l.codigo || '—';
+            const codSpan = $el('span', { className: 'guia-card-td-ref-code' });
+            codSpan.textContent = l.codigo || '—';
+            ref.appendChild(codSpan);
+            const codU = (l.codigo || '').toUpperCase();
+            const loc = codU && _locMap[codU];
+            if (loc) {
+                const locPill = $el('span', { className: 'guia-card-td-ref-loc' });
+                locPill.textContent = loc;
+                ref.appendChild(locPill);
+            }
 
             const nome = $el('div', { className: 'guia-card-td guia-card-td-nome' });
             nome.textContent = l.nome || '';
@@ -440,6 +473,9 @@ function _renderGuiaDetailLinhas(g) {
         return;
     }
 
+    // Mapa de localizações — mesmo padrão que em renderGuias.
+    const locMap = _buildStockLocMap();
+
     entries.forEach(([lid, l]) => {
         const row = $el('div', { className: 'guia-detail-linha' + (l.recolhido ? ' is-recolhido' : '') });
 
@@ -447,9 +483,17 @@ function _renderGuiaDetailLinhas(g) {
         const top = $el('div', { className: 'guia-detail-linha-top' });
         const ref = $el('span', { className: 'guia-detail-linha-ref' });
         ref.textContent = l.codigo || '—';
+        top.appendChild(ref);
+        // Localização à frente da ref (se existir) — evita consulta ao stock.
+        const codU = (l.codigo || '').toUpperCase();
+        const loc = codU && locMap[codU];
+        if (loc) {
+            const locPill = $el('span', { className: 'guia-detail-linha-loc' });
+            locPill.textContent = loc;
+            top.appendChild(locPill);
+        }
         const qty = $el('span', { className: 'guia-detail-linha-qty' });
         qty.textContent = fmtQty(l.quantidade, l.unidade);
-        top.appendChild(ref);
         top.appendChild(qty);
         const nome = $el('div', { className: 'guia-detail-linha-nome' });
         nome.textContent = l.nome || '';
