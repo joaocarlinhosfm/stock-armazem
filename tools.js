@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// tools.js — Hiperfrio v6.56
+// tools.js — Hiperfrio v6.61
 // Ferramentas, histórico, funcionários, timeline.
 // Carrega DEPOIS de reports.js e ANTES de pats.js.
 //

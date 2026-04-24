@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// utils.js — Hiperfrio v6.56
+// utils.js — Hiperfrio v6.61
 // Fase 1 da modularização: utilitários puros sem dependências externas.
 // Carrega ANTES de auth.js e app.js.
 //

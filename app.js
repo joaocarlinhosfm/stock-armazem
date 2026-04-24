@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// app.js — Hiperfrio v6.56
+// app.js — Hiperfrio v6.61
 // Lógica principal: stock, ferramentas, PATs, encomendas, mapa, inventário.
 //
 // DEPENDÊNCIAS (carregadas antes via index.html):
@@ -589,7 +589,7 @@ function _renderDashSections(el, { patsPend, ferraEntries, encData, total, comSt
     if (total > 0) {
         const sec4 = _dv3Section('Saúde do inventário', null, null);
         const pctOk = Math.round(comStock / total * 100);
-        sec4.innerHTML += `
+        sec4.insertAdjacentHTML('beforeend', `
             <div class="dv3-health-bar-wrap">
                 <div class="dv3-health-bar">
                     <div style="width:${pctOk}%;background:#639922;border-radius:3px 0 0 3px;height:100%"></div>
@@ -599,7 +599,7 @@ function _renderDashSections(el, { patsPend, ferraEntries, encData, total, comSt
             <div class="dv3-health-legend">
                 <div class="dv3-health-item"><div class="dv3-health-dot" style="background:#639922"></div><span>${comStock} com stock (${pctOk}%)</span></div>
                 <div class="dv3-health-item"><div class="dv3-health-dot" style="background:#E24B4A"></div><span>${semStock} esgotados</span></div>
-            </div>`;
+            </div>`);
         el.appendChild(sec4);
     }
 }
@@ -1604,7 +1604,8 @@ function _renderInvStep() {
         const zona = (item.localizacao||'').trim().toUpperCase() || 'SEM LOCAL';
         const zonaItems = _invItems.filter(([,p]) => (p.localizacao||'').trim().toUpperCase() === zona || (zona === 'SEM LOCAL' && !(p.localizacao||'').trim()));
         const zonaIdx   = zonaItems.findIndex(([i]) => i === id);
-        zonaEl.innerHTML = `<strong>${zona}</strong> — ${zonaIdx + 1} de ${zonaItems.length}`;
+        // zona vem de Firebase (localização) — escapar para evitar injection.
+        zonaEl.innerHTML = `<strong>${escapeHtml(zona)}</strong> — ${zonaIdx + 1} de ${zonaItems.length}`;
     }
 
     const zona = (item.localizacao||'').trim().toUpperCase();
@@ -2450,12 +2451,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Delete confirm — chamado pelo openDeleteModal via _deleteProductCallback
     window._deleteProductCallback = async (id, item) => {
         delete cache.stock.data[id];
-        if (item) registarMovimento('remocao', id, item.codigo, item.nome, item.quantidade || 0);
         renderList(window._searchInputEl?.value || '', true);
         renderDashboard();
         showToast('Produto apagado');
         try {
             await apiFetch(`${BASE_URL}/stock/${id}.json`, { method:'DELETE' });
+            // Só agora, com delete confirmado, registar a remoção.
+            // Se DELETE caiu para queue offline (apiFetch → null sem lançar),
+            // o movimento também vai para queue — ambos sincronizam juntos.
+            if (item) registarMovimento('remocao', id, item.codigo, item.nome, item.quantidade || 0);
         } catch (e) {
             console.warn('deleteProduct erro:', e?.message || e);
             cache.stock.data[id] = item;
@@ -2574,17 +2578,28 @@ document.addEventListener('DOMContentLoaded', () => {
         updated.imgUrl = imgUrlVal || null;
 
         const _oldQtyEdit = cache.stock.data?.[id]?.quantidade ?? 0;
+        const _oldStockCache = { ...cache.stock.data[id] }; // snapshot para rollback
         cache.stock.data[id] = { ...cache.stock.data[id], ...updated };
         btn.textContent = 'A guardar...';
         modalClose('edit-modal');
         renderList(window._searchInputEl?.value || '', true);
-        if (updated.quantidade < _oldQtyEdit) {
-            registarMovimento('saida_manual', id, updated.codigo, updated.nome, _oldQtyEdit - updated.quantidade);
-        }
         try {
             await apiFetch(`${BASE_URL}/stock/${id}.json`, { method:'PATCH', body:JSON.stringify(updated) });
+            // Só após PATCH confirmado: regista saída se a quantidade desceu.
+            // Se foi queued (offline), apiFetch retorna null sem lançar — também
+            // registamos porque o movimento vai para a mesma queue.
+            if (updated.quantidade < _oldQtyEdit) {
+                registarMovimento('saida_manual', id, updated.codigo, updated.nome, _oldQtyEdit - updated.quantidade);
+            }
             showToast('Produto atualizado!');
-        } catch (e) { console.warn('editProduct:', e?.message||e); invalidateCache('stock'); showToast('Erro ao guardar alterações','error'); }
+        } catch (e) {
+            console.warn('editProduct:', e?.message||e);
+            // Rollback do cache — PATCH falhou mesmo online
+            cache.stock.data[id] = _oldStockCache;
+            invalidateCache('stock');
+            renderList(window._searchInputEl?.value || '', true);
+            showToast('Erro ao guardar alterações','error');
+        }
         finally { btn.disabled = false; btn.textContent = 'Guardar Alterações'; }
     });
 
@@ -2638,8 +2653,12 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // REGISTO PWA
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.55';
-const SW_SCRIPT_URL = 'sw.js?v=6.55';
+// ATENÇÃO: estas duas constantes TÊM de subir em cada bump de versão.
+// SW_EXPECTED_VERSION deve bater certo com SW_VERSION em sw.js, senão o
+// client deteta sempre "SW desactualizado" e fica em loop de update.
+// SW_SCRIPT_URL tem de mudar de query string ou o browser não re-baixa o SW.
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.61';
+const SW_SCRIPT_URL = 'sw.js?v=6.61';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados
@@ -3109,7 +3128,10 @@ async function _handleSharedPdf() {
     }
 
     if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
+        // Primeiro boot após instalação ainda não tem controller. Raro mas
+        // acontece — avisa o utilizador em vez de silenciosamente ignorar.
         console.warn('[share] sem service worker activo');
+        showToast('Partilha não disponível — tenta novamente daqui a uns segundos', 'error');
         return;
     }
 

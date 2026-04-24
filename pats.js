@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// pats.js — Hiperfrio v6.56
+// pats.js — Hiperfrio v6.61
 // Pedidos PAT: render, cards, mapa Leaflet, geocoding, clientes, levantar.
 // Carrega DEPOIS de stock.js (usa _commitStockDelta) e ANTES de app.js.
 //
@@ -2004,8 +2004,10 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
     const USER_SVG = SVG_USER;
     const CAL_SVG  = SVG_CAL;
     if (pat.funcionario || pat.criadoEm) {
-        if (pat.funcionario) metaRow.innerHTML += `<span>${USER_SVG} ${escapeHtml(pat.funcionario)}</span>`;
-        if (pat.criadoEm)   metaRow.innerHTML += `<span>${CAL_SVG} ${new Date(pat.criadoEm).toLocaleDateString('pt-PT')}</span>`;
+        // insertAdjacentHTML não re-parseia o conteúdo existente (innerHTML +=
+        // parseia tudo e pode perder listeners).
+        if (pat.funcionario) metaRow.insertAdjacentHTML('beforeend', `<span>${USER_SVG} ${escapeHtml(pat.funcionario)}</span>`);
+        if (pat.criadoEm)   metaRow.insertAdjacentHTML('beforeend', `<span>${CAL_SVG} ${new Date(pat.criadoEm).toLocaleDateString('pt-PT')}</span>`);
     }
 
     // Produtos chips
@@ -2189,8 +2191,8 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
     const metaMobile = $el('div', { className: 'pat-card-meta-mobile' });
     const _M_USER = SVG_USER;
     const _M_CAL  = SVG_CAL;
-    if (pat.funcionario) metaMobile.innerHTML += `<span>${_M_USER} ${escapeHtml(pat.funcionario)}</span>`;
-    if (pat.criadoEm)    metaMobile.innerHTML += `<span>${_M_CAL} ${new Date(pat.criadoEm).toLocaleDateString('pt-PT')}</span>`;
+    if (pat.funcionario) metaMobile.insertAdjacentHTML('beforeend', `<span>${_M_USER} ${escapeHtml(pat.funcionario)}</span>`);
+    if (pat.criadoEm)    metaMobile.insertAdjacentHTML('beforeend', `<span>${_M_CAL} ${new Date(pat.criadoEm).toLocaleDateString('pt-PT')}</span>`);
 
     const prodsDiv = $el('div', { className: 'pat-card-produtos' });
     (pat.produtos || []).forEach(p => {
@@ -2414,11 +2416,14 @@ async function levantarSelectedPats() {
                 const stockPromises = Object.entries(stockPatches).map(([sid, patch]) => {
                     const _itm = cache.stock.data?.[sid];
                     const finalQty = Math.max(0, patch.baseQty + patch.delta);
-                    const movedQty = Math.abs(Math.min(0, patch.delta));
-                    if (movedQty > 0) registarMovimento('saida_pat', sid, _itm?.codigo, _itm?.nome, movedQty);
                     return _commitStockDelta(sid, patch.baseQty, finalQty)
                         .then(savedQty => {
                             if (cache.stock.data?.[sid]) cache.stock.data[sid].quantidade = savedQty;
+                            // Registar saída só após commit OK, pelo total real descontado
+                            const movido = patch.baseQty - savedQty;
+                            if (movido > 0) {
+                                registarMovimento('saida_pat', sid, _itm?.codigo, _itm?.nome, movido);
+                            }
                         })
                         .catch(e => console.warn('[Stock] PATCH falhou:', sid, e.message));
                 });
@@ -3441,14 +3446,24 @@ async function marcarPatLevantado(id) {
                             const cacheAtual = cache.stock.data?.[p.id]?.quantidade ?? 0;
                             const cacheNova  = Math.max(0, cacheAtual - qtdPat);
                             if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = cacheNova;
-                            registarMovimento('saida_pat', p.id, p.codigo, p.nome, qtdPat);
                             // _commitStockDelta lê o valor real do servidor e aplica o delta
                             // baseQty = cacheAtual, finalQty = cacheNova → delta = -qtdPat
                             return _commitStockDelta(p.id, cacheAtual, cacheNova)
                                 .then(savedQty => {
                                     if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = savedQty;
+                                    // Registar saída só após commit OK, pelo total real movido.
+                                    // Se o stock no servidor já estava abaixo do pedido, savedQty
+                                    // reflete o que foi efectivamente descontado.
+                                    const movido = cacheAtual - savedQty;
+                                    if (movido > 0) {
+                                        registarMovimento('saida_pat', p.id, p.codigo, p.nome, movido);
+                                    }
                                 })
-                                .catch(e => console.warn('[Stock] PATCH falhou:', p.id, e.message));
+                                .catch(e => {
+                                    console.warn('[Stock] PATCH falhou:', p.id, e.message);
+                                    // Rollback do cache optimístico
+                                    if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = cacheAtual;
+                                });
                         });
                     await Promise.allSettled(patches);
                     renderList();

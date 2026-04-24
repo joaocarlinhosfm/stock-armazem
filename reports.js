@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// reports.js — Hiperfrio v6.59
+// reports.js — Hiperfrio v6.61
 // Relatório mensal, snapshots, movimentos de stock, Chart.js.
 // Carrega DEPOIS de auth.js e ANTES de stock.js, tools.js, pats.js.
 //
@@ -91,7 +91,12 @@ function _mesRange(key) {
 }
 
 // ── Registar movimento de stock ───────────────────────────────────────────
-// tipo: 'saida_pat' | 'saida_manual' | 'saida_guia' | 'remocao'
+// tipo: 'saida_pat' | 'saida_manual' | 'saida_guia' | 'remocao' | 'estorno_guia'
+//   saida_*      — saída normal, soma ao total e ao ranking da ref.
+//   remocao      — produto apagado; conta como saída.
+//   estorno_*    — reversão de saída (ex: undo de recolha em guia). SUBTRAI
+//                  ao total e ao ranking. Usa-se quando o movimento original
+//                  foi gravado mas a operação foi revertida.
 // Helper: parse de ev.data (string ISO) tratando date-only como local.
 // "2026-04-15" em new Date() vira UTC midnight; em Portugal WEST (UTC+1) isto
 // cai às 01:00 local do dia 15. Para consistência com ranges locais, tratamos
@@ -235,27 +240,47 @@ async function _buildSnapshot(mesKey) {
     // Decomposição por tipo + agregação SÓ para guias (base para planear encomendas)
     const saidasPorTipo = { saida_pat: 0, saida_manual: 0, saida_guia: 0, remocao: 0 };
     const refCountGuias = {};
+    // Estornos (reversões explícitas) descontam no ranking e no total.
+    // Se um movimento tem `estorno_*`, subtraímos a quantidade da ref correspondente
+    // e também do tipo original (ex: estorno_guia subtrai em saidasPorTipo.saida_guia).
+    // Tipos suportados: estorno_guia (reversão de recolha em guias técnicas).
     Object.values(movData).forEach(m => {
         if (!m.codigo) return;
         const qtd = m.quantidade || 1;
-        totalSaidasReal += qtd;
-        if (saidasPorTipo[m.tipo] !== undefined) saidasPorTipo[m.tipo] += qtd;
         const codU = m.codigo.toUpperCase();
         const unidade = unidadePorCodigo[codU] || 'un';
+        const isEstorno = typeof m.tipo === 'string' && m.tipo.startsWith('estorno_');
+        const sign = isEstorno ? -1 : 1;
+        // Mapear estorno_X → saida_X para subtrair no bucket correspondente
+        const tipoBucket = isEstorno ? m.tipo.replace(/^estorno_/, 'saida_') : m.tipo;
+
+        totalSaidasReal += qtd * sign;
+        if (saidasPorTipo[tipoBucket] !== undefined) saidasPorTipo[tipoBucket] += qtd * sign;
+
         if (!refCount[codU]) refCount[codU] = { codigo: m.codigo, nome: m.nome, qty: 0, unidade };
-        refCount[codU].qty += qtd;
-        // Materiais saídos VIA GUIAS — ranking separado para planeamento de encomendas
-        if (m.tipo === 'saida_guia') {
+        refCount[codU].qty += qtd * sign;
+
+        // Materiais saídos VIA GUIAS — ranking separado para planeamento.
+        // Estorno de guia subtrai. Tipo saida_guia adiciona.
+        if (m.tipo === 'saida_guia' || m.tipo === 'estorno_guia') {
             if (!refCountGuias[codU]) refCountGuias[codU] = { codigo: m.codigo, nome: m.nome, qty: 0, unidade };
-            refCountGuias[codU].qty += qtd;
+            refCountGuias[codU].qty += qtd * sign;
         }
     });
+    // Guard numérico: buckets não podem ficar negativos se a ordem de estornos
+    // foi lida antes das saídas originais (raro mas possível com clock skew).
+    Object.keys(saidasPorTipo).forEach(k => { if (saidasPorTipo[k] < 0) saidasPorTipo[k] = 0; });
+    // Filtrar refs com qty <= 0 (totalmente estornadas) — não aparecem em rankings
     const top5 = Object.values(refCount)
+        .filter(r => r.qty > 0)
         .sort((a, b) => b.qty - a.qty)
         .slice(0, 5);
     const topGuias = Object.values(refCountGuias)
+        .filter(r => r.qty > 0)
         .sort((a, b) => b.qty - a.qty)
         .slice(0, 5);
+    // Total não pode ficar negativo (teórico, mas guard)
+    if (totalSaidasReal < 0) totalSaidasReal = 0;
 
     // Top refs do período que estão a zero no stock actualmente — alerta crítico
     const topEsgotados = Object.values(refCount)
@@ -646,7 +671,7 @@ async function renderRelatorio(resetToCurrent = false) {
     _relDrawSparklines(sparkData, snap);
     _relDrawDonut(snap);
     _relAnimateBars();
-    _relAnimateKPIs(snap);
+    _relAnimateKPIs();
 }
 
 // ── Layout builder — monta toda a grid numa string ────────────────────────
@@ -1001,19 +1026,26 @@ async function _relBuildWindow(ndays) {
     movsRange.forEach(m => {
         if (!m.codigo) return;
         const qtd = m.quantidade || 1;
-        totalSaidasReal += qtd;
-        if (saidasPorTipo[m.tipo] !== undefined) saidasPorTipo[m.tipo] += qtd;
         const codU = m.codigo.toUpperCase();
         const unidade = unidadePorCodigo[codU] || 'un';
+        const isEstorno = typeof m.tipo === 'string' && m.tipo.startsWith('estorno_');
+        const sign = isEstorno ? -1 : 1;
+        const tipoBucket = isEstorno ? m.tipo.replace(/^estorno_/, 'saida_') : m.tipo;
+
+        totalSaidasReal += qtd * sign;
+        if (saidasPorTipo[tipoBucket] !== undefined) saidasPorTipo[tipoBucket] += qtd * sign;
+
         if (!refCount[codU]) refCount[codU] = { codigo: m.codigo, nome: m.nome, qty: 0, unidade };
-        refCount[codU].qty += qtd;
-        if (m.tipo === 'saida_guia') {
+        refCount[codU].qty += qtd * sign;
+        if (m.tipo === 'saida_guia' || m.tipo === 'estorno_guia') {
             if (!refCountGuias[codU]) refCountGuias[codU] = { codigo: m.codigo, nome: m.nome, qty: 0, unidade };
-            refCountGuias[codU].qty += qtd;
+            refCountGuias[codU].qty += qtd * sign;
         }
     });
-    const top5     = Object.values(refCount).sort((a,b) => b.qty - a.qty).slice(0, 5);
-    const topGuias = Object.values(refCountGuias).sort((a,b) => b.qty - a.qty).slice(0, 5);
+    Object.keys(saidasPorTipo).forEach(k => { if (saidasPorTipo[k] < 0) saidasPorTipo[k] = 0; });
+    const top5     = Object.values(refCount).filter(r => r.qty > 0).sort((a,b) => b.qty - a.qty).slice(0, 5);
+    const topGuias = Object.values(refCountGuias).filter(r => r.qty > 0).sort((a,b) => b.qty - a.qty).slice(0, 5);
+    if (totalSaidasReal < 0) totalSaidasReal = 0;
 
     // Clientes
     const clienteCount = {};
@@ -1295,17 +1327,21 @@ function _relBuildInsightsAvancados(snap, snapAnt, sparkData, snapAnt2, snapAnt3
         out.push({ level: 'warn', icon: '⏱', text: `Duração média em <b>${snap.duracaoMedia} dias</b> — acima do recomendado. Verifica pendências em aberto.` });
     }
 
-    // 5. Crescimento guias técnicas vs mês anterior
+    // 5. Crescimento guias técnicas vs mês anterior.
+    //    5b tem precedência sobre 5 — se cresceu >50% já é alert, e mostrar ambos
+    //    seria redundante. Antes eram if/else if com 5 a ganhar sempre (diff>=5
+    //    entrava no info e 5b nunca disparava mesmo em casos de crescimento forte).
     if (snapAnt && snap.guiasCount && snapAnt.guiasCount) {
         const diff = snap.guiasCount - snapAnt.guiasCount;
-        if (Math.abs(diff) >= 5) {
-            const sinal = diff > 0 ? '+' : '';
-            out.push({ level: 'info', icon: '⚑', text: `Guias Técnicos: <b>${sinal}${diff}</b> separações vs mês anterior (${snapAnt.guiasCount} → ${snap.guiasCount}).` });
-        }
-        // 5b. Crescimento muito forte (>50%)
-        else if (snapAnt.guiasCount > 0 && snap.guiasCount > snapAnt.guiasCount * 1.5) {
+        const cresceuMuito = snapAnt.guiasCount > 0 && snap.guiasCount > snapAnt.guiasCount * 1.5;
+        if (cresceuMuito) {
+            // 5b — alert de crescimento forte (precedente)
             const pct = Math.round(((snap.guiasCount - snapAnt.guiasCount) / snapAnt.guiasCount) * 100);
             out.push({ level: 'alert', icon: '⚑', text: `Separações para técnicos cresceram <b>+${pct}%</b> vs mês anterior. Sinal de intensificação da actividade no terreno.` });
+        } else if (Math.abs(diff) >= 5) {
+            // 5 — delta absoluto relevante
+            const sinal = diff > 0 ? '+' : '';
+            out.push({ level: 'info', icon: '⚑', text: `Guias Técnicos: <b>${sinal}${diff}</b> separações vs mês anterior (${snapAnt.guiasCount} → ${snap.guiasCount}).` });
         }
     }
 

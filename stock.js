@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// stock.js — Hiperfrio v6.56
+// stock.js — Hiperfrio v6.61
 // Gestão de stock: render, ordenação, filtros, swipe, changeQtd, exportCSV.
 // Carrega DEPOIS de reports.js e ANTES de tools.js, pats.js.
 //
@@ -180,17 +180,28 @@ function filterZeroStock() {
 }
 
 const ZONE_HISTORY_KEY = 'hiperfrio-zone-history';
+// localStorage pode estar corrompido (quota, extensões) — sempre try/catch.
+function _loadZoneHistory() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(ZONE_HISTORY_KEY) || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+    } catch(_e) {
+        localStorage.removeItem(ZONE_HISTORY_KEY);
+        return [];
+    }
+}
 function _saveZoneToHistory(zona) {
     if (!zona) return;
-    const hist = JSON.parse(localStorage.getItem(ZONE_HISTORY_KEY) || '[]');
+    const hist = _loadZoneHistory();
     const updated = [zona, ...hist.filter(z => z !== zona)].slice(0, 8);
-    localStorage.setItem(ZONE_HISTORY_KEY, JSON.stringify(updated));
+    try { localStorage.setItem(ZONE_HISTORY_KEY, JSON.stringify(updated)); }
+    catch(_e) { /* quota cheia — esqueça, não é fatal */ }
     _refreshZoneDatalist();
 }
 function _refreshZoneDatalist() {
     const dl = $id('zone-datalist');
     if (!dl) return;
-    const hist = JSON.parse(localStorage.getItem(ZONE_HISTORY_KEY) || '[]');
+    const hist = _loadZoneHistory();
     dl.innerHTML = hist.map(z => `<option value="${escapeHtml(z)}">`).join('');
 }
 
@@ -722,13 +733,21 @@ function openInlineQtyEdit(id, item) {
         $id(`btn-minus-${id}`)?.toggleAttribute('disabled', newVal === 0);
         if (cache.stock.data?.[id]) cache.stock.data[id].quantidade = newVal;
         if (_stockSort === 'qtd-asc' || _stockSort === 'qtd-desc') _invalidateSortedCache();
-        if (newVal < oldValInline) {
-            registarMovimento('saida_manual', id, item.codigo, item.nome, oldValInline - newVal);
-        }
         try {
             await apiFetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: newVal }) });
+            // Registar movimento só após PATCH OK — senão, falha de rede deixa
+            // saída fantasma no relatório. Se PATCH caiu no queue offline
+            // (apiFetch devolve null), registamos também porque o movimento
+            // vai para a mesma queue e ambos sincronizam juntos.
+            if (newVal < oldValInline) {
+                registarMovimento('saida_manual', id, item.codigo, item.nome, oldValInline - newVal);
+            }
             renderDashboard();
-        } catch(_e) { showToast('Erro ao guardar','error'); }
+        } catch(_e) {
+            // Rollback do cache — PATCH falhou mesmo online
+            if (cache.stock.data?.[id]) cache.stock.data[id].quantidade = oldValInline;
+            showToast('Erro ao guardar','error');
+        }
     };
     const cancelFn = () => { wrap.replaceWith(qtyEl); };
     inp.addEventListener('keydown', e => {
@@ -803,10 +822,11 @@ async function changeQtd(id, delta) {
     }
     const newQty = Math.max(0, oldQty + delta);
     if (newQty === oldQty) return;
-    if (delta < 0) {
-        const _itm = cache.stock.data?.[id];
-        registarMovimento('saida_manual', id, _itm?.codigo, _itm?.nome, Math.abs(delta));
-    }
+
+    // NOTA: registarMovimento antigamente era chamado aqui, antes do commit.
+    // Se o PATCH falhasse, o cache ficava correcto mas o movimento persistia,
+    // inflando o relatório. Agora é feito no callback do setTimeout, só após
+    // _commitStockDelta resolver com sucesso, usando baseQty→savedQty como total real.
 
     // Actualiza cache + DOM imediatamente (optimistic)
     stockData[id].quantidade = newQty;
@@ -837,6 +857,15 @@ async function changeQtd(id, delta) {
             }
             if (minusEl) minusEl.disabled = savedQty === 0;
             if (qtyEl) qtyEl.classList.remove('qty-saving');
+
+            // Só agora, com commit confirmado: registar a saída pelo total real
+            // (diferença base→saved, não delta clique-a-clique). Se houve múltiplos
+            // -/+ no período do debounce, só o saldo líquido conta como saída.
+            const movido = baseQty - savedQty;
+            if (movido > 0) {
+                const _itm = stockData[id];
+                registarMovimento('saida_manual', id, _itm?.codigo, _itm?.nome, movido);
+            }
         } catch (e) {
             console.warn('changeQtd erro:', e?.message || e);
             if (qtyEl) qtyEl.classList.remove('qty-saving');

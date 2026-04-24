@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// auth.js — Hiperfrio v6.56
+// auth.js — Hiperfrio v6.61
 // Fase 2 da modularização: autenticação, perfis e gestão de utilizadores.
 // Carrega DEPOIS de utils.js e ANTES de app.js.
 //
@@ -188,7 +188,15 @@ async function handleLogin(e) {
 
     // BUG FIX: rate limiting simples — bloqueia 5s após 3 falhas consecutivas
     const failKey  = 'hiperfrio-login-fails';
-    const failData = JSON.parse(sessionStorage.getItem(failKey) || '{"count":0,"until":0}');
+    // JSON.parse defensivo — sessionStorage pode ter lixo de extensões ou dev tools.
+    let failData;
+    try {
+        failData = JSON.parse(sessionStorage.getItem(failKey) || '{"count":0,"until":0}');
+        if (!failData || typeof failData !== 'object') failData = { count: 0, until: 0 };
+    } catch(_e) {
+        failData = { count: 0, until: 0 };
+        sessionStorage.removeItem(failKey);
+    }
     if (failData.until > Date.now()) {
         const secsLeft = Math.ceil((failData.until - Date.now()) / 1000);
         showError(`Demasiadas tentativas. Aguarda ${secsLeft}s.`);
@@ -457,14 +465,17 @@ async function bootApp() {
         console.warn('bootApp: sem token, continua offline');
     }
     _scheduleTokenRenewal();
-    await Promise.all([
+    // Promise.allSettled: falha individual de uma colecção (ex: /guias)
+    // não impede as outras de carregarem. Antes era Promise.all — se o
+    // .indexOn estava em falta numa das colecções, todas falhavam em efeito.
+    await Promise.allSettled([
         renderList(),
         fetchCollection('ferramentas'),
         fetchCollection('funcionarios'),
         _fetchClientes(),
         _fetchPats(),
         _fetchGuias(),
-    ]).catch(e => console.warn('bootApp fetch error:', e));
+    ]);
     updateOfflineBanner();
     updateGuiasCount().catch(() => {});
     nav('view-dashboard');

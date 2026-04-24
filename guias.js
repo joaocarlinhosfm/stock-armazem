@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// guias.js — Hiperfrio v6.56
+// guias.js — Hiperfrio v6.61
 // Guias Técnicos: separação de material para técnicos.
 //
 // Fluxo: pendente → (todas linhas recolhidas) → separado → (30 dias) → histórico
@@ -480,39 +480,104 @@ async function toggleLinhaRecolhida(gid, lid, makeRecolhido) {
     if (!l) return;
 
     if (makeRecolhido) {
-        // Validar: há stock suficiente?
+        // ─── RECOLHER — ordem importa para minimizar duplo-decremento ─────
+        // Fluxo antigo: validar stock → PATCH stock → registar movimento →
+        // PATCH linha. Se o último PATCH falhava, linha aparecia não-recolhida
+        // e utilizador clicava outra vez → double-decrement.
+        //
+        // Fluxo novo:
+        //  1. Valida stock (só leitura — pode ser stale mas OK)
+        //  2. PATCH linha primeiro (bloqueia duplos cliques mesmo com falha a seguir)
+        //  3. PATCH stock + registar movimento (só se linha gravou)
+        //  4. Se stock falha, tenta desmarcar linha; se também falha, deixa
+        //     sinal visível (linha marcada sem stock descontado) em vez de
+        //     double-decrement silencioso.
+
+        // 1 — Procurar stock correspondente (sem mutar ainda)
         const stockData = await fetchCollection('stock');
-        // Procurar item no stock por código
         const stockEntry = Object.entries(stockData || {})
             .find(([, it]) => (it.codigo || '').toUpperCase() === (l.codigo || '').toUpperCase());
 
-        if (!stockEntry) {
-            showToast(`Produto "${l.codigo}" não existe em stock — linha marcada sem decrementar`, 'info');
-        } else {
-            const [stockId, stockItem] = stockEntry;
+        let stockId = null, stockItem = null;
+        if (stockEntry) {
+            [stockId, stockItem] = stockEntry;
             const disponivel = stockItem.quantidade || 0;
             const necessario = l.quantidade || 0;
             if (disponivel < necessario) {
                 showToast(`Stock insuficiente (${disponivel} disponíveis, ${necessario} pedidos)`, 'error');
                 return;
             }
-            // Decrementar stock
-            const novaQtd = disponivel - necessario;
+        } else {
+            // Sem stock correspondente — recolha apenas "marca" a linha
+            showToast(`Produto "${l.codigo}" não existe em stock — linha marcada sem decrementar`, 'info');
+        }
+
+        // 2 — PATCH linha PRIMEIRO (bloqueia re-cliques)
+        const ts = Date.now();
+        try {
+            await apiFetch(`${GUIAS_URL}/${gid}/linhas/${lid}.json`, {
+                method: 'PATCH',
+                body: JSON.stringify({ recolhido: true, recolhidoEm: ts }),
+            });
+        } catch(e) {
+            showToast('Erro ao guardar linha: ' + (e?.message || e), 'error');
+            return;
+        }
+
+        // Actualizar cache local da linha
+        l.recolhido = true;
+        l.recolhidoEm = ts;
+
+        // 3 — PATCH stock + registar movimento (só se havia stock correspondente)
+        if (stockId && stockItem) {
+            const disponivel = stockItem.quantidade || 0;
+            const necessario = l.quantidade || 0;
+            const novaQtd = Math.max(0, disponivel - necessario);
             try {
                 await apiFetch(`${BASE_URL}/stock/${stockId}.json`, {
                     method: 'PATCH',
                     body: JSON.stringify({ quantidade: novaQtd }),
                 });
                 if (cache.stock.data?.[stockId]) cache.stock.data[stockId].quantidade = novaQtd;
-                // Registar movimento — entra no top-5 do relatório
+                // Movimento só após stock confirmado
                 registarMovimento('saida_guia', stockId, stockItem.codigo, stockItem.nome, necessario);
             } catch(e) {
-                showToast('Erro ao decrementar stock: ' + (e?.message || e), 'error');
+                // 4 — Stock falhou. Tentar desmarcar linha para evitar estado ambíguo.
+                console.warn('[Guias] stock PATCH falhou, a tentar reverter linha:', e?.message);
+                try {
+                    await apiFetch(`${GUIAS_URL}/${gid}/linhas/${lid}.json`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ recolhido: false, recolhidoEm: null }),
+                    });
+                    l.recolhido = false;
+                    l.recolhidoEm = null;
+                    showToast('Erro ao decrementar stock — linha não foi marcada', 'error');
+                } catch(_e2) {
+                    // Estado inconsistente mas visível — linha marcada, stock intacto.
+                    // Melhor que double-decrement silencioso.
+                    showToast('Erro ao guardar — verifica a linha manualmente', 'error');
+                }
+                _renderGuiaDetailLinhas(g);
+                renderGuias();
                 return;
             }
         }
     } else {
-        // Desfazer: repôr stock se possível
+        // ─── UNDO — repor stock + registar estorno ────────────────────────
+        // 1 — PATCH linha primeiro (desmarca)
+        try {
+            await apiFetch(`${GUIAS_URL}/${gid}/linhas/${lid}.json`, {
+                method: 'PATCH',
+                body: JSON.stringify({ recolhido: false, recolhidoEm: null }),
+            });
+        } catch(e) {
+            showToast('Erro ao guardar linha: ' + (e?.message || e), 'error');
+            return;
+        }
+        l.recolhido = false;
+        l.recolhidoEm = null;
+
+        // 2 — Repor stock (se existir) + registar estorno para compensar o movimento original
         const stockData = await fetchCollection('stock');
         const stockEntry = Object.entries(stockData || {})
             .find(([, it]) => (it.codigo || '').toUpperCase() === (l.codigo || '').toUpperCase());
@@ -525,24 +590,12 @@ async function toggleLinhaRecolhida(gid, lid, makeRecolhido) {
                     body: JSON.stringify({ quantidade: novaQtd }),
                 });
                 if (cache.stock.data?.[stockId]) cache.stock.data[stockId].quantidade = novaQtd;
+                // Estorno — movimento compensatório para o relatório não contar a saída original
+                registarMovimento('estorno_guia', stockId, stockItem.codigo, stockItem.nome, l.quantidade || 0);
             } catch(e) {
                 console.warn('[Guias] falha ao repôr stock:', e?.message);
             }
         }
-    }
-
-    // Actualizar cache local
-    l.recolhido = !!makeRecolhido;
-    l.recolhidoEm = makeRecolhido ? Date.now() : null;
-
-    // Persistir linha
-    try {
-        await apiFetch(`${GUIAS_URL}/${gid}/linhas/${lid}.json`, {
-            method: 'PATCH',
-            body: JSON.stringify({ recolhido: l.recolhido, recolhidoEm: l.recolhidoEm }),
-        });
-    } catch(e) {
-        showToast('Erro ao guardar: ' + (e?.message || e), 'error');
     }
 
     // Se todas as linhas estão recolhidas → guia passa a "separado" automaticamente.
@@ -593,17 +646,24 @@ async function deleteGuia() {
     if (!_guiasEditId) return;
     const g = _guiasCache.data?.[_guiasEditId];
     if (!g) return;
-    if (!confirm(`Apagar a guia "${g.numero}" do técnico "${g.tecnico}"?`)) return;
-
-    try {
-        await apiFetch(`${GUIAS_URL}/${_guiasEditId}.json`, { method: 'DELETE' });
-        delete _guiasCache.data[_guiasEditId];
-        modalClose('guia-detail-modal');
-        renderGuias();
-        showToast('Guia apagada ✓', 'success');
-    } catch(e) {
-        showToast('Erro ao apagar: ' + (e?.message || e), 'error');
-    }
+    const gid = _guiasEditId;
+    openConfirmModal({
+        title: 'Apagar guia?',
+        desc: `Guia "${g.numero || '—'}" do técnico "${g.tecnico || '—'}" será eliminada permanentemente.`,
+        type: 'danger',
+        okLabel: 'Apagar',
+        onConfirm: async () => {
+            try {
+                await apiFetch(`${GUIAS_URL}/${gid}.json`, { method: 'DELETE' });
+                delete _guiasCache.data[gid];
+                modalClose('guia-detail-modal');
+                renderGuias();
+                showToast('Guia apagada ✓', 'success');
+            } catch(e) {
+                showToast('Erro ao apagar: ' + (e?.message || e), 'error');
+            }
+        }
+    });
 }
 
 // ─── Importar PDF via Claude Vision ──────────────────────────────────────────
