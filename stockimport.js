@@ -8,7 +8,10 @@
 //   • Referência existe        → substitui APENAS a quantidade.
 //   • Referência não existe    → cria artigo novo (só se a Ref tiver conteúdo).
 //   • Linhas sem Ref e a linha "TOTAL" são ignoradas.
-//   • Refs repetidas (no Excel ou no stock) NÃO são tocadas — ficam em "A rever".
+//   • Casos ambíguos ficam em "A rever" e NÃO são tocados até o utilizador decidir:
+//       – quantidade vazia/inválida  → escrever a quantidade, ou ignorar
+//       – Ref repetida no Excel      → escolher uma linha, somar, ou ignorar
+//       – Ref repetida no stock      → escolher que artigo atualizar, ou ignorar
 //   • Diferenças para baixo contam como saída nos relatórios (tipo
 //     'saida_inventario'); aumentos não contam (não existe tipo de entrada).
 //   • Pré-visualização obrigatória antes de gravar. Só gestores, só online.
@@ -21,7 +24,7 @@
 //   stock.js   → renderList
 // ───────────────────────────────────────
 
-const _SI = { entries: null, plan: null, fileName: '', busy: false };
+const _SI = { entries: null, plan: null, stock: null, decisions: {}, fileName: '', sig: '', busy: false };
 
 // Nomes de cabeçalho aceites (normalizados: sem acentos, minúsculas, só a-z0-9)
 const _SI_HDR = {
@@ -84,7 +87,7 @@ function _siParseUnit(raw) {
     return { unit: 'un', known: false, warn: `unidade "${txt}" desconhecida → un` };
 }
 
-// Linhas do Excel → entradas válidas + linhas inválidas.
+// Linhas do Excel → entradas válidas + linhas inválidas (com dados para poderem ser corrigidas).
 function _siParseRows(rows, hdr, startRow) {
     const { cols } = hdr;
     const entries = [], invalid = [];
@@ -95,22 +98,24 @@ function _siParseRows(rows, hdr, startRow) {
         const key = _siKey(refRaw);
         if (/^TOTAL(IS|GERAL)?$/.test(key)) continue;             // linha de totais
         const linha = startRow + i + 1;
+        const nome = cols.des !== undefined ? String(row[cols.des] ?? '').trim().toUpperCase() : '';
+        const u = cols.uni !== undefined ? _siParseUnit(row[cols.uni]) : { unit: 'un', known: false, warn: '' };
         const qtdRaw = row[cols.qtd];
         const qtd = _siParseQty(qtdRaw);
         if (!Number.isFinite(qtd) || qtd < 0) {
             const vazio = qtdRaw === '' || qtdRaw == null;
-            invalid.push({ linha, ref: refRaw, motivo: vazio ? 'quantidade vazia' : `quantidade inválida (${qtdRaw})` });
+            invalid.push({ id: `iv:${linha}`, linha, ref: refRaw.toUpperCase(), key, nome, unidade: u.unit, unitKnown: u.known, warn: u.warn,
+                           motivo: vazio ? 'quantidade vazia' : `quantidade inválida (${qtdRaw})` });
             continue;
         }
-        const nome = cols.des !== undefined ? String(row[cols.des] ?? '').trim().toUpperCase() : '';
-        const u = cols.uni !== undefined ? _siParseUnit(row[cols.uni]) : { unit: 'un', known: false, warn: '' };
         entries.push({ linha, ref: refRaw.toUpperCase(), key, nome, qtd, unidade: u.unit, unitKnown: u.known, warn: u.warn });
     }
     return { entries, invalid };
 }
 
-// Compara com o stock e classifica cada linha.
-function _siBuildPlan(parsed, stockData) {
+// Compara com o stock e classifica cada linha. `decisions` = o que o utilizador
+// já resolveu nas linhas "A rever" (chaves: iv:<linha> | dx:<ref> | ds:<ref>).
+function _siBuildPlan(parsed, stockData, decisions = {}) {
     const stockByKey = {};
     Object.entries(stockData || {}).forEach(([id, item]) => {
         if (!item || id.startsWith('_tmp_')) return;
@@ -119,26 +124,63 @@ function _siBuildPlan(parsed, stockData) {
         (stockByKey[k] = stockByKey[k] || []).push(id);
     });
 
-    const excelCount = {};
-    parsed.entries.forEach(e => { excelCount[e.key] = (excelCount[e.key] || 0) + 1; });
+    const plan = { updates: [], creates: [], same: 0, review: [], saidaTotal: 0, saidaItens: 0, subidaTotal: 0 };
+    const dec = id => decisions[id];
+    const isNum = v => Number.isFinite(v) && v >= 0;
 
-    const plan = { updates: [], creates: [], same: 0, review: [...parsed.invalid.map(x => ({ ...x }))], saidaTotal: 0, saidaItens: 0, subidaTotal: 0 };
-
-    parsed.entries.forEach(e => {
-        if (excelCount[e.key] > 1) {
-            plan.review.push({ linha: e.linha, ref: e.ref, motivo: 'referência repetida no Excel' });
-            return;
+    // 1) linhas válidas + linhas inválidas a que o utilizador deu uma quantidade
+    const list = parsed.entries.map(e => ({ ...e }));
+    parsed.invalid.forEach(iv => {
+        const d = dec(iv.id);
+        if (d && isNum(d.qtd)) {
+            list.push({ linha: iv.linha, ref: iv.ref, key: iv.key, nome: iv.nome, qtd: d.qtd, unidade: iv.unidade, unitKnown: iv.unitKnown, warn: iv.warn });
+        } else {
+            plan.review.push({ id: iv.id, tipo: 'qtd', ref: iv.ref, nome: iv.nome, linha: iv.linha, unidade: iv.unidade, motivo: iv.motivo, ignorado: !!(d && d.ignore) });
         }
+    });
+
+    // 2) referências repetidas no Excel
+    const groups = {};
+    list.forEach(e => (groups[e.key] = groups[e.key] || []).push(e));
+    const finals = [];
+    Object.values(groups).forEach(g => {
+        if (g.length === 1) { finals.push(g[0]); return; }
+        const id = `dx:${g[0].key}`, d = dec(id);
+        if (d && isNum(d.qtd)) { finals.push({ ...g[0], qtd: d.qtd }); return; }
+        plan.review.push({
+            id, tipo: 'dupExcel', ref: g[0].ref, nome: (g.find(x => x.nome) || {}).nome || '', unidade: g[0].unidade,
+            linha: Math.min(...g.map(x => x.linha)),
+            linhas: g.map(x => ({ linha: x.linha, qtd: x.qtd })).sort((a, b) => a.linha - b.linha),
+            soma: Math.round(g.reduce((t, x) => t + x.qtd, 0) * 1000) / 1000,
+            motivo: 'referência repetida no Excel', ignorado: !!(d && d.ignore),
+        });
+    });
+    finals.sort((a, b) => a.linha - b.linha);
+
+    // 3) comparar com o stock
+    finals.forEach(e => {
         const ids = stockByKey[e.key];
         if (!ids) {
             plan.creates.push({ key: e.key, linha: e.linha, codigo: e.ref, nome: e.nome || e.ref, quantidade: e.qtd, unidade: e.unidade, warn: e.warn });
             return;
         }
-        if (ids.length > 1) {
-            plan.review.push({ linha: e.linha, ref: e.ref, motivo: `referência repetida no stock (${ids.length} artigos)` });
-            return;
+        let id;
+        if (ids.length === 1) {
+            id = ids[0];
+        } else {
+            const rid = `ds:${e.key}`, d = dec(rid);
+            if (d && d.stockId && ids.includes(d.stockId)) {
+                id = d.stockId;
+            } else {
+                plan.review.push({
+                    id: rid, tipo: 'dupStock', ref: e.ref, nome: e.nome, linha: e.linha, qtd: e.qtd, unidade: e.unidade,
+                    motivo: `referência repetida no stock (${ids.length} artigos)`, ignorado: !!(d && d.ignore),
+                    candidatos: ids.map(i => ({ id: i, nome: stockData[i].nome || '', local: stockData[i].localizacao || '',
+                                                qtd: Number(stockData[i].quantidade) || 0, unidade: stockData[i].unidade || 'un' })),
+                });
+                return;
+            }
         }
-        const id = ids[0];
         const item = stockData[id];
         const old = Math.round((Number(item.quantidade) || 0) * 1000) / 1000;
         if (Math.abs(old - e.qtd) < 1e-9) { plan.same++; return; }
@@ -165,7 +207,7 @@ function _siSignature(plan) {
 // ── UI ──────────────────────────────────────────────────────────────────────
 
 function renderStockImport() {
-    _SI.entries = null; _SI.plan = null; _SI.fileName = ''; _SI.busy = false;
+    _SI.entries = null; _SI.plan = null; _SI.stock = null; _SI.decisions = {}; _SI.fileName = ''; _SI.sig = ''; _SI.busy = false;
     const input = $id('si-file-input');
     if (input) input.value = '';
     const prev = $id('si-preview');
@@ -190,18 +232,41 @@ function _siRowNew(c) {
     </div>`;
 }
 
-function _siRowRev(r) {
-    return `<div class="si-row">
-        <div class="si-row-main"><b>${escapeHtml(r.ref)}</b><span>linha ${r.linha}</span></div>
-        <div class="si-row-val si-rev">${escapeHtml(r.motivo)}</div>
-    </div>`;
+// Cartão de uma linha "A rever" com as acções possíveis (i = índice em plan.review).
+function _siReviewCard(r, i) {
+    const head = `<div class="si-rv-head"><b>${escapeHtml(r.ref)}</b>${r.nome ? `<span>${escapeHtml(r.nome)}</span>` : ''}
+        <em class="si-rv-why">${escapeHtml(r.motivo)} · linha ${r.linha}</em></div>`;
+    if (r.ignorado) {
+        return `<div class="si-rv si-rv-ign">${head}<div class="si-rv-actions">
+            <span class="si-rv-hint">Ignorado — não será alterado</span>
+            <button type="button" class="si-mini" onclick="siRvRevert(${i})">Reverter</button></div></div>`;
+    }
+    const ign = `<button type="button" class="si-mini" onclick="siRvIgnore(${i})">Ignorar</button>`;
+    let body = '';
+    if (r.tipo === 'qtd') {
+        body = `<div class="si-rv-actions">
+            <input id="si-rv-qty-${i}" class="si-rv-input" type="text" inputmode="decimal" placeholder="Quantidade (${escapeHtml(r.unidade)})" onkeydown="if(event.key==='Enter'){event.preventDefault();siRvQty(${i});}">
+            <button type="button" class="si-mini si-mini-ok" onclick="siRvQty(${i})">Usar</button>${ign}</div>`;
+    } else if (r.tipo === 'dupExcel') {
+        body = `<div class="si-rv-opts">`
+            + r.linhas.map((l, j) => `<button type="button" class="si-opt" onclick="siRvLine(${i},${j})"><span>Linha ${l.linha}</span><strong>${escapeHtml(fmtQty(l.qtd, r.unidade))}</strong></button>`).join('')
+            + `<button type="button" class="si-opt" onclick="siRvSum(${i})"><span>Somar</span><strong>${escapeHtml(fmtQty(r.soma, r.unidade))}</strong></button></div>
+            <div class="si-rv-actions"><span class="si-rv-hint">Toca no valor a usar</span>${ign}</div>`;
+    } else if (r.tipo === 'dupStock') {
+        body = `<div class="si-rv-opts si-rv-col">`
+            + r.candidatos.map((c, j) => `<button type="button" class="si-opt si-opt-wide" onclick="siRvStock(${i},${j})">
+                <span>${escapeHtml(c.nome || r.ref)} · ${c.local ? escapeHtml(c.local) : 'sem local'}</span>
+                <strong>${escapeHtml(fmtQty(c.qtd, c.unidade))} → ${escapeHtml(fmtQty(r.qtd, c.unidade))}</strong></button>`).join('')
+            + `</div><div class="si-rv-actions"><span class="si-rv-hint">Que artigo atualizar? (Excel: ${escapeHtml(fmtQty(r.qtd, r.unidade))})</span>${ign}</div>`;
+    }
+    return `<div class="si-rv">${head}${body}</div>`;
 }
 
-function _siSection(title, count, rowsHtml, openByDefault = false) {
+function _siSection(title, count, rowsHtml, openByDefault = false, extraCls = '') {
     if (!count) return '';
     return `<details class="si-sec"${openByDefault ? ' open' : ''}>
         <summary>${escapeHtml(title)} <span class="si-count">${count}</span></summary>
-        <div class="si-list">${rowsHtml}</div>
+        <div class="si-list ${extraCls}">${rowsHtml}</div>
     </details>`;
 }
 
@@ -216,23 +281,23 @@ function _siRenderPreview() {
         <div class="si-chip si-chip-upd"><b>${p.updates.length}</b><span>A atualizar</span></div>
         <div class="si-chip si-chip-new"><b>${p.creates.length}</b><span>Novos</span></div>
         <div class="si-chip"><b>${p.same}</b><span>Sem alteração</span></div>
-        <div class="si-chip si-chip-warn"><b>${p.review.length}</b><span>A rever</span></div>
+        <div class="si-chip si-chip-warn"><b>${p.review.filter(r => !r.ignorado).length}</b><span>A rever</span></div>
     </div>`;
 
     if (p.updates.length) {
         html += `<p class="si-note">Saídas a registar nos relatórios: <strong>${p.saidaTotal}</strong> (${p.saidaItens} artigo${p.saidaItens === 1 ? '' : 's'}).
         Aumentos de stock: <strong>${p.subidaTotal}</strong> (não contam como saída).</p>`;
     }
-    if (p.review.length) {
-        html += `<p class="si-note si-note-warn">As linhas em «A rever» <strong>não serão alteradas</strong>.</p>`;
+    if (p.review.some(r => !r.ignorado)) {
+        html += `<p class="si-note si-note-warn">As linhas em «A rever» <strong>não serão alteradas</strong> até decidires o que fazer com cada uma.</p>`;
     }
 
     html += _siSection('Quantidades a atualizar', p.updates.length, p.updates.map(_siRowUpd).join(''));
     html += _siSection('Artigos novos a criar (sem localização)', p.creates.length, p.creates.map(_siRowNew).join(''));
-    html += _siSection('A rever (não alterados)', p.review.length, p.review.map(_siRowRev).join(''), true);
+    html += _siSection('A rever', p.review.length, p.review.map(_siReviewCard).join(''), true, 'si-list-rv');
 
     if (nothing) {
-        html += `<div class="si-empty">Nada para atualizar — o stock já coincide com o Excel${p.review.length ? ', exceto as linhas a rever' : ''}.</div>
+        html += `<div class="si-empty">Nada para atualizar — o stock já coincide com o Excel${p.review.some(r => !r.ignorado) ? ', exceto as linhas a rever' : ''}.</div>
         <div class="si-actions"><button type="button" class="si-btn-ghost" onclick="siCancel()">Fechar</button></div>`;
     } else {
         html += `<label class="si-check"><input type="checkbox" id="si-backup" checked> Descarregar cópia dos valores atuais (CSV) antes de aplicar</label>
@@ -243,6 +308,42 @@ function _siRenderPreview() {
     }
     prev.innerHTML = html;
 }
+
+// ── Decisões nas linhas "A rever" ───────────────────────────────────────────
+// Guarda a decisão e volta a calcular o plano (a linha passa a atualizar/criar,
+// ou fica marcada como ignorada). Mantém secções abertas, scroll e a caixa da cópia.
+function _siReplan() {
+    const prev = $id('si-preview');
+    const opens  = prev ? [...prev.querySelectorAll('details.si-sec')].map(d => d.open) : [];
+    const backup = $id('si-backup')?.checked;
+    const scrolls = [];
+    for (let e = prev; e; e = e.parentElement) { if (e.scrollTop > 0) scrolls.push([e, e.scrollTop]); }
+    const winY = window.scrollY;
+
+    _SI.plan = _siBuildPlan(_SI.entries, _SI.stock, _SI.decisions);
+    _SI.sig  = _siSignature(_SI.plan);
+    _siRenderPreview();
+
+    if (prev) {
+        prev.querySelectorAll('details.si-sec').forEach((d, i) => { if (opens[i] !== undefined) d.open = opens[i]; });
+        const b = $id('si-backup'); if (b && backup !== undefined) b.checked = backup;
+    }
+    scrolls.forEach(([e, t]) => { e.scrollTop = t; });
+    window.scrollTo(0, winY);
+}
+
+function _siRv(i) { return _SI.plan?.review?.[i]; }
+function siRvIgnore(i) { const r = _siRv(i); if (!r) return; _SI.decisions[r.id] = { ignore: true }; _siReplan(); }
+function siRvRevert(i) { const r = _siRv(i); if (!r) return; delete _SI.decisions[r.id]; _siReplan(); }
+function siRvQty(i) {
+    const r = _siRv(i); if (!r) return;
+    const v = _siParseQty($id(`si-rv-qty-${i}`)?.value?.trim());
+    if (!Number.isFinite(v) || v < 0) { showToast('Escreve uma quantidade válida (0 ou mais)', 'error'); return; }
+    _SI.decisions[r.id] = { qtd: v }; _siReplan();
+}
+function siRvLine(i, j) { const r = _siRv(i); if (!r || !r.linhas?.[j]) return; _SI.decisions[r.id] = { qtd: r.linhas[j].qtd }; _siReplan(); }
+function siRvSum(i)     { const r = _siRv(i); if (!r) return; _SI.decisions[r.id] = { qtd: r.soma }; _siReplan(); }
+function siRvStock(i, j){ const r = _siRv(i); if (!r || !r.candidatos?.[j]) return; _SI.decisions[r.id] = { stockId: r.candidatos[j].id }; _siReplan(); }
 
 function siCancel() { renderStockImport(); }
 
@@ -286,7 +387,9 @@ async function siHandleFile(input) {
 
         // Stock fresco do servidor (a cache pode ter até 5 min)
         const stock = await fetchCollection('stock', true);
-        _SI.entries  = parsed;
+        _SI.entries   = parsed;
+        _SI.stock     = stock;
+        _SI.decisions = {};
         _SI.fileName = `${file.name} · folha «${usedSheet}» · ${parsed.entries.length + parsed.invalid.length} referências lidas`;
         _SI.plan     = _siBuildPlan(parsed, stock);
         _SI.sig      = _siSignature(_SI.plan);
@@ -346,11 +449,12 @@ async function siApply() {
     try {
         // 1) Revalidar contra o stock actual — se mudou desde a pré-visualização, pedir nova confirmação
         const fresh = await fetchCollection('stock', true);
-        const plan = _siBuildPlan(_SI.entries, fresh);
+        const plan = _siBuildPlan(_SI.entries, fresh, _SI.decisions);
         if (_siSignature(plan) !== _SI.sig) {
-            _SI.plan = plan;
-            _SI.sig  = _siSignature(plan);
-            _SI.busy = false;
+            _SI.plan  = plan;
+            _SI.stock = fresh;
+            _SI.sig   = _siSignature(plan);
+            _SI.busy  = false;
             _siRenderPreview();
             showToast('O stock mudou entretanto — revê e confirma de novo', 'error');
             return;
@@ -431,7 +535,7 @@ function _siRenderDone({ plan, createdOk, createdFail, movOk, drops }) {
             <li><strong>${plan.updates.length}</strong> quantidades atualizadas</li>
             <li><strong>${createdOk}</strong> artigos novos criados <span class="si-muted">(sem localização — filtra por «Sem local» no Stock)</span></li>
             <li><strong>${drops}</strong> saídas registadas nos relatórios (${plan.saidaTotal} un)</li>
-            <li><strong>${plan.review.length}</strong> linhas por rever (não alteradas)</li>
+            <li><strong>${plan.review.length}</strong> linhas por rever ou ignoradas (não alteradas)</li>
         </ul>`;
     if (createdFail.length) {
         html += `<p class="si-note si-note-warn">Não foi possível criar: ${createdFail.map(escapeHtml).join(', ')}. As quantidades já estão gravadas; importa de novo para criar estas.</p>`;
