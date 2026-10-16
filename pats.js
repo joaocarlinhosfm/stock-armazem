@@ -601,31 +601,24 @@ function _buildPatDetail([id, pat], allPats) {
     // Botão levantar com confirmação
     const levBtn = $el('button', { className: 'map-pin-lev-btn' });
     levBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Dar como levantado`;
-    levBtn.onclick = () => {
-        // Confirmação via modal existente da app
-        openConfirmModal({
-            title: 'Confirmar levantamento',
-            type: 'success', okLabel: 'Levantar',
-            desc: `PAT ${pat.numero || id} — ${escapeHtml(pat.estabelecimento || '')}`,
-            onConfirm: async () => {
-                levBtn.classList.add('loading');
-                levBtn.textContent = 'A processar...';
-                await marcarPatLevantado(id);
-                if (_patMapOpen) await openPatMap();
-                const remaining = _getMapPendingPatsForEstab(pat.estabelecimento);
-                if (remaining.length === 0) {
-                    setTimeout(() => closeMapPinSheet(), 600);
-                } else {
-                    _mapPinExpanded = null;
-                    _renderMapPinSheet(remaining);
-                    requestAnimationFrame(() => {
-                        const sheet = $id('map-pin-sheet');
-                        if (sheet && _mapPinCoords) _positionSheetNearPin(_mapPinCoords, sheet);
-                    });
-                }
+    // marcarPatLevantado já tem a sua confirmação (com o stock a descontar) —
+    // antes havia duas confirmações seguidas e o mapa actualizava antes da 2ª.
+    levBtn.onclick = () => marcarPatLevantado(id, {
+        onDone: async () => {
+            if (_patMapOpen) await openPatMap();
+            const remaining = _getMapPendingPatsForEstab(pat.estabelecimento);
+            if (remaining.length === 0) {
+                setTimeout(() => closeMapPinSheet(), 600);
+            } else {
+                _mapPinExpanded = null;
+                _renderMapPinSheet(remaining);
+                requestAnimationFrame(() => {
+                    const sheet = $id('map-pin-sheet');
+                    if (sheet && _mapPinCoords) _positionSheetNearPin(_mapPinCoords, sheet);
+                });
             }
-        });
-    };
+        }
+    });
     detail.appendChild(levBtn);
     return detail;
 }
@@ -2368,79 +2361,45 @@ async function levantarSelectedPats() {
     if (_patSelIds.size === 0) return;
     const ids    = [..._patSelIds];
     const worker = _patSelWorker;
+    const plural = n => n > 1 ? 's' : '';
+
+    const prev = await _patLevantarPreview(ids);
 
     openConfirmModal({
-        title: `Levantar ${ids.length} PAT${ids.length > 1 ? 's' : ''}?`,
+        title: `Levantar ${ids.length} PAT${plural(ids.length)}?`,
         type: 'success', okLabel: 'Levantar',
-        desc: `Serão marcadas como levantadas por ${worker}. As que têm guia de transporte descontam stock.`,
+        desc: `Serão marcadas como levantadas por ${worker}. As que têm separação de material descontam stock.`,
         onConfirm: async () => {
             // Mostrar feedback imediato
             const levBtn = $id('pat-levantar-btn');
             if (levBtn) { levBtn.disabled = true; levBtn.textContent = 'A processar...'; }
             try {
-                const ts = Date.now();
-                // Calcula novas quantidades de stock antes de lançar os pedidos
-                // agrupa por id de produto para evitar PATCHes duplicados
-                const stockPatches = {}; // { stockId: { baseQty, delta } }
-                for (const id of ids) {
-                    const pat = _patCache.data?.[id];
-                    if (!pat || !pat.separacao) continue;
-                    for (const p of (pat.produtos || [])) {
-                        if (!p.id) continue;
-                        const currentQty = cache.stock.data?.[p.id]?.quantidade ?? 0;
-                        if (!stockPatches[p.id]) {
-                            stockPatches[p.id] = { baseQty: currentQty, delta: 0 };
-                        }
-                        stockPatches[p.id].delta -= (p.quantidade || 1);
-                    }
+                // 1 — Marca as PATs (em paralelo). As que falharem são revertidas
+                //     e não descontam stock.
+                const flags = await Promise.all(ids.map(id => _patMarcarLevantado(id, { funcionario: worker })));
+                const okIds = ids.filter((_, i) => flags[i]);
+                if (!okIds.length) {
+                    showToast('Erro ao levantar pedidos', 'error');
+                    if (levBtn) { levBtn.disabled = false; levBtn.textContent = `Levantar ${_patSelIds.size}`; }
+                    renderPats();
+                    return;
                 }
 
-                // Aplica ao cache local imediatamente
-                Object.entries(stockPatches).forEach(([sid, patch]) => {
-                    const nextQty = Math.max(0, patch.baseQty + patch.delta);
-                    if (cache.stock.data?.[sid]) cache.stock.data[sid].quantidade = nextQty;
-                });
-
-                // Lança todos os PATCHes em paralelo
-                const patPromises = ids.map(id => {
-                    const pat = _patCache.data?.[id];
-                    if (!pat) return Promise.resolve();
-                    const payload = { status: 'levantado', levantadoEm: ts, funcionario: worker };
-                    Object.assign(_patCache.data[id], payload);
-                    return apiFetch(`${BASE_URL}/pedidos/${id}.json`, {
-                        method: 'PATCH',
-                        body: JSON.stringify(payload),
-                    });
-                });
-
-                const stockPromises = Object.entries(stockPatches).map(([sid, patch]) => {
-                    const _itm = cache.stock.data?.[sid];
-                    const finalQty = Math.max(0, patch.baseQty + patch.delta);
-                    return _commitStockDelta(sid, patch.baseQty, finalQty)
-                        .then(savedQty => {
-                            if (cache.stock.data?.[sid]) cache.stock.data[sid].quantidade = savedQty;
-                            // Registar saída só após commit OK, pelo total real descontado
-                            const movido = patch.baseQty - savedQty;
-                            if (movido > 0) {
-                                registarMovimento('saida_pat', sid, _itm?.codigo, _itm?.nome, movido);
-                            }
-                        })
-                        .catch(e => console.warn('[Stock] PATCH falhou:', sid, e.message));
-                });
-
-                await Promise.allSettled([...patPromises, ...stockPromises]);
+                // 2 — Desconta o stock só das PATs efectivamente levantadas
+                const res = await _patDescontarStock(okIds);
+                res.patFail = ids.length - okIds.length;
 
                 cancelLevantarMode();
                 renderList();
                 updatePatCount();
-                showToast(`${ids.length} PAT${ids.length > 1 ? 's' : ''} levantada${ids.length > 1 ? 's' : ''} por ${worker}!`);
+                _patLevantarResumo(res, `${okIds.length} PAT${plural(okIds.length)} levantada${plural(okIds.length)} por ${worker}!`);
             } catch(_e) {
                 showToast('Erro ao levantar pedidos', 'error');
-                const levBtn = $id('pat-levantar-btn');
                 if (levBtn) { levBtn.disabled = false; levBtn.textContent = `Levantar ${_patSelIds.size}`; }
             }
         }
     });
+    _patLevantarSlot(prev);
 }
 
 // ── Dar saída — apaga a PAT levantada imediatamente ─────
@@ -3405,18 +3364,173 @@ async function savePat() {
     }
 }
 
-async function marcarPatLevantado(id) {
+// ── Levantar PATs — pré-visualização, desconto de stock e resumo ─────────────
+// Fluxo (igual para "Levantar" individual e para o modo de selecção múltipla):
+//   1. Antes de confirmar: mostra o stock de cada artigo e avisa de faltas.
+//   2. Marca as PATs como levantadas; as que falharem são revertidas e NÃO
+//      descontam stock (evita descontar de PATs que continuam pendentes).
+//   3. Desconta o stock das PATs com separação de material.
+//   4. Se houve faltas, falhas ou artigos sem ligação ao stock, mostra um
+//      resumo que o utilizador tem de ler — em vez de um "sucesso" genérico.
+const _r3 = n => Math.round(n * 1000) / 1000;
+
+// Agrega o que as PATs com separação vão descontar, por artigo de stock.
+// Usa cache.stock.data (quem chama decide se o refresca antes).
+function _patAggStock(ids) {
+    const stock = cache.stock.data || {};
+    const need = {};
+    const orphan = [];
+    for (const id of ids) {
+        const pat = _patCache.data?.[id];
+        if (!pat || !pat.separacao) continue;
+        for (const p of (pat.produtos || [])) {
+            const q = p.quantidade || 1;
+            const sid = p.id;
+            const s = sid ? stock[sid] : null;
+            if (!sid || !s || String(sid).startsWith('_tmp_')) {
+                orphan.push({
+                    codigo: p.codigo || '', nome: p.nome || '', quantidade: q,
+                    motivo: !sid ? 'sem ligação ao stock'
+                          : String(sid).startsWith('_tmp_') ? 'artigo ainda não sincronizado'
+                          : 'já não existe no stock',
+                });
+                continue;
+            }
+            if (!need[sid]) need[sid] = { id: sid, codigo: s.codigo || p.codigo || '', nome: s.nome || p.nome || '', unidade: s.unidade || 'un', need: 0 };
+            need[sid].need = _r3(need[sid].need + q);
+        }
+    }
+    return { need, orphan };
+}
+
+// Pré-visualização para o modal de confirmação (stock fresco do servidor).
+async function _patLevantarPreview(ids) {
+    if (!ids.some(id => _patCache.data?.[id]?.separacao)) return null;
+    if (navigator.onLine) { try { await fetchCollection('stock', true); } catch (_) {} }
+    const { need, orphan } = _patAggStock(ids);
+    const stock = cache.stock.data || {};
+    const lines = Object.values(need).map(l => {
+        const have = Number(stock[l.id]?.quantidade) || 0;
+        return { ...l, have, after: Math.max(0, _r3(have - l.need)), falta: Math.max(0, _r3(l.need - have)) };
+    }).sort((a, b) => String(a.codigo).localeCompare(String(b.codigo), 'pt'));
+    return { lines, orphan };
+}
+
+function _lvRow(codigo, nome, valHtml, cls = '') {
+    return `<div class="lv-row ${cls}"><div class="lv-main"><b>${escapeHtml(codigo)}</b><span>${escapeHtml(nome)}</span></div><div class="lv-val">${valHtml}</div></div>`;
+}
+
+// Preenche o slot do modal de confirmação (chamar DEPOIS de openConfirmModal).
+function _patLevantarSlot(prev) {
+    const slot = $id('confirm-modal-slot');
+    if (!slot || !prev || (!prev.lines.length && !prev.orphan.length)) return;
+    const faltas = prev.lines.filter(l => l.falta > 0).length;
+    let html = '<div class="lv-box">';
+    if (prev.lines.length) {
+        html += '<div class="lv-title">Stock a descontar</div>';
+        html += prev.lines.map(l => _lvRow(l.codigo, l.nome,
+            `${escapeHtml(fmtQty(l.have, l.unidade))} → <strong>${escapeHtml(fmtQty(l.after, l.unidade))}</strong>`
+            + (l.falta > 0 ? `<em class="lv-tag">faltam ${escapeHtml(fmtQty(l.falta, l.unidade))}</em>` : ''),
+            l.falta > 0 ? 'lv-short' : '')).join('');
+    }
+    if (prev.orphan.length) {
+        html += '<div class="lv-title lv-title-warn">Não vão ser descontados</div>';
+        html += prev.orphan.map(o => _lvRow(o.codigo, o.nome, escapeHtml(o.motivo), 'lv-orphan')).join('');
+    }
+    if (faltas) {
+        html += `<div class="lv-warn">Stock insuficiente em ${faltas} artigo${faltas > 1 ? 's' : ''}: o stock fica a 0 e a falta é indicada no fim.</div>`;
+    }
+    html += '</div>';
+    slot.innerHTML = html;
+}
+
+// Marca UMA PAT como levantada (optimista no cache, revertido se falhar).
+async function _patMarcarLevantado(id, extra = {}) {
+    const pat = _patCache.data?.[id];
+    if (!pat) return false;
+    const prev = { status: pat.status, levantadoEm: pat.levantadoEm, funcionario: pat.funcionario };
+    const payload = { status: 'levantado', levantadoEm: Date.now(), ...extra };
+    Object.assign(pat, payload);          // síncrono — protege contra duplo clique
+    try {
+        await apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'PATCH', body: JSON.stringify(payload) });
+        return true;
+    } catch (e) {
+        console.warn('[PAT] levantar falhou:', id, e?.message);
+        Object.assign(pat, prev);
+        return false;
+    }
+}
+
+// Desconta o stock das PATs (só as com separação). Devolve o que correu mal.
+async function _patDescontarStock(ids) {
+    const { need, orphan } = _patAggStock(ids);
+    const res = { short: [], failed: [], orphan, patFail: 0 };
+    await Promise.allSettled(Object.values(need).map(async l => {
+        const item = cache.stock.data?.[l.id];
+        const base = Number(item?.quantidade) || 0;
+        const final = Math.max(0, _r3(base - l.need));
+        if (item) item.quantidade = final;                         // optimista
+        try {
+            const saved = await _commitStockDelta(l.id, base, final);
+            if (cache.stock.data?.[l.id]) cache.stock.data[l.id].quantidade = saved;
+            const movido = Math.max(0, _r3(base - saved));
+            if (movido > 0) registarMovimento('saida_pat', l.id, l.codigo, l.nome, movido);
+            const falta = _r3(l.need - movido);
+            if (falta > 0) res.short.push({ codigo: l.codigo, nome: l.nome, falta, unidade: l.unidade });
+        } catch (e) {
+            console.warn('[Stock] desconto PAT falhou:', l.id, e?.message);
+            if (cache.stock.data?.[l.id]) cache.stock.data[l.id].quantidade = base;   // rollback
+            res.failed.push({ codigo: l.codigo, nome: l.nome, need: l.need, unidade: l.unidade });
+        }
+    }));
+    return res;
+}
+
+// Sucesso limpo → toast. Qualquer problema → diálogo que tem de ser lido.
+function _patLevantarResumo(res, okMsg) {
+    if (!res.short.length && !res.failed.length && !res.orphan.length && !res.patFail) {
+        showToast(okMsg);
+        return;
+    }
+    const sec = (title, rows) => rows.length ? `<div class="lv-title lv-title-warn">${escapeHtml(title)}</div>${rows.join('')}` : '';
+    let html = '<div class="lv-box">';
+    if (res.patFail) {
+        html += `<div class="lv-warn">${res.patFail} PAT${res.patFail > 1 ? 's' : ''} não ${res.patFail > 1 ? 'foram levantadas' : 'foi levantada'} (erro de ligação). Tenta de novo.</div>`;
+    }
+    html += sec('Desconto de stock falhou — ajusta manualmente',
+        res.failed.map(f => _lvRow(f.codigo, f.nome, `devia sair ${escapeHtml(fmtQty(f.need, f.unidade))}`, 'lv-short')));
+    html += sec('Stock insuficiente — ficou a 0',
+        res.short.map(s => _lvRow(s.codigo, s.nome, `faltaram ${escapeHtml(fmtQty(s.falta, s.unidade))}`, 'lv-short')));
+    html += sec('Não descontados',
+        res.orphan.map(o => _lvRow(o.codigo, o.nome, escapeHtml(o.motivo), 'lv-orphan')));
+    html += '</div>';
+    // setTimeout: o handler do botão OK repõe o texto/estado do botão no "finally"
+    // depois do onConfirm — abrir já aqui seria sobrescrito.
+    setTimeout(() => {
+        openConfirmModal({
+            title: 'Verifica o stock', type: 'warn', okLabel: 'Entendido', hideCancel: true,
+            desc: 'Concluído, mas há pontos que precisam da tua atenção:',
+            onConfirm: () => {},
+        });
+        const slot = $id('confirm-modal-slot');
+        if (slot) slot.innerHTML = html;
+    }, 80);
+}
+
+async function marcarPatLevantado(id, { onDone } = {}) {
     const pat = _patCache.data?.[id];
     if (!pat) return;
     // Protecção contra duplo-clique: verificar se já está levantado no cache local
     if (pat.status === 'levantado') {
         showToast('PAT já foi levantada', 'error'); return;
     }
-    const separacao = !!pat?.separacao;
+    const separacao = !!pat.separacao;
 
     const desc = separacao
         ? 'Pedido com Separação de Material — o stock dos produtos será descontado automaticamente.'
         : 'O pedido será removido dos pendentes. O stock não será alterado.';
+
+    const prev = await _patLevantarPreview([id]);
 
     openConfirmModal({
         title: 'Marcar como levantado?',
@@ -3424,57 +3538,24 @@ async function marcarPatLevantado(id) {
         desc,
         onConfirm: async () => {
             try {
-                // Marca no cache local IMEDIATAMENTE — protege contra duplo clique
-                // Um segundo marcarPatLevantado verá status='levantado' e sairá
-                if (_patCache.data?.[id]) _patCache.data[id].status = 'levantado';
-
-                // 1 — Marca como levantado na Firebase (com suporte offline)
-                await apiFetch(`${BASE_URL}/pedidos/${id}.json`, {
-                    method: 'PATCH',
-                    body: JSON.stringify({ status: 'levantado', levantadoEm: Date.now() }),
-                });
-
-                // 2 — Se separação: desconta stock com delta seguro (multi-utilizador)
-                // Usa _commitStockDelta que lê o valor ACTUAL do servidor antes de escrever,
-                // evitando sobreposição quando outro utilizador alterou o stock entretanto.
-                if (separacao && pat.produtos?.length) {
-                    const patches = pat.produtos
-                        .filter(p => p.id)
-                        .map(p => {
-                            const qtdPat = p.quantidade || 1;
-                            // Optimistic update no cache local para feedback imediato
-                            const cacheAtual = cache.stock.data?.[p.id]?.quantidade ?? 0;
-                            const cacheNova  = Math.max(0, cacheAtual - qtdPat);
-                            if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = cacheNova;
-                            // _commitStockDelta lê o valor real do servidor e aplica o delta
-                            // baseQty = cacheAtual, finalQty = cacheNova → delta = -qtdPat
-                            return _commitStockDelta(p.id, cacheAtual, cacheNova)
-                                .then(savedQty => {
-                                    if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = savedQty;
-                                    // Registar saída só após commit OK, pelo total real movido.
-                                    // Se o stock no servidor já estava abaixo do pedido, savedQty
-                                    // reflete o que foi efectivamente descontado.
-                                    const movido = cacheAtual - savedQty;
-                                    if (movido > 0) {
-                                        registarMovimento('saida_pat', p.id, p.codigo, p.nome, movido);
-                                    }
-                                })
-                                .catch(e => {
-                                    console.warn('[Stock] PATCH falhou:', p.id, e.message);
-                                    // Rollback do cache optimístico
-                                    if (cache.stock.data?.[p.id]) cache.stock.data[p.id].quantidade = cacheAtual;
-                                });
-                        });
-                    await Promise.allSettled(patches);
-                    renderList();
+                if (_patCache.data?.[id]?.status === 'levantado') {
+                    showToast('PAT já foi levantada', 'error'); return;
                 }
+                // 1 — Marca como levantado (com suporte offline). Se falhar, nada é descontado.
+                const ok = await _patMarcarLevantado(id);
+                if (!ok) { showToast('Erro ao actualizar pedido', 'error'); renderPats(); return; }
 
-                // updatePatCount já faz fetch — evitar chamada dupla após renderPats
+                // 2 — Se separação: desconta stock (delta seguro em multi-utilizador)
+                const res = await _patDescontarStock([id]);
+                if (separacao) renderList();
+
                 renderPats();
-                showToast(separacao ? 'Levantado — stock descontado!' : 'Pedido marcado como levantado!');
+                _patLevantarResumo(res, separacao ? 'Levantado — stock descontado!' : 'Pedido marcado como levantado!');
+                if (typeof onDone === 'function') await onDone();
             } catch(_e) { showToast('Erro ao actualizar pedido', 'error'); }
         }
     });
+    _patLevantarSlot(prev);
 }
 
 async function apagarPat(id) {

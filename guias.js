@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// guias.js — Hiperfrio v6.62
+// guias.js — Hiperfrio v6.64
 // Guias Técnicos: separação de material para técnicos.
 //
 // Fluxo: pendente → (todas linhas recolhidas) → separado → (30 dias) → histórico

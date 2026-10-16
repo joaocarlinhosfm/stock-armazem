@@ -482,7 +482,7 @@ const _CONFIRM_ICONS = {
     warn:    { svg: '<svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" style="color:#ca8a04"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>', color: '#ca8a04' },
 };
 
-function openConfirmModal({ title, desc, onConfirm, type = 'danger', okLabel = null }) {
+function openConfirmModal({ title, desc, onConfirm, type = 'danger', okLabel = null, hideCancel = false }) {
     confirmCallback = onConfirm;
     const cfg = _CONFIRM_ICONS[type] || _CONFIRM_ICONS.danger;
 
@@ -502,6 +502,10 @@ function openConfirmModal({ title, desc, onConfirm, type = 'danger', okLabel = n
     const slot = $id('confirm-modal-slot');
     if (slot) slot.innerHTML = '';
 
+    // Diálogo só informativo (ex.: resultado do levantamento) — sem botão Cancelar
+    const cancelBtn = document.querySelector('#confirm-modal .confirm-btn-cancel');
+    if (cancelBtn) cancelBtn.style.display = hideCancel ? 'none' : '';
+
     modalOpen('confirm-modal');
     focusModal('confirm-modal');
 }
@@ -509,6 +513,8 @@ function closeConfirmModal() {
     confirmCallback = null;
     const slot = $id('confirm-modal-slot');
     if (slot) slot.innerHTML = '';
+    const cancelBtn = document.querySelector('#confirm-modal .confirm-btn-cancel');
+    if (cancelBtn) cancelBtn.style.display = '';
     modalClose('confirm-modal');
 }
 

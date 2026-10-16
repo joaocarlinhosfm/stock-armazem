@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=1776419000">
+    <link rel="stylesheet" href="style.css?v=1776600000">
 
     <style id="sheet-guias">
     /* CSS das Guias Técnicos — inline para bypass de cache.
@@ -1848,6 +1848,10 @@
                     <span class="admin-tab-icon-wrap" style="background:rgba(22,163,74,0.10)"><svg width="16" height="16" viewBox="0 0 20 20" fill="#16a34a"><path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3z"/></svg></span>
                     Clientes
                 </button>
+                <button class="admin-tab" id="tab-stockimport" onclick="switchAdminTab('stockimport')">
+                    <span class="admin-tab-icon-wrap" style="background:rgba(2,132,199,0.10)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/></svg></span>
+                    Importar Stock
+                </button>
 
                 <span class="admin-tab-sep"></span>
                 <span class="admin-tab-section">Sistema</span>
@@ -1947,6 +1951,27 @@
                 <div id="clientes-list" class="scroll-list"></div>
             </section>
 
+
+            <!-- Tab: Importar Stock -->
+            <section class="admin-panel" id="panel-stockimport">
+                <div class="admin-panel-header">
+                    <div class="admin-panel-title">Importar Stock</div>
+                    <div class="admin-panel-sub">Atualizar quantidades a partir de um Excel de inventário</div>
+                </div>
+                <div class="si-intro">
+                    <p class="clientes-import-desc">Compara o Excel com o stock pela <strong>Ref</strong> e substitui só a <strong>quantidade</strong>.
+                    Refs novas (com conteúdo) são criadas sem localização. Colunas lidas: <strong>Ref · Designacao · Quantidade · Unidade</strong>
+                    (Preço, Total e Tipo são ignorados). Antes de gravar vês uma pré-visualização.</p>
+                    <div class="clientes-btn-row">
+                        <label class="btn-primary clientes-import-btn" for="si-file-input">
+                            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/></svg>
+                            Escolher Excel
+                        </label>
+                    </div>
+                    <input type="file" id="si-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="siHandleFile(this)">
+                </div>
+                <div id="si-preview"></div>
+            </section>
 
             <!-- Tab: Utilizadores -->
             <section class="admin-panel" id="panel-users">
@@ -3090,8 +3115,13 @@
             <div style="padding:16px 20px">
                 <div id="enc-entrada-desc" style="font-size:0.82rem;color:var(--text-muted);margin-bottom:12px"></div>
                 <label class="enc-label">Quantidade recebida agora</label>
-                <input id="enc-entrada-qty" class="blue-input" type="number" min="0" step="1" style="font-size:1.1rem;text-align:center">
+                <input id="enc-entrada-qty" class="blue-input" type="number" min="0" step="1" style="font-size:1.1rem;text-align:center" oninput="_encUpdateEntradaStockInfo()">
                 <div id="enc-entrada-info" style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;text-align:center"></div>
+                <label class="enc-stock-check" id="enc-entrada-stock-wrap">
+                    <input type="checkbox" id="enc-entrada-stock" checked onchange="_encUpdateEntradaStockInfo()">
+                    <span>Adicionar ao stock</span>
+                </label>
+                <div id="enc-entrada-stock-info" class="enc-stock-info"></div>
             </div>
             <div class="modal-footer">
                 <button class="btn-cancel" onclick="modalClose('enc-entrada-modal')">Cancelar</button>
@@ -3182,13 +3212,14 @@
     <!-- Chart.js, Leaflet + MarkerCluster são carregados sob demanda por loadChart() e loadLeaflet() em utils.js -->
     <!-- Módulos extraídos — Fase 1+2+3+4 da modularização -->
     <!-- ORDEM OBRIGATÓRIA: utils → auth → reports → stock → tools → pats → guias → app (preservada por defer) -->
-    <script defer src="utils.js?v=6.62"></script>
-    <script defer src="auth.js?v=6.62"></script>
-    <script defer src="reports.js?v=6.62"></script>
-    <script defer src="stock.js?v=6.62"></script>
-    <script defer src="tools.js?v=6.62"></script>
-    <script defer src="pats.js?v=6.62"></script>
-    <script defer src="guias.js?v=6.62"></script>
-    <script defer src="app.js?v=6.62"></script>
+    <script defer src="utils.js?v=6.64"></script>
+    <script defer src="auth.js?v=6.64"></script>
+    <script defer src="reports.js?v=6.64"></script>
+    <script defer src="stock.js?v=6.64"></script>
+    <script defer src="stockimport.js?v=6.64"></script>
+    <script defer src="tools.js?v=6.64"></script>
+    <script defer src="pats.js?v=6.64"></script>
+    <script defer src="guias.js?v=6.64"></script>
+    <script defer src="app.js?v=6.64"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// app.js — Hiperfrio v6.62
+// app.js — Hiperfrio v6.64
 // Lógica principal: stock, ferramentas, PATs, encomendas, mapa, inventário.
 //
 // DEPENDÊNCIAS (carregadas antes via index.html):
@@ -853,7 +853,7 @@ function _dv3Section(title, linkText, linkFn) {
 }
 
 // ADMIN — slider com swipe entre tabs
-const ADMIN_TABS  = ['workers', 'tools', 'clientes', 'users', 'settings', 'relatorio'];
+const ADMIN_TABS  = ['workers', 'tools', 'clientes', 'stockimport', 'users', 'settings', 'relatorio'];
 let   _adminIdx   = 0;   // índice activo
 
 // ── Admin mobile — menu estilo Android ────────────────────────────────────────
@@ -861,6 +861,7 @@ const _adminMobileTitles = {
     workers:   'Funcionários',
     tools:     'Ferramentas',
     clientes:  'Clientes',
+    stockimport: 'Importar Stock',
     users:     'Utilizadores',
     settings:  'Definições',
     relatorio: 'Relatórios',
@@ -880,6 +881,8 @@ function _buildAdminMobileMenu() {
           svg:'<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>', vb:'0 0 24 24', fill:false },
         { tab:'clientes', bg:'#fef3c7', color:'#d97706', label:'Clientes',     sub:'Importar e consultar clientes',
           svg:'<path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/>', vb:'0 0 20 20', fill:true },
+        { tab:'stockimport', bg:'#e0f2fe', color:'#0284c7', label:'Importar Stock', sub:'Atualizar quantidades a partir de Excel',
+          svg:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/>', vb:'0 0 24 24', fill:false },
         { tab:'users',    bg:'#ede9fe', color:'#7c3aed', label:'Utilizadores', sub:'Gerir contas e permissões',
           svg:'<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>', vb:'0 0 20 20', fill:true },
         { tab:'settings',  bg:'#f1f5f9', color:'#64748b', label:'Definições',   sub:'OCR, tema, versão da app',
@@ -892,9 +895,9 @@ function _buildAdminMobileMenu() {
     menu.id = 'admin-mobile-menu';
 
     const groups = [
-        { label:'Gestão',  tabs: items.slice(0,3) },
-        { label:'Sistema',  tabs: items.slice(3,5) },
-        { label:'Análise',  tabs: items.slice(5) },
+        { label:'Gestão',  tabs: items.slice(0,4) },
+        { label:'Sistema',  tabs: items.slice(4,6) },
+        { label:'Análise',  tabs: items.slice(6) },
     ];
 
     groups.forEach(g => {
@@ -1013,6 +1016,7 @@ function adminMobileOpen(tab) {
     }
 
     if (tab === 'clientes')  renderClientesList();
+    if (tab === 'stockimport') renderStockImport();
     if (tab === 'users')     renderUsersList();
     if (tab === 'settings')  { _updateOcrKeyStatus(); _updateGimgStatus(); _loadOcrKeywordsInput(); _loadInvEmailInput(); }
     if (tab === 'tools')     renderAdminTools();
@@ -1088,6 +1092,7 @@ function switchAdminTab(tab, animate = true) {
     }
 
     if (tab === 'clientes') renderClientesList();
+    if (tab === 'stockimport') renderStockImport();
     if (tab === 'users')    renderUsersList();
     if (tab === 'settings') { _updateOcrKeyStatus(); _updateGimgStatus(); _loadOcrKeywordsInput(); _loadInvEmailInput(); }
     if (tab === 'relatorio') {
@@ -1103,7 +1108,7 @@ function switchAdminTab(tab, animate = true) {
     if (slider) {
         if (window.innerWidth < 768) {
             if (!animate) slider.classList.add('is-dragging');
-            slider.style.transform = `translateX(-${(idx * 100 / 6).toFixed(4)}%)`;
+            slider.style.transform = `translateX(-${(idx * 100 / ADMIN_TABS.length).toFixed(4)}%)`;
             if (!animate) {
                 void slider.offsetWidth;
                 slider.classList.remove('is-dragging');
@@ -1168,7 +1173,7 @@ function _setupAdminSwipe() {
         }
 
         slider.classList.add('is-dragging');
-        const base = -(_adminIdx * 100 / 6);
+        const base = -(_adminIdx * 100 / ADMIN_TABS.length);
         slider.style.transform = `translateX(calc(${base}% + ${extra}px))`;
     }, { passive: false, signal: sig });
 
@@ -2657,8 +2662,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // SW_EXPECTED_VERSION deve bater certo com SW_VERSION em sw.js, senão o
 // client deteta sempre "SW desactualizado" e fica em loop de update.
 // SW_SCRIPT_URL tem de mudar de query string ou o browser não re-baixa o SW.
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.62';
-const SW_SCRIPT_URL = 'sw.js?v=6.62';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.64';
+const SW_SCRIPT_URL = 'sw.js?v=6.64';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados
@@ -3342,18 +3347,97 @@ function openEntradaModal(encId, lIdx) {
     inp.max   = falta;
     $id('enc-entrada-info').textContent =
         `Já recebido: ${parseFloat(l.recebido) || 0} · Encomendado: ${parseFloat(l.qtd) || 0}`;
+    const chk = $id('enc-entrada-stock');
+    if (chk) { chk.checked = true; chk.disabled = false; }
+    $id('enc-entrada-stock-info').textContent = '';
     modalOpen('enc-entrada-modal');
     focusModal('enc-entrada-modal');
     setTimeout(() => inp.focus(), 100);
+    _encUpdateEntradaStockInfo();
 }
 
+// ── Entrada → stock ───────────────────────────────────────────────────────
+// Procura no stock o artigo com esta referência (sem espaços, sem maiúsculas).
+function _encFindStock(ref) {
+    const key = String(ref || '').replace(/\s+/g, '').toUpperCase();
+    if (!key) return { status: 'noref' };
+    const ids = Object.entries(cache.stock.data || {})
+        .filter(([id, it]) => !id.startsWith('_tmp_') && String(it?.codigo || '').replace(/\s+/g, '').toUpperCase() === key)
+        .map(([id]) => id);
+    if (ids.length === 0) return { status: 'none' };
+    if (ids.length > 1)  return { status: 'multi', count: ids.length };
+    return { status: 'one', id: ids[0], item: cache.stock.data[ids[0]] };
+}
+
+// Mostra o efeito no stock antes de confirmar (e desactiva a opção se não aplicável).
+async function _encUpdateEntradaStockInfo() {
+    const infoEl = $id('enc-entrada-stock-info');
+    const chk    = $id('enc-entrada-stock');
+    const l      = _encData[_encEntradaId]?.linhas?.[_encEntradaLIdx];
+    if (!infoEl || !chk || !l) return;
+    try { await fetchCollection('stock'); } catch (_) {}
+    const qty = parseFloat($id('enc-entrada-qty')?.value) || 0;
+    const f = _encFindStock(l.ref);
+    chk.disabled = (f.status === 'noref' || f.status === 'multi');
+    if (chk.disabled) chk.checked = false;
+    if (f.status === 'noref') infoEl.textContent = 'Linha sem referência — o stock não será atualizado.';
+    else if (f.status === 'multi') infoEl.textContent = `Referência repetida no stock (${f.count} artigos) — o stock não será atualizado.`;
+    else if (f.status === 'none') infoEl.textContent = `A referência não existe no stock — será criado um artigo novo com ${qty} un (sem localização).`;
+    else {
+        const base = Number(f.item.quantidade) || 0;
+        infoEl.textContent = `Stock de ${f.item.codigo}: ${base} → ${Math.round((base + qty) * 1000) / 1000}`;
+    }
+}
+
+// Soma a entrada ao stock (delta seguro em multi-utilizador). NÃO regista
+// movimento: as entradas não entram nos relatórios.
+async function _encAdicionarAoStock(l, qty, enc) {
+    try {
+        if (navigator.onLine) await fetchCollection('stock', true);
+        const f = _encFindStock(l.ref);
+        if (f.status === 'one') {
+            const base  = Number(f.item.quantidade) || 0;
+            const saved = await _commitStockDelta(f.id, base, base + qty);
+            f.item.quantidade = saved;
+            return { ok: true, txt: `stock ${f.item.codigo}: ${base} → ${saved}` };
+        }
+        if (f.status === 'none') {
+            const codigo  = String(l.ref).trim().toUpperCase();
+            const payload = {
+                nome:        String(l.nome || l.ref).trim().toUpperCase(),
+                localizacao: '',
+                quantidade:  qty,
+                unidade:     'un',
+                notas:       `Criado por entrada da encomenda ${enc?.num || ''}`.trim(),
+                codigo,
+            };
+            const res = await apiFetch(`${BASE_URL}/stock.json`, { method: 'POST', body: JSON.stringify(payload) });
+            if (!cache.stock.data) cache.stock.data = {};
+            if (res) { const r = await res.json(); if (r?.name) cache.stock.data[r.name] = payload; }
+            else cache.stock.data[`_tmp_${Date.now()}`] = payload;
+            return { ok: true, txt: `artigo ${codigo} criado no stock` };
+        }
+        return { ok: false, txt: f.status === 'multi' ? 'referência repetida no stock' : 'linha sem referência' };
+    } catch (e) {
+        console.warn('[encomenda→stock] falhou:', e?.message);
+        return { ok: false, txt: 'erro de ligação' };
+    }
+}
+
+let _encEntradaBusy = false;
+
 async function confirmarEntrada() {
+    if (_encEntradaBusy) return;                       // protege contra duplo toque (somaria 2x ao stock)
     const qty = parseFloat($id('enc-entrada-qty').value);
     if (isNaN(qty) || qty <= 0) { showToast('Quantidade inválida', 'error'); return; }
 
     const enc = _encData[_encEntradaId];
     const l   = enc?.linhas?.[_encEntradaLIdx];
     if (!l) return;
+    const chk      = $id('enc-entrada-stock');
+    const addStock = !!(chk && chk.checked && !chk.disabled);
+    _encEntradaBusy = true;
+    try {
 
     // Lê o valor ACTUAL do servidor antes de somar — protege contra dois utilizadores
     // a dar entrada na mesma linha ao mesmo tempo (o segundo sobrescreveria o primeiro).
@@ -3395,15 +3479,23 @@ async function confirmarEntrada() {
             _encData[_encEntradaId].linhas[_encEntradaLIdx].recebido = novoRecebido;
             _encData[_encEntradaId].estado = novoEstado;
         }
-        showToast(`Entrada de ${qty} confirmada ✓`, 'ok');
+
+        // Entrada na encomenda gravada → agora o stock (se pedido)
+        const st = addStock ? await _encAdicionarAoStock(l, qty, enc) : null;
+        if (st?.ok) { try { renderList(window._searchInputEl?.value || '', true); renderDashboard(); } catch (_) {} }
+
+        const idEnc = _encEntradaId;
+        showToast(`Entrada de ${qty} confirmada ✓` + (st?.ok ? ` · ${st.txt}` : ''), 'ok');
+        if (st && !st.ok) showToast(`Entrada registada, mas o stock NÃO foi atualizado (${st.txt})`, 'error');
         modalClose('enc-entrada-modal');
         renderEncList();
-        openEncDetail(_encEntradaId);
+        openEncDetail(idEnc);
         // Sincroniza com Firebase em background
         loadEncomendas(true);
     } catch(e) {
         showToast('Erro: ' + e.message, 'error');
     }
+    } finally { _encEntradaBusy = false; }
 }
 
 function _calcEstado(linhas) {
