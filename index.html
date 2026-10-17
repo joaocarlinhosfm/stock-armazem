@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=1776600000">
+    <link rel="stylesheet" href="style.css?v=1776900000">
 
     <style id="sheet-guias">
     /* CSS das Guias Técnicos — inline para bypass de cache.
@@ -1508,9 +1508,17 @@
                         name="search_q" autocomplete="off" data-lpignore="true" data-form-type="other"
                         autocorrect="off" autocapitalize="none" spellcheck="false">
                     <button id="inp-search-clear" class="search-clear-btn hidden" onclick="clearSearch()" title="Limpar"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="2" y1="2" x2="14" y2="14"/><line x1="14" y1="2" x2="2" y2="14"/></svg></button>
-                    <div class="sort-dropdown-wrap" data-manager-only id="sort-dropdown-wrap">
-                        <button class="sort-dropdown-btn" id="sort-dropdown-btn" onclick="toggleSortMenu()" title="Ordenar">⇅</button>
-                    </div>
+                </div>
+                <div class="sort-select-wrap" data-manager-only>
+                    <span class="sort-select-lbl">Ordenar</span>
+                    <select id="sort-select" class="sort-select" aria-label="Ordenar por" onchange="setStockSort(this.value)">
+                        <option value="recente">Mais recente</option>
+                        <option value="nome">Nome A→Z</option>
+                        <option value="ref">Referência A→Z</option>
+                        <option value="qtd-asc">Quantidade ↑</option>
+                        <option value="qtd-desc">Quantidade ↓</option>
+                        <option value="local">Localização</option>
+                    </select>
                 </div>
                 <button id="btn-refresh" onclick="forceRefresh()" title="Atualizar stock">↻</button>
             </div>
@@ -1683,7 +1691,7 @@
                 <div class="tools-stat ts-red"><span class="ts-num" id="ts-over">—</span><span class="ts-lbl">Em atraso</span></div>
             </div>
             <div class="tools-search-wrap">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--text-muted);flex-shrink:0"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--text-muted);flex-shrink:0"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.67" y2="16.67"/></svg>
                 <input type="search" id="inp-tools-search" class="tools-search-input"
                     placeholder="Pesquisar ferramenta..."
                     name="tools_search_q" autocomplete="off" data-lpignore="true" data-form-type="other"
@@ -2247,7 +2255,7 @@
         <button class="bottom-nav-item active" id="bnav-search" onclick="nav('view-search')" aria-label="Stock">
             <span class="bnav-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.67" y2="16.67"/>
                 </svg>
             </span>
             <span class="bnav-label">Stock</span>
@@ -2524,7 +2532,7 @@
                         </div>
                         <div class="img-edit-controls">
                             <button type="button" class="img-search-btn" id="img-search-btn" onclick="imgSearchAuto()">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.67" y2="16.67"/></svg>
                                 Pesquisar imagem
                             </button>
                             <div id="img-search-results" class="img-search-results" style="display:none"></div>
@@ -3212,14 +3220,14 @@
     <!-- Chart.js, Leaflet + MarkerCluster são carregados sob demanda por loadChart() e loadLeaflet() em utils.js -->
     <!-- Módulos extraídos — Fase 1+2+3+4 da modularização -->
     <!-- ORDEM OBRIGATÓRIA: utils → auth → reports → stock → tools → pats → guias → app (preservada por defer) -->
-    <script defer src="utils.js?v=6.64"></script>
-    <script defer src="auth.js?v=6.64"></script>
-    <script defer src="reports.js?v=6.64"></script>
-    <script defer src="stock.js?v=6.64"></script>
-    <script defer src="stockimport.js?v=6.64"></script>
-    <script defer src="tools.js?v=6.64"></script>
-    <script defer src="pats.js?v=6.64"></script>
-    <script defer src="guias.js?v=6.64"></script>
-    <script defer src="app.js?v=6.64"></script>
+    <script defer src="utils.js?v=6.67"></script>
+    <script defer src="auth.js?v=6.67"></script>
+    <script defer src="reports.js?v=6.67"></script>
+    <script defer src="stock.js?v=6.67"></script>
+    <script defer src="stockimport.js?v=6.67"></script>
+    <script defer src="tools.js?v=6.67"></script>
+    <script defer src="pats.js?v=6.67"></script>
+    <script defer src="guias.js?v=6.67"></script>
+    <script defer src="app.js?v=6.67"></script>
 </body>
 </html>

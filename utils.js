@@ -304,3 +304,109 @@ function setUnitSelector(prefix, unit) {
     const gasFields = $id(`${prefix}-gas-fields`);
     if (gasFields) gasFields.style.display = val === 'kg' ? '' : 'none';
 }
+
+// ── Visualizador de imagem (lightbox) ─────────────────────────────────────────
+// openImageViewer(url, titulo?, ref?) — mostra a imagem inteira, a ecrã completo.
+//   • Toque/clique na imagem → amplia (e volta ao normal). Ampliada, desloca-se
+//     com o dedo/rato. (A página bloqueia o zoom com dois dedos, daí o toque.)
+//   • Fecha com ✕, toque fora da imagem, Esc ou o botão "voltar" do telemóvel.
+let _imgViewer = null;
+
+function openImageViewer(url, titulo = '', ref = '') {
+    if (!url || _imgViewer) return;
+
+    const ov = document.createElement('div');
+    ov.className = 'imgv';
+    ov.setAttribute('role', 'dialog');
+    ov.setAttribute('aria-modal', 'true');
+    ov.setAttribute('aria-label', titulo || 'Imagem do produto');
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'imgv-close';
+    closeBtn.setAttribute('aria-label', 'Fechar');
+    closeBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    closeBtn.onclick = closeImageViewer;
+
+    const stage = document.createElement('div');
+    stage.className = 'imgv-stage';
+    stage.addEventListener('click', e => { if (e.target === stage) closeImageViewer(); });   // toque fora da imagem
+
+    const img = document.createElement('img');
+    img.className = 'imgv-img';
+    img.alt = titulo || '';
+    img.draggable = false;
+    img.onerror = () => {
+        img.remove();
+        const err = document.createElement('div');
+        err.className = 'imgv-err';
+        err.textContent = 'Não foi possível carregar a imagem.';
+        stage.appendChild(err);
+    };
+    img.addEventListener('click', e => {
+        e.stopPropagation();
+        const r  = img.getBoundingClientRect();
+        const fx = r.width  ? (e.clientX - r.left) / r.width  : 0.5;
+        const fy = r.height ? (e.clientY - r.top)  / r.height : 0.5;
+        const zoomed = ov.classList.toggle('imgv-zoomed');
+        if (zoomed) {
+            // centra a zona onde tocaste
+            requestAnimationFrame(() => {
+                stage.scrollLeft = fx * img.offsetWidth  - stage.clientWidth  / 2;
+                stage.scrollTop  = fy * img.offsetHeight - stage.clientHeight / 2;
+            });
+        } else {
+            stage.scrollLeft = 0; stage.scrollTop = 0;
+        }
+    });
+    img.src = url;
+    stage.appendChild(img);
+
+    ov.appendChild(closeBtn);
+    ov.appendChild(stage);
+
+    if (titulo || ref) {
+        const cap = document.createElement('div');
+        cap.className = 'imgv-cap';
+        if (titulo) { const t = document.createElement('strong'); t.textContent = titulo; cap.appendChild(t); }
+        if (ref)    { const s = document.createElement('span');   s.textContent = 'REF: ' + String(ref).toUpperCase(); cap.appendChild(s); }
+        ov.appendChild(cap);
+    }
+
+    const v = {
+        ov,
+        prevFocus:    document.activeElement,
+        prevOverflow: document.body.style.overflow,
+        pushed:       false,
+        onKey: e => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); closeImageViewer(); } },
+        onPop: () => _imgViewerTeardown(),
+    };
+    _imgViewer = v;
+    document.body.appendChild(ov);
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', v.onKey, true);
+
+    // O botão "voltar" do telemóvel fecha o visualizador em vez de sair da página
+    try { history.pushState({ imgViewer: true }, ''); v.pushed = true; } catch (_) {}
+    window.addEventListener('popstate', v.onPop);
+
+    setTimeout(() => closeBtn.focus(), 30);
+}
+
+function _imgViewerTeardown() {
+    const v = _imgViewer;
+    if (!v) return;
+    _imgViewer = null;
+    document.removeEventListener('keydown', v.onKey, true);
+    window.removeEventListener('popstate', v.onPop);
+    v.ov.remove();
+    document.body.style.overflow = v.prevOverflow;
+    try { v.prevFocus?.focus?.(); } catch (_) {}
+}
+
+function closeImageViewer() {
+    if (!_imgViewer) return;
+    // fecha pela história (→ popstate → teardown) para não deixar entradas a mais
+    if (_imgViewer.pushed && history.state && history.state.imgViewer) history.back();
+    else _imgViewerTeardown();
+}

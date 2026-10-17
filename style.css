@@ -6320,6 +6320,38 @@ body.is-offline #app-layout {
 .pat-scan-conf.low  { background: rgba(220,38,38,0.12);  color: #dc2626; }
 
 /* Dark mode */
+/* Visualizador de imagem (lightbox) — utils.js: openImageViewer() */
+.imgv { position: fixed; inset: 0; z-index: 200000; display: flex; flex-direction: column; background: rgba(2,6,23,.94); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: imgvIn .18s ease-out; }
+@keyframes imgvIn { from { opacity: 0; } to { opacity: 1; } }
+.imgv-close { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 12px); right: 12px; z-index: 2; width: 44px; height: 44px; border-radius: 50%; border: none; background: rgba(255,255,255,.16); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.imgv-close:hover, .imgv-close:focus-visible { background: rgba(255,255,255,.3); outline: none; }
+.imgv-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 64px) 12px 8px; overflow: auto; -webkit-overflow-scrolling: touch; box-sizing: border-box; }
+.imgv-img { max-width: calc(100vw - 24px); max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px); object-fit: contain; border-radius: 10px; cursor: zoom-in; -webkit-user-select: none; user-select: none; -webkit-user-drag: none; touch-action: manipulation; }
+.imgv-zoomed .imgv-stage { display: block; }
+.imgv-zoomed .imgv-img { max-width: none; max-height: none; width: 220%; height: auto; cursor: zoom-out; display: block; }
+.imgv-cap { padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 16px); text-align: center; color: #fff; display: flex; flex-direction: column; gap: 2px; }
+.imgv-cap strong { font-size: 1rem; }
+.imgv-cap span { font-size: 0.78rem; color: rgba(255,255,255,.7); letter-spacing: .04em; }
+.imgv-err { color: #fff; opacity: .85; font-size: .9rem; padding: 24px; text-align: center; }
+/* Pista visual: lupa no canto das imagens que se podem ampliar */
+.sdc-img-thumb, .pdm-img-wrap { position: relative; cursor: zoom-in; }
+.sdc-img-thumb::after, .pdm-img-wrap::after { content: ""; position: absolute; right: 6px; bottom: 6px; width: 22px; height: 22px; border-radius: 50%; pointer-events: none; background: rgba(15,23,42,.62) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.5' y2='16.5'/%3E%3C/svg%3E") center / 12px no-repeat; }
+.pdm-img-wrap::after { right: 10px; bottom: 10px; width: 32px; height: 32px; background-size: 16px; }
+
+/* Stock — dropdown de ordenação (substitui o botão ⇅); mostra a opção selecionada */
+.sort-select-wrap { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 4px 0 14px; border-radius: 12px; border: 2px solid var(--border); background: var(--card-bg); box-sizing: border-box; transition: border-color .15s; }
+.sort-select-wrap:focus-within { border-color: var(--primary); }
+.sort-select-lbl { font-size: 0.68rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted); }
+.sort-select { -webkit-appearance: none; appearance: none; height: 100%; min-width: 150px; padding: 0 30px 0 4px; border: none; outline: none; background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 10px center; color: var(--text-main); font-family: inherit; font-size: 0.88rem; font-weight: 700; cursor: pointer; }
+.sort-select option { color: #0f172a; background: #fff; font-weight: 500; }
+/* Telemóvel: o dropdown passa para uma linha própria, em largura total */
+@media (max-width: 767px) {
+    .search-container { flex-wrap: wrap; row-gap: 8px; }
+    .search-container .search-input-wrap { flex: 1 1 0; }
+    .sort-select-wrap { order: 3; flex: 1 1 100%; height: 42px; }
+    .sort-select { flex: 1; }
+}
+
 /* Modal de confirmação — botões (o style.css recebido não tinha estilos para estas classes) */
 .confirm-modal-actions { display: flex; gap: 10px; margin-top: 14px; }
 .confirm-btn-cancel, .confirm-btn-ok { flex: 1; min-height: 46px; padding: 0 14px; border-radius: 12px; font-size: 0.9rem; font-weight: 700; font-family: inherit; cursor: pointer; border: 1px solid var(--border); -webkit-tap-highlight-color: transparent; }

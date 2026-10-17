@@ -13,7 +13,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ORDENAÇÃO DO STOCK
-let _stockSort = 'recente'; // 'recente' | 'nome' | 'qtd-asc' | 'qtd-desc' | 'local'
+let _stockSort = 'recente'; // 'recente' | 'nome' | 'ref' | 'qtd-asc' | 'qtd-desc' | 'local'
 let _pendingZeroFilter  = false;
 let _bulkCount = 0; // contador de produtos adicionados no lote actual
 let _toolsFilter = 'all';
@@ -26,98 +26,31 @@ function toolsFilterSet(btn, filter) {
 }
 let _zeroFilterActive  = false; // zero-stock filter está activo (persiste entre navegações)
 
-// Menu de ordenação — criado no body para evitar clipping por stacking contexts
-function _getSortMenu() {
-    let menu = $id('sort-menu');
-    if (!menu) {
-        menu = $el('div');
-        menu.id        = 'sort-menu';
-        menu.className = 'sort-menu';
-        const options  = [
-            { val: 'recente',  label: 'Mais recente' },
-            { val: 'nome',     label: 'Nome A→Z'     },
-            { val: 'qtd-asc',  label: 'Quantidade ↑' },
-            { val: 'qtd-desc', label: 'Quantidade ↓' },
-            { val: 'local',    label: 'Localização'  },
-        ];
-        options.forEach(o => {
-            const btn = $el('button');
-            btn.className   = 'sort-option' + (o.val === _stockSort ? ' active' : '');
-            btn.id          = `sort-${o.val}`;
-            btn.textContent = o.label;
-            btn.onclick     = () => setStockSort(o.val);
-            menu.appendChild(btn);
-        });
-        document.body.appendChild(menu);
-    }
-    return menu;
+// Ordenação — dropdown nativo (<select id="sort-select"> na barra de pesquisa).
+// Mostra sempre a opção activa; as opções estão no index.html.
+function _syncSortSelect() {
+    const sel = $id('sort-select');
+    if (sel && sel.value !== _stockSort) sel.value = _stockSort;
 }
-
-function toggleSortMenu() {
-    const btn  = $id('sort-dropdown-btn');
-    const menu = _getSortMenu();
-    const isOpen = menu.classList.contains('open');
-
-    if (isOpen) {
-        _closeSortMenu();
-        return;
-    }
-
-    // Posiciona o menu sob o botão usando coordenadas absolutas
-    const rect = btn.getBoundingClientRect();
-    menu.style.top   = `${rect.bottom + window.scrollY + 6}px`;
-    menu.style.right = `${window.innerWidth - rect.right - window.scrollX}px`;
-    menu.style.left  = 'auto';
-    menu.classList.add('open');
-    btn.classList.add('active');
-
-    // Fecha ao clicar fora (próximo tick para não capturar o click actual)
-    setTimeout(() => {
-        document.addEventListener('click', _onOutsideSortClick);
-    }, 0);
-}
-
-function _onOutsideSortClick(e) {
-    const wrap = $id('sort-dropdown-wrap');
-    const menu = $id('sort-menu');
-    if (!wrap?.contains(e.target) && !menu?.contains(e.target)) {
-        _closeSortMenu();
-    }
-}
-
-function _closeSortMenu() {
-    $id('sort-menu')?.classList.remove('open');
-    $id('sort-dropdown-btn')?.classList.remove('active');
-    document.removeEventListener('click', _onOutsideSortClick);
-}
-
-// Fecha sort menu em scroll ou resize (posição desactualizada)
-window.addEventListener('scroll', () => {
-    if ($id('sort-menu')?.classList.contains('open')) _closeSortMenu();
-}, { passive: true });
-let _sortResizeTimer = null;
-window.addEventListener('resize', () => {
-    clearTimeout(_sortResizeTimer);
-    _sortResizeTimer = setTimeout(() => {
-        if ($id('sort-menu')?.classList.contains('open')) _closeSortMenu();
-    }, 100);
-});
 
 function setStockSort(val) {
     _stockSort = val;
-    // Actualiza estado visual das opções
-    document.querySelectorAll('.sort-option').forEach(btn => {
-        btn.classList.toggle('active', btn.id === `sort-${val}`);
-    });
-    // Fecha o menu
-    _closeSortMenu();
+    _syncSortSelect();
     renderList(window._searchInputEl?.value || '', true);
 }
 
 function getSortedEntries(entries) {
     const copy = [...entries];
     switch (_stockSort) {
-        case 'nome':     return copy.sort((a,b) => (a[1].nome||'').localeCompare(b[1].nome||'', 'pt'));
+        case 'nome':     return copy.sort((a,b) => (a[1].nome||'').localeCompare(b[1].nome||'', 'pt', { numeric: true }));   // M8 antes de M10
+        // Referência: ordem "natural" (VRC0008 antes de VRC0010); artigos sem referência no fim
+        case 'ref':      return copy.sort((a,b) => {
+            const ra = String(a[1].codigo||'').trim(), rb = String(b[1].codigo||'').trim();
+            if (!ra && !rb) return 0;
+            if (!ra) return 1;
+            if (!rb) return -1;
+            return ra.localeCompare(rb, 'pt', { numeric: true, sensitivity: 'base' });
+        });
         case 'qtd-asc':  return copy.sort((a,b) => (a[1].quantidade||0) - (b[1].quantidade||0));
         case 'qtd-desc': return copy.sort((a,b) => (b[1].quantidade||0) - (a[1].quantidade||0));
         case 'local':    return copy.sort((a,b) => (a[1].localizacao||'').localeCompare(b[1].localizacao||'', 'pt'));
@@ -143,23 +76,12 @@ function _invalidateSortedCache() { _sortedCache = null; _sortedCacheKey = ''; }
 // FIX: qty-display.is-zero para stock a 0
 // FIX: filtragem por show/hide nos cards existentes sem recriar DOM
 // Filtra stock para mostrar apenas produtos com quantidade 0
-function filterZeroStock() {
-    _zeroFilterActive = true;
-    // Desktop: usa o sistema de tabs nativo
-    if (_stockDesktopActive()) {
-        _desktopFilter = 'zero';
-        _setDesktopFilter('zero');
-        return;
-    }
+// Aviso "A mostrar apenas produtos sem stock · ✕ Limpar" (mobile e desktop).
+// É a única forma de sair do filtro vindo do Dashboard, agora que as abas
+// do catálogo desktop foram retiradas.
+function _ensureZeroBadge() {
     const listEl = $id('stock-list');
     if (!listEl) return;
-    const wrappers = listEl.querySelectorAll('.swipe-wrapper[data-id]');
-    wrappers.forEach(wrapper => {
-        const id   = wrapper.dataset.id;
-        const item = cache.stock.data?.[id];
-        const isZero = item && (item.quantidade || 0) === 0;
-        wrapper.style.display = isZero ? '' : 'none';
-    });
     let badge = $id('zero-filter-badge');
     if (!badge) {
         badge = $el('div');
@@ -177,6 +99,27 @@ function filterZeroStock() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setTimeout(() => badge.classList.add('badge-pulse'), 100);
     }
+}
+
+function filterZeroStock() {
+    _zeroFilterActive = true;
+    // Desktop: filtra os cards do catálogo
+    if (_stockDesktopActive()) {
+        _desktopFilter = 'zero';
+        _setDesktopFilter('zero');
+        _ensureZeroBadge();
+        return;
+    }
+    const listEl = $id('stock-list');
+    if (!listEl) return;
+    const wrappers = listEl.querySelectorAll('.swipe-wrapper[data-id]');
+    wrappers.forEach(wrapper => {
+        const id   = wrapper.dataset.id;
+        const item = cache.stock.data?.[id];
+        const isZero = item && (item.quantidade || 0) === 0;
+        wrapper.style.display = isZero ? '' : 'none';
+    });
+    _ensureZeroBadge();
 }
 
 const ZONE_HISTORY_KEY = 'hiperfrio-zone-history';
@@ -237,6 +180,7 @@ function clearSearch() {
 
 function clearZeroFilter() {
     _zeroFilterActive = false;
+    _desktopFilter = 'all';
     const badge = $id('zero-filter-badge');
     if (badge) badge.remove();
     renderList('', false);
@@ -260,13 +204,11 @@ function _stockDesktopActive() {
     return window.innerWidth >= 768;
 }
 
-// Reconstrói o header desktop com KPIs e filtros por tab
+// Reconstrói o header desktop com KPIs (as abas de filtro foram retiradas)
 function _renderDesktopHeader(data) {
     const entries = Object.values(data || {});
     const total   = entries.length;
     const semStock = entries.filter(i => (i.quantidade || 0) === 0).length;
-    const comStock = total - semStock;
-    const semLocal = entries.filter(i => !i.localizacao).length;
 
     let hdr = $id('stock-desktop-hdr');
     if (!hdr) {
@@ -294,20 +236,7 @@ function _renderDesktopHeader(data) {
                 </div>
             </div>
         </div>
-        <div class="sdh-tabs">
-            <button class="sdh-tab ${_desktopFilter==='all'    ? 'sdh-tab-active' : ''}" onclick="_setDesktopFilter('all')">
-                Todos os itens <span class="sdh-tab-count">${total}</span>
-            </button>
-            <button class="sdh-tab ${_desktopFilter==='stock'  ? 'sdh-tab-active' : ''}" onclick="_setDesktopFilter('stock')">
-                Em Stock <span class="sdh-tab-count sdh-tab-count-green">${comStock}</span>
-            </button>
-            <button class="sdh-tab ${_desktopFilter==='zero'   ? 'sdh-tab-active' : ''}" onclick="_setDesktopFilter('zero')">
-                Sem Stock <span class="sdh-tab-count sdh-tab-count-red">${semStock}</span>
-            </button>
-            <button class="sdh-tab ${_desktopFilter==='nolocal'? 'sdh-tab-active' : ''}" onclick="_setDesktopFilter('nolocal')">
-                Sem Posição <span class="sdh-tab-count">${semLocal}</span>
-            </button>
-        </div>`;
+`;
 }
 
 function _setDesktopFilter(f) {
@@ -396,6 +325,13 @@ function _buildDesktopCard(id, item) {
         img.alt     = item.nome || '';
         img.onerror = () => { imgThumb.style.display = 'none'; };
         imgThumb.appendChild(img);
+        // Clicar na miniatura abre a imagem inteira
+        imgThumb.setAttribute('role', 'button');
+        imgThumb.tabIndex = 0;
+        imgThumb.title = 'Ver imagem maior';
+        const _openImg = e => { e.stopPropagation(); openImageViewer(item.imgUrl, item.nome, item.codigo); };
+        imgThumb.addEventListener('click', _openImg);
+        imgThumb.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _openImg(e); } });
         hdr.appendChild(imgThumb);
     }
 
@@ -537,8 +473,10 @@ async function renderList(filter = '', force = false) {
 
         if (_pendingZeroFilter) {
             _pendingZeroFilter = false;
+            _zeroFilterActive = true;
             _desktopFilter = 'zero';
             _setDesktopFilter('zero');
+            _ensureZeroBadge();
         }
         return;
     }
@@ -1063,6 +1001,8 @@ function openProductDetail(id, item) {
         img.src = data.imgUrl;
         img.alt = data.nome || '';
         imgWrap.style.display = '';
+        imgWrap.title   = 'Ver imagem maior';
+        imgWrap.onclick = () => openImageViewer(data.imgUrl, data.nome, data.codigo);
     } else {
         imgWrap.style.display = 'none';
     }
