@@ -991,8 +991,11 @@ function snapBack(card) {
 }
 
 // ── Popup de detalhe do produto (mobile tap) ──────────────────────────────
+let _pdmOpenedAt = 0;
+
 function openProductDetail(id, item) {
     const data = cache.stock.data?.[id] || item; // usa dados mais recentes se disponível
+    _pdmOpenedAt = performance.now();
 
     // Imagem
     const imgWrap = $id('pdm-img-wrap');
@@ -1002,7 +1005,13 @@ function openProductDetail(id, item) {
         img.alt = data.nome || '';
         imgWrap.style.display = '';
         imgWrap.title   = 'Ver imagem maior';
-        imgWrap.onclick = () => openImageViewer(data.imgUrl, data.nome, data.codigo);
+        imgWrap.onclick = e => {
+            // O popup abre no touchend do toque no card e, logo a seguir, o browser dispara o
+            // "clique" desse mesmo toque — que cai em cima da imagem que acabou de aparecer.
+            // Ignorar cliques nos primeiros 0,6 s: só um toque novo na imagem a abre.
+            if (performance.now() - _pdmOpenedAt < 600) { e.stopPropagation(); return; }
+            openImageViewer(data.imgUrl, data.nome, data.codigo);
+        };
     } else {
         imgWrap.style.display = 'none';
     }

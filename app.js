@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// app.js — Hiperfrio v6.67
+// app.js — Hiperfrio v6.68
 // Lógica principal: stock, ferramentas, PATs, encomendas, mapa, inventário.
 //
 // DEPENDÊNCIAS (carregadas antes via index.html):
@@ -1595,7 +1595,10 @@ function _resumeInventory(saved) {
     showToast(`A retomar — produto ${_invIdx + 1} de ${_invItems.length}`);
 }
 
+let _invStepAt = 0;
+
 function _renderInvStep() {
+    _invStepAt = performance.now();
     const total      = _invItems.length;
     const [id, item] = _invItems[_invIdx] || [];
     if (!id) { _finishInventory(); return; }
@@ -1628,7 +1631,8 @@ function _renderInvStep() {
             photoImg.src = item.imgUrl;
             photoImg.style.display = 'block';
             photoImg.style.cursor  = 'zoom-in';
-            photoImg.onclick = () => openImageViewer(item.imgUrl, item.nome, item.codigo);
+            // ignora o "clique fantasma" do toque que acabou de mudar de passo
+            photoImg.onclick = () => { if (performance.now() - _invStepAt < 600) return; openImageViewer(item.imgUrl, item.nome, item.codigo); };
             photoPlaceholder.style.display = 'none';
         } else {
             photoImg.style.display = 'none';
@@ -2664,8 +2668,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // SW_EXPECTED_VERSION deve bater certo com SW_VERSION em sw.js, senão o
 // client deteta sempre "SW desactualizado" e fica em loop de update.
 // SW_SCRIPT_URL tem de mudar de query string ou o browser não re-baixa o SW.
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.67';
-const SW_SCRIPT_URL = 'sw.js?v=6.67';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.68';
+const SW_SCRIPT_URL = 'sw.js?v=6.68';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados
