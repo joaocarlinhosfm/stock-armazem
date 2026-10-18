@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// app.js — Hiperfrio v6.68
+// app.js — Hiperfrio v6.69
 // Lógica principal: stock, ferramentas, PATs, encomendas, mapa, inventário.
 //
 // DEPENDÊNCIAS (carregadas antes via index.html):
@@ -232,7 +232,7 @@ function nav(viewId) {
     }
     if (viewId === 'view-tools')  renderTools();
     if (viewId === 'view-dashboard') { renderDashboard(true); }
-    if (viewId === 'view-encomendas') { loadEncomendas(); }
+    if (viewId === 'view-encomendas') { _encSetFilter('pendente'); loadEncomendas(); }
     if (viewId === 'view-guias') {
         _guiasSearchQ = '';
         const gs = $id('guias-search');
@@ -557,7 +557,7 @@ function _renderDashSections(el, { patsPend, ferraEntries, encData, total, comSt
 
     // Encomendas activas
     const encActivas2 = Object.entries(encData || {})
-        .filter(([, e]) => e.estado === 'pendente' || e.estado === 'parcial')
+        .filter(([, e]) => _encEstado(e) === 'pendente' || _encEstado(e) === 'parcial')
         .sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0))
         .slice(0, 3);
 
@@ -569,7 +569,7 @@ function _renderDashSections(el, { patsPend, ferraEntries, encData, total, comSt
             const tot      = linhas.reduce((s, l) => s + (parseFloat(l.qtd) || 0), 0);
             const recebido = linhas.reduce((s, l) => s + Math.min(parseFloat(l.recebido) || 0, parseFloat(l.qtd) || 0), 0);
             const pct      = tot > 0 ? Math.round(recebido / tot * 100) : 0;
-            const isParcial = enc.estado === 'parcial';
+            const isParcial = _encEstado(enc) === 'parcial';
             const row = $el('div', { className: 'dv3-list-row dv3-list-row-col' });
             row.innerHTML = `
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
@@ -634,8 +634,8 @@ async function renderDashboard(force = false, fromBtn = false) {
         t.status === 'alocada' && t.dataEntrega && _calcDias(t.dataEntrega) > ALERTA_DIAS
     );
     const encEntries    = Object.values(_encData || {});
-    const encPendentes  = encEntries.filter(e => e.estado === 'pendente').length;
-    const encParciais   = encEntries.filter(e => e.estado === 'parcial').length;
+    const encPendentes  = encEntries.filter(e => _encEstado(e) === 'pendente').length;
+    const encParciais   = encEntries.filter(e => _encEstado(e) === 'parcial').length;
     const encActivas    = encPendentes + encParciais;
 
     _saveDashSnapshot(total, semStock, alocadas, patPendentes, encActivas);
@@ -2668,8 +2668,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // SW_EXPECTED_VERSION deve bater certo com SW_VERSION em sw.js, senão o
 // client deteta sempre "SW desactualizado" e fica em loop de update.
 // SW_SCRIPT_URL tem de mudar de query string ou o browser não re-baixa o SW.
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.68';
-const SW_SCRIPT_URL = 'sw.js?v=6.68';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.69';
+const SW_SCRIPT_URL = 'sw.js?v=6.69';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados
@@ -2719,7 +2719,10 @@ if ('serviceWorker' in navigator) {
 
 const ENC_URL = `${BASE_URL}/encomendas`;
 
-let _encFilter  = 'all';
+let _encFilter  = 'pendente';   // filtro base: encomendas pendentes
+
+// Estado de uma encomenda (as antigas, sem o campo, contam como pendentes)
+function _encEstado(enc) { return (enc && enc.estado) || 'pendente'; }
 let _encData    = {};
 let _encDataTs  = 0;
 const ENC_TTL   = 60000;
@@ -2768,7 +2771,7 @@ function renderEncProdutos() {
 
     // Recolher encomendas activas ordenadas por data
     const encs = Object.entries(_encData || {})
-        .filter(([, e]) => e.estado !== 'recebida')
+        .filter(([, e]) => _encEstado(e) !== 'recebida')
         .sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0));
 
     if (encs.length === 0) {
@@ -2807,7 +2810,7 @@ function renderEncProdutos() {
         const linhas   = Object.values(enc.linhas || {});
         if (linhas.length === 0) return;
         const dataFmt  = enc.data ? enc.data.split('-').reverse().join('/') : '—';
-        const estadoLabel = { pendente: 'Pendente', parcial: 'Parcial', recebida: 'Recebida' }[enc.estado] || 'Pendente';
+        const estadoLabel = { pendente: 'Pendente', parcial: 'Parcial', recebida: 'Completa' }[_encEstado(enc)] || 'Pendente';
         const totalQtd = linhas.reduce((s, l) => s + (parseFloat(l.qtd) || 0), 0);
         const totalRec = linhas.reduce((s, l) => s + Math.min(parseFloat(l.recebido) || 0, parseFloat(l.qtd) || 0), 0);
         const pct      = totalQtd > 0 ? Math.round(totalRec / totalQtd * 100) : 0;
@@ -2822,7 +2825,7 @@ function renderEncProdutos() {
                     ${enc.fornecedor ? `<span class="enc-prod-group-sep">·</span><span class="enc-prod-group-forn">${escapeHtml(enc.fornecedor)}</span>` : ''}
                 </div>
                 <div class="enc-prod-group-meta">
-                    <span class="enc-badge enc-badge-${enc.estado || 'pendente'}">${estadoLabel}</span>
+                    <span class="enc-badge enc-badge-${_encEstado(enc)}">${estadoLabel}</span>
                     <span class="enc-prod-group-pct">${totalRec}/${totalQtd} un · ${pct}%</span>
                 </div>
             </div>
@@ -2882,17 +2885,25 @@ function renderEncList() {
     const wrap = $id('enc-list');
     if (!wrap) return;
 
-    let entries = Object.entries(_encData)
+    const all = Object.entries(_encData || {})
         .sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0));
 
-    if (_encFilter !== 'all')
-        entries = entries.filter(([, e]) => e.estado === _encFilter);
+    // Contagem em cada filtro
+    const counts = { pendente: 0, parcial: 0, recebida: 0 };
+    all.forEach(([, e]) => { const s = _encEstado(e); if (counts[s] !== undefined) counts[s]++; });
+    Object.keys(counts).forEach(k => {
+        const el = $id('enc-n-' + k);
+        if (el) el.textContent = all.length ? counts[k] : '';
+    });
+
+    const entries = all.filter(([, e]) => _encEstado(e) === _encFilter);
 
     wrap.innerHTML = '';
 
     if (entries.length === 0) {
-        const label = _encFilter === 'all' ? 'Nenhuma encomenda registada' : 'Nenhuma encomenda ' + _encFilter;
-        const sub   = _encFilter === 'all' ? 'Cria a primeira encomenda com o bot\u00e3o acima.' : 'N\u00e3o existem encomendas com este estado.';
+        const nomes = { pendente: 'pendente', parcial: 'parcial', recebida: 'completa' };
+        const label = all.length === 0 ? 'Nenhuma encomenda registada' : 'Nenhuma encomenda ' + (nomes[_encFilter] || '');
+        const sub   = all.length === 0 ? 'Cria a primeira encomenda com o bot\u00e3o acima.' : 'N\u00e3o existem encomendas com este estado.';
         wrap.innerHTML = `
             <div class="enc-empty">
                 <div class="enc-empty-icon">
@@ -2913,7 +2924,7 @@ function renderEncList() {
         const total    = linhas.reduce((s, l) => s + (parseFloat(l.qtd) || 0), 0);
         const recebido = linhas.reduce((s, l) => s + Math.min(parseFloat(l.recebido) || 0, parseFloat(l.qtd) || 0), 0);
         const pct      = total > 0 ? Math.round(recebido / total * 100) : 0;
-        const estadoLabel = { pendente: 'Pendente', parcial: 'Parcial', recebida: 'Recebida' }[enc.estado] || 'Pendente';
+        const estadoLabel = { pendente: 'Pendente', parcial: 'Parcial', recebida: 'Completa' }[_encEstado(enc)] || 'Pendente';
         const dataFmt  = enc.data ? enc.data.split('-').reverse().join('/') : '—';
 
         // Card
@@ -2934,7 +2945,7 @@ function renderEncList() {
         const right = $el('div');
         right.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;gap:4px';
         const badge = $el('span');
-        badge.className   = 'enc-badge enc-badge-' + (enc.estado || 'pendente');
+        badge.className   = 'enc-badge enc-badge-' + _encEstado(enc);
         badge.textContent = estadoLabel;
         const date = $el('span', { className: 'enc-card-date' });
         date.textContent = dataFmt;
@@ -2961,9 +2972,13 @@ function renderEncList() {
     });
 }
 
-function encFilterSet(btn, filter) {
+function _encSetFilter(filter) {
     _encFilter = filter;
-    document.querySelectorAll('.enc-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.enc-filter-btn[data-filter]').forEach(b => b.classList.toggle('active', b.dataset.filter === filter));
+}
+
+function encFilterSet(btn, filter) {
+    _encSetFilter(filter);
     renderEncList();
 }
 
