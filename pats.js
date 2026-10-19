@@ -19,7 +19,7 @@
 // A CARTO exige API key nos basemaps raster (sem ela os tiles saem com a marca
 // de água "API KEY REQUIRED"). Cola aqui a tua chave. Restringe-a por domínio
 // no painel da CARTO, porque fica visível no browser.
-const CARTO_BASEMAP_KEY = 'b1_4ooc_1_9964b3715d785797629e480a';
+const CARTO_BASEMAP_KEY = 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_4ooc_1_9964b3715d785797629e480a';
 
 function _createBaseLayer(minZoom) {
     return L.tileLayer(
