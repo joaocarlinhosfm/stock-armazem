@@ -15,6 +15,24 @@
 //                renderList, openConfirmModal, nav, _encData
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── BASEMAP CARTO ────────────────────────────────────────────────────────────
+// A CARTO exige API key nos basemaps raster (sem ela os tiles saem com a marca
+// de água "API KEY REQUIRED"). Cola aqui a tua chave. Restringe-a por domínio
+// no painel da CARTO, porque fica visível no browser.
+const CARTO_BASEMAP_KEY = 'b1_4ooc_1_9964b3715d785797629e480a';
+
+function _createBaseLayer(minZoom) {
+    return L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=' + encodeURIComponent(CARTO_BASEMAP_KEY),
+        {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20,
+            minZoom: minZoom,
+        }
+    );
+}
+
 // ── MAPA DE PEDIDOS PAT — Leaflet + Nominatim (OpenStreetMap)
 
 function _createClusterGroup() {
@@ -696,9 +714,7 @@ async function expandPatMap() {
         center: [39.6, -8.0], zoom: 7, minZoom: 6, maxZoom: 17,
         maxBounds: PT_BOUNDS, maxBoundsViscosity: 1.0, zoomControl: true,
     });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap © CARTO', subdomains: 'abcd', maxZoom: 20, minZoom: 6,
-    }).addTo(_patMap);
+    _createBaseLayer(6).addTo(_patMap);
     _patMapCluster = _createClusterGroup();
     _patMap.addLayer(_patMapCluster);
     _patMap.invalidateSize();
@@ -880,12 +896,7 @@ async function openPatMap() {
         zoomControl:  true,
     });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 20,
-        minZoom: 6,
-    }).addTo(_patMap);
+    _createBaseLayer(6).addTo(_patMap);
 
     _patMapCluster = _createClusterGroup();
     _patMap.addLayer(_patMapCluster);
@@ -1085,9 +1096,7 @@ async function _openPatMapPanel() {
             zoomControl: true,
             attributionControl: false,
         });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            subdomains: 'abcd', maxZoom: 20, minZoom: 5,
-        }).addTo(_patMapPanel);
+        _createBaseLayer(5).addTo(_patMapPanel);
         _patMapPanelCluster = _createClusterGroup();
         _patMapPanel.addLayer(_patMapPanelCluster);
         _patMapPanel.fitBounds(PT_BOUNDS, { padding: [10, 10] });
