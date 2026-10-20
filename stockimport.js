@@ -473,11 +473,10 @@ async function siApply() {
 
         // 4) Criar artigos novos (POST, em blocos de 8)
         const createdOk = [], createdFail = [];
-        const dataImp = new Date().toLocaleDateString('pt-PT');
         for (let i = 0; i < plan.creates.length; i += 8) {
             const chunk = plan.creates.slice(i, i + 8);
             const results = await Promise.allSettled(chunk.map(async c => {
-                const payload = { nome: c.nome, localizacao: '', quantidade: c.quantidade, unidade: c.unidade, notas: `Importado do Excel em ${dataImp}`, codigo: c.codigo };
+                const payload = { nome: c.nome, localizacao: '', quantidade: c.quantidade, unidade: c.unidade, notas: '', codigo: c.codigo };
                 const res = await _siRequest(`${BASE_URL}/stock.json`, 'POST', payload);
                 const r = await res.json();
                 return { id: r?.name, payload };

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// app.js — Hiperfrio v6.71
+// app.js — Hiperfrio v6.72
 // Lógica principal: stock, ferramentas, PATs, encomendas, mapa, inventário.
 //
 // DEPENDÊNCIAS (carregadas antes via index.html):
@@ -2752,8 +2752,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // SW_EXPECTED_VERSION deve bater certo com SW_VERSION em sw.js, senão o
 // client deteta sempre "SW desactualizado" e fica em loop de update.
 // SW_SCRIPT_URL tem de mudar de query string ou o browser não re-baixa o SW.
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.71';
-const SW_SCRIPT_URL = 'sw.js?v=6.71';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.72';
+const SW_SCRIPT_URL = 'sw.js?v=6.72';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados
