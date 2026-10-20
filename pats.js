@@ -1893,6 +1893,14 @@ async function renderPats() {
                 <span class="pat-group-name">${func === '—' ? 'Sem funcionário' : func}</span>
                 <span class="pat-group-count">${items.length}</span>
             </div>`;
+        // Levantadas: dar saída a todas as PATs deste funcionário de uma só vez
+        if (_patTab === 'levantadas' && items.length > 1) {
+            const btnLote = $el('button', { className: 'pat-group-saida-btn' });
+            btnLote.type = 'button';
+            btnLote.textContent = `Dar saída a todas (${items.length})`;
+            btnLote.onclick = () => openSaidaLote(func, items.map(([id]) => id));
+            header.querySelector('.pat-group-info')?.appendChild(btnLote);
+        }
         fragG.appendChild(header);
 
         items.forEach(([id, pat]) => fragG.appendChild(_buildPatCard(id, pat, _patTab, {})));
@@ -2023,8 +2031,8 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
     body.appendChild(estabDiv);
     if (metaRow.children.length > 0 || metaRow.innerHTML) body.appendChild(metaRow);
 
-    // Pills de progresso (Pendente → Com Guia → Separação)
-    if (tab === 'pendentes' || tab === 'levantadas') {
+    // Pills de progresso (Pendente → Com Guia → Separação) — só nas PATs antigas com guia de transporte
+    if (separacao && (tab === 'pendentes' || tab === 'levantadas')) {
         const stepsDiv = $el('div', { className: 'pat-steps' });
         const steps = [
             { label: 'Pendente',  done: true },
@@ -2376,7 +2384,7 @@ async function levantarSelectedPats() {
     openConfirmModal({
         title: `Levantar ${ids.length} PAT${plural(ids.length)}?`,
         type: 'success', okLabel: 'Levantar',
-        desc: `Serão marcadas como levantadas por ${worker}. As que têm separação de material descontam stock.`,
+        desc: `Serão marcadas como levantadas por ${worker}. O stock dos produtos de cada PAT será descontado automaticamente.`,
         onConfirm: async () => {
             // Mostrar feedback imediato
             const levBtn = $id('pat-levantar-btn');
@@ -2433,6 +2441,78 @@ async function darSaidaPat(id) {
             } catch(_e) { showToast('Erro ao dar saída', 'error'); }
         }
     });
+}
+
+// ── Dar saída em lote — todas as PATs levantadas de um funcionário ──────────
+// Mostra a lista (todas marcadas); desmarca as que não queres. A seleção fica em
+// memória (o modal limpa o seu conteúdo antes de executar a ação).
+function openSaidaLote(func, ids) {
+    const nome = func === '—' ? 'Sem funcionário' : func;
+    const pats = ids.map(id => [id, _patCache.data?.[id]])
+        .filter(([, p]) => p && p.status === 'levantado')
+        .sort((a, b) => (b[1].levantadoEm || 0) - (a[1].levantadoEm || 0));
+    if (!pats.length) { showToast('Nada para dar saída.', 'info'); return; }
+
+    const sel = new Set(pats.map(([id]) => id));
+    const refresh = (box) => {
+        const all = box.querySelector('.sl-all');
+        if (all) { all.checked = sel.size === pats.length; all.indeterminate = sel.size > 0 && sel.size < pats.length; }
+        const b = $id('confirm-modal-ok');
+        if (b) b.textContent = `Dar saída (${sel.size})`;
+    };
+
+    openConfirmModal({
+        title: `Dar saída — ${nome}`,
+        type: 'success', okLabel: `Dar saída (${pats.length})`,
+        desc: 'As PATs escolhidas vão para o histórico, onde ficam 15 dias.',
+        onConfirm: async () => { await _patDarSaidaLote([...sel]); },
+    });
+
+    const slot = $id('confirm-modal-slot');
+    if (!slot) return;
+    const dt = ts => ts ? new Date(ts).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' }) : '';
+    slot.innerHTML = `<div class="lv-box sl-box">
+        <label class="sl-row sl-row-all"><input type="checkbox" class="sl-all" checked><span class="sl-main"><b>Selecionar todas</b></span><span class="sl-date">${pats.length}</span></label>
+        ${pats.map(([id, p]) => `<label class="sl-row"><input type="checkbox" class="sl-chk" value="${escapeHtml(id)}" checked>
+            <span class="sl-main"><b>PAT ${escapeHtml(p.numero || '—')}</b><small>${escapeHtml(p.estabelecimento || 'Sem estabelecimento')}</small></span>
+            <span class="sl-date">${dt(p.levantadoEm)}</span></label>`).join('')}
+    </div>`;
+    const box = slot.querySelector('.sl-box');
+    box.addEventListener('change', e => {
+        const t = e.target;
+        if (t.classList.contains('sl-all')) {
+            box.querySelectorAll('.sl-chk').forEach(c => { c.checked = t.checked; });
+            if (t.checked) pats.forEach(([id]) => sel.add(id)); else sel.clear();
+        } else if (t.classList.contains('sl-chk')) {
+            if (t.checked) sel.add(t.value); else sel.delete(t.value);
+        }
+        refresh(box);
+    });
+}
+
+// Move várias PATs levantadas para o histórico. Um PATCH por PAT (a fila offline
+// agrupa pedidos ao mesmo endereço, por isso não se junta tudo num só).
+async function _patDarSaidaLote(ids) {
+    if (!ids.length) { showToast('Nenhuma PAT selecionada.', 'error'); return; }
+    const payload = { status: 'historico', saidaEm: Date.now() };
+    const results = await Promise.allSettled(ids.map(async id => {
+        const pat = _patCache.data?.[id];
+        if (!pat || pat.status !== 'levantado') return;
+        const prev = { status: pat.status, saidaEm: pat.saidaEm };
+        Object.assign(pat, payload);                                  // optimista
+        try {
+            await apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'PATCH', body: JSON.stringify(payload) });
+        } catch (e) {
+            Object.assign(pat, prev);                                 // reverte esta PAT
+            throw e;
+        }
+    }));
+    const falhas = results.filter(r => r.status === 'rejected').length;
+    const ok = ids.length - falhas;
+    renderPats();
+    updatePatCount();
+    if (falhas) showToast(`${ok} com saída dada, ${falhas} falharam — tenta de novo`, 'error');
+    else showToast(`Saída dada a ${ok} PAT${ok > 1 ? 's' : ''} — no histórico!`);
 }
 
 async function limparTabActual() {
@@ -2649,7 +2729,6 @@ function openPatModal() {
     $id('pat-product-dropdown').innerHTML = '';
     $id('pat-product-chips').innerHTML   = '';
     $id('pat-numero-hint').textContent   = '';
-    $id('pat-separacao').checked         = false;
     $id('pat-obs') && ($id('pat-obs').value = '');
     $id('pat-modal-title').textContent   = 'Novo Pedido';
     _fetchClientes();
@@ -2667,7 +2746,6 @@ async function openEditPat(id, pat) {
     $id('pat-numero').value             = pat.numero || '';
     $id('pat-numero').readOnly          = true; // nº PAT não pode ser alterado
     $id('pat-numero-hint').textContent  = '';
-    $id('pat-separacao').checked        = !!pat.separacao;
     $id('pat-obs') && ($id('pat-obs').value = pat.obs || '');
 
     // Cliente — tentar preencher clienteId se estiver em falta
@@ -3264,7 +3342,6 @@ async function savePat() {
     const clienteNum = $id('pat-cliente-num').value.trim();
     const clienteId  = $id('pat-cliente-id').value.trim() || null;
     const estab      = $id('pat-estabelecimento').value.trim().toUpperCase();
-    const separacao  = $id('pat-separacao').checked;
     const obs        = ($id('pat-obs')?.value || '').trim();
     const hint       = $id('pat-numero-hint');
 
@@ -3320,7 +3397,6 @@ async function savePat() {
             clienteNumero:   clienteNum || null,
             clienteId:       clienteId  || null,
             estabelecimento: estab,
-            separacao,
             obs:             obs || null,
             produtos: _patProducts.map(p => ({
                 id: p.id, codigo: p.codigo, nome: p.nome, quantidade: p.quantidade || 1
@@ -3345,7 +3421,6 @@ async function savePat() {
             clienteNumero: clienteNum || null,
             clienteId:     clienteId  || null,
             estabelecimento: estab,
-            separacao,
             obs:           obs || null,
             produtos: _patProducts.map(p => ({
                 id: p.id, codigo: p.codigo, nome: p.nome, quantidade: p.quantidade || 1
@@ -3377,12 +3452,12 @@ async function savePat() {
 //   1. Antes de confirmar: mostra o stock de cada artigo e avisa de faltas.
 //   2. Marca as PATs como levantadas; as que falharem são revertidas e NÃO
 //      descontam stock (evita descontar de PATs que continuam pendentes).
-//   3. Desconta o stock das PATs com separação de material.
+//   3. Desconta o stock dos produtos de TODAS as PATs levantadas (já não há "guia de transporte").
 //   4. Se houve faltas, falhas ou artigos sem ligação ao stock, mostra um
 //      resumo que o utilizador tem de ler — em vez de um "sucesso" genérico.
 const _r3 = n => Math.round(n * 1000) / 1000;
 
-// Agrega o que as PATs com separação vão descontar, por artigo de stock.
+// Agrega o que as PATs vão descontar, por artigo de stock (todas as PATs com produtos).
 // Usa cache.stock.data (quem chama decide se o refresca antes).
 function _patAggStock(ids) {
     const stock = cache.stock.data || {};
@@ -3390,7 +3465,7 @@ function _patAggStock(ids) {
     const orphan = [];
     for (const id of ids) {
         const pat = _patCache.data?.[id];
-        if (!pat || !pat.separacao) continue;
+        if (!pat) continue;
         for (const p of (pat.produtos || [])) {
             const q = p.quantidade || 1;
             const sid = p.id;
@@ -3413,7 +3488,7 @@ function _patAggStock(ids) {
 
 // Pré-visualização para o modal de confirmação (stock fresco do servidor).
 async function _patLevantarPreview(ids) {
-    if (!ids.some(id => _patCache.data?.[id]?.separacao)) return null;
+    if (!ids.some(id => (_patCache.data?.[id]?.produtos || []).length > 0)) return null;
     if (navigator.onLine) { try { await fetchCollection('stock', true); } catch (_) {} }
     const { need, orphan } = _patAggStock(ids);
     const stock = cache.stock.data || {};
@@ -3469,7 +3544,7 @@ async function _patMarcarLevantado(id, extra = {}) {
     }
 }
 
-// Desconta o stock das PATs (só as com separação). Devolve o que correu mal.
+// Desconta o stock das PATs (todas as que têm produtos). Devolve o que correu mal.
 async function _patDescontarStock(ids) {
     const { need, orphan } = _patAggStock(ids);
     const res = { short: [], failed: [], orphan, patFail: 0 };
@@ -3532,11 +3607,11 @@ async function marcarPatLevantado(id, { onDone } = {}) {
     if (pat.status === 'levantado') {
         showToast('PAT já foi levantada', 'error'); return;
     }
-    const separacao = !!pat.separacao;
+    const comProdutos = (pat.produtos || []).length > 0;
 
-    const desc = separacao
-        ? 'Pedido com Separação de Material — o stock dos produtos será descontado automaticamente.'
-        : 'O pedido será removido dos pendentes. O stock não será alterado.';
+    const desc = comProdutos
+        ? 'O stock dos produtos desta PAT será descontado automaticamente.'
+        : 'Esta PAT não tem produtos — o stock não será alterado.';
 
     const prev = await _patLevantarPreview([id]);
 
@@ -3555,10 +3630,10 @@ async function marcarPatLevantado(id, { onDone } = {}) {
 
                 // 2 — Se separação: desconta stock (delta seguro em multi-utilizador)
                 const res = await _patDescontarStock([id]);
-                if (separacao) renderList();
+                if (comProdutos) renderList();
 
                 renderPats();
-                _patLevantarResumo(res, separacao ? 'Levantado — stock descontado!' : 'Pedido marcado como levantado!');
+                _patLevantarResumo(res, comProdutos ? 'Levantado — stock descontado!' : 'Pedido marcado como levantado!');
                 if (typeof onDone === 'function') await onDone();
             } catch(_e) { showToast('Erro ao actualizar pedido', 'error'); }
         }
