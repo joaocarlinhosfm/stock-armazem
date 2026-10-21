@@ -380,7 +380,7 @@ function _pinLabel(nome) {
 
 function _makePinIcon(count, urgente, separacao, zoom, nome) {
     const { w } = _pinSizeForZoom(zoom ?? (_patMap ? _patMap.getZoom() : 7));
-    const bgColor   = urgente ? '#dc2626' : separacao ? '#d97706' : '#334155';
+    const bgColor   = urgente ? '#dc2626' : '#334155';   // (o parâmetro 'separacao' já não tem efeito)
     const showLabel = (zoom ?? 7) >= 6;
     const label     = showLabel ? _pinLabel(nome) : '';
     const fs        = Math.max(9, Math.round(w * 0.32));
@@ -524,7 +524,6 @@ function _renderMapPinSheet(pats) {
 
     const nome     = pats[0][1].estabelecimento || '—';
     const urgentes = pats.filter(([, p]) => _calcDias(p.criadoEm) >= 20);
-    const comGuia  = pats.filter(([, p]) => !!p.separacao);
 
     // Header — nome em destaque
     estabEl.textContent = nome;
@@ -537,10 +536,6 @@ function _renderMapPinSheet(pats) {
     if (urgentes.length > 0) {
         const b = $el('span', { className: 'map-pin-badge urgente' });
         b.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${urgentes.length} urgente${urgentes.length !== 1 ? 's' : ''}`;
-        badgesEl.appendChild(b);
-    }
-    if (comGuia.length > 0) {
-        const b = $el('span', { className: 'map-pin-badge guia', textContent: 'Guia Transporte' });
         badgesEl.appendChild(b);
     }
 
@@ -593,13 +588,6 @@ function _buildPatDetail([id, pat], allPats) {
     const prods   = pat.produtos || [];
 
     const detail = $el('div', { className: 'map-pin-pat-detail' });
-
-    // Tags
-    if (pat.separacao) {
-        const tags = $el('div', { className: 'map-pin-pat-tags' });
-        tags.innerHTML = '<span class="map-pin-pat-tag guia">Guia Transporte</span>';
-        detail.appendChild(tags);
-    }
 
     // Produtos
     if (prods.length > 0) {
@@ -1713,7 +1701,7 @@ async function updatePatCount() {
 }
 
 let _patSearchQuery  = '';
-let _patTab          = 'pendentes'; // 'pendentes' | 'levantadas' | 'historico'
+let _patTab          = 'pendentes'; // 'pendentes' | 'historico'  (levantar = vai direto para o histórico)
 let _patSelMode      = false;       // modo seleção para levantar
 let _patSelWorker    = '';          // funcionário escolhido
 let _patSelIds       = new Set();   // IDs seleccionados
@@ -1735,7 +1723,7 @@ function showDupPopover(badge, estabNorm) {
     if (_dupPopoverEl) { _dupPopoverEl.remove(); _dupPopoverEl = null; }
 
     const pats = Object.entries(_patCache.data || {})
-        .filter(([, p]) => p.status !== 'levantado' &&
+        .filter(([, p]) => p.status !== 'levantado' && p.status !== 'historico' &&
                 (p.estabelecimento || '').trim().toLowerCase() === estabNorm)
         .sort((a, b) => (a[1].criadoEm || 0) - (b[1].criadoEm || 0));
 
@@ -1780,25 +1768,19 @@ async function renderPats() {
     el.innerHTML = '<div class="pat-loading">A carregar...</div>';
 
     // Sync tab UI
-    ['pendentes','levantadas','historico'].forEach(t => {
+    ['pendentes','historico'].forEach(t => {
         $id(`pat-tab-${t}`)?.classList.toggle('active', _patTab === t);
     });
-    const guiaFilter = $id('pat-guia-filter');
-    const showGuiaFilter = _patTab === 'levantadas' || _patTab === 'historico';
-    if (guiaFilter) guiaFilter.style.display = showGuiaFilter ? 'flex' : 'none';
-    const soGuias = showGuiaFilter && $id('pat-guia-only').checked;
+    const histBar = $id('pat-hist-bar');
+    if (histBar) histBar.style.display = _patTab === 'historico' ? 'flex' : 'none';
 
     const pats = await _fetchPats();
     let entries = Object.entries(pats || {})
         .filter(([, p]) => {
-            if (_patTab === 'pendentes')  return p.status !== 'levantado' && p.status !== 'historico';
-            if (_patTab === 'levantadas') return p.status === 'levantado';
-            if (_patTab === 'historico')  return p.status === 'historico';
+            if (_patTab === 'pendentes') return p.status !== 'levantado' && p.status !== 'historico';
+            // Histórico = PATs levantadas (+ antigas ainda marcadas "levantado")
+            if (_patTab === 'historico') return p.status === 'historico' || p.status === 'levantado';
             return false;
-        })
-        .filter(([, p]) => {
-            if (soGuias) return !!p.separacao;
-            return true;
         })
         .filter(([, p]) => {
             if (!_patSearchQuery) return true;
@@ -1808,7 +1790,7 @@ async function renderPats() {
         .sort((a, b) => (b[1].criadoEm || 0) - (a[1].criadoEm || 0));
 
     if (entries.length === 0) {
-        const msgs = { pendentes: 'Nenhum pedido pendente.', levantadas: 'Nenhuma PAT levantada.', historico: 'Sem histórico.' };
+        const msgs = { pendentes: 'Nenhum pedido pendente.', historico: 'Sem histórico.' };
         el.innerHTML = `<div class="pat-empty">${msgs[_patTab] || ''}</div>`;
         updatePatCount();
         return;
@@ -1874,7 +1856,7 @@ async function renderPats() {
         return;
     }
 
-    // ── Levantadas / Histórico: agrupadas por funcionário ────────────────
+    // ── Histórico: agrupadas por funcionário ─────────────────────────────
     const grupos = {};
     entries.forEach(([id, pat]) => {
         const key = pat.funcionario || '—';
@@ -1893,14 +1875,6 @@ async function renderPats() {
                 <span class="pat-group-name">${func === '—' ? 'Sem funcionário' : func}</span>
                 <span class="pat-group-count">${items.length}</span>
             </div>`;
-        // Levantadas: dar saída a todas as PATs deste funcionário de uma só vez
-        if (_patTab === 'levantadas' && items.length > 1) {
-            const btnLote = $el('button', { className: 'pat-group-saida-btn' });
-            btnLote.type = 'button';
-            btnLote.textContent = `Dar saída a todas (${items.length})`;
-            btnLote.onclick = () => openSaidaLote(func, items.map(([id]) => id));
-            header.querySelector('.pat-group-info')?.appendChild(btnLote);
-        }
         fragG.appendChild(header);
 
         items.forEach(([id, pat]) => fragG.appendChild(_buildPatCard(id, pat, _patTab, {})));
@@ -1925,8 +1899,6 @@ const _PAT_INFO_SVG  = SVG_INFO;
 
 // ── DESKTOP: layout flex row com accent, info, localização e acção ────────────
 function _buildPatCardDesktop(id, pat, tab, estabCount) {
-    const separacao  = !!pat.separacao;
-    const isLev      = tab === 'levantadas';
     const isHist     = tab === 'historico';
     const isSelected = _patSelMode && _patSelIds.has(id);
     const dias       = _calcDias(pat.criadoEm);
@@ -1936,14 +1908,11 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
     // Cor do accent
     let accentColor = 'var(--primary)';
     if (urgente)   accentColor = '#dc2626';
-    if (separacao && !urgente) accentColor = '#d97706';
-    if (isLev)     accentColor = '#16a34a';
     if (isHist)    accentColor = 'var(--text-muted)';
 
     // Classes do card
     let cardClass = 'pat-card pat-card-desktop';
     if (isSelected) cardClass += ' pat-card-selected';
-    if (isLev)      cardClass += ' pat-card-levantada';
     if (isHist)     cardClass += ' pat-card-historico';
     const card = $el('div');
     card.className = cardClass;
@@ -1974,12 +1943,6 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
     patBadge.textContent = 'PAT ' + (pat.numero || '—');
     topLeft.appendChild(patBadge);
 
-    // Tag separação / guia
-    if (separacao) {
-        const sepTag = $el('span', { className: 'pat-sep-tag', textContent: 'Guia Transporte' });
-        topLeft.appendChild(sepTag);
-    }
-
     // Badge duplicados
     if (tab === 'pendentes') {
         const dupCount = estabCount[nomeNorm] || 0;
@@ -1994,10 +1957,8 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
     // Dias / data
     const diasSpan = $el('span');
     diasSpan.className = 'pat-dias' + (urgente ? ' pat-dias-urgente' : '');
-    if (isHist && pat.saidaEm) {
-        diasSpan.textContent = new Date(pat.saidaEm).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
-    } else if (isLev && pat.levantadoEm) {
-        diasSpan.textContent = new Date(pat.levantadoEm).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+    if (isHist && (pat.saidaEm || pat.levantadoEm)) {
+        diasSpan.textContent = new Date(pat.saidaEm || pat.levantadoEm).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
     } else {
         diasSpan.textContent = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
     }
@@ -2030,23 +1991,6 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
     body.appendChild(topRow);
     body.appendChild(estabDiv);
     if (metaRow.children.length > 0 || metaRow.innerHTML) body.appendChild(metaRow);
-
-    // Pills de progresso (Pendente → Com Guia → Separação) — só nas PATs antigas com guia de transporte
-    if (separacao && (tab === 'pendentes' || tab === 'levantadas')) {
-        const stepsDiv = $el('div', { className: 'pat-steps' });
-        const steps = [
-            { label: 'Pendente',  done: true },
-            { label: 'Com Guia',  done: separacao },
-            { label: 'Separação', done: separacao && isLev },
-        ];
-        steps.forEach(s => {
-            const pill = $el('div');
-            pill.className = 'pat-step-pill ' + (s.done ? 'done' : 'pending');
-            pill.textContent = s.label;
-            stepsDiv.appendChild(pill);
-        });
-        body.appendChild(stepsDiv);
-    }
 
     if ((pat.produtos || []).length > 0) body.appendChild(prodsDiv);
 
@@ -2089,20 +2033,6 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
         actionDiv.appendChild(btnEdit);
         actionDiv.appendChild(btnLev);
         actionDiv.appendChild(btnDel);
-    } else if (tab === 'levantadas') {
-        const btnEdit = $el('button', { className: 'pat-btn-edit' });
-        btnEdit.innerHTML = _PAT_EDIT_SVG;
-        btnEdit.title     = 'Editar PAT';
-        btnEdit.onclick   = () => openEditPat(id, pat);
-        const btnSaida = $el('button', { className: 'pat-btn-guia' });
-        btnSaida.innerHTML = _PAT_INFO_SVG + ' Detalhes';
-        btnSaida.onclick   = () => darSaidaPat(id);
-        const btnDel = $el('button', { className: 'pat-btn-apagar' });
-        btnDel.innerHTML = _PAT_DEL_SVG;
-        btnDel.onclick   = () => apagarPat(id);
-        actionDiv.appendChild(btnEdit);
-        actionDiv.appendChild(btnSaida);
-        actionDiv.appendChild(btnDel);
     } else if (tab === 'historico') {
         const btnDel = $el('button', { className: 'pat-btn-apagar' });
         btnDel.innerHTML = _PAT_DEL_SVG;
@@ -2129,8 +2059,6 @@ function _buildPatCardDesktop(id, pat, tab, estabCount) {
 // ── MOBILE: layout original com bar absolute e acções em baixo ────────────────
 function _buildPatCardMobile(id, pat, tab, estabCount) {
     const card = $el('div');
-    const separacao  = !!pat.separacao;
-    const isLev      = tab === 'levantadas';
     const isHist     = tab === 'historico';
     const isSelected = _patSelMode && _patSelIds.has(id);
     const dias       = _calcDias(pat.criadoEm);
@@ -2138,9 +2066,7 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
     const nomeNorm   = (pat.estabelecimento || '').trim().toLowerCase();
 
     let cardClass = 'pat-card';
-    if (separacao && !urgente) cardClass += ' pat-card-separacao';
     if (urgente)               cardClass += ' pat-card-urgente';
-    if (isLev)                 cardClass += ' pat-card-levantada';
     if (isHist)                cardClass += ' pat-card-historico';
     if (isSelected)            cardClass += ' pat-card-selected';
     card.className = cardClass;
@@ -2162,11 +2088,6 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
     patBadge.textContent = 'PAT ' + (pat.numero || '—');
     cardTopLeft.appendChild(patBadge);
 
-    if (separacao) {
-        const sepTag = $el('span', { className: 'pat-sep-tag', textContent: 'Guia Transporte' });
-        cardTopLeft.appendChild(sepTag);
-    }
-
     if (tab === 'pendentes') {
         const dupCount = estabCount[nomeNorm] || 0;
         if (dupCount > 1) {
@@ -2179,13 +2100,11 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
 
     const diasSpan = $el('span');
     diasSpan.className = 'pat-dias' + (urgente ? ' pat-dias-urgente' : '');
-    if (isHist && pat.saidaEm) {
-        const d = new Date(pat.saidaEm);
-        diasSpan.textContent = d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
-        const diasRestantes = 15 - _calcDias(pat.saidaEm);
+    if (isHist && (pat.saidaEm || pat.levantadoEm)) {
+        const refTs = pat.saidaEm || pat.levantadoEm;
+        diasSpan.textContent = new Date(refTs).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+        const diasRestantes = 15 - _calcDias(refTs);
         if (diasRestantes <= 3) diasSpan.style.color = 'var(--text-muted)';
-    } else if (isLev && pat.levantadoEm) {
-        diasSpan.textContent = new Date(pat.levantadoEm).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
     } else {
         diasSpan.textContent = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
     }
@@ -2238,20 +2157,6 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
         actionsDiv.appendChild(btnLev);
         actionsDiv.appendChild(btnDel);
         actionsDiv.appendChild(btnMapa);
-    } else if (tab === 'levantadas') {
-        const btnEdit = $el('button', { className: 'pat-btn-edit' });
-        btnEdit.innerHTML = _PAT_EDIT_SVG;
-        btnEdit.title     = 'Editar PAT';
-        btnEdit.onclick   = () => openEditPat(id, pat);
-        const btnSaida = $el('button', { className: 'pat-btn-guia' });
-        btnSaida.innerHTML = _PAT_INFO_SVG + ' Detalhes';
-        btnSaida.onclick   = () => darSaidaPat(id);
-        const btnDel = $el('button', { className: 'pat-btn-apagar' });
-        btnDel.innerHTML = _PAT_DEL_SVG;
-        btnDel.onclick   = () => apagarPat(id);
-        actionsDiv.appendChild(btnEdit);
-        actionsDiv.appendChild(btnSaida);
-        actionsDiv.appendChild(btnDel);
     } else if (tab === 'historico') {
         const btnDel = $el('button', { className: 'pat-btn-apagar' });
         btnDel.innerHTML = _PAT_DEL_SVG;
@@ -2294,18 +2199,19 @@ function setPatTab(tab) {
     const searchEl = $id('pat-search');
     if (searchEl) searchEl.value = '';
     _patSearchQuery = '';
-    if (tab === 'pendentes') {
-        const cbEl = $id('pat-guia-only');
-        if (cbEl) cbEl.checked = false;
-    }
     renderPats();
 }
 
-// ── Levantar Encomenda — modal de funcionário ─────────────
-async function openLevantarModal() {
+// ── Levantar PAT — menu de seleção de funcionário ─────────────
+// Não se levanta nenhuma PAT sem funcionário: este menu abre SEMPRE antes.
+//   openLevantarModal()                  → "Levantar várias" (entra no modo de seleção)
+//   openLevantarModal(w => ..., 'PAT 1') → escolhe o funcionário para UMA PAT
+async function openLevantarModal(onPick = null, subtitulo = '') {
     const modal = $id('levantar-modal');
     const list  = $id('levantar-worker-list');
     if (!modal || !list) return;
+    const desc = $id('levantar-modal-desc');
+    if (desc) desc.textContent = subtitulo ? `Quem vai levantar a ${subtitulo}?` : 'Quem vai levantar?';
 
     list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem">A carregar...</div>';
     modal.classList.add('active');
@@ -2315,13 +2221,13 @@ async function openLevantarModal() {
 
     list.innerHTML = '';
     if (!workers.length) {
-        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem">Sem funcionários registados.</div>';
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem">Sem funcionários registados — adiciona-os em Administração → Funcionários. Sem funcionário não é possível levantar PATs.</div>';
         return;
     }
     workers.forEach(w => {
         const opt = $el('div', { className: 'worker-option' });
         opt.textContent = w.nome;
-        opt.onclick     = () => { closeLevantarModal(); startLevantarMode(w.nome); };
+        opt.onclick     = () => { closeLevantarModal(); if (onPick) onPick(w.nome); else startLevantarMode(w.nome); };
         list.appendChild(opt);
     });
 }
@@ -2418,114 +2324,16 @@ async function levantarSelectedPats() {
     _patLevantarSlot(prev);
 }
 
-// ── Dar saída — apaga a PAT levantada imediatamente ─────
-async function darSaidaPat(id) {
-    const pat = _patCache.data?.[id];
-    openConfirmModal({
-        title: 'Dar saída a esta PAT?',
-        type: 'success', okLabel: 'Dar saída',
-        desc: pat?.separacao
-            ? 'A PAT vai para o histórico (15 dias). Guia de transporte concluída.'
-            : 'A PAT vai para o histórico onde ficará 15 dias.',
-        onConfirm: async () => {
-            try {
-                const payload = { status: 'historico', saidaEm: Date.now() };
-                await apiFetch(`${BASE_URL}/pedidos/${id}.json`, {
-                    method: 'PATCH',
-                    body: JSON.stringify(payload),
-                });
-                if (_patCache.data?.[id]) Object.assign(_patCache.data[id], payload);
-                renderPats();
-                updatePatCount();
-                showToast('Saída dada — PAT no histórico!');
-            } catch(_e) { showToast('Erro ao dar saída', 'error'); }
-        }
-    });
-}
-
-// ── Dar saída em lote — todas as PATs levantadas de um funcionário ──────────
-// Mostra a lista (todas marcadas); desmarca as que não queres. A seleção fica em
-// memória (o modal limpa o seu conteúdo antes de executar a ação).
-function openSaidaLote(func, ids) {
-    const nome = func === '—' ? 'Sem funcionário' : func;
-    const pats = ids.map(id => [id, _patCache.data?.[id]])
-        .filter(([, p]) => p && p.status === 'levantado')
-        .sort((a, b) => (b[1].levantadoEm || 0) - (a[1].levantadoEm || 0));
-    if (!pats.length) { showToast('Nada para dar saída.', 'info'); return; }
-
-    const sel = new Set(pats.map(([id]) => id));
-    const refresh = (box) => {
-        const all = box.querySelector('.sl-all');
-        if (all) { all.checked = sel.size === pats.length; all.indeterminate = sel.size > 0 && sel.size < pats.length; }
-        const b = $id('confirm-modal-ok');
-        if (b) b.textContent = `Dar saída (${sel.size})`;
-    };
-
-    openConfirmModal({
-        title: `Dar saída — ${nome}`,
-        type: 'success', okLabel: `Dar saída (${pats.length})`,
-        desc: 'As PATs escolhidas vão para o histórico, onde ficam 15 dias.',
-        onConfirm: async () => { await _patDarSaidaLote([...sel]); },
-    });
-
-    const slot = $id('confirm-modal-slot');
-    if (!slot) return;
-    const dt = ts => ts ? new Date(ts).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' }) : '';
-    slot.innerHTML = `<div class="lv-box sl-box">
-        <label class="sl-row sl-row-all"><input type="checkbox" class="sl-all" checked><span class="sl-main"><b>Selecionar todas</b></span><span class="sl-date">${pats.length}</span></label>
-        ${pats.map(([id, p]) => `<label class="sl-row"><input type="checkbox" class="sl-chk" value="${escapeHtml(id)}" checked>
-            <span class="sl-main"><b>PAT ${escapeHtml(p.numero || '—')}</b><small>${escapeHtml(p.estabelecimento || 'Sem estabelecimento')}</small></span>
-            <span class="sl-date">${dt(p.levantadoEm)}</span></label>`).join('')}
-    </div>`;
-    const box = slot.querySelector('.sl-box');
-    box.addEventListener('change', e => {
-        const t = e.target;
-        if (t.classList.contains('sl-all')) {
-            box.querySelectorAll('.sl-chk').forEach(c => { c.checked = t.checked; });
-            if (t.checked) pats.forEach(([id]) => sel.add(id)); else sel.clear();
-        } else if (t.classList.contains('sl-chk')) {
-            if (t.checked) sel.add(t.value); else sel.delete(t.value);
-        }
-        refresh(box);
-    });
-}
-
-// Move várias PATs levantadas para o histórico. Um PATCH por PAT (a fila offline
-// agrupa pedidos ao mesmo endereço, por isso não se junta tudo num só).
-async function _patDarSaidaLote(ids) {
-    if (!ids.length) { showToast('Nenhuma PAT selecionada.', 'error'); return; }
-    const payload = { status: 'historico', saidaEm: Date.now() };
-    const results = await Promise.allSettled(ids.map(async id => {
-        const pat = _patCache.data?.[id];
-        if (!pat || pat.status !== 'levantado') return;
-        const prev = { status: pat.status, saidaEm: pat.saidaEm };
-        Object.assign(pat, payload);                                  // optimista
-        try {
-            await apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'PATCH', body: JSON.stringify(payload) });
-        } catch (e) {
-            Object.assign(pat, prev);                                 // reverte esta PAT
-            throw e;
-        }
-    }));
-    const falhas = results.filter(r => r.status === 'rejected').length;
-    const ok = ids.length - falhas;
-    renderPats();
-    updatePatCount();
-    if (falhas) showToast(`${ok} com saída dada, ${falhas} falharam — tenta de novo`, 'error');
-    else showToast(`Saída dada a ${ok} PAT${ok > 1 ? 's' : ''} — no histórico!`);
-}
-
 async function limparTabActual() {
-    const statusAlvo = _patTab === 'historico' ? 'historico' : 'levantado';
+    // Só existe no Histórico (inclui PATs antigas ainda marcadas "levantado")
     const alvo = Object.entries(_patCache.data || {})
-        .filter(([, p]) => p.status === statusAlvo);
+        .filter(([, p]) => p.status === 'historico' || p.status === 'levantado');
     if (!alvo.length) { showToast('Nada para limpar.', 'info'); return; }
 
-    const label = statusAlvo === 'historico' ? 'histórico' : 'levantadas';
     openConfirmModal({
         title: `Limpar ${alvo.length} registo${alvo.length > 1 ? 's' : ''}?`,
         type: 'danger',
-        desc: `Remove todas as PATs do ${label}. Esta acção é irreversível.`,
+        desc: 'Remove todas as PATs do histórico. Esta acção é irreversível.',
         onConfirm: async () => {
             try {
                 // Guardar snapshots de todos os meses afectados ANTES de apagar.
@@ -3358,7 +3166,7 @@ async function savePat() {
     // para proteger contra dois utilizadores a criar a mesma PAT em simultâneo.
     if (!isEdit) {
         const patsExistentes = Object.values(_patCache.data || {});
-        const duplicadoLocal = patsExistentes.find(p => p.numero === numero && p.status !== 'levantado');
+        const duplicadoLocal = patsExistentes.find(p => p.numero === numero && p.status !== 'levantado' && p.status !== 'historico');
         if (duplicadoLocal) {
             hint.textContent = `PAT ${numero} já está registada (${duplicadoLocal.estabelecimento || 'sem estabelecimento'}).`;
             hint.style.color = 'var(--danger)';
@@ -3373,7 +3181,7 @@ async function savePat() {
                 if (checkRes.ok) {
                     const remote = await checkRes.json();
                     if (remote && typeof remote === 'object') {
-                        const remoteActive = Object.values(remote).find(p => p.status !== 'levantado');
+                        const remoteActive = Object.values(remote).find(p => p.status !== 'levantado' && p.status !== 'historico');
                         if (remoteActive) {
                             hint.textContent = `PAT ${numero} já está registada por outro utilizador.`;
                             hint.style.color = 'var(--danger)';
@@ -3527,12 +3335,15 @@ function _patLevantarSlot(prev) {
     slot.innerHTML = html;
 }
 
-// Marca UMA PAT como levantada (optimista no cache, revertido se falhar).
+// Levanta UMA PAT: vai direto para o Histórico (optimista no cache, revertido se falhar).
+// Exige funcionário — nunca se levanta uma PAT sem saber quem a levantou.
 async function _patMarcarLevantado(id, extra = {}) {
     const pat = _patCache.data?.[id];
     if (!pat) return false;
-    const prev = { status: pat.status, levantadoEm: pat.levantadoEm, funcionario: pat.funcionario };
-    const payload = { status: 'levantado', levantadoEm: Date.now(), ...extra };
+    if (!extra.funcionario) { console.warn('[PAT] levantar sem funcionário — bloqueado:', id); return false; }
+    const prev = { status: pat.status, levantadoEm: pat.levantadoEm, saidaEm: pat.saidaEm, funcionario: pat.funcionario };
+    const ts = Date.now();
+    const payload = { status: 'historico', levantadoEm: ts, saidaEm: ts, ...extra };
     Object.assign(pat, payload);          // síncrono — protege contra duplo clique
     try {
         await apiFetch(`${BASE_URL}/pedidos/${id}.json`, { method: 'PATCH', body: JSON.stringify(payload) });
@@ -3600,35 +3411,40 @@ function _patLevantarResumo(res, okMsg) {
     }, 80);
 }
 
-async function marcarPatLevantado(id, { onDone } = {}) {
+async function marcarPatLevantado(id, { onDone, worker } = {}) {
     const pat = _patCache.data?.[id];
     if (!pat) return;
-    // Protecção contra duplo-clique: verificar se já está levantado no cache local
-    if (pat.status === 'levantado') {
+    // Protecção contra duplo-clique: verificar se já foi levantada (cache local)
+    if (pat.status === 'levantado' || pat.status === 'historico') {
         showToast('PAT já foi levantada', 'error'); return;
+    }
+    // 1.º passo: escolher o funcionário (obrigatório). Só depois pede a confirmação.
+    if (!worker) {
+        openLevantarModal(w => marcarPatLevantado(id, { onDone, worker: w }), `PAT ${pat.numero || ''}`.trim());
+        return;
     }
     const comProdutos = (pat.produtos || []).length > 0;
 
     const desc = comProdutos
-        ? 'O stock dos produtos desta PAT será descontado automaticamente.'
-        : 'Esta PAT não tem produtos — o stock não será alterado.';
+        ? 'O stock dos produtos é descontado automaticamente.'
+        : 'Não tem produtos, por isso o stock não é alterado.';
 
     const prev = await _patLevantarPreview([id]);
 
     openConfirmModal({
-        title: 'Marcar como levantado?',
+        title: `Levantar PAT ${pat.numero || ''}?`.replace(' ?', '?'),
         type: 'success', okLabel: 'Levantar',
-        desc,
+        desc: `${worker} levanta esta PAT e ela passa para o Histórico. ${desc}`,
         onConfirm: async () => {
             try {
-                if (_patCache.data?.[id]?.status === 'levantado') {
+                if (['levantado', 'historico'].includes(_patCache.data?.[id]?.status)) {
                     showToast('PAT já foi levantada', 'error'); return;
                 }
-                // 1 — Marca como levantado (com suporte offline). Se falhar, nada é descontado.
-                const ok = await _patMarcarLevantado(id);
+                // 1 — Levanta (com suporte offline). Se falhar, nada é descontado.
+                const ok = await _patMarcarLevantado(id, { funcionario: worker });
                 if (!ok) { showToast('Erro ao actualizar pedido', 'error'); renderPats(); return; }
 
-                // 2 — Se separação: desconta stock (delta seguro em multi-utilizador)
+                // 2 — Desconta o stock dos produtos (delta seguro em multi-utilizador)
                 const res = await _patDescontarStock([id]);
                 if (comProdutos) renderList();
 
@@ -3665,7 +3481,6 @@ function openPatDetail(id, pat) {
     const dias      = _calcDias(pat.criadoEm);
     const dataStr   = pat.criadoEm ? new Date(pat.criadoEm).toLocaleDateString('pt-PT') : '—';
     const urgente   = dias >= 20;
-    const separacao = !!pat.separacao;
     const body      = $id('pat-detail-body');
     body.innerHTML  = '';
 
@@ -3707,11 +3522,6 @@ function openPatDetail(id, pat) {
     estadoBadge.textContent = (urgente ? '🔴 Urgente' : '🟡 Pendente') + ' · ' + (dias === 0 ? 'hoje' : `${dias}d`);
     hdrTop.appendChild(estadoBadge);
 
-    if (separacao) {
-        const st = $el('span', { className: 'pat-sep-tag' });
-        st.textContent = 'Guia Transporte';
-        hdrTop.appendChild(st);
-    }
     hdr.appendChild(hdrTop);
 
     // Linha 2: nome do estabelecimento em destaque

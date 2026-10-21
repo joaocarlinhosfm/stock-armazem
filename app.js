@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// app.js — Hiperfrio v6.73
+// app.js — Hiperfrio v6.74
 // Lógica principal: stock, ferramentas, PATs, encomendas, mapa, inventário.
 //
 // DEPENDÊNCIAS (carregadas antes via index.html):
@@ -515,7 +515,6 @@ function _dvCompute(stockData, ferrData) {
         total, comStock, semStock, zero,
         alocadas: alocList.length, totalFerr: ferra.length, alocList, atraso,
         patPendentes: patsPend.length, patsPend, patUrgentes,
-        patComGuia: patsPend.filter(([, p]) => !!p.separacao).length,
         patHoje:    patsPend.filter(([, p]) => p.criadoEm && _calcDias(p.criadoEm) === 0).length,
         encPendentes, encParciais, encActivas: encPendentes + encParciais, encAtivas, encFaltam: Math.round(faltam * 100) / 100,
         gases: _getGasItems(stockData),
@@ -745,7 +744,7 @@ function _dvPatsCard(c) {
         const urg  = dias >= _DV_PAT_URGENTE_DIAS;
         return `<button type="button" class="dv4-row" data-dv-act="pat" data-dv-id="${esc(id)}">
             <span class="dv4-dot ${urg ? 'bad' : 'info'}"></span>
-            <span class="dv4-row-main"><b>PAT ${esc(p.numero || '—')}${p.separacao ? ' <span class="dv4-chip dv4-chip-warn">Guia</span>' : ''}</b><small>${esc(p.estabelecimento || 'Sem estabelecimento')}</small></span>
+            <span class="dv4-row-main"><b>PAT ${esc(p.numero || '—')}</b><small>${esc(p.estabelecimento || 'Sem estabelecimento')}</small></span>
             <span class="dv4-age${urg ? ' urg' : ''}">${dias === 0 ? 'Hoje' : dias + 'd'}</span>
         </button>`;
     }).join('');
@@ -824,7 +823,6 @@ function _dvDraw(el, c, rows) {
     const pctOk = c.total > 0 ? Math.round(c.comStock / c.total * 100) : 0;
     const chips = [
         c.patUrgentes.length ? `<span class="dv4-chip dv4-chip-bad">${c.patUrgentes.length} ${_dvPl(c.patUrgentes.length, 'urgente', 'urgentes')}</span>` : '',
-        c.patComGuia ? `<span class="dv4-chip dv4-chip-warn">${c.patComGuia} c/ guia</span>` : '',
         c.patHoje ? `<span class="dv4-chip dv4-chip-info">${c.patHoje} hoje</span>` : '',
     ].join('');
 
@@ -2752,8 +2750,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // SW_EXPECTED_VERSION deve bater certo com SW_VERSION em sw.js, senão o
 // client deteta sempre "SW desactualizado" e fica em loop de update.
 // SW_SCRIPT_URL tem de mudar de query string ou o browser não re-baixa o SW.
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.73';
-const SW_SCRIPT_URL = 'sw.js?v=6.73';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.74';
+const SW_SCRIPT_URL = 'sw.js?v=6.74';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados

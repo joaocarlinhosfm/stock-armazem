@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=1777400000">
+    <link rel="stylesheet" href="style.css?v=1777500000">
 
     <style id="sheet-guias">
     /* CSS das Guias Técnicos — inline para bypass de cache.
@@ -1560,10 +1560,9 @@
                             </button>
                         </div>
                     </div>
-                    <!-- Tabs Pendentes / Levantadas -->
+                    <!-- Tabs Pendentes / Histórico (levantar = a PAT vai direto para o Histórico) -->
                     <div class="pat-tabs" id="pat-tabs">
                         <button class="pat-tab active" id="pat-tab-pendentes"  onclick="setPatTab('pendentes')">Pendentes</button>
-                        <button class="pat-tab" id="pat-tab-levantadas" onclick="setPatTab('levantadas')">Levantadas</button>
                         <button class="pat-tab" id="pat-tab-historico"  onclick="setPatTab('historico')">Histórico</button>
                     </div>
                     <!-- Barra de seleção (modo levantar) -->
@@ -1575,13 +1574,9 @@
                             <button class="btn-cancel pat-sel-cancel" onclick="cancelLevantarMode()">✕</button>
                         </div>
                     </div>
-                    <!-- Sub-filtro guias (levantadas e histórico) -->
-                    <div class="pat-guia-filter" id="pat-guia-filter" style="display:none">
-                        <label class="pat-guia-toggle">
-                            <input type="checkbox" id="pat-guia-only" onchange="renderPats()">
-                            <span>Só com guia de transporte</span>
-                        </label>
-                        <button class="pat-guia-limpar-btn" id="pat-guia-limpar-btn" onclick="limparTabActual()">Limpar</button>
+                    <!-- Barra do histórico -->
+                    <div class="pat-guia-filter" id="pat-hist-bar" style="display:none;justify-content:flex-end">
+                        <button class="pat-guia-limpar-btn" id="pat-guia-limpar-btn" onclick="limparTabActual()">Limpar histórico</button>
                     </div>
                     <input type="search" id="pat-search" class="blue-input pat-search-input"
                         placeholder="Pesquisar por PAT ou estabelecimento..."
@@ -2285,14 +2280,14 @@
     </nav>
 
 
-    <!-- Modal: Levantar Encomenda — escolher funcionário -->
+    <!-- Modal: Levantar PAT — escolher funcionário -->
     <div id="levantar-modal" class="modal-overlay" role="dialog" aria-modal="true">
         <div class="modal-content">
             <div class="modal-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
             </div>
-            <h3>Levantar Encomenda</h3>
-            <p class="modal-desc">Quem vai levantar?</p>
+            <h3>Levantar PAT</h3>
+            <p class="modal-desc" id="levantar-modal-desc">Quem vai levantar?</p>
             <div id="levantar-worker-list" class="worker-select-list"></div>
             <button onclick="closeLevantarModal()" class="btn-cancel" style="margin-top:8px">Cancelar</button>
         </div>
@@ -3208,14 +3203,14 @@
     <!-- Chart.js, Leaflet + MarkerCluster são carregados sob demanda por loadChart() e loadLeaflet() em utils.js -->
     <!-- Módulos extraídos — Fase 1+2+3+4 da modularização -->
     <!-- ORDEM OBRIGATÓRIA: utils → auth → reports → stock → tools → pats → guias → app (preservada por defer) -->
-    <script defer src="utils.js?v=6.73"></script>
-    <script defer src="auth.js?v=6.73"></script>
-    <script defer src="reports.js?v=6.73"></script>
-    <script defer src="stock.js?v=6.73"></script>
-    <script defer src="stockimport.js?v=6.73"></script>
-    <script defer src="tools.js?v=6.73"></script>
-    <script defer src="pats.js?v=6.73"></script>
-    <script defer src="guias.js?v=6.73"></script>
-    <script defer src="app.js?v=6.73"></script>
+    <script defer src="utils.js?v=6.74"></script>
+    <script defer src="auth.js?v=6.74"></script>
+    <script defer src="reports.js?v=6.74"></script>
+    <script defer src="stock.js?v=6.74"></script>
+    <script defer src="stockimport.js?v=6.74"></script>
+    <script defer src="tools.js?v=6.74"></script>
+    <script defer src="pats.js?v=6.74"></script>
+    <script defer src="guias.js?v=6.74"></script>
+    <script defer src="app.js?v=6.74"></script>
 </body>
 </html>
