@@ -1088,7 +1088,7 @@ async function exportCSV() {
     const url  = URL.createObjectURL(blob);
     Object.assign($el('a'), {
         href: url,
-        download: `hiperfrio-stock-${new Date().toISOString().slice(0,10)}.csv`
+        download: `gestao-armazem-stock-${new Date().toISOString().slice(0,10)}.csv`
     }).click();
     URL.revokeObjectURL(url);
     if (btn) { btn.disabled = false; btn.textContent = 'Exportar'; }

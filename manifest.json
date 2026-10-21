@@ -1,7 +1,7 @@
 {
-  "name": "Hiperfrio Stock",
-  "short_name": "Hiperfrio",
-  "description": "Gestão de stock, ferramentas e pedidos PAT para armazém Hiperfrio",
+  "name": "Gestão Armazém",
+  "short_name": "Gestão Armazém",
+  "description": "Gestão de stock, ferramentas e pedidos PAT para o armazém",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -34,7 +34,7 @@
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Hiperfrio Stock — gestão de armazém"
+      "label": "Gestão Armazém"
     }
   ]
 }

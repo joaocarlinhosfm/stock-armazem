@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// app.js — Hiperfrio v6.74
+// app.js — Hiperfrio v6.76
 // Lógica principal: stock, ferramentas, PATs, encomendas, mapa, inventário.
 //
 // DEPENDÊNCIAS (carregadas antes via index.html):
@@ -2153,7 +2153,7 @@ function _openInvResult(stats) {
 async function exportInventoryExcel() {
     await loadXlsx();
     const wb       = _buildInventoryWorkbook();
-    const filename = `inventario-hiperfrio-${new Date().toISOString().slice(0,10)}.xlsx`;
+    const filename = `inventario-gestao-armazem-${new Date().toISOString().slice(0,10)}.xlsx`;
     XLSX.writeFile(wb, filename);
     showToast('Excel exportado com sucesso!');
 }
@@ -2175,9 +2175,9 @@ async function exportInventoryEmail(parcial = false) {
         });
 
     const parcialLabel = parcial ? ' [PARCIAL]' : '';
-    const subject = encodeURIComponent(`Inventário Hiperfrio${parcialLabel} — ${dateStr}`);
+    const subject = encodeURIComponent(`Inventário Gestão Armazém${parcialLabel} — ${dateStr}`);
     const body = encodeURIComponent(
-        `Inventário Hiperfrio${parcialLabel} — ${dateStr}\n\n`
+        `Inventário Gestão Armazém${parcialLabel} — ${dateStr}\n\n`
         + `Produtos verificados: ${Object.keys(_invChanges).length}/${_invItems.length}\n`
         + (parcial ? `Por verificar: ${_invItems.length - Object.keys(_invChanges).length - _invSkipped.size}\n` : '')
         + `Diferenças encontradas: ${diffRows.length}\n\n`
@@ -2195,11 +2195,11 @@ async function exportInventoryEmail(parcial = false) {
                 [XLSX.write(wb, { bookType: 'xlsx', type: 'array' })],
                 { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
             );
-            const filename = `inventario-hiperfrio${parcial ? '-parcial' : ''}-${now.toISOString().slice(0,10)}.xlsx`;
+            const filename = `inventario-gestao-armazem${parcial ? '-parcial' : ''}-${now.toISOString().slice(0,10)}.xlsx`;
             const file = new File([blob], filename, { type: blob.type });
             if (navigator.canShare({ files: [file] })) {
                 await navigator.share({
-                    title: `Inventário Hiperfrio${parcialLabel} — ${dateStr}`,
+                    title: `Inventário Gestão Armazém${parcialLabel} — ${dateStr}`,
                     text:  `Relatório de inventário de ${dateStr}`,
                     files: [file],
                 });
@@ -2252,7 +2252,7 @@ function _buildInventoryWorkbook() {
         XLSX.utils.book_append_sheet(wb, ws2, 'Diferenças');
     }
     const ws3 = XLSX.utils.aoa_to_sheet([
-        ['Hiperfrio Stock — Relatório de Inventário',''],
+        ['Gestão Armazém — Relatório de Inventário',''],
         ['Data', now.toLocaleDateString('pt-PT')],
         ['Hora', now.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})],
         ['Produtos verificados', Object.keys(_invChanges).length],
@@ -2750,8 +2750,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // SW_EXPECTED_VERSION deve bater certo com SW_VERSION em sw.js, senão o
 // client deteta sempre "SW desactualizado" e fica em loop de update.
 // SW_SCRIPT_URL tem de mudar de query string ou o browser não re-baixa o SW.
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.74';
-const SW_SCRIPT_URL = 'sw.js?v=6.74';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.76';
+const SW_SCRIPT_URL = 'sw.js?v=6.76';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados

@@ -6453,6 +6453,18 @@ body.is-offline #app-layout {
 .dv4-sk { border-radius: 16px; background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border) 37%, var(--bg-secondary) 63%); background-size: 400% 100%; animation: dv4sh 1.3s ease infinite; }
 @keyframes dv4sh { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
 
+/* Cabeçalho em ecrãs muito estreitos (≤ 340 px): "Gestão Armazém" é mais comprido que o nome antigo */
+@media (max-width: 340px) {
+    header { padding: 0 14px; }
+    .header-logo { gap: 7px; }
+    .header-brand { font-size: .8rem; letter-spacing: -.3px; }
+    .header-right { gap: 6px; }
+    .header-view-badge { max-width: 92px; padding: 3px 7px; font-size: .66rem; }
+}
+
+/* Histórico de PATs — nota de retenção */
+.pat-hist-note { font-size: .76rem; font-weight: 600; color: var(--text-muted); }
+
 /* Encomendas — contagem dentro dos filtros (Pendentes / Parciais / Completas) */
 .enc-filter-n { display: inline-block; min-width: 18px; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-size: 0.68rem; font-weight: 800; line-height: 1.35; text-align: center; }
 .enc-filter-n:empty { display: none; }

@@ -592,7 +592,7 @@ async function exportToolHistoryCSV() {
         const url  = URL.createObjectURL(blob);
         Object.assign($el('a'), {
             href: url,
-            download: `hiperfrio-historico-ferramentas-${new Date().toISOString().slice(0,10)}.csv`
+            download: `gestao-armazem-historico-ferramentas-${new Date().toISOString().slice(0,10)}.csv`
         }).click();
         URL.revokeObjectURL(url);
         showToast(`${rows.length} registos exportados!`);
