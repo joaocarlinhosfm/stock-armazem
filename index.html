@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=1777700000">
+    <link rel="stylesheet" href="style.css?v=1777800000">
 
     <style id="sheet-guias">
     /* CSS das Guias Técnicos — inline para bypass de cache.
@@ -1384,7 +1384,7 @@
                     <div class="ls-btn-spinner hidden" id="ls-spinner"></div>
                 </button>
             </form>
-            <div class="ls-version">v6.76 · Gestão Armazém</div>
+            <div class="ls-version">v6.77 · Gestão Armazém</div>
         </div>
     </div>
 
@@ -2101,6 +2101,14 @@
                 </div>
 
                 <div class="settings-group-label">DADOS</div>
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <span class="settings-item-title">Cópia de segurança completa</span>
+                        <span class="settings-item-desc">Descarrega TUDO (stock, PATs, encomendas, ferramentas, relatórios…) num ficheiro JSON. Sem palavras-passe.</span>
+                        <span class="settings-item-desc" id="backup-status">—</span>
+                    </div>
+                    <button class="btn-settings-action" id="backup-btn" onclick="exportBackupJSON()">Descarregar</button>
+                </div>
                 <div class="settings-item settings-item--email">
                     <div class="settings-item-info">
                         <span class="settings-item-title">Email do Inventário</span>
@@ -3204,14 +3212,15 @@
     <!-- Chart.js, Leaflet + MarkerCluster são carregados sob demanda por loadChart() e loadLeaflet() em utils.js -->
     <!-- Módulos extraídos — Fase 1+2+3+4 da modularização -->
     <!-- ORDEM OBRIGATÓRIA: utils → auth → reports → stock → tools → pats → guias → app (preservada por defer) -->
-    <script defer src="utils.js?v=6.76"></script>
-    <script defer src="auth.js?v=6.76"></script>
-    <script defer src="reports.js?v=6.76"></script>
-    <script defer src="stock.js?v=6.76"></script>
-    <script defer src="stockimport.js?v=6.76"></script>
-    <script defer src="tools.js?v=6.76"></script>
-    <script defer src="pats.js?v=6.76"></script>
-    <script defer src="guias.js?v=6.76"></script>
-    <script defer src="app.js?v=6.76"></script>
+    <script defer src="utils.js?v=6.77"></script>
+    <script defer src="auth.js?v=6.77"></script>
+    <script defer src="reports.js?v=6.77"></script>
+    <script defer src="stock.js?v=6.77"></script>
+    <script defer src="stockimport.js?v=6.77"></script>
+    <script defer src="backup.js?v=6.77"></script>
+    <script defer src="tools.js?v=6.77"></script>
+    <script defer src="pats.js?v=6.77"></script>
+    <script defer src="guias.js?v=6.77"></script>
+    <script defer src="app.js?v=6.77"></script>
 </body>
 </html>

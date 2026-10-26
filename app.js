@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// app.js — Hiperfrio v6.76
+// app.js — Hiperfrio v6.77
 // Lógica principal: stock, ferramentas, PATs, encomendas, mapa, inventário.
 //
 // DEPENDÊNCIAS (carregadas antes via index.html):
@@ -89,6 +89,24 @@ function queueSave(q) {
     _queueScheduleSave();
 }
 
+// Junta dois PATCH ao mesmo endereço (antes o 2.º SUBSTITUÍA o 1.º e perdia campos).
+//  • campos diferentes            → ficam todos
+//  • mesmo campo                  → vale o mais recente
+//  • dois incrementos do servidor → somam-se (ex.: stock −2 e depois +1 = −1)
+function _mergePatchBodies(oldBody, newBody) {
+    let o, n;
+    try { o = JSON.parse(oldBody || '{}'); n = JSON.parse(newBody || '{}'); } catch (_) { return newBody; }
+    const inc = v => (v && typeof v === 'object' && v['.sv'] && Number.isFinite(v['.sv'].increment)) ? v['.sv'].increment : null;
+    const r3  = x => Math.round(x * 1000) / 1000;
+    for (const k of Object.keys(n)) {
+        const ni = inc(n[k]), oi = inc(o[k]);
+        if (ni !== null && oi !== null)                    o[k] = { '.sv': { increment: r3(oi + ni) } };
+        else if (ni !== null && typeof o[k] === 'number')  o[k] = r3(o[k] + ni);      // valor absoluto + variação
+        else                                               o[k] = n[k];
+    }
+    return JSON.stringify(o);
+}
+
 function queueAdd(op) {
     // Regista Background Sync ao adicionar à fila
     if ('serviceWorker' in navigator && 'SyncManager' in window) {
@@ -102,10 +120,11 @@ function queueAdd(op) {
     const cutoff = Date.now() - QUEUE_TTL_MS;
     _queueMem = _queueMem.filter(o => !o.ts || o.ts > cutoff);
 
-    // Colapsar PATCHes repetidos ao mesmo URL
+    // Juntar PATCHes repetidos ao mesmo URL (sem perder campos nem variações)
     if (op.method === 'PATCH') {
         const idx = _queueMem.findIndex(o => o.method === 'PATCH' && o.url === op.url);
-        if (idx !== -1) { _queueMem[idx] = op; } else { _queueMem.push(op); }
+        if (idx !== -1) { _queueMem[idx] = { ...op, body: _mergePatchBodies(_queueMem[idx].body, op.body) }; }
+        else { _queueMem.push(op); }
     } else {
         // FIX: ignorar operações em IDs temporários (_tmp_) para não enviar URLs inválidos
         if (op.url && op.url.includes('/_tmp_')) return;
@@ -113,6 +132,27 @@ function queueAdd(op) {
     }
     _queueScheduleSave();
     updateOfflineBanner();
+}
+
+// Variações de stock feitas offline podem, ao somar, deixar o artigo abaixo de 0
+// (ex.: outra pessoa já tinha levantado o material). Repõe a 0, de forma atómica.
+async function _syncFixNegativeStock(op, res) {
+    if (op.method !== 'PATCH' || !op.body || !op.body.includes('"increment"')) return;
+    if (!/\/stock\/[^/]+\.json$/.test(op.url)) return;
+    try {
+        let q = null;
+        try { const j = await res.clone().json(); if (j && typeof j.quantidade === 'number') q = j.quantidade; } catch (_) {}
+        if (q === null) {
+            const r2 = await fetch(await authUrl(op.url.replace(/\.json$/, '/quantidade.json')));
+            if (r2.ok) { const v = await r2.json(); if (typeof v === 'number') q = v; }
+        }
+        if (q !== null && q < 0) {
+            await fetch(await authUrl(op.url), {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ quantidade: { '.sv': { increment: Math.round(-q * 1000) / 1000 } } }),
+            });
+        }
+    } catch (e) { console.warn('[Queue] correcção de stock negativo falhou:', e?.message); }
 }
 
 async function syncQueue() {
@@ -129,6 +169,7 @@ async function syncQueue() {
                 const signedUrl = await authUrl(op.url);
                 const res = await fetch(signedUrl, opts);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                await _syncFixNegativeStock(op, res);
             } catch(_e) { console.warn('[Queue] falha ao sincronizar op:', op?.method, _e?.message); failed.push(op); }
         }
         queueSave(failed);
@@ -1100,7 +1141,7 @@ function adminMobileOpen(tab) {
     if (tab === 'clientes')  renderClientesList();
     if (tab === 'stockimport') renderStockImport();
     if (tab === 'users')     renderUsersList();
-    if (tab === 'settings')  { _updateOcrKeyStatus(); _updateGimgStatus(); _loadOcrKeywordsInput(); _loadInvEmailInput(); }
+    if (tab === 'settings')  { _updateOcrKeyStatus(); _updateGimgStatus(); _loadOcrKeywordsInput(); _loadInvEmailInput(); bkUpdateStatus(); }
     if (tab === 'tools')     renderAdminTools();
     if (tab === 'workers')   renderWorkers();
 
@@ -1176,7 +1217,7 @@ function switchAdminTab(tab, animate = true) {
     if (tab === 'clientes') renderClientesList();
     if (tab === 'stockimport') renderStockImport();
     if (tab === 'users')    renderUsersList();
-    if (tab === 'settings') { _updateOcrKeyStatus(); _updateGimgStatus(); _loadOcrKeywordsInput(); _loadInvEmailInput(); }
+    if (tab === 'settings') { _updateOcrKeyStatus(); _updateGimgStatus(); _loadOcrKeywordsInput(); _loadInvEmailInput(); bkUpdateStatus(); }
     if (tab === 'relatorio') {
         // Sempre que entramos no tab, pedimos reset ao mês actual.
         // A lógica de reset está dentro de renderRelatorio (reports.js).
@@ -2750,8 +2791,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // SW_EXPECTED_VERSION deve bater certo com SW_VERSION em sw.js, senão o
 // client deteta sempre "SW desactualizado" e fica em loop de update.
 // SW_SCRIPT_URL tem de mudar de query string ou o browser não re-baixa o SW.
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.76';
-const SW_SCRIPT_URL = 'sw.js?v=6.76';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.77';
+const SW_SCRIPT_URL = 'sw.js?v=6.77';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados
@@ -3463,14 +3504,8 @@ function openEntradaModal(encId, lIdx) {
 // ── Entrada → stock ───────────────────────────────────────────────────────
 // Procura no stock o artigo com esta referência (sem espaços, sem maiúsculas).
 function _encFindStock(ref) {
-    const key = String(ref || '').replace(/\s+/g, '').toUpperCase();
-    if (!key) return { status: 'noref' };
-    const ids = Object.entries(cache.stock.data || {})
-        .filter(([id, it]) => !id.startsWith('_tmp_') && String(it?.codigo || '').replace(/\s+/g, '').toUpperCase() === key)
-        .map(([id]) => id);
-    if (ids.length === 0) return { status: 'none' };
-    if (ids.length > 1)  return { status: 'multi', count: ids.length };
-    return { status: 'one', id: ids[0], item: cache.stock.data[ids[0]] };
+    const r = findStockByCodigo(ref);          // implementação única, em stock.js
+    return r.status === 'empty' ? { status: 'noref' } : r;
 }
 
 // Mostra o efeito no stock antes de confirmar (e desactiva a opção se não aplicável).
@@ -3501,7 +3536,7 @@ async function _encAdicionarAoStock(l, qty, enc) {
         const f = _encFindStock(l.ref);
         if (f.status === 'one') {
             const base  = Number(f.item.quantidade) || 0;
-            const saved = await _commitStockDelta(f.id, base, base + qty);
+            const { saved } = await _commitStockDelta(f.id, base, base + qty);
             f.item.quantidade = saved;
             return { ok: true, txt: `stock ${f.item.codigo}: ${base} → ${saved}` };
         }

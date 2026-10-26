@@ -6462,6 +6462,11 @@ body.is-offline #app-layout {
     .header-view-badge { max-width: 92px; padding: 3px 7px; font-size: .66rem; }
 }
 
+/* Referências de PAT sem ligação ao stock (não descontam) */
+.pat-chip-orphan { border-color: rgba(217,119,6,.55) !important; background: rgba(217,119,6,.08) !important; }
+.pat-chip-warn { color: #b45309 !important; font-style: normal !important; font-size: .7rem !important; font-weight: 700; }
+.dark-mode .pat-chip-warn { color: #fbbf24 !important; }
+
 /* Histórico de PATs — nota de retenção */
 .pat-hist-note { font-size: .76rem; font-weight: 600; color: var(--text-muted); }
 

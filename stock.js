@@ -731,22 +731,68 @@ async function _readServerStockQty(id, fallbackQty = 0) {
     }
 }
 
+// ── Procurar artigo pela referência ──────────────────────────────────────────
+// Compara sem espaços e sem diferença de maiúsculas.
+// → { status: 'empty' | 'none' | 'one' | 'multi', id?, item?, count? }
+function findStockByCodigo(codigo) {
+    const key = String(codigo || '').replace(/\s+/g, '').toUpperCase();
+    if (!key) return { status: 'empty' };
+    const ids = Object.entries(cache.stock.data || {})
+        .filter(([id, it]) => !id.startsWith('_tmp_') && String(it?.codigo || '').replace(/\s+/g, '').toUpperCase() === key)
+        .map(([id]) => id);
+    if (ids.length === 0) return { status: 'none' };
+    if (ids.length > 1)  return { status: 'multi', count: ids.length };
+    return { status: 'one', id: ids[0], item: cache.stock.data[ids[0]] };
+}
+
+// ── Gravar stock de forma ATÓMICA ────────────────────────────────────────────
+// Antes: ler o valor do servidor → somar a variação → escrever o total. Se outra
+// pessoa mexesse no mesmo artigo entre a leitura e a escrita, uma das alterações
+// perdia-se. Agora o servidor faz a soma (incremento atómico), por isso duas
+// alterações simultâneas somam-se sempre.
+// Devolve { saved, applied, queued? }:
+//   saved   — quantidade final guardada
+//   applied — variação REALMENTE aplicada (menor que a pedida se o stock chegou a 0)
+const _stRound3 = n => Math.round(n * 1000) / 1000;
+const _stIncBody = n => JSON.stringify({ quantidade: { '.sv': { increment: n } } });
+
+async function _stSavedQty(res, id, fallback) {
+    try {
+        const j = await res.clone().json();
+        if (j && typeof j.quantidade === 'number' && Number.isFinite(j.quantidade)) return j.quantidade;
+    } catch (_) { /* resposta sem o valor — lê-se do servidor */ }
+    return await _readServerStockQty(id, fallback);
+}
+
 async function _commitStockDelta(id, baseQty, finalQty) {
-    if (finalQty === undefined) return baseQty;
+    if (finalQty === undefined) return { saved: baseQty, applied: 0 };
+    const delta = _stRound3(finalQty - baseQty);
+    if (delta === 0) return { saved: baseQty, applied: 0 };
+    const url = `${BASE_URL}/stock/${id}.json`;
+
+    // Sem rede: a fila guarda a VARIAÇÃO (não o valor absoluto) — soma-se ao que
+    // estiver no servidor quando houver ligação, sem apagar o trabalho dos outros.
     if (!navigator.onLine) {
-        await apiFetch(`${BASE_URL}/stock/${id}.json`, {
-            method: 'PATCH', body: JSON.stringify({ quantidade: finalQty })
-        });
-        return finalQty;
+        await apiFetch(url, { method: 'PATCH', body: _stIncBody(delta) });
+        return { saved: finalQty, applied: delta, queued: true };
     }
 
-    const delta = finalQty - baseQty;
-    const latestQty = await _readServerStockQty(id, cache.stock.data?.[id]?.quantidade ?? baseQty);
-    const mergedQty = Math.max(0, latestQty + delta);
-    await apiFetch(`${BASE_URL}/stock/${id}.json`, {
-        method: 'PATCH', body: JSON.stringify({ quantidade: mergedQty })
-    });
-    return mergedQty;
+    // Se isto falhar, lança erro e NADA foi alterado (o chamador repõe o ecrã).
+    const res = await apiFetch(url, { method: 'PATCH', body: _stIncBody(delta) });
+    if (!res) return { saved: finalQty, applied: delta, queued: true };   // ficou offline a meio
+
+    // A partir daqui a escrita já aconteceu: não lançar erros (o ecrã não pode "voltar atrás").
+    let saved   = await _stSavedQty(res, id, _stRound3(baseQty + delta));
+    let applied = delta;
+    if (saved < 0) {
+        // Ficaria negativo (ex.: dois levantamentos em simultâneo): repõe a 0, também de forma atómica.
+        const fix = _stRound3(-saved);
+        try { await apiFetch(url, { method: 'PATCH', body: _stIncBody(fix) }); }
+        catch (e) { console.warn('[Stock] correcção a 0 falhou:', id, e?.message); }
+        applied = _stRound3(delta + fix);
+        saved   = 0;
+    }
+    return { saved, applied };
 }
 
 async function changeQtd(id, delta) {
@@ -787,7 +833,8 @@ async function changeQtd(id, delta) {
         if (finalQty === undefined) return;
         const baseQty = _qtyPendingBase[id] ?? oldQty;
         try {
-            const savedQty = await _commitStockDelta(id, baseQty, finalQty);
+            const commit   = await _commitStockDelta(id, baseQty, finalQty);
+            const savedQty = commit.saved;
             stockData[id].quantidade = savedQty;
             if (qtyEl) {
                 qtyEl.textContent = fmtQty(savedQty, stockData[id]?.unidade);
@@ -797,9 +844,9 @@ async function changeQtd(id, delta) {
             if (qtyEl) qtyEl.classList.remove('qty-saving');
 
             // Só agora, com commit confirmado: registar a saída pelo total real
-            // (diferença base→saved, não delta clique-a-clique). Se houve múltiplos
+            // (variação realmente aplicada, não delta clique-a-clique). Se houve múltiplos
             // -/+ no período do debounce, só o saldo líquido conta como saída.
-            const movido = baseQty - savedQty;
+            const movido = Math.max(0, -commit.applied);
             if (movido > 0) {
                 const _itm = stockData[id];
                 registarMovimento('saida_manual', id, _itm?.codigo, _itm?.nome, movido);

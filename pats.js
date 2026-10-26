@@ -1640,6 +1640,15 @@ async function importClientesExcel(input) {
 
 const _patCache = { data: null, lastFetch: 0 };
 
+// O Histórico guarda as PATs levantadas durante 6 meses (de calendário); depois são
+// apagadas automaticamente (os relatórios do mês já ficam guardados em snapshot).
+const PAT_HISTORICO_MESES = 6;
+function _patHistoricoExpiraEm(refTs) {
+    const d = new Date(refTs);
+    d.setMonth(d.getMonth() + PAT_HISTORICO_MESES);
+    return d.getTime();
+}
+
 async function _fetchPats(force = false) {
     const now = Date.now();
     if (!force && _patCache.data && now - _patCache.lastFetch < 120000) return _patCache.data;
@@ -1649,15 +1658,16 @@ async function _fetchPats(force = false) {
         if (!res.ok) throw new Error(res.status);
         _patCache.data = await res.json() || {};
         _patCache.lastFetch = now;
-        // Auto-limpeza: apaga entradas de histórico com mais de 15 dias
+        // Auto-limpeza: apaga entradas de histórico com mais de 6 meses
         _autoLimparHistorico();
     } catch(_e) { _patCache.data = _patCache.data || {}; }
     return _patCache.data;
 }
 
 async function _autoLimparHistorico() {
+    const agora = Date.now();
     const expirados = Object.entries(_patCache.data || {})
-        .filter(([, p]) => p.status === 'historico' && p.saidaEm && _calcDias(p.saidaEm) >= 15);
+        .filter(([, p]) => p.status === 'historico' && p.saidaEm && _patHistoricoExpiraEm(p.saidaEm) <= agora);
     if (!expirados.length) return;
 
     // ── FIX C1 (auditoria): agrupa por mês antes de apagar ─────────────
@@ -2103,8 +2113,9 @@ function _buildPatCardMobile(id, pat, tab, estabCount) {
     if (isHist && (pat.saidaEm || pat.levantadoEm)) {
         const refTs = pat.saidaEm || pat.levantadoEm;
         diasSpan.textContent = new Date(refTs).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
-        const diasRestantes = 15 - _calcDias(refTs);
-        if (diasRestantes <= 3) diasSpan.style.color = 'var(--text-muted)';
+        // a expirar (faltam 7 dias ou menos para os 6 meses): data mais discreta
+        const diasRestantes = Math.ceil((_patHistoricoExpiraEm(refTs) - Date.now()) / 86400000);
+        if (diasRestantes <= 7) diasSpan.style.color = 'var(--text-muted)';
     } else {
         diasSpan.textContent = dias === 0 ? 'Hoje' : dias === 1 ? 'Há 1 dia' : `Há ${dias} dias`;
     }
@@ -2463,12 +2474,24 @@ function patRefsAddFromStock(id, item) {
 function patRefsAddManual(raw) {
     const codigo = raw.toUpperCase().trim();
     if (!codigo) return;
+    // Agora que TODAS as PATs descontam stock, tenta ligar a referência ao artigo certo.
+    const f = findStockByCodigo(codigo);
+    if (f.status === 'one') {
+        patRefsAddFromStock(f.id, f.item);
+        showToast(`Ligado ao stock: ${f.item.nome || f.item.codigo}`);
+        return;
+    }
+    if (f.status === 'multi') {
+        showToast(`«${codigo}» existe ${f.count}× no stock — escolhe o artigo na lista`, 'error');
+        return;
+    }
     if (_patRefsList.some(p => p.codigo === codigo && !p.id)) return;
     _patRefsList.push({ id: null, codigo, nome: '', quantidade: 1 });
     $id('pat-refs-search').value = '';
     $id('pat-refs-dropdown').innerHTML = '';
     $id('pat-refs-search').focus();
     _renderRefsChips();
+    showToast(`«${codigo}» não existe no stock — não vai ser descontado`, 'error');
 }
 
 function patRefsRemove(codigo) {
@@ -2485,11 +2508,11 @@ function _renderRefsChips() {
     const el = $id('pat-refs-chips');
     el.innerHTML = '';
     _patRefsList.forEach(p => {
-        const chip = $el('div', { className: 'pat-chip' });
+        const chip = $el('div', { className: 'pat-chip' + (p.id ? '' : ' pat-chip-orphan') });
         chip.innerHTML = `
             <div class="pat-chip-info">
                 <span class="pat-chip-code">${escapeHtml(p.codigo)}</span>
-                ${p.nome ? `<span class="pat-chip-name">${escapeHtml(p.nome)}</span>` : '<span class="pat-chip-name" style="color:var(--text-muted);font-style:italic">manual</span>'}
+                ${p.nome ? `<span class="pat-chip-name">${escapeHtml(p.nome)}</span>` : '<span class="pat-chip-name pat-chip-warn">sem ligação — não desconta</span>'}
             </div>
             <input type="number" class="pat-chip-qty" value="${p.quantidade||1}" min="1"
                 onchange="patRefsSetQty('${escapeHtml(p.codigo)}', this.value)"
@@ -2503,6 +2526,12 @@ async function savePatRefs() {
     if (!_patRefsId) return;
     const btn = document.querySelector('#pat-refs-modal .btn-primary');
     if (btn) { btn.disabled = true; btn.textContent = 'A guardar...'; }
+    // Última tentativa de ligar ao stock as referências que ficaram à mão (o stock pode ter carregado depois)
+    _patRefsList.forEach(p => {
+        if (p.id) return;
+        const f = findStockByCodigo(p.codigo);
+        if (f.status === 'one') { p.id = f.id; p.nome = p.nome || f.item.nome || ''; }
+    });
     const produtos = _patRefsList.map(p => ({
         id:         p.id   || null,
         codigo:     p.codigo,
@@ -3362,12 +3391,12 @@ async function _patDescontarStock(ids) {
     await Promise.allSettled(Object.values(need).map(async l => {
         const item = cache.stock.data?.[l.id];
         const base = Number(item?.quantidade) || 0;
-        const final = Math.max(0, _r3(base - l.need));
-        if (item) item.quantidade = final;                         // optimista
+        const pedido = _r3(base - l.need);                         // variação pedida: -need (o servidor limita a 0)
+        if (item) item.quantidade = Math.max(0, pedido);           // optimista
         try {
-            const saved = await _commitStockDelta(l.id, base, final);
-            if (cache.stock.data?.[l.id]) cache.stock.data[l.id].quantidade = saved;
-            const movido = Math.max(0, _r3(base - saved));
+            const r = await _commitStockDelta(l.id, base, pedido);
+            if (cache.stock.data?.[l.id]) cache.stock.data[l.id].quantidade = r.saved;
+            const movido = Math.max(0, _r3(-r.applied));           // quanto saiu MESMO do stock
             if (movido > 0) registarMovimento('saida_pat', l.id, l.codigo, l.nome, movido);
             const falta = _r3(l.need - movido);
             if (falta > 0) res.short.push({ codigo: l.codigo, nome: l.nome, falta, unidade: l.unidade });
