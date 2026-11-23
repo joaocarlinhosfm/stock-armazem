@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// app.js — Gestão Armazém v6.81
+// app.js — Gestão Armazém v6.82
 // Núcleo da aplicação: cache em memória, fila offline/sync, navegação (nav),
 // administração, temas, calculadora de peso, Web Share Target, arranque
 // (DOMContentLoaded) e registo do Service Worker.
@@ -1290,8 +1290,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // SW_EXPECTED_VERSION deve bater certo com SW_VERSION em sw.js, senão o
 // client deteta sempre "SW desactualizado" e fica em loop de update.
 // SW_SCRIPT_URL tem de mudar de query string ou o browser não re-baixa o SW.
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.81';
-const SW_SCRIPT_URL = 'sw.js?v=6.81';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.82';
+const SW_SCRIPT_URL = 'sw.js?v=6.82';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados

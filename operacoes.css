@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   operacoes.css — Gestão Armazém v6.79
+   operacoes.css — Gestão Armazém v6.82
    Pedidos PAT, Mapa Leaflet + Pin Sheet, Encomendas, Guias Técnicos,
    Administração, Clientes, Importar Stock, Definições OCR e Relatórios.
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -1415,6 +1415,17 @@
     overflow: hidden;
     max-height: 220px;
     overflow-y: auto;
+}
+
+.pat-product-dropdown:empty { display: none; }
+
+.pat-client-wrap { position: relative; }
+
+.pat-optional {
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    opacity: 0.7;
 }
 
 .pat-dd-option {

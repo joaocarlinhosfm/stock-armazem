@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// pats.js — Gestão Armazém v6.81
+// pats.js — Gestão Armazém v6.82
 // Pedidos PAT (/pedidos): listagem Pendentes/Histórico, cards desktop e mobile,
 // criação/edição, gestão de referências, levantamento individual/em lote com
 // pré-visualização e abate atómico ao stock, e retenção automática de 6 meses.
@@ -946,6 +946,9 @@ function openPatModal() {
     $id('pat-cliente-id').value          = '';
     $id('pat-client-dropdown').innerHTML = '';
     $id('pat-estabelecimento').value     = '';
+    const estabDd = $id('pat-estab-dropdown');
+    if (estabDd) estabDd.innerHTML = '';
+    if (typeof _removeEstabOutsideListener === 'function') _removeEstabOutsideListener();
     $id('pat-product-search').value      = '';
     $id('pat-product-dropdown').innerHTML = '';
     $id('pat-product-chips').innerHTML   = '';
@@ -994,6 +997,9 @@ async function openEditPat(id, pat) {
     $id('pat-cliente-id').value          = clienteId;
     $id('pat-client-dropdown').innerHTML = '';
     $id('pat-estabelecimento').value     = estab;
+    const estabDdEdit = $id('pat-estab-dropdown');
+    if (estabDdEdit) estabDdEdit.innerHTML = '';
+    if (typeof _removeEstabOutsideListener === 'function') _removeEstabOutsideListener();
 
     // Renderizar chips de produtos
     $id('pat-product-chips').innerHTML = '';
@@ -1010,6 +1016,12 @@ async function openEditPat(id, pat) {
 function closePatModal() {
     modalClose('pat-modal');
     $id('pat-product-dropdown').innerHTML = '';
+    const estabDd  = $id('pat-estab-dropdown');
+    const clientDd = $id('pat-client-dropdown');
+    if (estabDd)  estabDd.innerHTML  = '';
+    if (clientDd) clientDd.innerHTML = '';
+    if (typeof _removeEstabOutsideListener  === 'function') _removeEstabOutsideListener();
+    if (typeof _removeClientOutsideListener === 'function') _removeClientOutsideListener();
 }
 
 function patProductSearch(val) {
@@ -1135,9 +1147,28 @@ async function savePat() {
     const editId     = $id('pat-edit-id').value.trim();
     const isEdit     = !!editId;
     const numero     = $id('pat-numero').value.trim();
-    const clienteNum = $id('pat-cliente-num').value.trim();
-    const clienteId  = $id('pat-cliente-id').value.trim() || null;
+    let clienteNum   = $id('pat-cliente-num').value.trim();
+    let clienteId    = $id('pat-cliente-id').value.trim() || null;
     const estab      = $id('pat-estabelecimento').value.trim().toUpperCase();
+
+    // Se o utilizador escreveu o nome exacto de um cliente existente sem clicar no dropdown,
+    // associa-o automaticamente. Se não existir em /clientes, grava a PAT na mesma sem erro.
+    if (!clienteId && estab && typeof _clientesCache !== 'undefined' && _clientesCache.data) {
+        const estabKey = _normEstabKey(estab);
+        const exacts = Object.entries(_clientesCache.data).filter(([, c]) =>
+            c && c.nome && _normEstabKey(c.nome) === estabKey
+        );
+        let matched = null;
+        if (exacts.length === 1) {
+            matched = exacts[0];
+        } else if (exacts.length > 1 && clienteNum) {
+            matched = exacts.find(([, c]) => String(c.numero || '').trim() === clienteNum) || null;
+        }
+        if (matched) {
+            clienteId = matched[0];
+            if (!clienteNum && matched[1].numero) clienteNum = String(matched[1].numero).trim();
+        }
+    }
     const obs        = ($id('pat-obs')?.value || '').trim();
     const hint       = $id('pat-numero-hint');
 

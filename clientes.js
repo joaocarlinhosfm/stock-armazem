@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// clientes.js — Gestão Armazém v6.81
+// clientes.js — Gestão Armazém v6.82
 // Gestão de clientes (/clientes): cache, autocomplete no modal PAT, listagem
 // agrupada por cadeia na Administração, edição de coordenadas e importação Excel.
 //
@@ -12,7 +12,7 @@
 //   app.js     — apiFetch
 // ─────────────────────────────────────────────────────────────────────────────
 
-// CLIENTES — autocomplete Nº Cliente no modal PAT
+// CLIENTES — autocomplete Estabelecimento & Nº Cliente (opcional) no modal PAT
 const CLIENTES_URL = `${BASE_URL}/clientes.json`;
 const _clientesCache = { data: null, lastFetch: 0 };
 
@@ -29,7 +29,165 @@ async function _fetchClientes(force = false) {
     return _clientesCache.data;
 }
 
+// Normaliza texto para pesquisa sem acentos e case-insensitive
+function _normClienteSearch(str) {
+    return String(str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function _selectPatCliente(c) {
+    $id('pat-estabelecimento').value  = String(c.nome || '').toUpperCase();
+    $id('pat-cliente-num').value      = c.numero || '';
+    $id('pat-cliente-id').value       = c._fbId || '';
+    const ddEstab  = $id('pat-estab-dropdown');
+    const ddClient = $id('pat-client-dropdown');
+    if (ddEstab)  ddEstab.innerHTML  = '';
+    if (ddClient) ddClient.innerHTML = '';
+    _removeEstabOutsideListener();
+    _removeClientOutsideListener();
+}
+
+let _estabDropdownIdx   = -1;
 let _clienteDropdownIdx = -1;
+
+// Autocomplete no campo Nome do Estabelecimento (permite texto livre se o cliente não existir)
+function patEstabSearch(inpOrVal) {
+    let val = '';
+    if (typeof inpOrVal === 'string') {
+        val = inpOrVal;
+    } else if (inpOrVal) {
+        const pos = inpOrVal.selectionStart;
+        const up  = inpOrVal.value.toUpperCase();
+        if (inpOrVal.value !== up) {
+            inpOrVal.value = up;
+            try { inpOrVal.setSelectionRange(pos, pos); } catch(_) {}
+        }
+        val = up;
+    }
+
+    _estabDropdownIdx = -1;
+
+    // Se havia um cliente ligado via autocomplete e o utilizador editou o nome,
+    // limpa a ligação (e o nº preenchido automaticamente) para não guardar dados trocados
+    const cidEl = $id('pat-cliente-id');
+    if (cidEl && cidEl.value) {
+        cidEl.value = '';
+        const cnumEl = $id('pat-cliente-num');
+        if (cnumEl) cnumEl.value = '';
+    }
+
+    const dd = $id('pat-estab-dropdown');
+    if (!dd) return;
+
+    const qNorm = _normClienteSearch(val);
+    if (!qNorm) {
+        dd.innerHTML = '';
+        _removeEstabOutsideListener();
+        return;
+    }
+
+    // Se a cache ainda não carregou, busca e re-executa automaticamente
+    if (_clientesCache.data === null) {
+        _fetchClientes().then(() => {
+            const cur = $id('pat-estabelecimento');
+            if (cur && cur.value.trim()) patEstabSearch(cur.value);
+        });
+        return;
+    }
+
+    const tokens = qNorm.split(/\s+/).filter(Boolean);
+    const data   = _clientesCache.data || {};
+
+    const scored = [];
+    for (const [fbId, c] of Object.entries(data)) {
+        if (!c || !c.nome) continue;
+        const nomeNorm = _normClienteSearch(c.nome);
+        const numNorm  = String(c.numero || '').trim().toLowerCase();
+        const hay      = nomeNorm + ' ' + numNorm;
+
+        if (!tokens.every(t => hay.includes(t))) continue;
+
+        let rank = 2;
+        if (nomeNorm.startsWith(qNorm)) {
+            rank = 0;
+        } else if (nomeNorm.split(/\s+/).some(w => w.startsWith(tokens[0]))) {
+            rank = 1;
+        }
+        scored.push({ ...c, _fbId: fbId, _rank: rank, _nomeNorm: nomeNorm });
+    }
+
+    scored.sort((a, b) => a._rank - b._rank || a._nomeNorm.localeCompare(b._nomeNorm, 'pt'));
+    const matches = scored.slice(0, 10);
+
+    // Sem resultados → fecha o dropdown sem bloquear (cliente novo grava livremente)
+    if (matches.length === 0) {
+        dd.innerHTML = '';
+        _removeEstabOutsideListener();
+        return;
+    }
+
+    dd.innerHTML = '';
+    matches.forEach((c, i) => {
+        const opt = $el('div', { className: 'pat-dd-option' });
+        opt.dataset.idx = i;
+        if (c.numero) {
+            const codeEl = $el('span', { className: 'pat-dd-code', textContent: String(c.numero) });
+            opt.appendChild(codeEl);
+        }
+        const nameEl = $el('span', { className: 'pat-dd-name', textContent: c.nome });
+        opt.appendChild(nameEl);
+        opt.onmousedown = (e) => {
+            e.preventDefault();
+            _selectPatCliente(c);
+        };
+        dd.appendChild(opt);
+    });
+    _addEstabOutsideListener();
+}
+
+function _estabOutsideHandler(e) {
+    const wrap = document.querySelector('.pat-estab-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+        const dd = $id('pat-estab-dropdown');
+        if (dd) dd.innerHTML = '';
+        _removeEstabOutsideListener();
+    }
+}
+function _addEstabOutsideListener() {
+    document.removeEventListener('click', _estabOutsideHandler);
+    document.addEventListener('click', _estabOutsideHandler);
+}
+function _removeEstabOutsideListener() {
+    document.removeEventListener('click', _estabOutsideHandler);
+}
+
+function patEstabKeydown(e) {
+    const dd   = $id('pat-estab-dropdown');
+    if (!dd) return;
+    const opts = dd.querySelectorAll('.pat-dd-option');
+    if (!opts.length) return;
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        _estabDropdownIdx = Math.min(_estabDropdownIdx + 1, opts.length - 1);
+        opts.forEach((o, i) => o.classList.toggle('focused', i === _estabDropdownIdx));
+        opts[_estabDropdownIdx]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        _estabDropdownIdx = Math.max(_estabDropdownIdx - 1, 0);
+        opts.forEach((o, i) => o.classList.toggle('focused', i === _estabDropdownIdx));
+        opts[_estabDropdownIdx]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter' && _estabDropdownIdx >= 0) {
+        e.preventDefault();
+        opts[_estabDropdownIdx]?.dispatchEvent(new MouseEvent('mousedown'));
+    } else if (e.key === 'Escape') {
+        e.stopPropagation();
+        dd.innerHTML = '';
+        _removeEstabOutsideListener();
+    }
+}
 
 function patClientSearch(val) {
     _clienteDropdownIdx = -1;
@@ -50,10 +208,7 @@ function patClientSearch(val) {
     if (/^\d{1,3}$/.test(q)) {
         const exactMatches = Object.values(dataComId).filter(c => c.numero === q);
         if (exactMatches.length === 1) {
-            $id('pat-estabelecimento').value = exactMatches[0].nome;
-            $id('pat-cliente-id').value      = exactMatches[0]._fbId;
-            dd.innerHTML = '';
-            _removeClientOutsideListener();
+            _selectPatCliente(exactMatches[0]);
             return;
         }
         if (exactMatches.length > 1) {
@@ -64,8 +219,9 @@ function patClientSearch(val) {
     }
 
     // Sugestões parciais
+    const qNorm = _normClienteSearch(q);
     const matches = Object.values(dataComId)
-        .filter(c => c.numero.startsWith(q) || c.nome.toLowerCase().includes(q.toLowerCase()))
+        .filter(c => String(c.numero || '').startsWith(q) || _normClienteSearch(c.nome).includes(qNorm))
         .slice(0, 10);
 
     if (matches.length === 0) {
@@ -92,11 +248,7 @@ function _renderClientDropdown(dd, matches, isExact) {
         opt.appendChild(codeEl); opt.appendChild(nameEl);
         opt.onmousedown = (e) => {
             e.preventDefault();
-            $id('pat-cliente-num').value     = c.numero;
-            $id('pat-estabelecimento').value  = c.nome;
-            $id('pat-cliente-id').value       = c._fbId || '';
-            dd.innerHTML = '';
-            _removeClientOutsideListener();
+            _selectPatCliente(c);
         };
         dd.appendChild(opt);
     });
@@ -133,7 +285,9 @@ function patClientKeydown(e) {
         e.preventDefault();
         opts[_clienteDropdownIdx]?.dispatchEvent(new MouseEvent('mousedown'));
     } else if (e.key === 'Escape') {
+        e.stopPropagation();
         dd.innerHTML = '';
+        _removeClientOutsideListener();
     }
 }
 
