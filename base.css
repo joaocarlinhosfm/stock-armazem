@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   base.css — Gestão Armazém v6.79
+   base.css — Gestão Armazém v6.83
    Variáveis, reset, temas, layout global (header, sidebar, bottom-nav, FAB),
    login, formulários, botões, modais base, toasts e lightbox de imagem.
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -567,6 +567,7 @@ header h1 { display: none; }
 
 .bottom-nav-item {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -587,7 +588,7 @@ header h1 { display: none; }
 .bottom-nav-item::before {
     content: '';
     position: absolute;
-    inset: 3px 5px;
+    inset: 3px 3px;
     border-radius: 16px;
     background: var(--primary-soft);
     transform: scale(0.6);
@@ -653,6 +654,10 @@ header h1 { display: none; }
     z-index: 1;
     margin-top: 3px;
     opacity: 0.75;
+    max-width: 100%;
+    padding: 0 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
     transition: all 0.22s ease;
 }
@@ -661,6 +666,12 @@ header h1 { display: none; }
     font-size: 0.60rem;
     font-weight: 700;
     opacity: 1;
+}
+
+@media (max-width: 380px) {
+    #bottom-nav { left: 8px; right: 8px; padding: 5px 4px; gap: 0; }
+    .bnav-label { font-size: 0.52rem; }
+    .bottom-nav-item.active .bnav-label { font-size: 0.55rem; }
 }
 
 .theme-dropdown-wrap {

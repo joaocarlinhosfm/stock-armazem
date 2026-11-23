@@ -1,10 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// SERVICE WORKER — Hiperfrio v6.82
+// SERVICE WORKER — Hiperfrio v6.83
 // Estratégia: network-first para app assets, cache-first para libs imutáveis.
 // Pré-cache de app shell garante que a PWA arranca offline no primeiro uso
 // após instalação (antes disto, abrir offline no primeiro boot deixava ecrã branco).
 // ─────────────────────────────────────────────────────────────────────────────
-const SW_VERSION = 'hiperfrio-v6.82';
+const SW_VERSION = 'hiperfrio-v6.83';
 
 // Ficheiro partilhado pendente (Web Share Target). Em memória do SW, expira em 60s
 // para evitar servir um ficheiro stale de uma partilha antiga.
@@ -27,25 +27,25 @@ const APP_SHELL = [
     './',
     './index.html',
     './manifest.json',
-    './base.css?v=6.82',
-    './stock.css?v=6.82',
-    './operacoes.css?v=6.82',
-    './utils.js?v=6.82',
-    './auth.js?v=6.82',
-    './reports.js?v=6.82',
-    './stock.js?v=6.82',
-    './stockimport.js?v=6.82',
-    './backup.js?v=6.82',
-    './tools.js?v=6.82',
-    './settings.js?v=6.82',
-    './clientes.js?v=6.82',
-    './pat-map.js?v=6.82',
-    './pats.js?v=6.82',
-    './guias.js?v=6.82',
-    './encomendas.js?v=6.82',
-    './inventory.js?v=6.82',
-    './dashboard.js?v=6.82',
-    './app.js?v=6.82',
+    './base.css?v=6.83',
+    './stock.css?v=6.83',
+    './operacoes.css?v=6.83',
+    './utils.js?v=6.83',
+    './auth.js?v=6.83',
+    './reports.js?v=6.83',
+    './stock.js?v=6.83',
+    './stockimport.js?v=6.83',
+    './backup.js?v=6.83',
+    './tools.js?v=6.83',
+    './settings.js?v=6.83',
+    './clientes.js?v=6.83',
+    './pat-map.js?v=6.83',
+    './pats.js?v=6.83',
+    './guias.js?v=6.83',
+    './encomendas.js?v=6.83',
+    './inventory.js?v=6.83',
+    './dashboard.js?v=6.83',
+    './app.js?v=6.83',
     './icon-192.png',
     './icon-512.png',
 ];
