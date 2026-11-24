@@ -1,14 +1,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// stock.js — Gestão Armazém v6.86
-// Gestão de stock: render mobile/desktop, filtros rápidos, pesquisa sem acentos
-// e multi-palavra, ordenação, swipe com ícones, atualização atómica de stock,
-// edição inline (mobile + desktop) e exportação CSV.
+// stock.js — Gestão Armazém v6.87
+// Gestão de stock: cards limpos (mobile + desktop) sem botões +/-,
+// abertura do produto para consulta/edição, filtros rápidos, pesquisa sem
+// acentos e multi-palavra, ordenação, gravação atómica (para PATs/Encomendas)
+// e exportação CSV.
 // Carrega DEPOIS de reports.js e ANTES de tools.js, pats.js.
 //
 // Dependências:
-//   utils.js   → BASE_URL, $id, $el, fmtQty, escapeHtml, showToast, modalOpen,
-//                modalClose, focusModal, openImageViewer, setRefreshSpinning,
-//                SVG_EDIT, SVG_DEL
+//   utils.js   → BASE_URL, $id, $el, fmtQty, UNIT_SHORT, escapeHtml, showToast,
+//                modalOpen, modalClose, focusModal, openImageViewer,
+//                setRefreshSpinning
 //   auth.js    → currentRole, requireManagerAccess, authUrl
 //   reports.js → registarMovimento
 //   app.js     → cache, fetchCollection, invalidateCache, apiFetch,
@@ -26,7 +27,8 @@ let _bulkCount         = 0;         // contador de produtos adicionados no lote 
 
 const _STOCK_LOW_THRESHOLD = 5;
 
-const _STK_PIN_SVG = '<svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>';
+const _STK_PIN_SVG        = '<svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>';
+const _STK_CHEV_SVG       = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
 const _STK_SWIPE_EDIT_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
 const _STK_SWIPE_DEL_SVG  = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
 
@@ -37,6 +39,18 @@ function _normStockText(str) {
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .trim();
+}
+
+// Formata quantidade separando número principal e unidade discreta
+function _fmtQtyPartsHtml(quantidade, unidade) {
+    const qty  = quantidade ?? 0;
+    const unit = (unidade && unidade !== 'un') ? (UNIT_SHORT[unidade] || unidade) : 'un';
+    return `<span class="stk-qty-num">${escapeHtml(String(qty))}</span><span class="stk-qty-unit">${escapeHtml(unit)}</span>`;
+}
+
+// Oculta na grelha notas automáticas de importação (continuam visíveis ao abrir o produto)
+function _isAutoImportNote(notas) {
+    return /^importado\s+do\s+excel\b/i.test(String(notas || '').trim());
 }
 
 function _syncSortSelect() {
@@ -188,7 +202,6 @@ function _updateStockFilterCounts(data) {
     setTxt('sf-n-zero',    zero);
     setTxt('sf-n-nolocal', noLocal);
 
-    // Esconde "Sem local" se for 0 (excepto se o filtro estiver activo)
     const noLocBtn = $id('sf-btn-nolocal');
     if (noLocBtn) noLocBtn.style.display = (noLocal > 0 || _stockFilter === 'nolocal') ? '' : 'none';
 
@@ -199,7 +212,6 @@ function _updateStockFilterCounts(data) {
         btn.classList.toggle('active', btn.dataset.filter === _stockFilter);
     });
 
-    // Sincronizar KPIs desktop se estiverem no DOM
     const kpiTotal = $id('sdh-kpi-total');
     if (kpiTotal) kpiTotal.textContent = total.toLocaleString('pt-PT');
     const kpiZero = $id('sdh-kpi-zero');
@@ -245,7 +257,7 @@ function _renderDesktopHeader(data) {
         </div>`;
 }
 
-// ── Card Desktop ────────────────────────────────────────────────────────────
+// ── Card Desktop (limpo, clicável para abrir/editar, sem botões +/-) ───────
 function _buildDesktopCard(id, item) {
     const qty    = Number(item.quantidade) || 0;
     const isZero = qty === 0;
@@ -257,31 +269,39 @@ function _buildDesktopCard(id, item) {
     const card = $el('div', {
         className: 'sdc' + (isZero ? ' sdc-zero' : isLow ? ' sdc-low' : '')
     });
+    card.setAttribute('role', 'button');
+    card.tabIndex = 0;
+    card.onclick  = () => openProductDetail(id, cache.stock.data?.[id] || item);
+    card.onkeydown = e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openProductDetail(id, cache.stock.data?.[id] || item);
+        }
+    };
 
-    // ── Header ────────────────────────────────────────────────────────────
+    // ── Cabeçalho: ref chip + badge + nome + nota manual | miniatura ──────
     const hdr  = $el('div', { className: 'sdc-hdr' });
     const meta = $el('div', { className: 'sdc-meta' });
 
     const refRow = $el('div', { className: 'sdc-ref-row' });
-    const ref    = $el('span', { className: 'sdc-ref', textContent: (item.codigo || '—').toUpperCase() });
+    const ref    = $el('span', { className: 'sdc-ref', textContent: (item.codigo || 'SEM REF').toUpperCase() });
     refRow.appendChild(ref);
 
-    const badge = $el('span', {
-        className: 'sdc-badge ' + (isZero ? 'sdc-badge-out' : isLow ? 'sdc-badge-low' : 'hidden'),
-        textContent: isZero ? 'SEM STOCK' : isLow ? 'BAIXO' : ''
-    });
-    badge.id = `sdcbadge-${id}`;
-    refRow.appendChild(badge);
+    if (isZero) {
+        refRow.appendChild($el('span', { className: 'sdc-badge sdc-badge-out', textContent: 'SEM STOCK' }));
+    } else if (isLow) {
+        refRow.appendChild($el('span', { className: 'sdc-badge sdc-badge-low', textContent: 'BAIXO' }));
+    }
     meta.appendChild(refRow);
 
     const nome = $el('div', { className: 'sdc-nome', textContent: (item.nome || '').toUpperCase() });
     meta.appendChild(nome);
 
-    if (item.localizacao) {
-        const loc = $el('div', { className: 'sdc-loc' });
-        loc.innerHTML = _STK_PIN_SVG;
-        loc.appendChild(document.createTextNode(' ' + item.localizacao.toUpperCase()));
-        meta.appendChild(loc);
+    // Só mostra na grelha observações manuais (notas automáticas de importação ficam no detalhe)
+    if (item.notas && !_isAutoImportNote(item.notas)) {
+        const notas = $el('div', { className: 'sdc-notas', textContent: item.notas });
+        notas.title = item.notas;
+        meta.appendChild(notas);
     }
 
     hdr.appendChild(meta);
@@ -305,77 +325,35 @@ function _buildDesktopCard(id, item) {
 
     card.appendChild(hdr);
 
-    if (item.notas) {
-        const notas = $el('div', { className: 'sdc-notas', textContent: item.notas });
-        notas.title = item.notas;
-        card.appendChild(notas);
-    }
-
-    // ── Rodapé: stock actual + controlo − qty + ───────────────────────────
+    // ── Rodapé: stock actual | localização + indicador abrir ─────────────
     const foot = $el('div', { className: 'sdc-foot' });
 
-    const stockInfo  = $el('div', { className: 'sdc-stock-info' });
-    const stockLabel = $el('div', { className: 'sdc-stock-label', textContent: 'STOCK ATUAL' });
-    const stockVal   = $el('div', { className: 'sdc-stock-val' + (isZero ? ' sdc-stock-zero' : '') });
-    stockVal.id      = `sdcval-${id}`;
-    stockVal.innerHTML = `<span class="sdc-qty" id="sdcqty-${id}">${escapeHtml(fmtQty(qty, item.unidade))}</span>`;
-
-    stockInfo.appendChild(stockLabel);
+    const stockInfo = $el('div', { className: 'sdc-stock-info' });
+    stockInfo.appendChild($el('div', { className: 'sdc-stock-label', textContent: 'STOCK' }));
+    const stockVal = $el('div', { className: 'sdc-qty' + (isZero ? ' is-zero' : '') });
+    stockVal.innerHTML = _fmtQtyPartsHtml(qty, item.unidade);
     stockInfo.appendChild(stockVal);
 
-    const controls = $el('div', { className: 'sdc-controls' });
-
-    const btnM = $el('button', { type: 'button', className: 'sdc-btn-qty', textContent: '−' });
-    btnM.disabled = qty === 0;
-    btnM.id       = `sdcbtnm-${id}`;
-    btnM.onclick  = e => { e.stopPropagation(); changeQtd(id, -1); };
-
-    const qtyDisplay = $el('span', { className: 'sdc-qty-display', textContent: String(qty) });
-    qtyDisplay.id = `sdcdisp-${id}`;
-    if (currentRole === 'manager') {
-        qtyDisplay.title = 'Clique para editar quantidade';
-        qtyDisplay.classList.add('editable');
-        qtyDisplay.onclick = e => {
-            e.stopPropagation();
-            const liveItem = cache.stock.data?.[id] || item;
-            openInlineQtyEdit(id, liveItem, 'desktop');
-        };
+    const footRight = $el('div', { className: 'sdc-foot-right' });
+    if ((item.localizacao || '').trim()) {
+        const loc = $el('span', { className: 'sdc-loc' });
+        loc.innerHTML = _STK_PIN_SVG;
+        loc.appendChild(document.createTextNode(item.localizacao.toUpperCase()));
+        footRight.appendChild(loc);
     }
-
-    const btnP = $el('button', { type: 'button', className: 'sdc-btn-qty', textContent: '+' });
-    btnP.id      = `sdcbtnp-${id}`;
-    btnP.onclick = e => { e.stopPropagation(); changeQtd(id, 1); };
-
-    controls.appendChild(btnM);
-    controls.appendChild(qtyDisplay);
-    controls.appendChild(btnP);
+    const openHint = $el('span', { className: 'sdc-open-hint' });
+    openHint.innerHTML = _STK_CHEV_SVG;
+    footRight.appendChild(openHint);
 
     foot.appendChild(stockInfo);
-    foot.appendChild(controls);
+    foot.appendChild(footRight);
     card.appendChild(foot);
-
-    // ── Acções (editar / apagar) — só para gestores ───────────────────────
-    if (currentRole === 'manager') {
-        const actions = $el('div', { className: 'sdc-actions' });
-
-        const btnEdit = $el('button', { type: 'button', className: 'sdc-action-btn sdc-action-edit' });
-        btnEdit.innerHTML = `${SVG_EDIT} Editar`;
-        btnEdit.onclick   = e => { e.stopPropagation(); openEditModal(id, cache.stock.data?.[id] || item); };
-
-        const btnDel = $el('button', { type: 'button', className: 'sdc-action-btn sdc-action-del' });
-        btnDel.innerHTML = `${SVG_DEL} Apagar`;
-        btnDel.onclick   = e => { e.stopPropagation(); openDeleteModal(id, cache.stock.data?.[id] || item); };
-
-        actions.appendChild(btnEdit);
-        actions.appendChild(btnDel);
-        card.appendChild(actions);
-    }
 
     wrapper.appendChild(card);
     return wrapper;
 }
 
-// ── Card Mobile modernizado ─────────────────────────────────────────────────
+// ── Card Mobile (limpo, toque abre produto para editar, sem botões +/-) ─────
 function _buildStockCardMobile(id, item) {
     const qty    = Number(item.quantidade) || 0;
     const isZero = qty === 0;
@@ -384,7 +362,7 @@ function _buildStockCardMobile(id, item) {
     const wrapper = $el('div', { className: 'swipe-wrapper' });
     wrapper.dataset.id = id;
 
-    // Swipe backgrounds com ícones SVG reais
+    // Swipe backgrounds (atalho rápido para gestores)
     const bgL = $el('div', { className: 'swipe-bg swipe-bg-left' });
     bgL.innerHTML = `<span class="swipe-bg-content"><span>Apagar</span>${_STK_SWIPE_DEL_SVG}</span>`;
     const bgR = $el('div', { className: 'swipe-bg swipe-bg-right' });
@@ -396,26 +374,23 @@ function _buildStockCardMobile(id, item) {
         className: 'item-card' + (isZero ? ' item-zero' : isLow ? ' item-low' : '')
     });
 
-    // Topo: ref + badge + nome + notas | miniatura opcional
+    // Topo: ref chip + badge + nome + nota manual | miniatura opcional
     const top  = $el('div', { className: 'mc-top' });
     const main = $el('div', { className: 'mc-main' });
 
     const refRow = $el('div', { className: 'mc-ref-row' });
-    const refVal = $el('span', { className: 'mc-ref', textContent: String(item.codigo || 'SEM REF').toUpperCase() });
-    refRow.appendChild(refVal);
+    refRow.appendChild($el('span', { className: 'mc-ref', textContent: String(item.codigo || 'SEM REF').toUpperCase() }));
 
-    const badge = $el('span', {
-        className: 'sdc-badge ' + (isZero ? 'sdc-badge-out' : isLow ? 'sdc-badge-low' : 'hidden'),
-        textContent: isZero ? 'SEM STOCK' : isLow ? 'BAIXO' : ''
-    });
-    badge.id = `mcbadge-${id}`;
-    refRow.appendChild(badge);
+    if (isZero) {
+        refRow.appendChild($el('span', { className: 'sdc-badge sdc-badge-out', textContent: 'SEM STOCK' }));
+    } else if (isLow) {
+        refRow.appendChild($el('span', { className: 'sdc-badge sdc-badge-low', textContent: 'BAIXO' }));
+    }
     main.appendChild(refRow);
 
-    const nomEl = $el('div', { className: 'mc-nome', textContent: (item.nome || '').toUpperCase() });
-    main.appendChild(nomEl);
+    main.appendChild($el('div', { className: 'mc-nome', textContent: (item.nome || '').toUpperCase() }));
 
-    if (item.notas) {
+    if (item.notas && !_isAutoImportNote(item.notas)) {
         const notasRow = $el('div', { className: 'mc-notas', textContent: item.notas });
         notasRow.title = item.notas;
         main.appendChild(notasRow);
@@ -438,7 +413,7 @@ function _buildStockCardMobile(id, item) {
 
     card.appendChild(top);
 
-    // Rodapé: localização + controlo de quantidade
+    // Rodapé: localização à esquerda | stock + chevron à direita
     const foot = $el('div', { className: 'mc-foot' });
 
     const hasLoc = !!(item.localizacao || '').trim();
@@ -446,88 +421,20 @@ function _buildStockCardMobile(id, item) {
     pill.innerHTML = _STK_PIN_SVG;
     pill.appendChild(document.createTextNode(hasLoc ? item.localizacao.toUpperCase() : 'SEM LOCAL'));
 
-    const qtyBox = $el('div', { className: 'qty-pill-box' });
-
-    const btnM = $el('button', { type: 'button', className: 'btn-qty', textContent: '−' });
-    btnM.disabled = qty === 0;
-    btnM.id       = `btn-minus-${id}`;
-
-    const qtySpan = $el('span', {
-        className: 'qty-display' + (qty === 0 ? ' is-zero' : ''),
-        textContent: fmtQty(qty, item.unidade)
-    });
-    qtySpan.id = `qty-${id}`;
-
-    const btnP = $el('button', { type: 'button', className: 'btn-qty', textContent: '+' });
-    btnP.id = `btn-plus-${id}`;
-
-    qtyBox.appendChild(btnM);
-    qtyBox.appendChild(qtySpan);
-    qtyBox.appendChild(btnP);
+    const qtyWrap = $el('div', { className: 'mc-qty-wrap' });
+    const qtyEl   = $el('div', { className: 'mc-qty' + (isZero ? ' is-zero' : '') });
+    qtyEl.innerHTML = _fmtQtyPartsHtml(qty, item.unidade);
+    const chev = $el('span', { className: 'mc-chev' });
+    chev.innerHTML = _STK_CHEV_SVG;
+    qtyWrap.appendChild(qtyEl);
+    qtyWrap.appendChild(chev);
 
     foot.appendChild(pill);
-    foot.appendChild(qtyBox);
+    foot.appendChild(qtyWrap);
     card.appendChild(foot);
 
     wrapper.appendChild(card);
     return wrapper;
-}
-
-// Sincronização imediata da UI (mobile + desktop + badges + KPIs) após alterar quantidade
-function _syncCardQtyUI(id, qty, saving = false) {
-    const item   = cache.stock.data?.[id];
-    const isZero = qty === 0;
-    const isLow  = !isZero && qty <= _STOCK_LOW_THRESHOLD;
-    const fmt    = fmtQty(qty, item?.unidade);
-
-    // Mobile
-    const mQty = $id(`qty-${id}`);
-    if (mQty) {
-        mQty.textContent = fmt;
-        mQty.classList.toggle('is-zero', isZero);
-        mQty.classList.toggle('qty-saving', saving);
-    }
-    const mMinus = $id(`btn-minus-${id}`);
-    if (mMinus) mMinus.disabled = isZero;
-    const mWrapper = document.querySelector(`.swipe-wrapper[data-id="${id}"]`);
-    const mCard    = mWrapper?.querySelector('.item-card');
-    if (mCard) {
-        mCard.classList.toggle('item-zero', isZero);
-        mCard.classList.toggle('item-low',  isLow);
-    }
-    const mBadge = $id(`mcbadge-${id}`);
-    if (mBadge) {
-        mBadge.className   = 'sdc-badge ' + (isZero ? 'sdc-badge-out' : isLow ? 'sdc-badge-low' : 'hidden');
-        mBadge.textContent = isZero ? 'SEM STOCK' : isLow ? 'BAIXO' : '';
-    }
-
-    // Desktop
-    const dQty  = $id(`sdcqty-${id}`);
-    const dDisp = $id(`sdcdisp-${id}`);
-    const dMin  = $id(`sdcbtnm-${id}`);
-    const dVal  = $id(`sdcval-${id}`);
-    if (dQty) {
-        dQty.textContent = fmt;
-        dQty.classList.toggle('qty-saving', saving);
-    }
-    if (dDisp) dDisp.textContent = String(qty);
-    if (dMin)  dMin.disabled     = isZero;
-    if (dVal)  dVal.classList.toggle('sdc-stock-zero', isZero);
-
-    const dWrapper = document.querySelector(`.sdc-wrapper[data-id="${id}"]`);
-    const dCard    = dWrapper?.querySelector('.sdc');
-    if (dCard) {
-        dCard.classList.toggle('sdc-zero', isZero);
-        dCard.classList.toggle('sdc-low',  isLow);
-    }
-    const dBadge = $id(`sdcbadge-${id}`);
-    if (dBadge) {
-        dBadge.className   = 'sdc-badge ' + (isZero ? 'sdc-badge-out' : isLow ? 'sdc-badge-low' : 'hidden');
-        dBadge.textContent = isZero ? 'SEM STOCK' : isLow ? 'BAIXO' : '';
-    }
-
-    // Actualiza contadores de filtros e KPIs desktop
-    if (cache.stock.data) _updateStockFilterCounts(cache.stock.data);
 }
 
 // ── Render principal ────────────────────────────────────────────────────────
@@ -551,7 +458,6 @@ async function renderList(filter = '', forceFetch = false) {
     const data    = await fetchCollection('stock', forceFetch);
     const entries = Object.entries(data || {});
 
-    // Actualizar contadores dos filtros rápidos
     _updateStockFilterCounts(data);
     _syncSortSelect();
 
@@ -605,14 +511,13 @@ async function renderList(filter = '', forceFetch = false) {
         return;
     }
 
-    // Hint contextual (mostrado 1x)
     const hintKey = currentRole === 'worker' ? 'worker-hint-seen' : 'swipe-hint-seen';
     if (!qNorm && _stockFilter === 'all' && !localStorage.getItem(hintKey)) {
         const hint = $el('div', { className: 'swipe-hint' });
         if (currentRole === 'worker') {
             hint.innerHTML = '<span>Modo consulta — toca num artigo para ver detalhes</span>';
         } else {
-            hint.innerHTML = '<span>→ Desliza direita: editar</span><span>← Desliza esquerda: apagar</span>';
+            hint.innerHTML = '<span>Toca num artigo para abrir · desliza para editar ou apagar</span>';
         }
         listEl.appendChild(hint);
         localStorage.setItem(hintKey, '1');
@@ -680,77 +585,6 @@ function _renderLoadMoreBtn(listEl) {
     listEl.appendChild(btn);
 }
 
-// ── Edição inline de quantidade (mobile double-tap & desktop click) ─────────
-function openInlineQtyEdit(id, item, mode = 'mobile') {
-    if (currentRole !== 'manager') return;
-    const targetId = mode === 'desktop' ? `sdcdisp-${id}` : `qty-${id}`;
-    const qtyEl    = $id(targetId);
-    if (!qtyEl || qtyEl.parentNode?.querySelector('.qty-inline-edit')) return;
-
-    const currentQty = cache.stock.data?.[id]?.quantidade ?? item.quantidade ?? 0;
-    const wrap = $el('div', { className: 'qty-inline-edit' + (mode === 'desktop' ? ' qty-inline-desktop' : '') });
-    const inp  = $el('input', { className: 'qty-inline-input' });
-    inp.type   = 'number';
-    inp.min    = '0';
-    inp.step   = 'any';
-    inp.value  = currentQty;
-    inp.setAttribute('inputmode', 'decimal');
-
-    let finished = false;
-    const cancelFn = () => {
-        if (finished) return;
-        finished = true;
-        wrap.replaceWith(qtyEl);
-    };
-    const confirmFn = async () => {
-        if (finished) return;
-        const newVal = parseFloat(inp.value);
-        if (isNaN(newVal) || newVal < 0) { cancelFn(); return; }
-        finished = true;
-
-        const oldVal = cache.stock.data?.[id]?.quantidade ?? 0;
-        wrap.replaceWith(qtyEl);
-        if (newVal === oldVal) return;
-
-        if (cache.stock.data?.[id]) cache.stock.data[id].quantidade = newVal;
-        if (_stockSort === 'qtd-asc' || _stockSort === 'qtd-desc') _invalidateSortedCache();
-        _syncCardQtyUI(id, newVal, true);
-
-        try {
-            await apiFetch(`${BASE_URL}/stock/${id}.json`, {
-                method: 'PATCH',
-                body: JSON.stringify({ quantidade: newVal })
-            });
-            _syncCardQtyUI(id, newVal, false);
-            if (newVal < oldVal) {
-                registarMovimento('saida_manual', id, item.codigo, item.nome, oldVal - newVal);
-            }
-            renderDashboard();
-        } catch(_e) {
-            if (cache.stock.data?.[id]) cache.stock.data[id].quantidade = oldVal;
-            _syncCardQtyUI(id, oldVal, false);
-            showToast('Erro ao guardar', 'error');
-        }
-    };
-
-    inp.addEventListener('click',     e => e.stopPropagation());
-    inp.addEventListener('mousedown', e => e.stopPropagation());
-    inp.addEventListener('keydown',   e => {
-        if (e.key === 'Enter')  { e.preventDefault(); confirmFn(); }
-        if (e.key === 'Escape') { e.preventDefault(); cancelFn(); }
-    });
-    inp.addEventListener('blur', () => setTimeout(cancelFn, 150));
-
-    const ok = $el('button', { type: 'button', className: 'qty-inline-ok', textContent: '✓' });
-    ok.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); confirmFn(); });
-
-    wrap.appendChild(inp);
-    wrap.appendChild(ok);
-    qtyEl.replaceWith(wrap);
-    inp.focus();
-    inp.select();
-}
-
 async function forceRefresh() {
     setRefreshSpinning(true);
     await Promise.all([
@@ -761,10 +595,7 @@ async function forceRefresh() {
     showToast('Stock atualizado!');
 }
 
-// ── Debounce + gravação atómica de quantidade ───────────────────────────────
-const _qtyTimers      = {};
-const _qtyPendingBase = {};
-
+// ── Helpers partilhados de stock (usados por PATs e Encomendas) ─────────────
 async function _readServerStockQty(id, fallbackQty = 0) {
     if (!navigator.onLine) return fallbackQty;
     try {
@@ -830,51 +661,7 @@ async function _commitStockDelta(id, baseQty, finalQty) {
     return { saved, applied };
 }
 
-async function changeQtd(id, delta) {
-    if (navigator.vibrate) navigator.vibrate(30);
-    const stockData = cache.stock.data;
-    if (!stockData?.[id]) return;
-
-    const oldQty = Number(stockData[id].quantidade) || 0;
-    if (!Object.prototype.hasOwnProperty.call(_qtyPendingBase, id)) {
-        _qtyPendingBase[id] = oldQty;
-    }
-    const newQty = Math.max(0, _stRound3(oldQty + delta));
-    if (newQty === oldQty) return;
-
-    // Actualiza cache + UI (mobile e desktop) imediatamente
-    stockData[id].quantidade = newQty;
-    if (_stockSort === 'qtd-asc' || _stockSort === 'qtd-desc') _invalidateSortedCache();
-    _syncCardQtyUI(id, newQty, true);
-
-    clearTimeout(_qtyTimers[id]);
-    _qtyTimers[id] = setTimeout(async () => {
-        const finalQty = stockData[id]?.quantidade;
-        if (finalQty === undefined) return;
-        const baseQty = _qtyPendingBase[id] ?? oldQty;
-        try {
-            const commit   = await _commitStockDelta(id, baseQty, finalQty);
-            const savedQty = commit.saved;
-            stockData[id].quantidade = savedQty;
-            _syncCardQtyUI(id, savedQty, false);
-
-            const movido = Math.max(0, -commit.applied);
-            if (movido > 0) {
-                const _itm = stockData[id];
-                registarMovimento('saida_manual', id, _itm?.codigo, _itm?.nome, movido);
-            }
-        } catch (e) {
-            console.warn('changeQtd erro:', e?.message || e);
-            stockData[id].quantidade = baseQty;
-            _syncCardQtyUI(id, baseQty, false);
-            showToast('Erro ao guardar quantidade', 'error');
-        }
-        delete _qtyTimers[id];
-        delete _qtyPendingBase[id];
-    }, 600);
-}
-
-// ── SWIPE GESTURES & DELEGATION ─────────────────────────────────────────────
+// ── SWIPE GESTURES & DELEGATION (mobile) ────────────────────────────────────
 const SWIPE_THRESHOLD = 80;
 let _swipeCard     = null;
 let _swipeWrapper  = null;
@@ -911,7 +698,6 @@ function _ensureStockListDelegation() {
         return { wrapper, card, id, item };
     }
 
-    const _qtyTapState = new Map();
     listEl.addEventListener('click', e => {
         // Miniatura mobile → lightbox directo
         const thumb = e.target.closest('.mc-thumb');
@@ -921,43 +707,16 @@ function _ensureStockListDelegation() {
             if (ctx?.item?.imgUrl) openImageViewer(ctx.item.imgUrl, ctx.item.nome, ctx.item.codigo);
             return;
         }
-        const btn = e.target.closest('.btn-qty');
-        if (btn) {
-            const ctx = _resolveCtx(btn);
-            if (!ctx) return;
-            const isPlus  = btn.id?.startsWith('btn-plus-')  || btn.textContent.trim() === '+';
-            const isMinus = btn.id?.startsWith('btn-minus-') || btn.textContent.trim() === '−';
-            if (isPlus)  changeQtd(ctx.id,  1);
-            if (isMinus) changeQtd(ctx.id, -1);
-            return;
-        }
-        const qty = e.target.closest('.qty-display');
-        if (qty) {
-            const ctx = _resolveCtx(qty);
-            if (!ctx) return;
-            const state = _qtyTapState.get(ctx.id) || {};
-            if (state.timer) {
-                clearTimeout(state.timer);
-                _qtyTapState.delete(ctx.id);
-                openInlineQtyEdit(ctx.id, ctx.item, 'mobile');
-            } else {
-                state.timer = setTimeout(() => _qtyTapState.delete(ctx.id), 350);
-                _qtyTapState.set(ctx.id, state);
-            }
-            return;
-        }
-        // Worker: click no card abre popup de detalhe
+        // Worker: click no card abre detalhe
         if (currentRole === 'worker') {
             const ctx = _resolveCtx(e.target);
             if (ctx) openProductDetail(ctx.id, ctx.item);
         }
     });
 
-    const _IGNORE_SWIPE = '.btn-qty, .qty-display, .qty-inline-edit, .mc-thumb';
-
     listEl.addEventListener('touchstart', e => {
         if (currentRole === 'worker') return;
-        if (e.target.closest(_IGNORE_SWIPE)) return;
+        if (e.target.closest('.mc-thumb')) return;
         const ctx = _resolveCtx(e.target);
         if (!ctx || !ctx.card) return;
         _onSwipeStart(ctx.card, ctx.wrapper, ctx.id, ctx.item, e.touches[0].clientX, e.touches[0].clientY);
@@ -965,19 +724,19 @@ function _ensureStockListDelegation() {
 
     listEl.addEventListener('touchmove', e => {
         if (!_swipeDragging) return;
-        if (e.target.closest(_IGNORE_SWIPE)) return;
+        if (e.target.closest('.mc-thumb')) return;
         _onSwipeMove(e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: true });
 
     listEl.addEventListener('touchend', e => {
         if (!_swipeDragging) return;
-        if (e.target.closest(_IGNORE_SWIPE)) return;
+        if (e.target.closest('.mc-thumb')) return;
         _onSwipeEnd();
     }, { passive: true });
 
     listEl.addEventListener('mousedown', e => {
         if (currentRole === 'worker') return;
-        if (e.target.closest(_IGNORE_SWIPE)) return;
+        if (e.target.closest('.mc-thumb')) return;
         const ctx = _resolveCtx(e.target);
         if (!ctx || !ctx.card) return;
         _onSwipeStart(ctx.card, ctx.wrapper, ctx.id, ctx.item, e.clientX, e.clientY);
@@ -1039,7 +798,7 @@ function snapBack(card) {
     card.addEventListener('transitionend', () => card.classList.remove('snap-back'), { once: true });
 }
 
-// ── Popup de detalhe do produto (mobile tap) ────────────────────────────────
+// ── Popup de detalhe do produto (mobile & desktop) ──────────────────────────
 let _pdmOpenedAt = 0;
 
 function openProductDetail(id, item) {
@@ -1061,7 +820,7 @@ function openProductDetail(id, item) {
         imgWrap.style.display = 'none';
     }
 
-    $id('pdm-ref').textContent  = 'REF: ' + (data.codigo || '—').toUpperCase();
+    $id('pdm-ref').textContent  = (data.codigo || 'SEM REF').toUpperCase();
     $id('pdm-nome').textContent = (data.nome || '').toUpperCase();
 
     const locWrap = $id('pdm-loc-wrap');
@@ -1074,8 +833,8 @@ function openProductDetail(id, item) {
 
     const qty   = Number(data.quantidade) || 0;
     const qtyEl = $id('pdm-qty');
-    qtyEl.textContent = fmtQty(qty, data.unidade);
-    qtyEl.className   = 'pdm-value pdm-qty' + (qty === 0 ? ' pdm-qty-zero' : '');
+    qtyEl.innerHTML = _fmtQtyPartsHtml(qty, data.unidade);
+    qtyEl.className = 'pdm-value pdm-qty' + (qty === 0 ? ' pdm-qty-zero' : '');
 
     const notasWrap = $id('pdm-notas-wrap');
     if (data.notas) {

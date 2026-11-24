@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// app.js — Gestão Armazém v6.86
+// app.js — Gestão Armazém v6.87
 // Núcleo da aplicação: cache em memória, fila offline/sync, navegação (nav),
 // administração, temas, calculadora de peso, Web Share Target, arranque
 // (DOMContentLoaded) e registo do Service Worker.
@@ -1136,6 +1136,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const _oldQtyEdit = cache.stock.data?.[id]?.quantidade ?? 0;
         const _oldStockCache = { ...cache.stock.data[id] }; // snapshot para rollback
         cache.stock.data[id] = { ...cache.stock.data[id], ...updated };
+        if (typeof _invalidateSortedCache === 'function') _invalidateSortedCache();
         btn.textContent = 'A guardar...';
         modalClose('edit-modal');
         renderList(window._searchInputEl?.value || '', false);
@@ -1245,8 +1246,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // SW_EXPECTED_VERSION deve bater certo com SW_VERSION em sw.js, senão o
 // client deteta sempre "SW desactualizado" e fica em loop de update.
 // SW_SCRIPT_URL tem de mudar de query string ou o browser não re-baixa o SW.
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.86';
-const SW_SCRIPT_URL = 'sw.js?v=6.86';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.87';
+const SW_SCRIPT_URL = 'sw.js?v=6.87';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados
