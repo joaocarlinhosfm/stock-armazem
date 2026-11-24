@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// tools.js — Gestão Armazém v6.85
+// tools.js — Gestão Armazém v6.88
 // Ferramentas (com identificação destacada por nº único de 3 ou 4 dígitos),
 // histórico, funcionários, timeline e modais partilhados.
 // Carrega DEPOIS de reports.js e stock.js, ANTES de pats.js.
@@ -26,34 +26,37 @@ function _normToolText(str) {
         .trim();
 }
 
-// Extrai o número único de 3 ou 4 dígitos e o nome limpo de uma ferramenta.
+// Extrai o número único (3 ou 4 dígitos) e o nome limpo de uma ferramenta.
 // Suporta tanto o campo dedicado `tool.numero` como registos antigos onde o
-// número de 3 ou 4 dígitos estava dentro de `tool.nome` (ex.: "BERBEQUIM 1042",
-// "1042 - BERBEQUIM", "MANÓMETROS (0321)").
+// número estava dentro de `tool.nome` (ex.: "BERBEQUIM 123", "1042 - BERBEQUIM",
+// "MANÓMETROS (0321)"). Se `tool.numero === ''` (limpo explicitamente na edição),
+// respeita a escolha e não volta a extrair dígitos do nome.
 function _parseToolIdentity(tool) {
+    const hasExplicitNum = tool != null && typeof tool.numero === 'string';
     const rawNum  = String(tool?.numero ?? '').trim();
     const rawNome = String(tool?.nome   ?? '').trim();
 
-    const mNum = rawNum.match(/(?:^|[^A-Za-z0-9])(\d{4})(?![A-Za-z0-9])/);
+    const mNum = rawNum.match(/(?:^|[^A-Za-z0-9])(\d{3,4})(?![A-Za-z0-9])/);
     let numero = mNum ? mNum[1] : '';
     let nome   = rawNome;
 
-    if (!numero && rawNome) {
-        let m = rawNome.match(/^\s*#?(\d{4})(?![A-Za-z0-9])\s*[-–—:\/·]?\s*(.*)$/);
+    if (!numero && !hasExplicitNum && rawNome) {
+        let m = rawNome.match(/^\s*#?(\d{3,4})(?![A-Za-z0-9])\s*[-–—:\/·]?\s*(.*)$/);
         if (m) {
             numero = m[1];
             nome   = m[2];
         } else {
-            m = rawNome.match(/^(.*?)(?:^|[^A-Za-z0-9])(\d{4})(?:\)|\])?\s*$/);
+            m = rawNome.match(/^(.*?)(?:^|[^A-Za-z0-9])(\d{3,4})(?:\)|\])?\s*$/);
             if (m) {
                 numero = m[2];
                 nome   = m[1];
             } else {
-                m = rawNome.match(/(?:^|[^A-Za-z0-9])(\d{4})(?![A-Za-z0-9])/);
+                // Evita apanhar medidas/especificações no meio do nome (ex.: 100 KG, 230 V, 180 MM)
+                m = rawNome.match(/(?:^|[^A-Za-z0-9])(\d{3,4})(?![A-Za-z0-9])(?!\s*(?:W|KW|V|VA|A|AH|MA|MAH|HZ|MM|CM|DM|M|KM|KG|G|GR|MG|L|ML|CL|BAR|PSI|RPM|NM|POL)\b)/i);
                 if (m) {
                     numero = m[1];
                     const idx = m.index + m[0].indexOf(numero);
-                    nome = rawNome.slice(0, idx) + ' ' + rawNome.slice(idx + 4);
+                    nome = rawNome.slice(0, idx) + ' ' + rawNome.slice(idx + numero.length);
                 }
             }
         }
@@ -154,11 +157,13 @@ async function renderTools() {
 
     const qNorm = _normToolText(_toolsSearchQuery);
 
-    // Ordenação por nº de 3 ou 4 dígitos crescente (ferramentas sem número ficam depois, por nome)
+    // Ordenação numérica crescente (3 ou 4 dígitos; ferramentas sem número ficam depois, por nome)
     const _sortByNum = ([, a], [, b]) => {
         const ia = _parseToolIdentity(a);
         const ib = _parseToolIdentity(b);
-        if (ia.numero && ib.numero) return ia.numero.localeCompare(ib.numero);
+        if (ia.numero && ib.numero) {
+            return ia.numero.localeCompare(ib.numero, undefined, { numeric: true }) || ia.numero.localeCompare(ib.numero);
+        }
         if (ia.numero) return -1;
         if (ib.numero) return 1;
         return (ia.nome || '').localeCompare(ib.nome || '', 'pt');
@@ -516,11 +521,12 @@ async function returnTool(id) {
 }
 
 function openEditToolModal(id, tool) {
-    const { numero, nome } = _parseToolIdentity(tool);
+    const liveTool = cache.ferramentas.data?.[id] || tool || {};
+    const { numero, nome } = _parseToolIdentity(liveTool);
     $id('edit-tool-id').value   = id;
     const numEl = $id('edit-tool-num');
     if (numEl) numEl.value      = numero;
-    $id('edit-tool-name').value = nome || tool.nome || '';
+    $id('edit-tool-name').value = nome || liveTool.nome || '';
     modalOpen('edit-tool-modal');
     focusModal('edit-tool-modal');
 }
@@ -531,27 +537,24 @@ async function saveEditTool() {
     const rawNum = ($id('edit-tool-num')?.value || '').replace(/\D/g, '');
     let   nome   = $id('edit-tool-name').value.trim().toUpperCase();
 
-    if (!nome) { showToast('Nome obrigatório', 'error'); return; }
+    if (!nome) {
+        showToast('Nome obrigatório', 'error');
+        $id('edit-tool-name')?.focus();
+        return;
+    }
 
-    let numero = rawNum;
+    const numero = rawNum;
     if (numero && (numero.length < 3 || numero.length > 4)) {
         showToast('O nº da ferramenta deve ter 3 ou 4 dígitos', 'error');
         $id('edit-tool-num')?.focus();
         return;
     }
-    // Se deixou o campo nº vazio mas incluiu 3 ou 4 dígitos no nome, separa automaticamente
-    if (!numero) {
-        const parsed = _parseToolIdentity({ nome });
-        if (parsed.numero) {
-            numero = parsed.numero;
-            if (parsed.nome) nome = parsed.nome;
-        }
-    } else {
+
+    // Se o utilizador indicou nº, remove-o do nome caso venha repetido
+    if (numero) {
         const cleaned = _parseToolIdentity({ numero, nome });
         if (cleaned.nome) nome = cleaned.nome;
-    }
 
-    if (numero) {
         const dup = _findDuplicateToolNum(numero, id);
         if (dup) {
             showToast(`Já existe uma ferramenta com o nº ${numero} (${_toolDisplayLabel(dup.tool)})`, 'error');
@@ -560,7 +563,9 @@ async function saveEditTool() {
         }
     }
 
-    const patch = { nome, numero: numero || null };
+    // Guarda '' quando limpo explicitamente para não voltar a extrair dígitos do nome
+    const patch = { nome, numero: numero || '' };
+    const prev  = cache.ferramentas.data?.[id] ? { ...cache.ferramentas.data[id] } : null;
     if (cache.ferramentas.data?.[id]) {
         cache.ferramentas.data[id] = { ...cache.ferramentas.data[id], ...patch };
     }
@@ -573,7 +578,14 @@ async function saveEditTool() {
         await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, {
             method: 'PATCH', body: JSON.stringify(patch)
         });
-    } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao guardar', 'error'); }
+    } catch(_e) {
+        if (prev && cache.ferramentas.data) cache.ferramentas.data[id] = prev;
+        invalidateCache('ferramentas');
+        renderAdminTools();
+        renderTools();
+        renderDashboard();
+        showToast('Erro ao guardar', 'error');
+    }
 }
 
 async function deleteTool(id) {
