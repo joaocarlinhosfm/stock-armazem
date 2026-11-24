@@ -12,9 +12,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=Fraunces:wght@500;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="base.css?v=6.85">
-    <link rel="stylesheet" href="stock.css?v=6.85">
-    <link rel="stylesheet" href="operacoes.css?v=6.85">
+    <link rel="stylesheet" href="base.css?v=6.86">
+    <link rel="stylesheet" href="stock.css?v=6.86">
+    <link rel="stylesheet" href="operacoes.css?v=6.86">
 </head>
 <body>
 
@@ -107,7 +107,7 @@
                     <div class="ls-btn-spinner hidden" id="ls-spinner"></div>
                 </button>
             </form>
-            <div class="ls-version">v6.85 · Gestão Armazém</div>
+            <div class="ls-version">v6.86 · Gestão Armazém</div>
         </div>
     </div>
 
@@ -225,12 +225,12 @@
         <main id="main-content">
         <div id="view-search" class="view active">
             <div class="search-container">
-                <!-- Input box com botões embutidos -->
                 <div class="search-input-wrap">
-                    <input type="search" id="inp-search" placeholder="Pesquisar por nome, ref. ou local..."
+                    <svg class="search-input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="search" id="inp-search" placeholder="Pesquisar por ref., nome ou local..."
                         name="search_q" autocomplete="off" data-lpignore="true" data-form-type="other"
                         autocorrect="off" autocapitalize="none" spellcheck="false">
-                    <button id="inp-search-clear" class="search-clear-btn hidden" onclick="clearSearch()" title="Limpar"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="2" y1="2" x2="14" y2="14"/><line x1="14" y1="2" x2="2" y2="14"/></svg></button>
+                    <button type="button" id="inp-search-clear" class="search-clear-btn hidden" onclick="clearSearch()" title="Limpar" aria-label="Limpar pesquisa"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg></button>
                 </div>
                 <div class="sort-select-wrap" data-manager-only>
                     <span class="sort-select-lbl">Ordenar</span>
@@ -243,7 +243,15 @@
                         <option value="local">Localização</option>
                     </select>
                 </div>
-                <button id="btn-refresh" onclick="forceRefresh()" title="Atualizar stock">↻</button>
+                <button type="button" id="btn-refresh" onclick="forceRefresh()" title="Atualizar stock" aria-label="Atualizar stock">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
+            </div>
+            <div class="stock-filter-row" id="stock-filters">
+                <button type="button" class="stock-filter-btn active" id="sf-btn-all" data-filter="all" onclick="setStockFilter('all')">Todos <span class="sf-cnt" id="sf-n-all">—</span></button>
+                <button type="button" class="stock-filter-btn" id="sf-btn-stock" data-filter="stock" onclick="setStockFilter('stock')">Em stock <span class="sf-cnt" id="sf-n-stock">—</span></button>
+                <button type="button" class="stock-filter-btn stock-filter-zero" id="sf-btn-zero" data-filter="zero" onclick="setStockFilter('zero')">Sem stock <span class="sf-cnt" id="sf-n-zero">—</span></button>
+                <button type="button" class="stock-filter-btn" id="sf-btn-nolocal" data-filter="nolocal" onclick="setStockFilter('nolocal')" style="display:none">Sem local <span class="sf-cnt" id="sf-n-nolocal">—</span></button>
             </div>
             <div id="stock-list"></div>
         </div>
@@ -1184,7 +1192,7 @@
                     <span class="pdm-value" id="pdm-loc"></span>
                 </div>
                 <div class="pdm-field">
-                    <span class="pdm-label">Estoque Atual</span>
+                    <span class="pdm-label">Stock Atual</span>
                     <span class="pdm-value pdm-qty" id="pdm-qty"></span>
                 </div>
                 <div class="pdm-field" id="pdm-notas-wrap">
@@ -1971,21 +1979,21 @@
     <!-- Chart.js, Leaflet + MarkerCluster são carregados sob demanda por loadChart() e loadLeaflet() em utils.js -->
     <!-- Módulos extraídos — Fase 1+2+3+4 da modularização -->
     <!-- ORDEM OBRIGATÓRIA: utils → auth → reports → stock → stockimport → backup → tools → settings → clientes → pat-map → pats → guias → encomendas → inventory → dashboard → app (preservada por defer) -->
-    <script defer src="utils.js?v=6.85"></script>
-    <script defer src="auth.js?v=6.85"></script>
-    <script defer src="reports.js?v=6.85"></script>
-    <script defer src="stock.js?v=6.85"></script>
-    <script defer src="stockimport.js?v=6.85"></script>
-    <script defer src="backup.js?v=6.85"></script>
-    <script defer src="tools.js?v=6.85"></script>
-    <script defer src="settings.js?v=6.85"></script>
-    <script defer src="clientes.js?v=6.85"></script>
-    <script defer src="pat-map.js?v=6.85"></script>
-    <script defer src="pats.js?v=6.85"></script>
-    <script defer src="guias.js?v=6.85"></script>
-    <script defer src="encomendas.js?v=6.85"></script>
-    <script defer src="inventory.js?v=6.85"></script>
-    <script defer src="dashboard.js?v=6.85"></script>
-    <script defer src="app.js?v=6.85"></script>
+    <script defer src="utils.js?v=6.86"></script>
+    <script defer src="auth.js?v=6.86"></script>
+    <script defer src="reports.js?v=6.86"></script>
+    <script defer src="stock.js?v=6.86"></script>
+    <script defer src="stockimport.js?v=6.86"></script>
+    <script defer src="backup.js?v=6.86"></script>
+    <script defer src="tools.js?v=6.86"></script>
+    <script defer src="settings.js?v=6.86"></script>
+    <script defer src="clientes.js?v=6.86"></script>
+    <script defer src="pat-map.js?v=6.86"></script>
+    <script defer src="pats.js?v=6.86"></script>
+    <script defer src="guias.js?v=6.86"></script>
+    <script defer src="encomendas.js?v=6.86"></script>
+    <script defer src="inventory.js?v=6.86"></script>
+    <script defer src="dashboard.js?v=6.86"></script>
+    <script defer src="app.js?v=6.86"></script>
 </body>
 </html>

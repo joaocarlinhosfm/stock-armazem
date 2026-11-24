@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// app.js — Gestão Armazém v6.85
+// app.js — Gestão Armazém v6.86
 // Núcleo da aplicação: cache em memória, fila offline/sync, navegação (nav),
 // administração, temas, calculadora de peso, Web Share Target, arranque
 // (DOMContentLoaded) e registo do Service Worker.
@@ -251,18 +251,12 @@ function nav(viewId) {
     }
 
     if (viewId === 'view-search') {
-        // Limpa a pesquisa ao navegar para o stock (desktop e mobile)
+        // Limpa a pesquisa ao navegar para o stock e usa a cache (5 min TTL)
         if (window._searchInputEl) {
             window._searchInputEl.value = '';
             $id('inp-search-clear')?.classList.add('hidden');
         }
-        renderList('', true).then(() => {
-            if (_zeroFilterActive) filterZeroStock();
-            if (_pendingZeroFilter) { _pendingZeroFilter = false; filterZeroStock(); }
-        });
-        // Reset barra de pesquisa ao navegar para o stock
-        document.querySelector('.search-container')?.classList.remove('search-scrolled-away');
-        $id('search-peek-btn')?.classList.remove('visible');
+        renderList('', false);
     }
     if (viewId === 'view-register') { // PONTO 19: limpa form ao navegar
         const fa = $id('form-add');
@@ -701,74 +695,8 @@ function _applyTheme(theme) {
     }
     metaTheme.content = themeColors[theme] || themeColors.light;
 
-    // Liga/desliga o comportamento de scroll da barra de pesquisa
-    _setupSearchScrollBehaviour(false);
     // Scroll hide/show do pill — activo em todos os temas
     _setupBottomNavScrollBehaviour(true);
-}
-
-let _searchScrollCleanup = null;
-
-function _setupSearchScrollBehaviour(enable) {
-    // Remove listener anterior se existir
-    if (_searchScrollCleanup) { _searchScrollCleanup(); _searchScrollCleanup = null; }
-
-    const container  = document.querySelector('.search-container');
-    if (!container) return;
-
-    // Garante que o peek btn existe (criado uma vez, reutilizado)
-    let peekBtn = $id('search-peek-btn');
-    if (!peekBtn) {
-        peekBtn = $el('button');
-        peekBtn.id        = 'search-peek-btn';
-        peekBtn.className = 'search-peek-btn';
-        peekBtn.innerHTML = ' Pesquisar';
-        peekBtn.setAttribute('aria-label', 'Mostrar barra de pesquisa');
-        peekBtn.onclick   = () => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        };
-        document.body.appendChild(peekBtn);
-    }
-
-    if (!enable) {
-        container.classList.remove('search-scrolled-away');
-        peekBtn.classList.remove('visible');
-        return;
-    }
-
-    const HIDE_THRESHOLD  = 80;  // px de scroll para esconder
-    const SHOW_THRESHOLD  = 20;  // px de scroll para mostrar de volta
-    let   _lastScrollY    = 0;
-    let   _hidden         = false;
-    let   _rafId          = null;
-
-    const onScroll = () => {
-        if (_rafId) return; // throttle via rAF
-        _rafId = requestAnimationFrame(() => {
-            _rafId = null;
-            const sy = window.scrollY;
-            if (!_hidden && sy > HIDE_THRESHOLD) {
-                _hidden = true;
-                container.classList.add('search-scrolled-away');
-                peekBtn.classList.add('visible');
-            } else if (_hidden && sy <= SHOW_THRESHOLD) {
-                _hidden = false;
-                container.classList.remove('search-scrolled-away');
-                peekBtn.classList.remove('visible');
-            }
-            _lastScrollY = sy;
-        });
-    };
-
-    window.addEventListener('scroll', onScroll, { passive: true });
-
-    // Retorna função de cleanup para quando o tema mudar
-    _searchScrollCleanup = () => {
-        window.removeEventListener('scroll', onScroll);
-        container.classList.remove('search-scrolled-away');
-        peekBtn.classList.remove('visible');
-        if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
-    };
 }
 
 let _bnavScrollCleanup = null;
@@ -940,8 +868,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clearTimeout(debounceTimer);
             const val = e.target.value;
             if (searchClear) searchClear.classList.toggle('hidden', !val);
-            if (val) { _zeroFilterActive = false; _desktopFilter = 'all'; const b = $id('zero-filter-badge'); if (b) b.remove(); }
-            debounceTimer = setTimeout(() => renderList(val), 300);
+            debounceTimer = setTimeout(() => renderList(val, false), 220);
         };
     }
 
@@ -1002,15 +929,20 @@ document.addEventListener('DOMContentLoaded', () => {
         await syncQueue();
     });
 
-    // Re-render stock ao redimensionar (desktop ↔ mobile)
-    let _resizeTimer = null;
+    // Re-render stock apenas ao cruzar o breakpoint desktop ↔ mobile (evita refetch ao abrir teclado/barra no telemóvel)
+    let _resizeTimer   = null;
+    let _lastIsDesktop = window.innerWidth >= 768;
     window.addEventListener('resize', () => {
         clearTimeout(_resizeTimer);
         _resizeTimer = setTimeout(() => {
-            if ($id('view-search')?.classList.contains('active')) {
-                renderList(window._searchInputEl?.value || '', true);
+            const nowDesktop = window.innerWidth >= 768;
+            if (nowDesktop !== _lastIsDesktop) {
+                _lastIsDesktop = nowDesktop;
+                if ($id('view-search')?.classList.contains('active')) {
+                    renderList(window._searchInputEl?.value || '', false);
+                }
             }
-        }, 250);
+        }, 200);
     });
 
     // Renovação de token ao voltar ao foco — protege sessões longas no Android
@@ -1075,7 +1007,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Delete confirm — chamado pelo openDeleteModal via _deleteProductCallback
     window._deleteProductCallback = async (id, item) => {
         delete cache.stock.data[id];
-        renderList(window._searchInputEl?.value || '', true);
+        renderList(window._searchInputEl?.value || '', false);
         renderDashboard();
         showToast('Produto apagado');
         try {
@@ -1087,7 +1019,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             console.warn('deleteProduct erro:', e?.message || e);
             cache.stock.data[id] = item;
-            renderList(window._searchInputEl?.value || '', true);
+            renderList(window._searchInputEl?.value || '', false);
             renderDashboard();
             showToast('Erro ao apagar produto','error');
         }
@@ -1206,7 +1138,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cache.stock.data[id] = { ...cache.stock.data[id], ...updated };
         btn.textContent = 'A guardar...';
         modalClose('edit-modal');
-        renderList(window._searchInputEl?.value || '', true);
+        renderList(window._searchInputEl?.value || '', false);
         try {
             await apiFetch(`${BASE_URL}/stock/${id}.json`, { method:'PATCH', body:JSON.stringify(updated) });
             // Só após PATCH confirmado: regista saída se a quantidade desceu.
@@ -1313,8 +1245,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // SW_EXPECTED_VERSION deve bater certo com SW_VERSION em sw.js, senão o
 // client deteta sempre "SW desactualizado" e fica em loop de update.
 // SW_SCRIPT_URL tem de mudar de query string ou o browser não re-baixa o SW.
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.85';
-const SW_SCRIPT_URL = 'sw.js?v=6.85';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.86';
+const SW_SCRIPT_URL = 'sw.js?v=6.86';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados

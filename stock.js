@@ -1,25 +1,44 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// stock.js — Hiperfrio v6.61
-// Gestão de stock: render, ordenação, filtros, swipe, changeQtd, exportCSV.
+// stock.js — Gestão Armazém v6.86
+// Gestão de stock: render mobile/desktop, filtros rápidos, pesquisa sem acentos
+// e multi-palavra, ordenação, swipe com ícones, atualização atómica de stock,
+// edição inline (mobile + desktop) e exportação CSV.
 // Carrega DEPOIS de reports.js e ANTES de tools.js, pats.js.
 //
 // Dependências:
-//   utils.js   → $id, $el, fmtQty, escapeHtml, showToast, modalOpen,
-//                modalClose, focusModal, _debounce, loadXlsx, UNITS, UNIT_SHORT
-//   auth.js    → currentRole, requireManagerAccess, apiFetch, authUrl
+//   utils.js   → BASE_URL, $id, $el, fmtQty, escapeHtml, showToast, modalOpen,
+//                modalClose, focusModal, openImageViewer, setRefreshSpinning,
+//                SVG_EDIT, SVG_DEL
+//   auth.js    → currentRole, requireManagerAccess, authUrl
 //   reports.js → registarMovimento
-//   app.js     → cache, fetchCollection, invalidateCache, renderDashboard,
-//                openConfirmModal, openDeleteModal, openEditModal, nav
+//   app.js     → cache, fetchCollection, invalidateCache, apiFetch,
+//                renderDashboard, openConfirmModal, openDeleteModal,
+//                openEditModal, nav
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ORDENAÇÃO DO STOCK
-let _stockSort = 'recente'; // 'recente' | 'nome' | 'ref' | 'qtd-asc' | 'qtd-desc' | 'local'
-let _pendingZeroFilter  = false;
-let _bulkCount = 0; // contador de produtos adicionados no lote actual
-let _zeroFilterActive  = false; // zero-stock filter está activo (persiste entre navegações)
+// ORDENAÇÃO E FILTROS DO STOCK
+let _stockSort         = 'recente'; // 'recente' | 'nome' | 'ref' | 'qtd-asc' | 'qtd-desc' | 'local'
+let _stockFilter       = 'all';     // 'all' | 'stock' | 'zero' | 'nolocal'
+let _desktopFilter     = 'all';     // alias mantido sincronizado com _stockFilter
+let _zeroFilterActive  = false;     // alias mantido sincronizado com _stockFilter === 'zero'
+let _pendingZeroFilter = false;     // activado pelo Dashboard antes de nav('view-search')
+let _bulkCount         = 0;         // contador de produtos adicionados no lote actual
 
-// Ordenação — dropdown nativo (<select id="sort-select"> na barra de pesquisa).
-// Mostra sempre a opção activa; as opções estão no index.html.
+const _STOCK_LOW_THRESHOLD = 5;
+
+const _STK_PIN_SVG = '<svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>';
+const _STK_SWIPE_EDIT_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+const _STK_SWIPE_DEL_SVG  = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+
+// Normaliza texto para pesquisa sem acentos e case-insensitive
+function _normStockText(str) {
+    return String(str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
 function _syncSortSelect() {
     const sel = $id('sort-select');
     if (sel && sel.value !== _stockSort) sel.value = _stockSort;
@@ -28,94 +47,57 @@ function _syncSortSelect() {
 function setStockSort(val) {
     _stockSort = val;
     _syncSortSelect();
-    renderList(window._searchInputEl?.value || '', true);
+    renderList(window._searchInputEl?.value || '', false);
+}
+
+function setStockFilter(filter) {
+    _stockFilter      = filter || 'all';
+    _desktopFilter    = _stockFilter;
+    _zeroFilterActive = _stockFilter === 'zero';
+    renderList(window._searchInputEl?.value || '', false);
+}
+
+function filterZeroStock() {
+    setStockFilter('zero');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function clearZeroFilter() {
+    setStockFilter('all');
 }
 
 function getSortedEntries(entries) {
     const copy = [...entries];
     switch (_stockSort) {
-        case 'nome':     return copy.sort((a,b) => (a[1].nome||'').localeCompare(b[1].nome||'', 'pt', { numeric: true }));   // M8 antes de M10
-        // Referência: ordem "natural" (VRC0008 antes de VRC0010); artigos sem referência no fim
-        case 'ref':      return copy.sort((a,b) => {
-            const ra = String(a[1].codigo||'').trim(), rb = String(b[1].codigo||'').trim();
+        case 'nome':     return copy.sort((a, b) => (a[1].nome || '').localeCompare(b[1].nome || '', 'pt', { numeric: true }));
+        case 'ref':      return copy.sort((a, b) => {
+            const ra = String(a[1].codigo || '').trim(), rb = String(b[1].codigo || '').trim();
             if (!ra && !rb) return 0;
             if (!ra) return 1;
             if (!rb) return -1;
             return ra.localeCompare(rb, 'pt', { numeric: true, sensitivity: 'base' });
         });
-        case 'qtd-asc':  return copy.sort((a,b) => (a[1].quantidade||0) - (b[1].quantidade||0));
-        case 'qtd-desc': return copy.sort((a,b) => (b[1].quantidade||0) - (a[1].quantidade||0));
-        case 'local':    return copy.sort((a,b) => (a[1].localizacao||'').localeCompare(b[1].localizacao||'', 'pt'));
+        case 'qtd-asc':  return copy.sort((a, b) => (a[1].quantidade || 0) - (b[1].quantidade || 0));
+        case 'qtd-desc': return copy.sort((a, b) => (b[1].quantidade || 0) - (a[1].quantidade || 0));
+        case 'local':    return copy.sort((a, b) => (a[1].localizacao || '').localeCompare(b[1].localizacao || '', 'pt'));
         default:         return copy.reverse(); // mais recente primeiro
     }
 }
 
 // Cache do sort — reutiliza o array ordenado enquanto dados + modo não mudam.
-// Filtrar enquanto o utilizador escreve deixa de ordenar 500 itens por tecla.
-let _sortedCache = null;
+let _sortedCache    = null;
 let _sortedCacheKey = '';
 function _getSortedEntriesCached(entries) {
     const key = `${cache.stock.lastFetch}|${_stockSort}|${entries.length}`;
     if (_sortedCache && _sortedCacheKey === key) return _sortedCache;
-    _sortedCache = getSortedEntries(entries);
+    _sortedCache    = getSortedEntries(entries);
     _sortedCacheKey = key;
     return _sortedCache;
 }
 function _invalidateSortedCache() { _sortedCache = null; _sortedCacheKey = ''; }
 
-// STOCK — RENDER
-// FIX: usa [...entries].reverse() para não mutar o cache
-// FIX: qty-display.is-zero para stock a 0
-// FIX: filtragem por show/hide nos cards existentes sem recriar DOM
-// Filtra stock para mostrar apenas produtos com quantidade 0
-// Aviso "A mostrar apenas produtos sem stock · ✕ Limpar" (mobile e desktop).
-// É a única forma de sair do filtro vindo do Dashboard, agora que as abas
-// do catálogo desktop foram retiradas.
-function _ensureZeroBadge() {
-    const listEl = $id('stock-list');
-    if (!listEl) return;
-    let badge = $id('zero-filter-badge');
-    if (!badge) {
-        badge = $el('div');
-        badge.id        = 'zero-filter-badge';
-        badge.className = 'zero-filter-badge';
-        const _badgeTxt = $el('span');
-        _badgeTxt.textContent = '! A mostrar apenas produtos sem stock';
-        const _badgeBtn = $el('button');
-        _badgeBtn.textContent = '✕ Limpar';
-        _badgeBtn.onclick = clearZeroFilter;
-        badge.appendChild(_badgeTxt);
-        badge.appendChild(_badgeBtn);
-        listEl.parentNode.insertBefore(badge, listEl);
-        // Scroll para o topo e foca o badge
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        setTimeout(() => badge.classList.add('badge-pulse'), 100);
-    }
-}
-
-function filterZeroStock() {
-    _zeroFilterActive = true;
-    // Desktop: filtra os cards do catálogo
-    if (_stockDesktopActive()) {
-        _desktopFilter = 'zero';
-        _setDesktopFilter('zero');
-        _ensureZeroBadge();
-        return;
-    }
-    const listEl = $id('stock-list');
-    if (!listEl) return;
-    const wrappers = listEl.querySelectorAll('.swipe-wrapper[data-id]');
-    wrappers.forEach(wrapper => {
-        const id   = wrapper.dataset.id;
-        const item = cache.stock.data?.[id];
-        const isZero = item && (item.quantidade || 0) === 0;
-        wrapper.style.display = isZero ? '' : 'none';
-    });
-    _ensureZeroBadge();
-}
-
+// ── Histórico de zonas para o Lote ──────────────────────────────────────────
 const ZONE_HISTORY_KEY = 'hiperfrio-zone-history';
-// localStorage pode estar corrompido (quota, extensões) — sempre try/catch.
 function _loadZoneHistory() {
     try {
         const parsed = JSON.parse(localStorage.getItem(ZONE_HISTORY_KEY) || '[]');
@@ -130,7 +112,7 @@ function _saveZoneToHistory(zona) {
     const hist = _loadZoneHistory();
     const updated = [zona, ...hist.filter(z => z !== zona)].slice(0, 8);
     try { localStorage.setItem(ZONE_HISTORY_KEY, JSON.stringify(updated)); }
-    catch(_e) { /* quota cheia — esqueça, não é fatal */ }
+    catch(_e) {}
     _refreshZoneDatalist();
 }
 function _refreshZoneDatalist() {
@@ -148,7 +130,6 @@ function closeBatch() {
         title: 'Fechar lote?',
         desc: `${_bulkCount} produto${_bulkCount > 1 ? 's' : ''} adicionado${_bulkCount > 1 ? 's' : ''} na zona "${zona}". Fechar e ir para o stock?`,
         onConfirm: () => {
-            // Limpa o formulário completo
             $id('form-bulk')?.reset();
             setUnitSelector('bulk', 'un');
             $id('bulk-notas').value = '';
@@ -170,157 +151,152 @@ function clearSearch() {
     if (inp) { inp.value = ''; inp.dispatchEvent(new Event('input')); inp.focus(); }
 }
 
-function clearZeroFilter() {
-    _zeroFilterActive = false;
-    _desktopFilter = 'all';
-    const badge = $id('zero-filter-badge');
-    if (badge) badge.remove();
-    renderList('', false);
+// ── Filtragem (texto sem acentos/multi-palavra + estado) ────────────────────
+function _itemMatchesQuery(item, tokens) {
+    if (!tokens.length) return true;
+    const hay = _normStockText(
+        `${item.codigo || ''} ${item.nome || ''} ${item.localizacao || ''} ${item.notas || ''}`
+    );
+    return tokens.every(tok => hay.includes(tok));
 }
 
-function _itemMatchesFilter(item, filterLower, filterUpper) {
-    if (!filterLower) return true;
-    return (item.nome || '').toLowerCase().includes(filterLower)
-        || String(item.codigo || '').toUpperCase().includes(filterUpper)
-        || (item.localizacao || '').toLowerCase().includes(filterLower)
-        || (item.notas || '').toLowerCase().includes(filterLower);
+function _itemMatchesStatus(item, filter = _stockFilter) {
+    const qty = Number(item.quantidade) || 0;
+    switch (filter) {
+        case 'stock':   return qty > 0;
+        case 'zero':    return qty === 0;
+        case 'nolocal': return !(item.localizacao || '').trim();
+        default:        return true;
+    }
 }
-
-// STOCK — VISTA DESKTOP (>= 768px)
-// Layout em grid 3 colunas com cards informativos.
-// Mobile mantém o swipe-wrapper inalterado.
-
-let _desktopFilter = 'all'; // 'all' | 'stock' | 'zero' | 'nolocal'
 
 function _stockDesktopActive() {
     return window.innerWidth >= 768;
 }
 
-// Reconstrói o header desktop com KPIs (as abas de filtro foram retiradas)
+// Actualiza os contadores das pills de filtro e os KPIs desktop em tempo real
+function _updateStockFilterCounts(data) {
+    const items   = Object.values(data || {});
+    const total   = items.length;
+    const zero    = items.filter(i => (Number(i.quantidade) || 0) === 0).length;
+    const inStock = total - zero;
+    const noLocal = items.filter(i => !(i.localizacao || '').trim()).length;
+
+    const setTxt = (id, v) => { const e = $id(id); if (e) e.textContent = v; };
+    setTxt('sf-n-all',     total);
+    setTxt('sf-n-stock',   inStock);
+    setTxt('sf-n-zero',    zero);
+    setTxt('sf-n-nolocal', noLocal);
+
+    // Esconde "Sem local" se for 0 (excepto se o filtro estiver activo)
+    const noLocBtn = $id('sf-btn-nolocal');
+    if (noLocBtn) noLocBtn.style.display = (noLocal > 0 || _stockFilter === 'nolocal') ? '' : 'none';
+
+    const zeroBtn = $id('sf-btn-zero');
+    if (zeroBtn) zeroBtn.classList.toggle('has-zero', zero > 0);
+
+    document.querySelectorAll('.stock-filter-btn[data-filter]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === _stockFilter);
+    });
+
+    // Sincronizar KPIs desktop se estiverem no DOM
+    const kpiTotal = $id('sdh-kpi-total');
+    if (kpiTotal) kpiTotal.textContent = total.toLocaleString('pt-PT');
+    const kpiZero = $id('sdh-kpi-zero');
+    if (kpiZero) {
+        kpiZero.textContent = zero;
+        kpiZero.className   = 'sdh-kpi-val ' + (zero > 0 ? 'sdh-kpi-red' : 'sdh-kpi-green');
+    }
+    $id('sdh-kpi-btn-all')?.classList.toggle('active', _stockFilter === 'all');
+    $id('sdh-kpi-btn-zero')?.classList.toggle('active', _stockFilter === 'zero');
+}
+
+// ── Header Desktop ──────────────────────────────────────────────────────────
 function _renderDesktopHeader(data) {
-    const entries = Object.values(data || {});
-    const total   = entries.length;
-    const semStock = entries.filter(i => (i.quantidade || 0) === 0).length;
+    const items    = Object.values(data || {});
+    const total    = items.length;
+    const semStock = items.filter(i => (Number(i.quantidade) || 0) === 0).length;
 
     let hdr = $id('stock-desktop-hdr');
     if (!hdr) {
-        hdr = $el('div');
+        hdr = $el('div', { className: 'sdh' });
         hdr.id = 'stock-desktop-hdr';
-        hdr.className = 'sdh';
-        const listEl = $id('stock-list');
-        listEl?.parentNode.insertBefore(hdr, listEl);
+        const viewSearch = $id('view-search');
+        const firstChild = viewSearch?.firstElementChild;
+        if (viewSearch && firstChild) viewSearch.insertBefore(hdr, firstChild);
     }
 
     hdr.innerHTML = `
         <div class="sdh-top">
             <div class="sdh-meta">
                 <h1 class="sdh-title">Catálogo de Produtos</h1>
-                <p class="sdh-sub">Gestão de stock em tempo real · ${new Date().toLocaleDateString('pt-PT', {weekday:'long', day:'numeric', month:'long'})}</p>
+                <p class="sdh-sub">Gestão de stock em tempo real · ${new Date().toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
             </div>
             <div class="sdh-kpis">
-                <div class="sdh-kpi">
-                    <span class="sdh-kpi-label">Total itens</span>
-                    <span class="sdh-kpi-val">${total.toLocaleString('pt-PT')}</span>
-                </div>
-                <div class="sdh-kpi sdh-kpi-warn">
+                <button type="button" id="sdh-kpi-btn-all" class="sdh-kpi${_stockFilter === 'all' ? ' active' : ''}" onclick="setStockFilter('all')">
+                    <span class="sdh-kpi-label">Total artigos</span>
+                    <span class="sdh-kpi-val" id="sdh-kpi-total">${total.toLocaleString('pt-PT')}</span>
+                </button>
+                <button type="button" id="sdh-kpi-btn-zero" class="sdh-kpi sdh-kpi-warn${_stockFilter === 'zero' ? ' active' : ''}" onclick="setStockFilter(_stockFilter === 'zero' ? 'all' : 'zero')">
                     <span class="sdh-kpi-label">Sem stock</span>
-                    <span class="sdh-kpi-val ${semStock > 0 ? 'sdh-kpi-red' : 'sdh-kpi-green'}">${semStock}</span>
-                </div>
+                    <span class="sdh-kpi-val ${semStock > 0 ? 'sdh-kpi-red' : 'sdh-kpi-green'}" id="sdh-kpi-zero">${semStock}</span>
+                </button>
             </div>
-        </div>
-`;
+        </div>`;
 }
 
-function _setDesktopFilter(f) {
-    _desktopFilter = f;
-    // Re-aplica visibilidade nos cards existentes sem re-render completo
-    const listEl = $id('stock-list');
-    if (!listEl) return;
-    const q = window._searchInputEl?.value?.toLowerCase() || '';
-    const data = cache.stock.data || {};
-    listEl.querySelectorAll('.sdc-wrapper[data-id]').forEach(w => {
-        const id   = w.dataset.id;
-        const item = data[id];
-        if (!item) { w.style.display = 'none'; return; }
-        const passFilter = _desktopFilterMatch(item);
-        const passSearch = !q || _itemMatchesFilter(item, q, q.toUpperCase());
-        w.style.display = (passFilter && passSearch) ? '' : 'none';
-    });
-    // Actualiza tabs activos
-    document.querySelectorAll('.sdh-tab').forEach(t => {
-        const f2 = t.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
-        t.classList.toggle('sdh-tab-active', f2 === _desktopFilter);
-    });
-}
-
-function _desktopFilterMatch(item) {
-    switch (_desktopFilter) {
-        case 'stock':   return (item.quantidade || 0) > 0;
-        case 'zero':    return (item.quantidade || 0) === 0;
-        case 'nolocal': return !item.localizacao;
-        default:        return true;
-    }
-}
-
-// Constrói um card desktop para um item do stock
+// ── Card Desktop ────────────────────────────────────────────────────────────
 function _buildDesktopCard(id, item) {
-    const qty    = item.quantidade || 0;
+    const qty    = Number(item.quantidade) || 0;
     const isZero = qty === 0;
-    const isLow  = !isZero && qty <= 5; // alerta para quantidades muito baixas
-    const unidade = item.unidade && item.unidade !== 'un' ? item.unidade : 'un';
+    const isLow  = !isZero && qty <= _STOCK_LOW_THRESHOLD;
 
     const wrapper = $el('div', { className: 'sdc-wrapper' });
     wrapper.dataset.id = id;
 
-    const card = $el('div');
-    card.className = 'sdc' + (isZero ? ' sdc-zero' : isLow ? ' sdc-low' : '');
+    const card = $el('div', {
+        className: 'sdc' + (isZero ? ' sdc-zero' : isLow ? ' sdc-low' : '')
+    });
 
-    // ── Header do card ────────────────────────────────────────────────────
-    const hdr = $el('div', { className: 'sdc-hdr' });
-
-    // Badge de alerta
-    if (isZero) {
-        const badge = $el('span', { className: 'sdc-badge sdc-badge-out', textContent: 'SEM STOCK' });
-        hdr.appendChild(badge);
-    } else if (isLow) {
-        const badge = $el('span', { className: 'sdc-badge sdc-badge-low', textContent: 'BAIXO' });
-        hdr.appendChild(badge);
-    }
-
-    // Ref + Nome
+    // ── Header ────────────────────────────────────────────────────────────
+    const hdr  = $el('div', { className: 'sdc-hdr' });
     const meta = $el('div', { className: 'sdc-meta' });
 
-    const ref = $el('div', { className: 'sdc-ref' });
-    ref.textContent = 'REF: ' + (item.codigo || '—').toUpperCase();
+    const refRow = $el('div', { className: 'sdc-ref-row' });
+    const ref    = $el('span', { className: 'sdc-ref', textContent: (item.codigo || '—').toUpperCase() });
+    refRow.appendChild(ref);
 
-    const nome = $el('div', { className: 'sdc-nome' });
-    nome.textContent = (item.nome || '').toUpperCase();
+    const badge = $el('span', {
+        className: 'sdc-badge ' + (isZero ? 'sdc-badge-out' : isLow ? 'sdc-badge-low' : 'hidden'),
+        textContent: isZero ? 'SEM STOCK' : isLow ? 'BAIXO' : ''
+    });
+    badge.id = `sdcbadge-${id}`;
+    refRow.appendChild(badge);
+    meta.appendChild(refRow);
 
-    meta.appendChild(ref);
+    const nome = $el('div', { className: 'sdc-nome', textContent: (item.nome || '').toUpperCase() });
     meta.appendChild(nome);
 
-    // Localização dentro do meta — fica colada ao nome
     if (item.localizacao) {
         const loc = $el('div', { className: 'sdc-loc' });
-        loc.innerHTML = `<svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>`;
+        loc.innerHTML = _STK_PIN_SVG;
         loc.appendChild(document.createTextNode(' ' + item.localizacao.toUpperCase()));
         meta.appendChild(loc);
     }
 
     hdr.appendChild(meta);
 
-    // Thumbnail no canto superior direito (só se tiver imagem)
     if (item.imgUrl) {
         const imgThumb = $el('div', { className: 'sdc-img-thumb' });
         const img = $el('img');
         img.src     = item.imgUrl;
         img.alt     = item.nome || '';
+        img.loading = 'lazy';
         img.onerror = () => { imgThumb.style.display = 'none'; };
         imgThumb.appendChild(img);
-        // Clicar na miniatura abre a imagem inteira
         imgThumb.setAttribute('role', 'button');
         imgThumb.tabIndex = 0;
-        imgThumb.title = 'Ver imagem maior';
+        imgThumb.title    = 'Ver imagem maior';
         const _openImg = e => { e.stopPropagation(); openImageViewer(item.imgUrl, item.nome, item.codigo); };
         imgThumb.addEventListener('click', _openImg);
         imgThumb.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _openImg(e); } });
@@ -329,41 +305,46 @@ function _buildDesktopCard(id, item) {
 
     card.appendChild(hdr);
 
-    // ── Notas ─────────────────────────────────────────────────────────────
     if (item.notas) {
-        const notas = $el('div', { className: 'sdc-notas' });
-        notas.textContent = item.notas;
+        const notas = $el('div', { className: 'sdc-notas', textContent: item.notas });
+        notas.title = item.notas;
         card.appendChild(notas);
     }
 
-    // ── Stock actual + controlo de quantidade ─────────────────────────────
+    // ── Rodapé: stock actual + controlo − qty + ───────────────────────────
     const foot = $el('div', { className: 'sdc-foot' });
 
-    const stockInfo = $el('div', { className: 'sdc-stock-info' });
-
-    const stockLabel = $el('div', { className: 'sdc-stock-label', textContent: 'ESTOQUE ATUAL' });
-
-    const stockVal = $el('div');
-    stockVal.className = 'sdc-stock-val' + (isZero ? ' sdc-stock-zero' : '');
-    stockVal.innerHTML = `<span class="sdc-qty" id="sdcqty-${id}">${fmtQty(qty, item.unidade)}</span>`;
+    const stockInfo  = $el('div', { className: 'sdc-stock-info' });
+    const stockLabel = $el('div', { className: 'sdc-stock-label', textContent: 'STOCK ATUAL' });
+    const stockVal   = $el('div', { className: 'sdc-stock-val' + (isZero ? ' sdc-stock-zero' : '') });
+    stockVal.id      = `sdcval-${id}`;
+    stockVal.innerHTML = `<span class="sdc-qty" id="sdcqty-${id}">${escapeHtml(fmtQty(qty, item.unidade))}</span>`;
 
     stockInfo.appendChild(stockLabel);
     stockInfo.appendChild(stockVal);
 
     const controls = $el('div', { className: 'sdc-controls' });
 
-    const btnM = $el('button', { className: 'sdc-btn-qty', textContent: '−' });
-    btnM.disabled    = qty === 0;
-    btnM.id          = `sdcbtnm-${id}`;
-    btnM.onclick     = (e) => { e.stopPropagation(); changeQtd(id, -1); _syncDesktopQty(id); };
+    const btnM = $el('button', { type: 'button', className: 'sdc-btn-qty', textContent: '−' });
+    btnM.disabled = qty === 0;
+    btnM.id       = `sdcbtnm-${id}`;
+    btnM.onclick  = e => { e.stopPropagation(); changeQtd(id, -1); };
 
-    const qtyDisplay = $el('span', { className: 'sdc-qty-display' });
-    qtyDisplay.id          = `sdcdisp-${id}`;
-    qtyDisplay.textContent = qty;
+    const qtyDisplay = $el('span', { className: 'sdc-qty-display', textContent: String(qty) });
+    qtyDisplay.id = `sdcdisp-${id}`;
+    if (currentRole === 'manager') {
+        qtyDisplay.title = 'Clique para editar quantidade';
+        qtyDisplay.classList.add('editable');
+        qtyDisplay.onclick = e => {
+            e.stopPropagation();
+            const liveItem = cache.stock.data?.[id] || item;
+            openInlineQtyEdit(id, liveItem, 'desktop');
+        };
+    }
 
-    const btnP = $el('button', { className: 'sdc-btn-qty', textContent: '+' });
-    btnP.id          = `sdcbtnp-${id}`;
-    btnP.onclick     = (e) => { e.stopPropagation(); changeQtd(id, 1); _syncDesktopQty(id); };
+    const btnP = $el('button', { type: 'button', className: 'sdc-btn-qty', textContent: '+' });
+    btnP.id      = `sdcbtnp-${id}`;
+    btnP.onclick = e => { e.stopPropagation(); changeQtd(id, 1); };
 
     controls.appendChild(btnM);
     controls.appendChild(qtyDisplay);
@@ -377,13 +358,13 @@ function _buildDesktopCard(id, item) {
     if (currentRole === 'manager') {
         const actions = $el('div', { className: 'sdc-actions' });
 
-        const btnEdit = $el('button', { className: 'sdc-action-btn sdc-action-edit' });
-        btnEdit.innerHTML   = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg> Editar';
-        btnEdit.onclick     = (e) => { e.stopPropagation(); openEditModal(id, item); };
+        const btnEdit = $el('button', { type: 'button', className: 'sdc-action-btn sdc-action-edit' });
+        btnEdit.innerHTML = `${SVG_EDIT} Editar`;
+        btnEdit.onclick   = e => { e.stopPropagation(); openEditModal(id, cache.stock.data?.[id] || item); };
 
-        const btnDel = $el('button', { className: 'sdc-action-btn sdc-action-del' });
-        btnDel.innerHTML    = '<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Apagar';
-        btnDel.onclick      = (e) => { e.stopPropagation(); openDeleteModal(id, item); };
+        const btnDel = $el('button', { type: 'button', className: 'sdc-action-btn sdc-action-del' });
+        btnDel.innerHTML = `${SVG_DEL} Apagar`;
+        btnDel.onclick   = e => { e.stopPropagation(); openDeleteModal(id, cache.stock.data?.[id] || item); };
 
         actions.appendChild(btnEdit);
         actions.appendChild(btnDel);
@@ -394,94 +375,229 @@ function _buildDesktopCard(id, item) {
     return wrapper;
 }
 
-// Sincroniza o display de qty no card desktop após changeQtd
-function _syncDesktopQty(id) {
-    setTimeout(() => {
-        const qty = cache.stock.data?.[id]?.quantidade ?? 0;
-        const item = cache.stock.data?.[id];
-        const disp = $id(`sdcdisp-${id}`);
-        const qtyEl = $id(`sdcqty-${id}`);
-        const btnM  = $id(`sdcbtnm-${id}`);
-        const wrapper = document.querySelector(`.sdc-wrapper[data-id="${id}"]`);
-        const card  = wrapper?.querySelector('.sdc');
-        if (disp) disp.textContent = qty;
-        if (qtyEl && item) qtyEl.textContent = fmtQty(qty, item.unidade);
-        if (btnM)  btnM.disabled = qty === 0;
-        if (card) {
-            card.classList.toggle('sdc-zero', qty === 0);
-            card.classList.toggle('sdc-low',  qty > 0 && qty <= 5);
-        }
-    }, 700); // após o debounce do changeQtd
+// ── Card Mobile modernizado ─────────────────────────────────────────────────
+function _buildStockCardMobile(id, item) {
+    const qty    = Number(item.quantidade) || 0;
+    const isZero = qty === 0;
+    const isLow  = !isZero && qty <= _STOCK_LOW_THRESHOLD;
+
+    const wrapper = $el('div', { className: 'swipe-wrapper' });
+    wrapper.dataset.id = id;
+
+    // Swipe backgrounds com ícones SVG reais
+    const bgL = $el('div', { className: 'swipe-bg swipe-bg-left' });
+    bgL.innerHTML = `<span class="swipe-bg-content"><span>Apagar</span>${_STK_SWIPE_DEL_SVG}</span>`;
+    const bgR = $el('div', { className: 'swipe-bg swipe-bg-right' });
+    bgR.innerHTML = `<span class="swipe-bg-content">${_STK_SWIPE_EDIT_SVG}<span>Editar</span></span>`;
+    wrapper.appendChild(bgL);
+    wrapper.appendChild(bgR);
+
+    const card = $el('div', {
+        className: 'item-card' + (isZero ? ' item-zero' : isLow ? ' item-low' : '')
+    });
+
+    // Topo: ref + badge + nome + notas | miniatura opcional
+    const top  = $el('div', { className: 'mc-top' });
+    const main = $el('div', { className: 'mc-main' });
+
+    const refRow = $el('div', { className: 'mc-ref-row' });
+    const refVal = $el('span', { className: 'mc-ref', textContent: String(item.codigo || 'SEM REF').toUpperCase() });
+    refRow.appendChild(refVal);
+
+    const badge = $el('span', {
+        className: 'sdc-badge ' + (isZero ? 'sdc-badge-out' : isLow ? 'sdc-badge-low' : 'hidden'),
+        textContent: isZero ? 'SEM STOCK' : isLow ? 'BAIXO' : ''
+    });
+    badge.id = `mcbadge-${id}`;
+    refRow.appendChild(badge);
+    main.appendChild(refRow);
+
+    const nomEl = $el('div', { className: 'mc-nome', textContent: (item.nome || '').toUpperCase() });
+    main.appendChild(nomEl);
+
+    if (item.notas) {
+        const notasRow = $el('div', { className: 'mc-notas', textContent: item.notas });
+        notasRow.title = item.notas;
+        main.appendChild(notasRow);
+    }
+
+    top.appendChild(main);
+
+    if (item.imgUrl) {
+        const thumb = $el('div', { className: 'mc-thumb' });
+        thumb.setAttribute('role', 'button');
+        thumb.title = 'Ver imagem';
+        const img = $el('img');
+        img.src     = item.imgUrl;
+        img.alt     = item.nome || '';
+        img.loading = 'lazy';
+        img.onerror = () => { thumb.style.display = 'none'; };
+        thumb.appendChild(img);
+        top.appendChild(thumb);
+    }
+
+    card.appendChild(top);
+
+    // Rodapé: localização + controlo de quantidade
+    const foot = $el('div', { className: 'mc-foot' });
+
+    const hasLoc = !!(item.localizacao || '').trim();
+    const pill   = $el('div', { className: 'loc-pill' + (hasLoc ? '' : ' loc-pill-empty') });
+    pill.innerHTML = _STK_PIN_SVG;
+    pill.appendChild(document.createTextNode(hasLoc ? item.localizacao.toUpperCase() : 'SEM LOCAL'));
+
+    const qtyBox = $el('div', { className: 'qty-pill-box' });
+
+    const btnM = $el('button', { type: 'button', className: 'btn-qty', textContent: '−' });
+    btnM.disabled = qty === 0;
+    btnM.id       = `btn-minus-${id}`;
+
+    const qtySpan = $el('span', {
+        className: 'qty-display' + (qty === 0 ? ' is-zero' : ''),
+        textContent: fmtQty(qty, item.unidade)
+    });
+    qtySpan.id = `qty-${id}`;
+
+    const btnP = $el('button', { type: 'button', className: 'btn-qty', textContent: '+' });
+    btnP.id = `btn-plus-${id}`;
+
+    qtyBox.appendChild(btnM);
+    qtyBox.appendChild(qtySpan);
+    qtyBox.appendChild(btnP);
+
+    foot.appendChild(pill);
+    foot.appendChild(qtyBox);
+    card.appendChild(foot);
+
+    wrapper.appendChild(card);
+    return wrapper;
 }
 
-async function renderList(filter = '', force = false) {
+// Sincronização imediata da UI (mobile + desktop + badges + KPIs) após alterar quantidade
+function _syncCardQtyUI(id, qty, saving = false) {
+    const item   = cache.stock.data?.[id];
+    const isZero = qty === 0;
+    const isLow  = !isZero && qty <= _STOCK_LOW_THRESHOLD;
+    const fmt    = fmtQty(qty, item?.unidade);
+
+    // Mobile
+    const mQty = $id(`qty-${id}`);
+    if (mQty) {
+        mQty.textContent = fmt;
+        mQty.classList.toggle('is-zero', isZero);
+        mQty.classList.toggle('qty-saving', saving);
+    }
+    const mMinus = $id(`btn-minus-${id}`);
+    if (mMinus) mMinus.disabled = isZero;
+    const mWrapper = document.querySelector(`.swipe-wrapper[data-id="${id}"]`);
+    const mCard    = mWrapper?.querySelector('.item-card');
+    if (mCard) {
+        mCard.classList.toggle('item-zero', isZero);
+        mCard.classList.toggle('item-low',  isLow);
+    }
+    const mBadge = $id(`mcbadge-${id}`);
+    if (mBadge) {
+        mBadge.className   = 'sdc-badge ' + (isZero ? 'sdc-badge-out' : isLow ? 'sdc-badge-low' : 'hidden');
+        mBadge.textContent = isZero ? 'SEM STOCK' : isLow ? 'BAIXO' : '';
+    }
+
+    // Desktop
+    const dQty  = $id(`sdcqty-${id}`);
+    const dDisp = $id(`sdcdisp-${id}`);
+    const dMin  = $id(`sdcbtnm-${id}`);
+    const dVal  = $id(`sdcval-${id}`);
+    if (dQty) {
+        dQty.textContent = fmt;
+        dQty.classList.toggle('qty-saving', saving);
+    }
+    if (dDisp) dDisp.textContent = String(qty);
+    if (dMin)  dMin.disabled     = isZero;
+    if (dVal)  dVal.classList.toggle('sdc-stock-zero', isZero);
+
+    const dWrapper = document.querySelector(`.sdc-wrapper[data-id="${id}"]`);
+    const dCard    = dWrapper?.querySelector('.sdc');
+    if (dCard) {
+        dCard.classList.toggle('sdc-zero', isZero);
+        dCard.classList.toggle('sdc-low',  isLow);
+    }
+    const dBadge = $id(`sdcbadge-${id}`);
+    if (dBadge) {
+        dBadge.className   = 'sdc-badge ' + (isZero ? 'sdc-badge-out' : isLow ? 'sdc-badge-low' : 'hidden');
+        dBadge.textContent = isZero ? 'SEM STOCK' : isLow ? 'BAIXO' : '';
+    }
+
+    // Actualiza contadores de filtros e KPIs desktop
+    if (cache.stock.data) _updateStockFilterCounts(cache.stock.data);
+}
+
+// ── Render principal ────────────────────────────────────────────────────────
+let _stockDeferredEntries = [];
+
+async function renderList(filter = '', forceFetch = false) {
     const listEl = $id('stock-list');
     if (!listEl) return;
 
-    // Liga event delegation uma só vez (noop após primeiro call)
     _ensureStockListDelegation();
+
+    if (_pendingZeroFilter) {
+        _pendingZeroFilter = false;
+        _stockFilter       = 'zero';
+        _desktopFilter     = 'zero';
+        _zeroFilterActive  = true;
+    }
 
     if (!cache.stock.data) listEl.innerHTML = '<div class="empty-msg">A carregar...</div>';
 
-    const data    = await fetchCollection('stock', force);
-    const entries = Object.entries(data);
+    const data    = await fetchCollection('stock', forceFetch);
+    const entries = Object.entries(data || {});
 
-    // ── Vista Desktop — grid de cards ─────────────────────────────────────
-    if (_stockDesktopActive()) {
+    // Actualizar contadores dos filtros rápidos
+    _updateStockFilterCounts(data);
+    _syncSortSelect();
+
+    const qNorm  = _normStockText(filter);
+    const tokens = qNorm ? qNorm.split(/\s+/).filter(Boolean) : [];
+    const sorted = _getSortedEntriesCached(entries);
+
+    // Aplicar filtro de estado + pesquisa ANTES da paginação
+    const matched = [];
+    for (const entry of sorted) {
+        const item = entry[1];
+        if (!item) continue;
+        if (!_itemMatchesStatus(item, _stockFilter)) continue;
+        if (!_itemMatchesQuery(item, tokens))        continue;
+        matched.push(entry);
+    }
+
+    const isDesktop = _stockDesktopActive();
+
+    // ── Vista Desktop (>= 768px) ──────────────────────────────────────────
+    if (isDesktop) {
         _renderDesktopHeader(data);
         listEl.className = 'stock-grid';
-
-        // Re-render por filtro/pesquisa sem destruir os cards
-        const existingDesktop = listEl.querySelectorAll('.sdc-wrapper[data-id]');
-        if (existingDesktop.length > 0 && !force) {
-            const q = filter.toLowerCase();
-            existingDesktop.forEach(w => {
-                const id   = w.dataset.id;
-                const item = data[id];
-                if (!item) { w.style.display = 'none'; return; }
-                const passFilter = _desktopFilterMatch(item);
-                const passSearch = !q || _itemMatchesFilter(item, q, filter.toUpperCase());
-                w.style.display = (passFilter && passSearch) ? '' : 'none';
-            });
-            return;
-        }
-
         listEl.innerHTML = '';
+
         if (entries.length === 0) {
             listEl.innerHTML = '<div class="empty-msg">Nenhum produto registado.</div>';
             return;
         }
-
-        const filterLowerD = filter.toLowerCase();
-        const fragD = document.createDocumentFragment();
-        _getSortedEntriesCached(entries).forEach(([id, item]) => {
-            const passFilter = _desktopFilterMatch(item);
-            const passSearch = _itemMatchesFilter(item, filterLowerD, filter.toUpperCase());
-            const card = _buildDesktopCard(id, item);
-            card.style.display = (passFilter && passSearch) ? '' : 'none';
-            fragD.appendChild(card);
-        });
-        listEl.appendChild(fragD);
-
-        if (_pendingZeroFilter) {
-            _pendingZeroFilter = false;
-            _zeroFilterActive = true;
-            _desktopFilter = 'zero';
-            _setDesktopFilter('zero');
-            _ensureZeroBadge();
+        if (matched.length === 0) {
+            listEl.className = '';
+            listEl.innerHTML = _buildEmptyStockState(!!qNorm || _stockFilter !== 'all');
+            return;
         }
+
+        const fragD = document.createDocumentFragment();
+        for (const [id, item] of matched) {
+            fragD.appendChild(_buildDesktopCard(id, item));
+        }
+        listEl.appendChild(fragD);
         return;
     }
 
-    // ── Vista Mobile — swipe cards ────────────────────────────────────────
+    // ── Vista Mobile (< 768px) ────────────────────────────────────────────
     listEl.className = '';
     $id('stock-desktop-hdr')?.remove();
-
-    // Paginação real: cada mudança de filtro força re-render completo.
-    // Como só materializamos PAGE_SIZE cards, o re-render é rápido (~30-60ms
-    // para 80 cards); evita manter 500 wrappers no DOM com display:none.
-
-    // Full render
     listEl.innerHTML = '';
 
     if (entries.length === 0) {
@@ -489,204 +605,145 @@ async function renderList(filter = '', force = false) {
         return;
     }
 
-    // Hint contextual — swipe para gestores, leitura para funcionários
+    // Hint contextual (mostrado 1x)
     const hintKey = currentRole === 'worker' ? 'worker-hint-seen' : 'swipe-hint-seen';
-    if (!filter && !localStorage.getItem(hintKey)) {
+    if (!qNorm && _stockFilter === 'all' && !localStorage.getItem(hintKey)) {
         const hint = $el('div', { className: 'swipe-hint' });
         if (currentRole === 'worker') {
-            const msg = $el('span');
-            msg.textContent = '👁️ Modo consulta — apenas visualização';
-            hint.appendChild(msg);
+            hint.innerHTML = '<span>Modo consulta — toca num artigo para ver detalhes</span>';
         } else {
-            const l = $el('span'); l.textContent = '✏️ Swipe direita para editar';
-            const r = $el('span'); r.textContent = '🗑️ Swipe esquerda para apagar';
-            hint.appendChild(l); hint.appendChild(r);
+            hint.innerHTML = '<span>→ Desliza direita: editar</span><span>← Desliza esquerda: apagar</span>';
         }
         listEl.appendChild(hint);
         localStorage.setItem(hintKey, '1');
     }
 
-    const filterLower = filter.toLowerCase();
-    const PAGE_SIZE = 80;
-
-    // Filtra primeiro, materializa DOM depois — paginação real.
-    // Entries fora da página não geram DOM, só ficam em _stockDeferredEntries.
-    const sorted = _getSortedEntriesCached(entries);
-    const matched = [];
-    for (const e of sorted) {
-        if (_itemMatchesFilter(e[1], filterLower, filter.toUpperCase())) matched.push(e);
+    if (matched.length === 0) {
+        listEl.innerHTML = _buildEmptyStockState(!!qNorm || _stockFilter !== 'all');
+        return;
     }
-    const found = matched.length;
 
-    // Primeiros PAGE_SIZE viram DOM agora, restantes ficam em fila
-    const shown = matched.slice(0, PAGE_SIZE);
+    const PAGE_SIZE = 80;
+    const shown     = matched.slice(0, PAGE_SIZE);
     _stockDeferredEntries = matched.slice(PAGE_SIZE);
 
-    // DocumentFragment evita N reflows — um único appendChild no fim
     const frag = document.createDocumentFragment();
     for (const [id, item] of shown) {
         frag.appendChild(_buildStockCardMobile(id, item));
     }
     listEl.appendChild(frag);
-
-    // Botão "Mostrar mais" — materializa o próximo batch só quando tocado
     _renderLoadMoreBtn(listEl);
-
-    if (filter && found === 0) {
-        const em = $el('div', { className: 'empty-msg', textContent: 'Nenhum resultado encontrado.' });
-        listEl.appendChild(em);
-    }
-
-    // Aplica filtro zero-stock se estava pendente (vindo do dashboard)
-    if (_pendingZeroFilter) {
-        _pendingZeroFilter = false;
-        filterZeroStock();
-    }
 }
 
-// Entries que passaram o filtro mas estão além do PAGE_SIZE inicial.
-// Materializadas em batches quando o utilizador toca "Mostrar mais".
-let _stockDeferredEntries = [];
+function _buildEmptyStockState(hasActiveFilter) {
+    return `
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+            </div>
+            <div class="empty-state-title">Nenhum artigo encontrado</div>
+            <div class="empty-state-sub">${hasActiveFilter ? 'Nenhum produto corresponde à pesquisa ou filtro activo.' : 'Sem produtos registados no armazém.'}</div>
+            ${hasActiveFilter ? '<button type="button" class="empty-state-btn" onclick="resetStockFilters()">Limpar filtros</button>' : ''}
+        </div>`;
+}
+
+function resetStockFilters() {
+    _stockFilter      = 'all';
+    _desktopFilter    = 'all';
+    _zeroFilterActive = false;
+    const inp = $id('inp-search');
+    if (inp) inp.value = '';
+    $id('inp-search-clear')?.classList.add('hidden');
+    renderList('', false);
+}
 
 function _renderLoadMoreBtn(listEl) {
     $id('load-more-btn')?.remove();
     if (_stockDeferredEntries.length === 0) return;
     const PAGE_SIZE = 80;
-    const n = _stockDeferredEntries.length;
-    const btn = $el('button');
-    btn.id = 'load-more-btn';
-    btn.className = 'btn-load-more';
+    const n   = _stockDeferredEntries.length;
+    const btn = $el('button', { type: 'button', className: 'btn-load-more' });
+    btn.id          = 'load-more-btn';
     btn.textContent = `Mostrar mais ${n} produto${n > 1 ? 's' : ''}`;
-    btn.onclick = () => {
+    btn.onclick     = () => {
         const batch = _stockDeferredEntries.splice(0, PAGE_SIZE);
-        const frag = document.createDocumentFragment();
+        const frag  = document.createDocumentFragment();
         for (const [id, item] of batch) {
             frag.appendChild(_buildStockCardMobile(id, item));
         }
         btn.remove();
         listEl.appendChild(frag);
-        _renderLoadMoreBtn(listEl); // refaz o botão se ainda há mais
+        _renderLoadMoreBtn(listEl);
     };
     listEl.appendChild(btn);
 }
 
-// Constrói um card de stock para a vista mobile. Listeners tratados por
-// delegation no contentor — nada de onclick/addEventListener individuais.
-function _buildStockCardMobile(id, item) {
-    const wrapper = $el('div', { className: 'swipe-wrapper' });
-    wrapper.dataset.id = id;
+// ── Edição inline de quantidade (mobile double-tap & desktop click) ─────────
+function openInlineQtyEdit(id, item, mode = 'mobile') {
+    if (currentRole !== 'manager') return;
+    const targetId = mode === 'desktop' ? `sdcdisp-${id}` : `qty-${id}`;
+    const qtyEl    = $id(targetId);
+    if (!qtyEl || qtyEl.parentNode?.querySelector('.qty-inline-edit')) return;
 
-    // Swipe backgrounds
-    const bgL = $el('div'); bgL.className = 'swipe-bg swipe-bg-left';
-    const iL  = $el('span'); iL.className = 'swipe-bg-icon'; iL.textContent = '';
-    bgL.appendChild(iL);
-    const bgR = $el('div'); bgR.className = 'swipe-bg swipe-bg-right';
-    const iR  = $el('span'); iR.className = 'swipe-bg-icon'; iR.textContent = '';
-    bgR.appendChild(iR);
-    wrapper.appendChild(bgL); wrapper.appendChild(bgR);
-
-    const el = $el('div', { className: 'item-card' });
-
-    const refLabel = $el('div', { className: 'ref-label', textContent: 'REFERÊNCIA' });
-
-    const refVal = $el('div', { className: 'ref-value' });
-    refVal.textContent = String(item.codigo || '').toUpperCase();
-
-    const nomEl = $el('div', { className: 'card-nome' });
-    nomEl.textContent = item.nome || '';
-
-    const hr = $el('hr', { className: 'card-divider' });
-
-    const row = $el('div', { className: 'card-bottom-row' });
-
-    const pill = $el('div', { className: 'loc-pill' });
-    const pinIcon = $el('span');
-    pinIcon.style.fontSize = '0.85rem';
-    pinIcon.textContent = '';
-    pill.appendChild(pinIcon);
-    pill.appendChild(document.createTextNode(' ' + (item.localizacao ? item.localizacao.toUpperCase() : 'SEM LOCAL')));
-
-    const qtyBox = $el('div', { className: 'qty-pill-box' });
-
-    const qty = item.quantidade || 0;
-
-    const btnM = $el('button', { className: 'btn-qty', textContent: '−' });
-    btnM.disabled = qty === 0;
-    btnM.id = `btn-minus-${id}`;
-
-    const qtySpan = $el('span');
-    qtySpan.className = 'qty-display' + (qty === 0 ? ' is-zero' : '');
-    qtySpan.id = `qty-${id}`;
-    qtySpan.textContent = fmtQty(qty, item.unidade);
-
-    const btnP = $el('button', { className: 'btn-qty', textContent: '+' });
-    btnP.id = `btn-plus-${id}`;
-
-    qtyBox.appendChild(btnM); qtyBox.appendChild(qtySpan); qtyBox.appendChild(btnP);
-    row.appendChild(pill); row.appendChild(qtyBox);
-
-    if (item.notas) {
-        const notasRow = $el('div', { className: 'card-notas' });
-        notasRow.title = item.notas;
-        notasRow.textContent = `📝 ${item.notas}`;
-        el.appendChild(refLabel); el.appendChild(refVal); el.appendChild(nomEl);
-        el.appendChild(notasRow);
-    } else {
-        el.appendChild(refLabel); el.appendChild(refVal); el.appendChild(nomEl);
-    }
-    el.appendChild(hr); el.appendChild(row);
-
-    wrapper.appendChild(el);
-    return wrapper;
-}
-
-// Edição inline de quantidade — abre mini-form no lugar do span
-function openInlineQtyEdit(id, item) {
-    const qtyEl = $id(`qty-${id}`);
-    if (!qtyEl || qtyEl.querySelector('input')) return; // já em edição
-    const currentQty = cache.stock.data?.[id]?.quantidade ?? item.quantidade ?? 0; // PONTO 5: lê do cache actualizado
-    const wrap = $el('div', { className: 'qty-inline-edit' });
-    const inp = $el('input');
-    inp.type  = 'number';
-    inp.min   = '0';
-    inp.step  = 'any';
-    inp.value = currentQty;
-    inp.className = 'qty-inline-input';
+    const currentQty = cache.stock.data?.[id]?.quantidade ?? item.quantidade ?? 0;
+    const wrap = $el('div', { className: 'qty-inline-edit' + (mode === 'desktop' ? ' qty-inline-desktop' : '') });
+    const inp  = $el('input', { className: 'qty-inline-input' });
+    inp.type   = 'number';
+    inp.min    = '0';
+    inp.step   = 'any';
+    inp.value  = currentQty;
     inp.setAttribute('inputmode', 'decimal');
+
+    let finished = false;
+    const cancelFn = () => {
+        if (finished) return;
+        finished = true;
+        wrap.replaceWith(qtyEl);
+    };
     const confirmFn = async () => {
+        if (finished) return;
         const newVal = parseFloat(inp.value);
         if (isNaN(newVal) || newVal < 0) { cancelFn(); return; }
-        const oldValInline = cache.stock.data?.[id]?.quantidade ?? 0;
+        finished = true;
+
+        const oldVal = cache.stock.data?.[id]?.quantidade ?? 0;
         wrap.replaceWith(qtyEl);
-        qtyEl.textContent = fmtQty(newVal, item.unidade);
-        qtyEl.classList.toggle('is-zero', newVal === 0);
-        $id(`btn-minus-${id}`)?.toggleAttribute('disabled', newVal === 0);
+        if (newVal === oldVal) return;
+
         if (cache.stock.data?.[id]) cache.stock.data[id].quantidade = newVal;
         if (_stockSort === 'qtd-asc' || _stockSort === 'qtd-desc') _invalidateSortedCache();
+        _syncCardQtyUI(id, newVal, true);
+
         try {
-            await apiFetch(`${BASE_URL}/stock/${id}.json`, { method: 'PATCH', body: JSON.stringify({ quantidade: newVal }) });
-            // Registar movimento só após PATCH OK — senão, falha de rede deixa
-            // saída fantasma no relatório. Se PATCH caiu no queue offline
-            // (apiFetch devolve null), registamos também porque o movimento
-            // vai para a mesma queue e ambos sincronizam juntos.
-            if (newVal < oldValInline) {
-                registarMovimento('saida_manual', id, item.codigo, item.nome, oldValInline - newVal);
+            await apiFetch(`${BASE_URL}/stock/${id}.json`, {
+                method: 'PATCH',
+                body: JSON.stringify({ quantidade: newVal })
+            });
+            _syncCardQtyUI(id, newVal, false);
+            if (newVal < oldVal) {
+                registarMovimento('saida_manual', id, item.codigo, item.nome, oldVal - newVal);
             }
             renderDashboard();
         } catch(_e) {
-            // Rollback do cache — PATCH falhou mesmo online
-            if (cache.stock.data?.[id]) cache.stock.data[id].quantidade = oldValInline;
-            showToast('Erro ao guardar','error');
+            if (cache.stock.data?.[id]) cache.stock.data[id].quantidade = oldVal;
+            _syncCardQtyUI(id, oldVal, false);
+            showToast('Erro ao guardar', 'error');
         }
     };
-    const cancelFn = () => { wrap.replaceWith(qtyEl); };
-    inp.addEventListener('keydown', e => {
+
+    inp.addEventListener('click',     e => e.stopPropagation());
+    inp.addEventListener('mousedown', e => e.stopPropagation());
+    inp.addEventListener('keydown',   e => {
         if (e.key === 'Enter')  { e.preventDefault(); confirmFn(); }
         if (e.key === 'Escape') { e.preventDefault(); cancelFn(); }
     });
     inp.addEventListener('blur', () => setTimeout(cancelFn, 150));
-    const ok = $el('button', { className: 'qty-inline-ok', textContent: '✓' });
-    ok.addEventListener('mousedown', e => { e.preventDefault(); confirmFn(); });
+
+    const ok = $el('button', { type: 'button', className: 'qty-inline-ok', textContent: '✓' });
+    ok.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); confirmFn(); });
+
     wrap.appendChild(inp);
     wrap.appendChild(ok);
     qtyEl.replaceWith(wrap);
@@ -704,8 +761,8 @@ async function forceRefresh() {
     showToast('Stock atualizado!');
 }
 
-// Debounce de escrita para changeQtd — agrupa toques rápidos numa só chamada à Firebase
-const _qtyTimers = {};
+// ── Debounce + gravação atómica de quantidade ───────────────────────────────
+const _qtyTimers      = {};
 const _qtyPendingBase = {};
 
 async function _readServerStockQty(id, fallbackQty = 0) {
@@ -714,7 +771,7 @@ async function _readServerStockQty(id, fallbackQty = 0) {
         const url = await authUrl(`${BASE_URL}/stock/${id}/quantidade.json`);
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const qty = await res.json();
+        const qty    = await res.json();
         const parsed = typeof qty === 'number' ? qty : parseFloat(qty);
         return Number.isFinite(parsed) ? parsed : fallbackQty;
     } catch (e) {
@@ -723,7 +780,6 @@ async function _readServerStockQty(id, fallbackQty = 0) {
     }
 }
 
-// ── Procurar artigo pela referência ──────────────────────────────────────────
 // Compara sem espaços e sem diferença de maiúsculas.
 // → { status: 'empty' | 'none' | 'one' | 'multi', id?, item?, count? }
 function findStockByCodigo(codigo) {
@@ -733,26 +789,18 @@ function findStockByCodigo(codigo) {
         .filter(([id, it]) => !id.startsWith('_tmp_') && String(it?.codigo || '').replace(/\s+/g, '').toUpperCase() === key)
         .map(([id]) => id);
     if (ids.length === 0) return { status: 'none' };
-    if (ids.length > 1)  return { status: 'multi', count: ids.length };
+    if (ids.length > 1)   return { status: 'multi', count: ids.length };
     return { status: 'one', id: ids[0], item: cache.stock.data[ids[0]] };
 }
 
-// ── Gravar stock de forma ATÓMICA ────────────────────────────────────────────
-// Antes: ler o valor do servidor → somar a variação → escrever o total. Se outra
-// pessoa mexesse no mesmo artigo entre a leitura e a escrita, uma das alterações
-// perdia-se. Agora o servidor faz a soma (incremento atómico), por isso duas
-// alterações simultâneas somam-se sempre.
-// Devolve { saved, applied, queued? }:
-//   saved   — quantidade final guardada
-//   applied — variação REALMENTE aplicada (menor que a pedida se o stock chegou a 0)
-const _stRound3 = n => Math.round(n * 1000) / 1000;
+const _stRound3  = n => Math.round(n * 1000) / 1000;
 const _stIncBody = n => JSON.stringify({ quantidade: { '.sv': { increment: n } } });
 
 async function _stSavedQty(res, id, fallback) {
     try {
         const j = await res.clone().json();
         if (j && typeof j.quantidade === 'number' && Number.isFinite(j.quantidade)) return j.quantidade;
-    } catch (_) { /* resposta sem o valor — lê-se do servidor */ }
+    } catch (_) {}
     return await _readServerStockQty(id, fallback);
 }
 
@@ -762,22 +810,17 @@ async function _commitStockDelta(id, baseQty, finalQty) {
     if (delta === 0) return { saved: baseQty, applied: 0 };
     const url = `${BASE_URL}/stock/${id}.json`;
 
-    // Sem rede: a fila guarda a VARIAÇÃO (não o valor absoluto) — soma-se ao que
-    // estiver no servidor quando houver ligação, sem apagar o trabalho dos outros.
     if (!navigator.onLine) {
         await apiFetch(url, { method: 'PATCH', body: _stIncBody(delta) });
         return { saved: finalQty, applied: delta, queued: true };
     }
 
-    // Se isto falhar, lança erro e NADA foi alterado (o chamador repõe o ecrã).
     const res = await apiFetch(url, { method: 'PATCH', body: _stIncBody(delta) });
-    if (!res) return { saved: finalQty, applied: delta, queued: true };   // ficou offline a meio
+    if (!res) return { saved: finalQty, applied: delta, queued: true };
 
-    // A partir daqui a escrita já aconteceu: não lançar erros (o ecrã não pode "voltar atrás").
     let saved   = await _stSavedQty(res, id, _stRound3(baseQty + delta));
     let applied = delta;
     if (saved < 0) {
-        // Ficaria negativo (ex.: dois levantamentos em simultâneo): repõe a 0, também de forma atómica.
         const fix = _stRound3(-saved);
         try { await apiFetch(url, { method: 'PATCH', body: _stIncBody(fix) }); }
         catch (e) { console.warn('[Stock] correcção a 0 falhou:', id, e?.message); }
@@ -792,33 +835,18 @@ async function changeQtd(id, delta) {
     const stockData = cache.stock.data;
     if (!stockData?.[id]) return;
 
-    const oldQty = stockData[id].quantidade || 0;
+    const oldQty = Number(stockData[id].quantidade) || 0;
     if (!Object.prototype.hasOwnProperty.call(_qtyPendingBase, id)) {
         _qtyPendingBase[id] = oldQty;
     }
-    const newQty = Math.max(0, oldQty + delta);
+    const newQty = Math.max(0, _stRound3(oldQty + delta));
     if (newQty === oldQty) return;
 
-    // NOTA: registarMovimento antigamente era chamado aqui, antes do commit.
-    // Se o PATCH falhasse, o cache ficava correcto mas o movimento persistia,
-    // inflando o relatório. Agora é feito no callback do setTimeout, só após
-    // _commitStockDelta resolver com sucesso, usando baseQty→savedQty como total real.
-
-    // Actualiza cache + DOM imediatamente (optimistic)
+    // Actualiza cache + UI (mobile e desktop) imediatamente
     stockData[id].quantidade = newQty;
-    // Invalida o cache do sort — ordenações qtd-asc/qtd-desc precisam de recalcular
     if (_stockSort === 'qtd-asc' || _stockSort === 'qtd-desc') _invalidateSortedCache();
-    const qtyEl   = $id(`qty-${id}`);
-    const minusEl = $id(`btn-minus-${id}`);
-    const itemUnidade = stockData[id]?.unidade;
-    if (qtyEl) {
-        qtyEl.textContent = fmtQty(newQty, itemUnidade);
-        qtyEl.classList.toggle('is-zero', newQty === 0);
-    }
-    if (minusEl) minusEl.disabled = newQty === 0;
+    _syncCardQtyUI(id, newQty, true);
 
-    // Mostra indicador de "a guardar" após 300ms sem actividade
-    if (qtyEl) qtyEl.classList.add('qty-saving');
     clearTimeout(_qtyTimers[id]);
     _qtyTimers[id] = setTimeout(async () => {
         const finalQty = stockData[id]?.quantidade;
@@ -828,16 +856,8 @@ async function changeQtd(id, delta) {
             const commit   = await _commitStockDelta(id, baseQty, finalQty);
             const savedQty = commit.saved;
             stockData[id].quantidade = savedQty;
-            if (qtyEl) {
-                qtyEl.textContent = fmtQty(savedQty, stockData[id]?.unidade);
-                qtyEl.classList.toggle('is-zero', savedQty === 0);
-            }
-            if (minusEl) minusEl.disabled = savedQty === 0;
-            if (qtyEl) qtyEl.classList.remove('qty-saving');
+            _syncCardQtyUI(id, savedQty, false);
 
-            // Só agora, com commit confirmado: registar a saída pelo total real
-            // (variação realmente aplicada, não delta clique-a-clique). Se houve múltiplos
-            // -/+ no período do debounce, só o saldo líquido conta como saída.
             const movido = Math.max(0, -commit.applied);
             if (movido > 0) {
                 const _itm = stockData[id];
@@ -845,10 +865,8 @@ async function changeQtd(id, delta) {
             }
         } catch (e) {
             console.warn('changeQtd erro:', e?.message || e);
-            if (qtyEl) qtyEl.classList.remove('qty-saving');
             stockData[id].quantidade = baseQty;
-            if (qtyEl)   { qtyEl.textContent = fmtQty(baseQty, stockData[id]?.unidade); qtyEl.classList.toggle('is-zero', baseQty === 0); }
-            if (minusEl)   minusEl.disabled = baseQty === 0;
+            _syncCardQtyUI(id, baseQty, false);
             showToast('Erro ao guardar quantidade', 'error');
         }
         delete _qtyTimers[id];
@@ -856,17 +874,16 @@ async function changeQtd(id, delta) {
     }, 600);
 }
 
-// SWIPE GESTURES
-// FIX: único par de listeners globais — sem acumulação por card
+// ── SWIPE GESTURES & DELEGATION ─────────────────────────────────────────────
 const SWIPE_THRESHOLD = 80;
-let _swipeCard    = null;
-let _swipeWrapper = null;
-let _swipeStartX  = 0;
-let _swipeStartY  = 0;
+let _swipeCard     = null;
+let _swipeWrapper  = null;
+let _swipeStartX   = 0;
+let _swipeStartY   = 0;
 let _swipeCurrentX = 0;
 let _swipeDragging = false;
-let _swipeMeta    = null; // { id, item }
-let _swipeIntent  = null; // 'horizontal' | 'vertical' | null
+let _swipeMeta     = null; // { id, item }
+let _swipeIntent   = null; // 'horizontal' | 'vertical' | null
 
 document.addEventListener('mousemove', e => {
     if (!_swipeDragging) return;
@@ -877,37 +894,38 @@ document.addEventListener('mouseup', () => {
     _onSwipeEnd();
 });
 
-// ── Event delegation no contentor #stock-list ─────────────────────────────────
-// Um único conjunto de listeners no contentor trata de todos os cards,
-// em vez de 4+ listeners por card × N cards. Reduz memória e melhora filtros.
-// Chamado uma só vez em _ensureStockListDelegation().
 let _stockDelegationReady = false;
 function _ensureStockListDelegation() {
     if (_stockDelegationReady) return;
     const listEl = $id('stock-list');
-    if (!listEl) return; // view ainda não no DOM — tentará de novo no próximo renderList
+    if (!listEl) return;
     _stockDelegationReady = true;
 
-    // Resolve card/wrapper/id/item de um evento sobre um descendente
     function _resolveCtx(target) {
         const wrapper = target.closest('.swipe-wrapper[data-id]');
         if (!wrapper) return null;
-        const id = wrapper.dataset.id;
+        const id   = wrapper.dataset.id;
         const item = cache.stock.data?.[id];
         if (!item) return null;
         const card = wrapper.querySelector('.item-card');
         return { wrapper, card, id, item };
     }
 
-    // Click nos botões +/− e no qty-display (double-tap abre edição inline).
-    // Worker: click em qualquer parte do card que não seja botão abre detalhe.
-    const _qtyTapState = new Map(); // id → { timer }
-    listEl.addEventListener('click', (e) => {
+    const _qtyTapState = new Map();
+    listEl.addEventListener('click', e => {
+        // Miniatura mobile → lightbox directo
+        const thumb = e.target.closest('.mc-thumb');
+        if (thumb) {
+            e.stopPropagation();
+            const ctx = _resolveCtx(thumb);
+            if (ctx?.item?.imgUrl) openImageViewer(ctx.item.imgUrl, ctx.item.nome, ctx.item.codigo);
+            return;
+        }
         const btn = e.target.closest('.btn-qty');
         if (btn) {
             const ctx = _resolveCtx(btn);
             if (!ctx) return;
-            const isPlus = btn.id?.startsWith('btn-plus-') || btn.textContent.trim() === '+';
+            const isPlus  = btn.id?.startsWith('btn-plus-')  || btn.textContent.trim() === '+';
             const isMinus = btn.id?.startsWith('btn-minus-') || btn.textContent.trim() === '−';
             if (isPlus)  changeQtd(ctx.id,  1);
             if (isMinus) changeQtd(ctx.id, -1);
@@ -921,7 +939,7 @@ function _ensureStockListDelegation() {
             if (state.timer) {
                 clearTimeout(state.timer);
                 _qtyTapState.delete(ctx.id);
-                openInlineQtyEdit(ctx.id, ctx.item);
+                openInlineQtyEdit(ctx.id, ctx.item, 'mobile');
             } else {
                 state.timer = setTimeout(() => _qtyTapState.delete(ctx.id), 350);
                 _qtyTapState.set(ctx.id, state);
@@ -935,32 +953,31 @@ function _ensureStockListDelegation() {
         }
     });
 
-    // Swipe: só para gestores. Touchstart começa o drag, mousedown idem.
-    // Exclui .btn-qty (cliques no +/-) e .qty-display (double-tap para edição inline)
-    // para evitar conflito entre tap/double-tap e abrir detalhe.
-    listEl.addEventListener('touchstart', (e) => {
+    const _IGNORE_SWIPE = '.btn-qty, .qty-display, .qty-inline-edit, .mc-thumb';
+
+    listEl.addEventListener('touchstart', e => {
         if (currentRole === 'worker') return;
-        if (e.target.closest('.btn-qty, .qty-display')) return;
+        if (e.target.closest(_IGNORE_SWIPE)) return;
         const ctx = _resolveCtx(e.target);
         if (!ctx || !ctx.card) return;
         _onSwipeStart(ctx.card, ctx.wrapper, ctx.id, ctx.item, e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: true });
 
-    listEl.addEventListener('touchmove', (e) => {
+    listEl.addEventListener('touchmove', e => {
         if (!_swipeDragging) return;
-        if (e.target.closest('.btn-qty, .qty-display')) return;
+        if (e.target.closest(_IGNORE_SWIPE)) return;
         _onSwipeMove(e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: true });
 
-    listEl.addEventListener('touchend', (e) => {
+    listEl.addEventListener('touchend', e => {
         if (!_swipeDragging) return;
-        if (e.target.closest('.btn-qty, .qty-display')) return;
+        if (e.target.closest(_IGNORE_SWIPE)) return;
         _onSwipeEnd();
     }, { passive: true });
 
-    listEl.addEventListener('mousedown', (e) => {
+    listEl.addEventListener('mousedown', e => {
         if (currentRole === 'worker') return;
-        if (e.target.closest('.btn-qty, .qty-display')) return;
+        if (e.target.closest(_IGNORE_SWIPE)) return;
         const ctx = _resolveCtx(e.target);
         if (!ctx || !ctx.card) return;
         _onSwipeStart(ctx.card, ctx.wrapper, ctx.id, ctx.item, e.clientX, e.clientY);
@@ -968,9 +985,7 @@ function _ensureStockListDelegation() {
     });
 }
 
-// Função no-op para manter compatibilidade com call-sites antigos (openProductDetail tap-no-swipe).
-// O comportamento real de swipe+tap+click já é tratado por _ensureStockListDelegation().
-function attachSwipe(_card, _wrapper, _id, _item) { /* noop — substituído por delegation */ }
+function attachSwipe(_card, _wrapper, _id, _item) { /* noop — tratado por delegation */ }
 
 function _onSwipeStart(card, wrapper, id, item, x, y = 0) {
     _swipeCard     = card;
@@ -979,9 +994,8 @@ function _onSwipeStart(card, wrapper, id, item, x, y = 0) {
     _swipeStartX   = x;
     _swipeStartY   = y;
     _swipeCurrentX = 0;
-    _swipeDragging  = true;
+    _swipeDragging = true;
     _swipeIntent   = null;
-    // Don't add is-swiping yet — wait to know direction
 }
 
 function _onSwipeMove(x, y = 0) {
@@ -989,19 +1003,16 @@ function _onSwipeMove(x, y = 0) {
     const dx = x - _swipeStartX;
     const dy = y - _swipeStartY;
 
-    // Determine intent on first meaningful movement
     if (_swipeIntent === null && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
         _swipeIntent = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
         if (_swipeIntent === 'horizontal') _swipeCard.classList.add('is-swiping');
     }
-
-    // Only track horizontal swipes
     if (_swipeIntent !== 'horizontal') return;
 
     _swipeCurrentX = dx;
     const clamped  = Math.max(-140, Math.min(140, dx));
     _swipeCard.style.transform = `translateX(${clamped}px)`;
-    _swipeWrapper.classList.remove('swiping-left','swiping-right');
+    _swipeWrapper.classList.remove('swiping-left', 'swiping-right');
     if (clamped < -20)     _swipeWrapper.classList.add('swiping-left');
     else if (clamped > 20) _swipeWrapper.classList.add('swiping-right');
 }
@@ -1010,13 +1021,12 @@ function _onSwipeEnd() {
     if (!_swipeDragging || !_swipeCard) return;
     _swipeDragging = false;
     _swipeCard.classList.remove('is-swiping');
-    _swipeWrapper.classList.remove('swiping-left','swiping-right');
+    _swipeWrapper.classList.remove('swiping-left', 'swiping-right');
     if (_swipeIntent === 'horizontal') {
         snapBack(_swipeCard);
         if      (_swipeCurrentX < -SWIPE_THRESHOLD) openDeleteModal(_swipeMeta.id, _swipeMeta.item);
         else if (_swipeCurrentX >  SWIPE_THRESHOLD) openEditModal(_swipeMeta.id, _swipeMeta.item);
     } else if (_swipeIntent === null) {
-        // Tap puro (sem swipe) — abre popup de detalhe
         openProductDetail(_swipeMeta.id, _swipeMeta.item);
     }
     _swipeCard = _swipeWrapper = _swipeMeta = null;
@@ -1026,17 +1036,16 @@ function _onSwipeEnd() {
 function snapBack(card) {
     card.classList.add('snap-back');
     card.style.transform = 'translateX(0)';
-    card.addEventListener('transitionend', () => card.classList.remove('snap-back'), { once:true });
+    card.addEventListener('transitionend', () => card.classList.remove('snap-back'), { once: true });
 }
 
-// ── Popup de detalhe do produto (mobile tap) ──────────────────────────────
+// ── Popup de detalhe do produto (mobile tap) ────────────────────────────────
 let _pdmOpenedAt = 0;
 
 function openProductDetail(id, item) {
-    const data = cache.stock.data?.[id] || item; // usa dados mais recentes se disponível
+    const data   = cache.stock.data?.[id] || item;
     _pdmOpenedAt = performance.now();
 
-    // Imagem
     const imgWrap = $id('pdm-img-wrap');
     const img     = $id('pdm-img');
     if (data.imgUrl) {
@@ -1045,9 +1054,6 @@ function openProductDetail(id, item) {
         imgWrap.style.display = '';
         imgWrap.title   = 'Ver imagem maior';
         imgWrap.onclick = e => {
-            // O popup abre no touchend do toque no card e, logo a seguir, o browser dispara o
-            // "clique" desse mesmo toque — que cai em cima da imagem que acabou de aparecer.
-            // Ignorar cliques nos primeiros 0,6 s: só um toque novo na imagem a abre.
             if (performance.now() - _pdmOpenedAt < 600) { e.stopPropagation(); return; }
             openImageViewer(data.imgUrl, data.nome, data.codigo);
         };
@@ -1055,11 +1061,9 @@ function openProductDetail(id, item) {
         imgWrap.style.display = 'none';
     }
 
-    // Ref + nome
     $id('pdm-ref').textContent  = 'REF: ' + (data.codigo || '—').toUpperCase();
     $id('pdm-nome').textContent = (data.nome || '').toUpperCase();
 
-    // Localização
     const locWrap = $id('pdm-loc-wrap');
     if (data.localizacao) {
         $id('pdm-loc').textContent = data.localizacao.toUpperCase();
@@ -1068,13 +1072,11 @@ function openProductDetail(id, item) {
         locWrap.style.display = 'none';
     }
 
-    // Quantidade
-    const qty = data.quantidade ?? 0;
+    const qty   = Number(data.quantidade) || 0;
     const qtyEl = $id('pdm-qty');
     qtyEl.textContent = fmtQty(qty, data.unidade);
     qtyEl.className   = 'pdm-value pdm-qty' + (qty === 0 ? ' pdm-qty-zero' : '');
 
-    // Notas
     const notasWrap = $id('pdm-notas-wrap');
     if (data.notas) {
         $id('pdm-notas').textContent = data.notas;
@@ -1083,7 +1085,6 @@ function openProductDetail(id, item) {
         notasWrap.style.display = 'none';
     }
 
-    // Acções — só gestores
     const actions = $id('pdm-actions');
     if (currentRole === 'manager') {
         actions.style.display = '';
@@ -1103,43 +1104,41 @@ function openProductDetail(id, item) {
     focusModal('product-detail-modal');
 }
 
-// EXPORTAR CSV
+// ── EXPORTAR CSV ────────────────────────────────────────────────────────────
 async function exportCSV() {
     const btn = $id('export-csv-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'A exportar...'; }
     const data = await fetchCollection('stock', false);
     if (!data || Object.keys(data).length === 0) {
-        showToast('Sem produtos para exportar','error');
+        showToast('Sem produtos para exportar', 'error');
         if (btn) { btn.disabled = false; btn.textContent = 'Exportar'; }
         return;
     }
-    const headers = ['Referência','Nome','Localização','Quantidade','Unidade'];
+    const headers   = ['Referência', 'Nome', 'Localização', 'Quantidade', 'Unidade'];
     const cleanData = Object.fromEntries(Object.entries(data).filter(([k]) => !k.startsWith('_tmp_')));
     const rows = Object.values(cleanData).map(item => [
-        `"${(item.codigo||'').toUpperCase()}"`,
-        `"${(item.nome||'').replace(/"/g,'""')}"`,
-        `"${(item.localizacao||'').toUpperCase()}"`,
+        `"${(item.codigo || '').toUpperCase()}"`,
+        `"${(item.nome || '').replace(/"/g, '""')}"`,
+        `"${(item.localizacao || '').toUpperCase()}"`,
         item.quantidade ?? 0,
         item.unidade || 'un'
     ]);
     const csv  = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
-    const blob = new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url  = URL.createObjectURL(blob);
     Object.assign($el('a'), {
         href: url,
-        download: `gestao-armazem-stock-${new Date().toISOString().slice(0,10)}.csv`
+        download: `gestao-armazem-stock-${new Date().toISOString().slice(0, 10)}.csv`
     }).click();
     URL.revokeObjectURL(url);
     if (btn) { btn.disabled = false; btn.textContent = 'Exportar'; }
     showToast(`${Object.keys(cleanData).length} produtos exportados!`);
 }
 
-
-// INICIALIZAÇÃO
-// DETECÇÃO DE CÓDIGO DUPLICADO
+// ── DETECÇÃO DE CÓDIGO DUPLICADO ────────────────────────────────────────────
 function checkDuplicateCodigo(codigo, onConfirm) {
     if (!codigo || codigo.toUpperCase() === 'SEMREF') {
-        onConfirm(); return; // SEMREF é sempre permitido em duplicado
+        onConfirm(); return;
     }
     const stock = cache.stock.data || {};
     const dupes = Object.values(stock).filter(
@@ -1148,7 +1147,6 @@ function checkDuplicateCodigo(codigo, onConfirm) {
     if (dupes.length === 0) {
         onConfirm(); return;
     }
-    // Existe duplicado — mostra modal de confirmação
     const names = dupes.map(d => d.nome || '(sem nome)').join(', ');
     $id('dup-modal-desc').textContent =
         `O código "${codigo.toUpperCase()}" já existe em: ${names}. Queres registar mesmo assim?`;
@@ -1156,4 +1154,3 @@ function checkDuplicateCodigo(codigo, onConfirm) {
     modalOpen('dup-modal');
     focusModal('dup-modal');
 }
-
