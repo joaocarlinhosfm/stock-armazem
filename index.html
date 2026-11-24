@@ -12,9 +12,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=Fraunces:wght@500;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="base.css?v=6.83">
-    <link rel="stylesheet" href="stock.css?v=6.83">
-    <link rel="stylesheet" href="operacoes.css?v=6.83">
+    <link rel="stylesheet" href="base.css?v=6.84">
+    <link rel="stylesheet" href="stock.css?v=6.84">
+    <link rel="stylesheet" href="operacoes.css?v=6.84">
 </head>
 <body>
 
@@ -107,7 +107,7 @@
                     <div class="ls-btn-spinner hidden" id="ls-spinner"></div>
                 </button>
             </form>
-            <div class="ls-version">v6.83 · Gestão Armazém</div>
+            <div class="ls-version">v6.84 · Gestão Armazém</div>
         </div>
     </div>
 
@@ -394,32 +394,47 @@
             <div id="guias-list" class="pat-list-wrap"></div>
         </div>
 
-                <div id="view-tools" class="view">
+        <div id="view-tools" class="view">
             <div class="tools-header">
                 <div>
                     <h2>Ferramentas</h2>
                     <div class="tools-header-sub" id="tools-header-sub"></div>
                 </div>
-                <button class="btn-timeline" onclick="openToolTimeline()" title="Ver timeline"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg> Timeline</button>
+                <button type="button" class="btn-timeline" onclick="openToolTimeline()" title="Ver timeline">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Timeline
+                </button>
             </div>
-            <!-- Stat chips -->
+            <!-- Stat chips (clicáveis para filtrar) -->
             <div class="tools-stats" id="tools-stats">
-                <div class="tools-stat"><span class="ts-num" id="ts-total">—</span><span class="ts-lbl">Total</span></div>
-                <div class="tools-stat ts-green"><span class="ts-num" id="ts-disp">—</span><span class="ts-lbl">Disponíveis</span></div>
-                <div class="tools-stat ts-amber"><span class="ts-num" id="ts-aloc">—</span><span class="ts-lbl">Alocadas</span></div>
-                <div class="tools-stat ts-red"><span class="ts-num" id="ts-over">—</span><span class="ts-lbl">Em atraso</span></div>
+                <button type="button" class="tools-stat active" data-filter="all" onclick="toolsFilterSet(null,'all')">
+                    <span class="ts-num" id="ts-total">—</span><span class="ts-lbl">Total</span>
+                </button>
+                <button type="button" class="tools-stat ts-green" data-filter="disponivel" onclick="toolsFilterSet(null,'disponivel')">
+                    <span class="ts-num" id="ts-disp">—</span><span class="ts-lbl">Armazém</span>
+                </button>
+                <button type="button" class="tools-stat ts-amber" data-filter="alocada" onclick="toolsFilterSet(null,'alocada')">
+                    <span class="ts-num" id="ts-aloc">—</span><span class="ts-lbl">Em campo</span>
+                </button>
+                <button type="button" class="tools-stat ts-red" data-filter="overdue" onclick="toolsFilterSet(null,'overdue')" style="display:none">
+                    <span class="ts-num" id="ts-over">—</span><span class="ts-lbl">Em atraso</span>
+                </button>
             </div>
             <div class="tools-search-wrap">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--text-muted);flex-shrink:0"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--text-muted);flex-shrink:0"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input type="search" id="inp-tools-search" class="tools-search-input"
-                    placeholder="Pesquisar ferramenta..."
+                    placeholder="Pesquisar por nº (4 dígitos), nome ou técnico..."
                     name="tools_search_q" autocomplete="off" data-lpignore="true" data-form-type="other"
                     autocorrect="off" autocapitalize="none" spellcheck="false">
+                <button type="button" id="inp-tools-search-clear" class="tools-search-clear hidden" onclick="toolsSearchClear()" aria-label="Limpar pesquisa">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+                </button>
             </div>
             <div class="tools-filter-row">
-                <button class="tools-filter-btn active" data-filter="all" onclick="toolsFilterSet(this,'all')">Todas</button>
-                <button class="tools-filter-btn" data-filter="disponivel" onclick="toolsFilterSet(this,'disponivel')">Disponíveis</button>
-                <button class="tools-filter-btn" data-filter="alocada" onclick="toolsFilterSet(this,'alocada')">Alocadas</button>
+                <button type="button" class="tools-filter-btn active" data-filter="all" onclick="toolsFilterSet(this,'all')">Todas</button>
+                <button type="button" class="tools-filter-btn" data-filter="disponivel" onclick="toolsFilterSet(this,'disponivel')">Em armazém</button>
+                <button type="button" class="tools-filter-btn" data-filter="alocada" onclick="toolsFilterSet(this,'alocada')">Em campo</button>
+                <button type="button" class="tools-filter-btn tools-filter-overdue" id="tools-filter-overdue" data-filter="overdue" onclick="toolsFilterSet(this,'overdue')" style="display:none">Em atraso</button>
             </div>
             <div id="tools-list"></div>
         </div>
@@ -646,7 +661,8 @@
                             <div class="admin-ws-card-desc">Adiciona uma nova ferramenta ao sistema</div>
                         </div>
                     </div>
-                    <form id="form-tool-reg" class="pro-form-inline" autocomplete="off">
+                    <form id="form-tool-reg" class="pro-form-inline tool-reg-form" autocomplete="off">
+                        <input type="text" id="reg-tool-num" class="blue-input tool-num-input" placeholder="Nº 0000" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" title="Número único de 4 dígitos" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
                         <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required oninput="this.value=this.value.toUpperCase()">
                         <button type="submit" class="btn-primary">+ Registar</button>
                     </form>
@@ -1331,7 +1347,11 @@
             <form id="form-edit-tool" class="pro-form form-edit-modal" autocomplete="off">
                 <input type="hidden" id="edit-tool-id">
                 <div class="form-group">
-                    <label class="tool-reg-label">NOME DA FERRAMENTA</label>
+                    <label class="tool-reg-label" for="edit-tool-num">Nº IDENTIFICAÇÃO (4 DÍGITOS)</label>
+                    <input type="text" id="edit-tool-num" class="blue-input tool-num-input" placeholder="0000" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+                </div>
+                <div class="form-group">
+                    <label class="tool-reg-label" for="edit-tool-name">NOME DA FERRAMENTA</label>
                     <input type="text" id="edit-tool-name" class="blue-input" placeholder="Nome da ferramenta" required oninput="this.value=this.value.toUpperCase()">
                 </div>
                 <button type="submit" class="btn-primary">Guardar</button>
@@ -1951,21 +1971,21 @@
     <!-- Chart.js, Leaflet + MarkerCluster são carregados sob demanda por loadChart() e loadLeaflet() em utils.js -->
     <!-- Módulos extraídos — Fase 1+2+3+4 da modularização -->
     <!-- ORDEM OBRIGATÓRIA: utils → auth → reports → stock → stockimport → backup → tools → settings → clientes → pat-map → pats → guias → encomendas → inventory → dashboard → app (preservada por defer) -->
-    <script defer src="utils.js?v=6.83"></script>
-    <script defer src="auth.js?v=6.83"></script>
-    <script defer src="reports.js?v=6.83"></script>
-    <script defer src="stock.js?v=6.83"></script>
-    <script defer src="stockimport.js?v=6.83"></script>
-    <script defer src="backup.js?v=6.83"></script>
-    <script defer src="tools.js?v=6.83"></script>
-    <script defer src="settings.js?v=6.83"></script>
-    <script defer src="clientes.js?v=6.83"></script>
-    <script defer src="pat-map.js?v=6.83"></script>
-    <script defer src="pats.js?v=6.83"></script>
-    <script defer src="guias.js?v=6.83"></script>
-    <script defer src="encomendas.js?v=6.83"></script>
-    <script defer src="inventory.js?v=6.83"></script>
-    <script defer src="dashboard.js?v=6.83"></script>
-    <script defer src="app.js?v=6.83"></script>
+    <script defer src="utils.js?v=6.84"></script>
+    <script defer src="auth.js?v=6.84"></script>
+    <script defer src="reports.js?v=6.84"></script>
+    <script defer src="stock.js?v=6.84"></script>
+    <script defer src="stockimport.js?v=6.84"></script>
+    <script defer src="backup.js?v=6.84"></script>
+    <script defer src="tools.js?v=6.84"></script>
+    <script defer src="settings.js?v=6.84"></script>
+    <script defer src="clientes.js?v=6.84"></script>
+    <script defer src="pat-map.js?v=6.84"></script>
+    <script defer src="pats.js?v=6.84"></script>
+    <script defer src="guias.js?v=6.84"></script>
+    <script defer src="encomendas.js?v=6.84"></script>
+    <script defer src="inventory.js?v=6.84"></script>
+    <script defer src="dashboard.js?v=6.84"></script>
+    <script defer src="app.js?v=6.84"></script>
 </body>
 </html>

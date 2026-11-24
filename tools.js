@@ -1,178 +1,334 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// tools.js — Hiperfrio v6.61
-// Ferramentas, histórico, funcionários, timeline.
-// Carrega DEPOIS de reports.js e ANTES de pats.js.
+// tools.js — Gestão Armazém v6.84
+// Ferramentas (com identificação destacada por nº único de 4 dígitos),
+// histórico, funcionários, timeline e modais partilhados.
+// Carrega DEPOIS de reports.js e stock.js, ANTES de pats.js.
 //
 // Dependências:
-//   utils.js  → $id, $el, escapeHtml, showToast, modalOpen, modalClose,
-//               focusModal, _calcDias, _debounce, loadXlsx
-//   auth.js   → requireManagerAccess, apiFetch, authUrl
-//   app.js    → cache, fetchCollection, invalidateCache,
-//               renderDashboard, openConfirmModal, nav
+//   utils.js  → BASE_URL, $id, $el, escapeHtml, showToast, modalOpen, modalClose,
+//               focusModal, _calcDias, formatDate, SVG_EDIT, SVG_DEL, SVG_USER
+//   auth.js   → requireManagerAccess, authUrl
+//   app.js    → cache, fetchCollection, invalidateCache, apiFetch,
+//               renderDashboard, nav
 // ─────────────────────────────────────────────────────────────────────────────
+
+const _TOOL_ALERT_DAYS = 7; // alinhado com dashboard.js (≥ 7 dias fora = em atraso)
+
+let _toolsStatusFilter = 'all'; // 'all' | 'disponivel' | 'alocada' | 'overdue'
+let _toolsSearchQuery  = '';
+
+// Normaliza texto para pesquisa sem acentos e case-insensitive
+function _normToolText(str) {
+    return String(str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+// Extrai o número único de 4 dígitos e o nome limpo de uma ferramenta.
+// Suporta tanto o campo dedicado `tool.numero` como registos antigos onde o
+// número de 4 dígitos estava dentro de `tool.nome` (ex.: "BERBEQUIM 1042",
+// "1042 - BERBEQUIM", "MANÓMETROS (0321)").
+function _parseToolIdentity(tool) {
+    const rawNum  = String(tool?.numero ?? '').trim();
+    const rawNome = String(tool?.nome   ?? '').trim();
+
+    const mNum = rawNum.match(/(?:^|[^A-Za-z0-9])(\d{4})(?![A-Za-z0-9])/);
+    let numero = mNum ? mNum[1] : '';
+    let nome   = rawNome;
+
+    if (!numero && rawNome) {
+        let m = rawNome.match(/^\s*#?(\d{4})(?![A-Za-z0-9])\s*[-–—:\/·]?\s*(.*)$/);
+        if (m) {
+            numero = m[1];
+            nome   = m[2];
+        } else {
+            m = rawNome.match(/^(.*?)(?:^|[^A-Za-z0-9])(\d{4})(?:\)|\])?\s*$/);
+            if (m) {
+                numero = m[2];
+                nome   = m[1];
+            } else {
+                m = rawNome.match(/(?:^|[^A-Za-z0-9])(\d{4})(?![A-Za-z0-9])/);
+                if (m) {
+                    numero = m[1];
+                    const idx = m.index + m[0].indexOf(numero);
+                    nome = rawNome.slice(0, idx) + ' ' + rawNome.slice(idx + 4);
+                }
+            }
+        }
+    } else if (numero && rawNome) {
+        // Evita repetir o mesmo nº de 4 dígitos se também estiver no nome
+        const reStart = new RegExp(`^\\s*#?${numero}(?![A-Za-z0-9])\\s*[-–—:\\/·]?\\s*`);
+        const reEnd   = new RegExp(`(?:^|[^A-Za-z0-9])${numero}(?:\\)|\\])?\\s*$`);
+        nome = nome.replace(reStart, '').replace(reEnd, '');
+    }
+
+    nome = nome
+        .replace(/\(\s*\)|\[\s*\]/g, '')
+        .replace(/^[\s\-–—:\/·#(\[]+|[\s\-–—:\/·#(\[]+$/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+
+    return { numero, nome };
+}
+
+// Etiqueta textual unificada para modais, alertas, dashboard, relatórios e CSV
+function _toolDisplayLabel(tool) {
+    const { numero, nome } = _parseToolIdentity(tool);
+    if (numero && nome) return `#${numero} · ${nome}`;
+    if (numero)         return `#${numero}`;
+    return nome || '—';
+}
+
+// Verifica se já existe outra ferramenta com o mesmo nº de 4 dígitos
+function _findDuplicateToolNum(numero, ignoreId = null) {
+    if (!numero) return null;
+    const data = cache.ferramentas.data || {};
+    for (const [id, t] of Object.entries(data)) {
+        if (id === ignoreId || !t) continue;
+        const { numero: existingNum } = _parseToolIdentity(t);
+        if (existingNum === numero) return { id, tool: t };
+    }
+    return null;
+}
+
+function toolsFilterSet(btn, filter) {
+    _toolsStatusFilter = filter || 'all';
+    renderTools();
+}
+
+function toolsSearchClear() {
+    _toolsSearchQuery = '';
+    const inp = $id('inp-tools-search');
+    if (inp) { inp.value = ''; inp.focus(); }
+    const clr = $id('inp-tools-search-clear');
+    if (clr) clr.classList.add('hidden');
+    renderTools();
+}
 
 async function renderTools() {
     const list = $id('tools-list');
     if (!list) return;
     const data = await fetchCollection('ferramentas');
 
-    const TOOL_ALERT_DAYS = 7;
+    const entries = Object.entries(data || {});
+    const isOverdueTool = t => t.status === 'alocada' && t.dataEntrega && _calcDias(t.dataEntrega) >= _TOOL_ALERT_DAYS;
 
     // Stat chips
-    if (data) {
-        const entries = Object.values(data);
-        const total   = entries.length;
-        const disp    = entries.filter(t => t.status === 'disponivel').length;
-        const aloc    = entries.filter(t => t.status === 'alocada').length;
-        const over    = entries.filter(t => t.status === 'alocada' && t.dataEntrega && _calcDias(t.dataEntrega) > TOOL_ALERT_DAYS).length;
-        const sub = $id('tools-header-sub');
-        if (sub) sub.textContent = `${total} ferramenta${total !== 1 ? 's' : ''} · ${aloc} alocada${aloc !== 1 ? 's' : ''}`;
-        const el = (id, v) => { const e = $id(id); if(e) e.textContent = v; };
-        el('ts-total', total); el('ts-disp', disp); el('ts-aloc', aloc); el('ts-over', over);
-        // Esconder stat de atraso se zero
-        const overStat = document.querySelector('.ts-red');
-        if (overStat) overStat.style.display = over > 0 ? '' : 'none';
-    }
+    const totalCount = entries.length;
+    const dispCount  = entries.filter(([, t]) => t.status !== 'alocada').length;
+    const alocCount  = entries.filter(([, t]) => t.status === 'alocada').length;
+    const overCount  = entries.filter(([, t]) => isOverdueTool(t)).length;
 
-    // Filtros activos
+    const sub = $id('tools-header-sub');
+    if (sub) {
+        sub.textContent = `${totalCount} ferramenta${totalCount !== 1 ? 's' : ''} · ${alocCount} em campo`;
+    }
+    const setTxt = (id, v) => { const e = $id(id); if (e) e.textContent = v; };
+    setTxt('ts-total', totalCount);
+    setTxt('ts-disp',  dispCount);
+    setTxt('ts-aloc',  alocCount);
+    setTxt('ts-over',  overCount);
+
+    // Se não há ferramentas em atraso, esconde o stat/pill de atraso (e se estava seleccionado, volta a 'all')
+    if (overCount === 0 && _toolsStatusFilter === 'overdue') _toolsStatusFilter = 'all';
+    const overStat = document.querySelector('.tools-stat.ts-red');
+    if (overStat) overStat.style.display = overCount > 0 ? '' : 'none';
+    const overFilterBtn = $id('tools-filter-overdue');
+    if (overFilterBtn) overFilterBtn.style.display = overCount > 0 ? '' : 'none';
+
+    // Sincronizar destaque nos filtros e nos stat chips clicáveis
     document.querySelectorAll('.tools-filter-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.filter === (_toolsFilter || 'all'));
+        btn.classList.toggle('active', btn.dataset.filter === _toolsStatusFilter);
+    });
+    document.querySelectorAll('.tools-stat[data-filter]').forEach(stat => {
+        stat.classList.toggle('active', stat.dataset.filter === _toolsStatusFilter);
     });
 
     list.innerHTML = '';
-    if (!data || Object.keys(data).length === 0) {
-        list.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div class="empty-state-title">Sem ferramentas</div><div class="empty-state-sub">Adiciona ferramentas em Administração.</div></div>`;
+    if (totalCount === 0) {
+        list.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div class="empty-state-title">Sem ferramentas</div><div class="empty-state-sub">Adiciona ferramentas em Administração → Ferramentas.</div></div>`;
         return;
     }
 
-    const filterLower = typeof _toolsFilter === 'string' && _toolsFilter !== 'all' && !['disponivel','alocada'].includes(_toolsFilter)
-        ? _toolsFilter.toLowerCase() : '';
-    const statusFilter = ['disponivel','alocada'].includes(_toolsFilter) ? _toolsFilter : null;
+    const qNorm = _normToolText(_toolsSearchQuery);
 
-    // Separar em grupos: overdue → alocadas → disponíveis
-    const all = [...Object.entries(data)].reverse();
-    const overdueList  = all.filter(([,t]) => t.status === 'alocada' && t.dataEntrega && _calcDias(t.dataEntrega) > TOOL_ALERT_DAYS);
-    const alocList     = all.filter(([,t]) => t.status === 'alocada' && !(t.dataEntrega && _calcDias(t.dataEntrega) > TOOL_ALERT_DAYS));
-    const dispList     = all.filter(([,t]) => t.status !== 'alocada');
+    // Ordenação por nº de 4 dígitos crescente (ferramentas sem número ficam depois, por nome)
+    const _sortByNum = ([, a], [, b]) => {
+        const ia = _parseToolIdentity(a);
+        const ib = _parseToolIdentity(b);
+        if (ia.numero && ib.numero) return ia.numero.localeCompare(ib.numero);
+        if (ia.numero) return -1;
+        if (ib.numero) return 1;
+        return (ia.nome || '').localeCompare(ib.nome || '', 'pt');
+    };
 
-    const TOOL_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
-    const RETURN_ICON = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg>`;
-    const CHEVRON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>`;
+    const overdueList = entries.filter(([, t]) => isOverdueTool(t)).sort(([, a], [, b]) => _calcDias(b.dataEntrega) - _calcDias(a.dataEntrega));
+    const alocList    = entries.filter(([, t]) => t.status === 'alocada' && !isOverdueTool(t)).sort(_sortByNum);
+    const dispList    = entries.filter(([, t]) => t.status !== 'alocada').sort(_sortByNum);
+
+    const TOOL_SVG   = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
+    const RETURN_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg>`;
+    const USER_SVG   = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+    const CLOCK_SVG  = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+    const CHEV_SVG   = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
+
+    function _matchesFilters(t) {
+        const isAv      = t.status !== 'alocada';
+        const isOverdue = isOverdueTool(t);
+
+        if (_toolsStatusFilter === 'disponivel' && !isAv) return false;
+        if (_toolsStatusFilter === 'alocada'    && isAv)  return false;
+        if (_toolsStatusFilter === 'overdue'    && !isOverdue) return false;
+
+        if (qNorm) {
+            const { numero, nome } = _parseToolIdentity(t);
+            const hay = _normToolText(`${numero} ${nome} ${t.nome || ''} ${t.colaborador || ''}`);
+            const tokens = qNorm.split(/\s+/).filter(Boolean);
+            if (!tokens.every(tok => hay.includes(tok))) return false;
+        }
+        return true;
+    }
 
     function _makeCard(id, t) {
-        if (filterLower && !t.nome?.toLowerCase().includes(filterLower)) return null;
-        if (statusFilter && t.status !== statusFilter) return null;
+        if (!_matchesFilters(t)) return null;
 
-        const isAv = t.status === 'disponivel';
-        const isOverdue = !isAv && t.dataEntrega && _calcDias(t.dataEntrega) > TOOL_ALERT_DAYS;
+        const { numero, nome } = _parseToolIdentity(t);
+        const displayLabel     = _toolDisplayLabel(t);
+        const isAv             = t.status !== 'alocada';
+        const isOverdue        = isOverdueTool(t);
+        const statusCls        = isAv ? 'tool-available' : (isOverdue ? 'tool-overdue' : 'tool-allocated');
 
-        const div = $el('div');
-        div.className = `tool-card ${isAv ? 'tool-available' : 'tool-allocated'}${isOverdue ? ' tool-overdue' : ''}`;
+        const card = $el('div', { className: `tool-card ${statusCls}` });
 
-        // Long press → histórico
-        div.addEventListener('contextmenu', e => { e.preventDefault(); openHistoryModal(id, t.nome); });
-        div.addEventListener('touchstart', () => {
-            _toolLongPressTimer = setTimeout(() => openHistoryModal(id, t.nome), 600);
+        // Long-press (mobile) / clique direito (desktop) → histórico
+        let lpTimer = null;
+        let lpFired = false;
+        card.addEventListener('contextmenu', e => {
+            e.preventDefault();
+            openHistoryModal(id, displayLabel);
+        });
+        card.addEventListener('touchstart', () => {
+            lpFired = false;
+            lpTimer = setTimeout(() => {
+                lpFired = true;
+                openHistoryModal(id, displayLabel);
+            }, 600);
         }, { passive: true });
-        div.addEventListener('touchend',  () => clearTimeout(_toolLongPressTimer), { passive: true });
-        div.addEventListener('touchmove', () => clearTimeout(_toolLongPressTimer), { passive: true });
+        card.addEventListener('touchend',  () => clearTimeout(lpTimer), { passive: true });
+        card.addEventListener('touchmove', () => clearTimeout(lpTimer), { passive: true });
 
-        // Ícone
-        const icon = $el('div', { className: 'tool-icon' });
-        icon.innerHTML = TOOL_ICON;
+        // Placa de identificação destacada (nº de 4 dígitos)
+        const idPlate = $el('div', { className: 'tool-id-badge' + (numero ? '' : ' no-num') });
+        if (numero) {
+            const lbl = $el('span', { className: 'tool-id-prefix', textContent: 'Nº' });
+            const val = $el('span', { className: 'tool-id-num',    textContent: numero });
+            idPlate.appendChild(lbl);
+            idPlate.appendChild(val);
+        } else {
+            idPlate.innerHTML = `${TOOL_SVG}<span class="tool-id-none">S/Nº</span>`;
+        }
+        card.appendChild(idPlate);
 
-        // Info
+        // Informação principal (nome + estado/técnico)
         const info = $el('div', { className: 'tool-info' });
 
-        const nome = $el('div', { className: 'tool-nome' });
-        nome.textContent = t.nome;
+        const nomeEl = $el('div', { className: 'tool-nome' });
+        nomeEl.textContent = nome || 'Ferramenta';
+        info.appendChild(nomeEl);
 
-        const sub = $el('div', { className: 'tool-sub' });
-
+        const subRow = $el('div', { className: 'tool-sub' });
         if (isAv) {
-            const dot = $el('span', { className: 'tool-status-dot' });
-            dot.style.background = '#16a34a';
-            const lbl = $el('span', { className: 'tool-status-label', textContent: 'Em armazém' });
-            sub.appendChild(dot);
-            sub.appendChild(lbl);
+            const availPill = $el('span', { className: 'tool-pill tool-pill-avail' });
+            availPill.innerHTML = `<span class="tool-status-dot"></span>Em armazém`;
+            subRow.appendChild(availPill);
         } else {
             const days = t.dataEntrega ? _calcDias(t.dataEntrega) : null;
-            const colabBadge = $el('span');
-            colabBadge.className   = `tool-badge ${isOverdue ? 'tool-badge-overdue' : 'tool-badge-colab'}`;
-            colabBadge.textContent = (t.colaborador || '').toUpperCase();
-            sub.appendChild(colabBadge);
+
+            const colabBadge = $el('span', { className: `tool-badge ${isOverdue ? 'tool-badge-overdue' : 'tool-badge-colab'}` });
+            colabBadge.innerHTML = `${USER_SVG}<span>${escapeHtml((t.colaborador || '—').toUpperCase())}</span>`;
+            subRow.appendChild(colabBadge);
+
             if (days !== null) {
-                const daysBadge = $el('span');
-                daysBadge.className   = `tool-badge ${isOverdue ? 'tool-badge-overdue' : 'tool-badge-days'}`;
-                daysBadge.textContent = days === 0 ? 'hoje' : days === 1 ? '1d fora' : `${days}d fora`;
-                sub.appendChild(daysBadge);
+                const daysBadge = $el('span', { className: `tool-badge ${isOverdue ? 'tool-badge-overdue' : 'tool-badge-days'}` });
+                const daysTxt = days === 0 ? 'Hoje' : days === 1 ? '1d fora' : `${days}d fora`;
+                daysBadge.innerHTML = `${CLOCK_SVG}<span>${daysTxt}</span>`;
+                subRow.appendChild(daysBadge);
             }
+
             if (isOverdue) {
-                const ovd = $el('span', { className: 'tool-badge tool-badge-overdue', textContent: 'verificar' });
-                sub.appendChild(ovd);
+                const ovd = $el('span', { className: 'tool-badge tool-badge-overdue tool-badge-alert', textContent: 'Em atraso' });
+                subRow.appendChild(ovd);
             }
         }
+        info.appendChild(subRow);
+        card.appendChild(info);
 
-        info.appendChild(nome);
-        info.appendChild(sub);
-        div.appendChild(icon);
-        div.appendChild(info);
-
+        // Acção à direita
         if (isAv) {
-            // Clicar no card → alocar
-            div.onclick = () => openModal(id);
-            const arrow = $el('span', { className: 'tool-arrow' });
-            arrow.innerHTML = CHEVRON;
-            div.appendChild(arrow);
+            card.onclick = () => {
+                if (lpFired) { lpFired = false; return; }
+                openModal(id);
+            };
+            const deliverBtn = $el('span', { className: 'tool-deliver-pill' });
+            deliverBtn.innerHTML = `<span class="tool-deliver-txt">Entregar</span>${CHEV_SVG}`;
+            card.appendChild(deliverBtn);
         } else {
-            // Clicar no card → histórico; botão explícito → devolver
-            div.onclick = () => openHistoryModal(id, t.nome);
-            const retBtn = $el('button', { className: 'tool-return-btn' });
-            retBtn.innerHTML = RETURN_ICON;
-            retBtn.title = 'Devolver';
-            retBtn.onclick = e => {
+            card.onclick = () => {
+                if (lpFired) { lpFired = false; return; }
+                openHistoryModal(id, displayLabel);
+            };
+            const retBtn = $el('button', { type: 'button', className: 'tool-return-btn' });
+            retBtn.innerHTML = `${RETURN_SVG}<span class="tool-return-txt">Devolver</span>`;
+            retBtn.title     = 'Devolver ferramenta';
+            retBtn.onclick   = e => {
                 e.stopPropagation();
                 openConfirmModal({
                     title: 'Confirmar devolução?',
-                    desc: `"${escapeHtml(t.nome)}" será marcada como disponível.`,
-                    type: 'confirm', okLabel: 'Devolver',
+                    desc: `"${displayLabel}" será marcada como disponível em armazém.`,
+                    type: 'success', okLabel: 'Devolver',
                     onConfirm: () => returnTool(id)
                 });
             };
-            div.appendChild(retBtn);
+            card.appendChild(retBtn);
         }
 
-        return div;
+        return card;
     }
 
-    // Um único fragment para toda a lista — 1 reflow em vez de 6
     const listFrag = document.createDocumentFragment();
 
-    function _addSection(label, items) {
-        let added = 0;
-        const frag = document.createDocumentFragment();
+    function _addSection(label, items, toneCls = '') {
+        const cards = [];
         items.forEach(([id, t]) => {
             const card = _makeCard(id, t);
-            if (card) { frag.appendChild(card); added++; }
+            if (card) cards.push(card);
         });
-        if (added > 0) {
-            const lbl = $el('div', { className: 'tools-section-label' });
-            lbl.textContent = label;
-            listFrag.appendChild(lbl);
-            listFrag.appendChild(frag);
-        }
-        return added;
+        if (!cards.length) return 0;
+
+        const secHead = $el('div', { className: `tools-section-head ${toneCls}` });
+        const lbl = $el('span', { className: 'tools-section-label', textContent: label });
+        const cnt = $el('span', { className: 'tools-section-count', textContent: String(cards.length) });
+        secHead.appendChild(lbl);
+        secHead.appendChild(cnt);
+        listFrag.appendChild(secHead);
+
+        const grid = $el('div', { className: 'tools-section-grid' });
+        cards.forEach(c => grid.appendChild(c));
+        listFrag.appendChild(grid);
+        return cards.length;
     }
 
-    let total = 0;
-    total += _addSection('Em atraso', overdueList);
-    total += _addSection('Alocadas', alocList);
-    total += _addSection('Disponíveis', dispList);
+    let rendered = 0;
+    rendered += _addSection('Em atraso',   overdueList, 'tone-overdue');
+    rendered += _addSection('Em campo',    alocList,    'tone-allocated');
+    rendered += _addSection('Em armazém',  dispList,    'tone-available');
 
     list.appendChild(listFrag);
 
-    if (total === 0) {
-        list.innerHTML = '<div class="empty-msg">Nenhuma ferramenta encontrada.</div>';
+    if (rendered === 0) {
+        list.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div class="empty-state-title">Sem resultados</div><div class="empty-state-sub">Nenhuma ferramenta corresponde à pesquisa ou filtro.</div></div>`;
     }
 }
 
@@ -185,29 +341,52 @@ async function renderAdminTools() {
     if (!data || Object.keys(data).length === 0) {
         list.innerHTML = '<div class="empty-msg">Nenhuma ferramenta registada.</div>'; return;
     }
-    Object.entries(data).forEach(([id, t]) => {
+
+    const HIST_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+
+    const sorted = Object.entries(data).sort(([, a], [, b]) => {
+        const ia = _parseToolIdentity(a);
+        const ib = _parseToolIdentity(b);
+        if (ia.numero && ib.numero) return ia.numero.localeCompare(ib.numero);
+        if (ia.numero) return -1;
+        if (ib.numero) return 1;
+        return (ia.nome || '').localeCompare(ib.nome || '', 'pt');
+    });
+
+    sorted.forEach(([id, t]) => {
+        const { numero, nome } = _parseToolIdentity(t);
+        const displayLabel = _toolDisplayLabel(t);
+
         const row = $el('div', { className: 'admin-list-row admin-tool-row' });
 
-        // Nome da ferramenta
-        const lbl = $el('span', { className: 'admin-list-label' });
-        lbl.textContent = t.nome;
+        // Identidade: nº de 4 dígitos + nome
+        const head = $el('div', { className: 'admin-tool-head' });
+        if (numero) {
+            const numPill = $el('span', { className: 'tool-admin-num', textContent: `#${numero}` });
+            head.appendChild(numPill);
+        } else {
+            const noNum = $el('span', { className: 'tool-admin-num tool-admin-num-empty', textContent: 'S/Nº' });
+            head.appendChild(noNum);
+        }
+        const lbl = $el('span', { className: 'admin-list-label', textContent: nome || 'Ferramenta' });
+        head.appendChild(lbl);
 
-        // Barra de acções alinhada à esquerda
+        // Barra de acções
         const actions = $el('div', { className: 'admin-tool-actions' });
 
-        const editBtn = $el('button', { className: 'admin-tool-btn admin-tool-btn-edit' });
-        editBtn.innerHTML   = '✏️ <span>Editar</span>';
-        editBtn.onclick     = () => openEditToolModal(id, t);
+        const editBtn = $el('button', { type: 'button', className: 'admin-tool-btn admin-tool-btn-edit' });
+        editBtn.innerHTML = `${SVG_EDIT} <span>Editar</span>`;
+        editBtn.onclick   = () => openEditToolModal(id, t);
 
-        const histBtn = $el('button', { className: 'admin-tool-btn admin-tool-btn-hist' });
-        histBtn.innerHTML   = '≡ <span>Histórico</span>';
-        histBtn.onclick     = () => openHistoryModal(id, t.nome);
+        const histBtn = $el('button', { type: 'button', className: 'admin-tool-btn admin-tool-btn-hist' });
+        histBtn.innerHTML = `${HIST_SVG} <span>Histórico</span>`;
+        histBtn.onclick   = () => openHistoryModal(id, displayLabel);
 
-        const delBtn = $el('button', { className: 'admin-tool-btn admin-tool-btn-del' });
-        delBtn.innerHTML   = '🗑️ <span>Eliminar</span>';
-        delBtn.onclick     = () => openConfirmModal({
+        const delBtn = $el('button', { type: 'button', className: 'admin-tool-btn admin-tool-btn-del' });
+        delBtn.innerHTML = `${SVG_DEL} <span>Eliminar</span>`;
+        delBtn.onclick   = () => openConfirmModal({
             title: 'Apagar ferramenta?',
-            desc: `"${escapeHtml(t.nome)}" será removida permanentemente.`,
+            desc: `"${displayLabel}" será removida permanentemente.`,
             type: 'danger',
             onConfirm: () => deleteTool(id)
         });
@@ -215,7 +394,7 @@ async function renderAdminTools() {
         actions.appendChild(editBtn);
         actions.appendChild(histBtn);
         actions.appendChild(delBtn);
-        row.appendChild(lbl);
+        row.appendChild(head);
         row.appendChild(actions);
         list.appendChild(row);
     });
@@ -227,18 +406,15 @@ const HISTORY_MAX = 50; // máximo de registos por ferramenta
 async function addToolHistoryEvent(toolId, acao, colaborador) {
     const event = { acao, colaborador: colaborador || '', data: new Date().toISOString() };
     try {
-        // Adiciona novo evento
         await apiFetch(`${BASE_URL}/ferramentas/${toolId}/historico.json`, {
             method: 'POST', body: JSON.stringify(event)
         });
-        // Verifica se excede o limite usando o cache de ferramentas (evita fetch extra)
         const histCache = cache.ferramentas.data?.[toolId]?.historico;
         const histCount = histCache ? Object.keys(histCache).length : 0;
         if (histCount >= HISTORY_MAX) {
-            // Faz fetch apenas quando necessário para obter os IDs ordenados
             try {
-                const url  = await authUrl(`${BASE_URL}/ferramentas/${toolId}/historico.json`);
-                const res  = await fetch(url);
+                const url = await authUrl(`${BASE_URL}/ferramentas/${toolId}/historico.json`);
+                const res = await fetch(url);
                 if (res.ok) {
                     const data = await res.json();
                     if (data && Object.keys(data).length > HISTORY_MAX) {
@@ -252,7 +428,9 @@ async function addToolHistoryEvent(toolId, acao, colaborador) {
 }
 
 async function openHistoryModal(toolId, toolName) {
-    $id('history-modal-tool-name').textContent = `🪛 ${toolName}`;
+    const toolObj = cache.ferramentas.data?.[toolId];
+    const label   = toolObj ? _toolDisplayLabel(toolObj) : (toolName || '—');
+    $id('history-modal-tool-name').textContent = label;
     const listEl = $id('history-list');
     listEl.innerHTML = '<div class="empty-msg">A carregar...</div>';
     modalOpen('history-modal');
@@ -274,24 +452,20 @@ async function openHistoryModal(toolId, toolName) {
             return;
         }
 
-        // Converte objeto Firebase em array e ordena do mais recente para o mais antigo
         const events = Object.values(data).sort((a, b) => new Date(b.data) - new Date(a.data));
 
         events.forEach(ev => {
-            const row  = $el('div');
+            const row = $el('div');
             row.className = `history-row ${ev.acao === 'atribuida' ? 'history-out' : 'history-in'}`;
             const icon = ev.acao === 'atribuida' ? '→' : '↩';
-            const label = ev.acao === 'atribuida'
+            const txt = ev.acao === 'atribuida'
                 ? `Entregue a ${ev.colaborador || '?'}`
                 : `Devolvida${ev.colaborador ? ` por ${ev.colaborador}` : ''}`;
-            const date  = formatDate(ev.data);
-            const iconEl = $el('span', { className: 'history-icon' });
-            iconEl.textContent = icon;
-            const info = $el('div', { className: 'history-info' });
-            const lbl = $el('span', { className: 'history-label' });
-            lbl.textContent = label;
-            const dt = $el('span', { className: 'history-date' });
-            dt.textContent = date;
+            const date = formatDate(ev.data);
+            const iconEl = $el('span', { className: 'history-icon', textContent: icon });
+            const info   = $el('div',  { className: 'history-info' });
+            const lbl    = $el('span', { className: 'history-label', textContent: txt });
+            const dt     = $el('span', { className: 'history-date',  textContent: date });
             info.appendChild(lbl);
             info.appendChild(dt);
             row.appendChild(iconEl);
@@ -307,54 +481,86 @@ async function assignTool(worker) {
     const dataEntrega = new Date().toISOString();
     const id = toolToAllocate;
     cache.ferramentas.data[id] = {
-        ...cache.ferramentas.data[id], status:'alocada', colaborador:worker, dataEntrega
+        ...cache.ferramentas.data[id], status: 'alocada', colaborador: worker, dataEntrega
     };
     modalClose('worker-modal'); renderTools(); renderDashboard(); showToast(`Entregue a ${worker}!`);
     try {
         await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, {
-            method:'PATCH', body:JSON.stringify({status:'alocada',colaborador:worker,dataEntrega})
+            method: 'PATCH', body: JSON.stringify({ status: 'alocada', colaborador: worker, dataEntrega })
         });
         await addToolHistoryEvent(id, 'atribuida', worker);
-    } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao guardar.','error'); }
+    } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao guardar.', 'error'); }
 }
 
 async function returnTool(id) {
-    const colaborador = cache.ferramentas.data[id]?.colaborador || '';
+    const colaborador     = cache.ferramentas.data[id]?.colaborador || '';
     const dataEntregaOrig = cache.ferramentas.data[id]?.dataEntrega || '';
     cache.ferramentas.data[id] = {
-        ...cache.ferramentas.data[id], status:'disponivel', colaborador:'', dataEntrega:''
+        ...cache.ferramentas.data[id], status: 'disponivel', colaborador: '', dataEntrega: ''
     };
     renderTools(); renderDashboard(); showToast('Devolvida!');
     try {
         await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, {
-            method:'PATCH', body:JSON.stringify({status:'disponivel',colaborador:'',dataEntrega:''})
+            method: 'PATCH', body: JSON.stringify({ status: 'disponivel', colaborador: '', dataEntrega: '' })
         });
-        // Regista histórico com colaborador preservado mesmo offline
         await addToolHistoryEvent(id, 'devolvida', colaborador);
     } catch (e) {
         console.warn('returnTool erro:', e?.message || e);
-        // Reverte estado local
         cache.ferramentas.data[id] = {
-            ...cache.ferramentas.data[id], status:'alocada', colaborador, dataEntrega: dataEntregaOrig
+            ...cache.ferramentas.data[id], status: 'alocada', colaborador, dataEntrega: dataEntregaOrig
         };
-        invalidateCache('ferramentas'); showToast('Erro ao guardar.','error');
+        invalidateCache('ferramentas'); showToast('Erro ao guardar.', 'error');
     }
 }
 
 function openEditToolModal(id, tool) {
+    const { numero, nome } = _parseToolIdentity(tool);
     $id('edit-tool-id').value   = id;
-    $id('edit-tool-name').value = tool.nome || '';
+    const numEl = $id('edit-tool-num');
+    if (numEl) numEl.value      = numero;
+    $id('edit-tool-name').value = nome || tool.nome || '';
     modalOpen('edit-tool-modal');
     focusModal('edit-tool-modal');
 }
 
 async function saveEditTool() {
     if (!requireManagerAccess()) return;
-    const id   = $id('edit-tool-id').value;
-    const nome = $id('edit-tool-name').value.trim().toUpperCase();
+    const id     = $id('edit-tool-id').value;
+    const rawNum = ($id('edit-tool-num')?.value || '').replace(/\D/g, '');
+    let   nome   = $id('edit-tool-name').value.trim().toUpperCase();
+
     if (!nome) { showToast('Nome obrigatório', 'error'); return; }
+
+    let numero = rawNum;
+    if (numero && numero.length !== 4) {
+        showToast('O nº da ferramenta deve ter exactamente 4 dígitos', 'error');
+        $id('edit-tool-num')?.focus();
+        return;
+    }
+    // Se deixou o campo nº vazio mas incluiu 4 dígitos no nome, separa automaticamente
+    if (!numero) {
+        const parsed = _parseToolIdentity({ nome });
+        if (parsed.numero) {
+            numero = parsed.numero;
+            if (parsed.nome) nome = parsed.nome;
+        }
+    } else {
+        const cleaned = _parseToolIdentity({ numero, nome });
+        if (cleaned.nome) nome = cleaned.nome;
+    }
+
+    if (numero) {
+        const dup = _findDuplicateToolNum(numero, id);
+        if (dup) {
+            showToast(`Já existe uma ferramenta com o nº ${numero} (${_toolDisplayLabel(dup.tool)})`, 'error');
+            $id('edit-tool-num')?.focus();
+            return;
+        }
+    }
+
+    const patch = { nome, numero: numero || null };
     if (cache.ferramentas.data?.[id]) {
-        cache.ferramentas.data[id] = { ...cache.ferramentas.data[id], nome };
+        cache.ferramentas.data[id] = { ...cache.ferramentas.data[id], ...patch };
     }
     modalClose('edit-tool-modal');
     renderAdminTools();
@@ -363,9 +569,9 @@ async function saveEditTool() {
     showToast('Ferramenta actualizada!');
     try {
         await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, {
-            method:'PATCH', body: JSON.stringify({ nome })
+            method: 'PATCH', body: JSON.stringify(patch)
         });
-    } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao guardar','error'); }
+    } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao guardar', 'error'); }
 }
 
 async function deleteTool(id) {
@@ -374,14 +580,14 @@ async function deleteTool(id) {
     const _doDelete = async () => {
         delete cache.ferramentas.data[id]; renderAdminTools(); renderTools(); renderDashboard();
         try {
-            await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, { method:'DELETE' });
+            await apiFetch(`${BASE_URL}/ferramentas/${id}.json`, { method: 'DELETE' });
             showToast('Ferramenta apagada');
-        } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao apagar.','error'); }
+        } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao apagar.', 'error'); }
     };
     if (tool?.status === 'alocada') {
         openConfirmModal({
             title: 'Ferramenta alocada!',
-            desc: `"${escapeHtml(tool.nome)}" está com ${escapeHtml(tool.colaborador || '?')}. Apagar irá forçar a devolução sem registo. Confirmas?`,
+            desc: `"${_toolDisplayLabel(tool)}" está com ${tool.colaborador || '?'}. Apagar irá forçar a devolução sem registo. Confirmas?`,
             type: 'warn', okLabel: 'Forçar apagar',
             onConfirm: _doDelete
         });
@@ -394,11 +600,10 @@ async function deleteTool(id) {
 async function renderWorkers() {
     if (!requireManagerAccess({ silent: true })) return;
     const data    = await fetchCollection('funcionarios');
-    const workers = data ? Object.entries(data).map(([id,v]) => ({id, nome:v.nome})) : [];
+    const workers = data ? Object.entries(data).map(([id, v]) => ({ id, nome: v.nome })) : [];
     const list    = $id('workers-list');
     if (!list) return;
 
-    // Badge de contagem no card header
     const badge = $id('workers-count-badge');
     if (badge) badge.textContent = workers.length ? `${workers.length} registados` : '';
 
@@ -410,16 +615,15 @@ async function renderWorkers() {
         const row = $el('div', { className: 'admin-list-row' });
 
         const avatar = $el('div', { className: 'admin-list-avatar' });
-        const initials = w.nome.trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase();
+        const initials = w.nome.trim().split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase();
         avatar.textContent = initials || '?';
 
-        const lbl = $el('span', { className: 'admin-list-label' });
-        lbl.textContent = w.nome;
+        const lbl = $el('span', { className: 'admin-list-label', textContent: w.nome });
         const btn = $el('button', { className: 'admin-list-delete' });
         btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>';
         btn.onclick = () => openConfirmModal({
             title: 'Apagar funcionário?',
-            desc: `"${escapeHtml(w.nome)}" será removido permanentemente.`,
+            desc: `"${w.nome}" será removido permanentemente.`,
             type: 'danger',
             onConfirm: () => deleteWorker(w.id)
         });
@@ -433,38 +637,36 @@ async function deleteWorker(id) {
     if (cache.funcionarios.data) delete cache.funcionarios.data[id];
     renderWorkers();
     try {
-        await apiFetch(`${BASE_URL}/funcionarios/${id}.json`, { method:'DELETE' });
-    } catch(_e) { invalidateCache('funcionarios'); showToast('Erro ao apagar.','error'); }
+        await apiFetch(`${BASE_URL}/funcionarios/${id}.json`, { method: 'DELETE' });
+    } catch(_e) { invalidateCache('funcionarios'); showToast('Erro ao apagar.', 'error'); }
 }
 
 // MODAL — entregar ferramenta
 let toolToAllocate = null;
-let _toolLongPressTimer = null;
 
 async function openModal(id) {
     const data    = await fetchCollection('funcionarios');
-    const workers = data ? Object.entries(data).map(([wid,v]) => ({id:wid,nome:v.nome})) : [];
-    if (workers.length === 0) return showToast('Adicione funcionários na Administração','error');
+    const workers = data ? Object.entries(data).map(([wid, v]) => ({ id: wid, nome: v.nome })) : [];
+    if (workers.length === 0) return showToast('Adicione funcionários na Administração', 'error');
     toolToAllocate = id;
 
-    // Mostra o nome e ícone da ferramenta no modal
     const toolData = cache.ferramentas.data?.[id];
-    const toolName = toolData?.nome || '';
-    const toolIcon = toolData?.icone || '';
+    const { numero, nome } = _parseToolIdentity(toolData || {});
     const toolDesc = $id('worker-modal-tool-name');
-    if (toolDesc) toolDesc.textContent = toolName ? `${toolIcon} ${toolName}` : '';
-    // Actualiza também o ícone grande no topo do modal
-    const modalIcon = $id('worker-modal-icon');
-    if (modalIcon) modalIcon.textContent = toolIcon;
+    if (toolDesc) {
+        if (numero) {
+            toolDesc.innerHTML = `<span class="tool-modal-num">#${escapeHtml(numero)}</span><span>${escapeHtml(nome || 'Ferramenta')}</span>`;
+        } else {
+            toolDesc.textContent = nome || '';
+        }
+    }
 
     const sel = $id('worker-select-list');
     sel.innerHTML = '';
-    // Ordenar por nome
     workers.sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
     workers.forEach(w => {
-        const opt = $el('div', { className: 'worker-option' });
-        opt.textContent = w.nome;
-        opt.onclick     = () => assignTool(w.nome);
+        const opt = $el('div', { className: 'worker-option', textContent: w.nome });
+        opt.onclick = () => assignTool(w.nome);
         sel.appendChild(opt);
     });
     modalOpen('worker-modal');
@@ -474,7 +676,6 @@ async function openModal(id) {
 // MODAL — confirmação genérica
 let confirmCallback = null;
 
-// SVGs para cada tipo de confirmação
 const _CONFIRM_ICONS = {
     danger:  { svg: '<svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>', color: '#dc2626' },
     success: { svg: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>', color: '#16a34a' },
@@ -498,11 +699,9 @@ function openConfirmModal({ title, desc, onConfirm, type = 'danger', okLabel = n
     okBtn.className = 'confirm-btn-ok type-' + type;
     okBtn.textContent = okLabel || (type === 'danger' ? 'Apagar' : 'Confirmar');
 
-    // Limpar slot (inventário, etc.)
     const slot = $id('confirm-modal-slot');
     if (slot) slot.innerHTML = '';
 
-    // Diálogo só informativo (ex.: resultado do levantamento) — sem botão Cancelar
     const cancelBtn = document.querySelector('#confirm-modal .confirm-btn-cancel');
     if (cancelBtn) cancelBtn.style.display = hideCancel ? 'none' : '';
 
@@ -525,7 +724,7 @@ function openDeleteModal(id, item) {
     pendingDeleteId = id;
     openConfirmModal({
         title: 'Apagar produto?',
-        desc: `"${String(item.codigo||'').toUpperCase()} — ${item.nome}" será removido permanentemente.`,
+        desc: `"${String(item.codigo || '').toUpperCase()} — ${item.nome}" será removido permanentemente.`,
         type: 'danger',
         okLabel: 'Apagar',
         onConfirm: () => {
@@ -548,7 +747,6 @@ function openEditModal(id, item) {
     $id('edit-qtd').value    = item.quantidade ?? 0;
     setUnitSelector('edit', item.unidade || 'un');
     $id('edit-notas').value  = item.notas || '';
-    // Campos de gás — só populados se unidade for kg
     const editGasMax   = $id('edit-gas-max');
     const editGasAlert = $id('edit-gas-alerta');
     if (editGasMax)   editGasMax.value   = item.gasMax    != null ? item.gasMax    : '';
@@ -558,7 +756,7 @@ function openEditModal(id, item) {
     focusModal('edit-modal');
 }
 
-// ADMIN TABS
+// EXPORTAR HISTÓRICO E TIMELINE
 async function exportToolHistoryCSV() {
     const btn = $id('export-hist-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'A exportar...'; }
@@ -568,31 +766,35 @@ async function exportToolHistoryCSV() {
             showToast('Sem ferramentas para exportar', 'error');
             return;
         }
-        const headers = ['Ferramenta','Ícone','Ação','Colaborador','Data'];
+        const headers = ['Nº', 'Ferramenta', 'Ação', 'Colaborador', 'Data'];
         const rows = [];
-        for (const [id, t] of Object.entries(ferrData)) {
+        for (const [, t] of Object.entries(ferrData)) {
             if (!t.historico) continue;
+            const { numero, nome } = _parseToolIdentity(t);
             for (const ev of Object.values(t.historico)) {
-                rows.push([
-                    `"${(t.nome||'').replace(/"/g,'""')}"`,
-                    `"${t.icone || ''}"`,
-                    `"${ev.acao || ''}"`,
-                    `"${(ev.colaborador||'').replace(/"/g,'""')}"`,
-                    `"${ev.data ? new Date(ev.data).toLocaleString('pt-PT') : ''}"`
-                ]);
+                rows.push({
+                    ts: ev.data ? new Date(ev.data).getTime() : 0,
+                    cols: [
+                        `"${numero}"`,
+                        `"${(nome || t.nome || '').replace(/"/g, '""')}"`,
+                        `"${ev.acao || ''}"`,
+                        `"${(ev.colaborador || '').replace(/"/g, '""')}"`,
+                        `"${ev.data ? new Date(ev.data).toLocaleString('pt-PT') : ''}"`
+                    ]
+                });
             }
         }
         if (rows.length === 0) {
             showToast('Sem histórico para exportar', 'error');
             return;
         }
-        rows.sort((a, b) => a[4] < b[4] ? 1 : -1); // mais recente primeiro
-        const csv  = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
-        const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' });
+        rows.sort((a, b) => b.ts - a.ts);
+        const csv  = [headers.join(';'), ...rows.map(r => r.cols.join(';'))].join('\n');
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
         const url  = URL.createObjectURL(blob);
         Object.assign($el('a'), {
             href: url,
-            download: `gestao-armazem-historico-ferramentas-${new Date().toISOString().slice(0,10)}.csv`
+            download: `gestao-armazem-historico-ferramentas-${new Date().toISOString().slice(0, 10)}.csv`
         }).click();
         URL.revokeObjectURL(url);
         showToast(`${rows.length} registos exportados!`);
@@ -600,9 +802,9 @@ async function exportToolHistoryCSV() {
         showToast('Erro ao exportar histórico', 'error');
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = 'Exportar Histórico'; }
-
     }
 }
+
 async function openToolTimeline() {
     const el = $id('timeline-list');
     el.innerHTML = '<div class="empty-msg">A carregar...</div>';
@@ -617,30 +819,28 @@ async function openToolTimeline() {
         const ferrData = await fetchCollection('ferramentas', true);
         if (!ferrData) { el.innerHTML = '<div class="empty-msg">Sem dados.</div>'; return; }
 
-        // Recolhe todos os eventos de histórico
         const events = [];
         for (const [id, t] of Object.entries(ferrData)) {
+            const { numero, nome } = _parseToolIdentity(t);
             if (t.historico) {
                 for (const ev of Object.values(t.historico)) {
-                    events.push({ ...ev, toolNome: t.nome, toolIcone: t.icone || '', toolId: id });
+                    events.push({ ...ev, toolNum: numero, toolNome: nome || t.nome, toolId: id });
                 }
             }
-            // Adiciona estado actual se alocada
             if (t.status === 'alocada' && t.dataEntrega) {
                 const days = _calcDias(t.dataEntrega);
                 events.push({
                     data: t.dataEntrega,
                     acao: 'alocada_agora',
                     colaborador: t.colaborador,
-                    toolNome: t.nome,
-                    toolIcone: t.icone || '',
+                    toolNum: numero,
+                    toolNome: nome || t.nome,
                     toolId: id,
                     _dias: days
                 });
             }
         }
-        // Ordena do mais recente
-        events.sort((a,b) => new Date(b.data) - new Date(a.data));
+        events.sort((a, b) => new Date(b.data) - new Date(a.data));
 
         el.innerHTML = '';
         if (events.length === 0) {
@@ -648,39 +848,39 @@ async function openToolTimeline() {
         }
 
         let lastDate = '';
-        events.slice(0, 100).forEach(ev => { // max 100 eventos
-            const d     = new Date(ev.data);
-            const dateStr = d.toLocaleDateString('pt-PT', { day:'numeric', month:'short', year:'numeric' });
+        events.slice(0, 100).forEach(ev => {
+            const d       = new Date(ev.data);
+            const dateStr = d.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short', year: 'numeric' });
             if (dateStr !== lastDate) {
-                const sep = $el('div', { className: 'tl-date-sep' });
-                sep.textContent = dateStr;
+                const sep = $el('div', { className: 'tl-date-sep', textContent: dateStr });
                 el.appendChild(sep);
                 lastDate = dateStr;
             }
-            const row  = $el('div');
             const isOut = ev.acao === 'atribuida' || ev.acao === 'alocada_agora';
-            row.className = `tl-event ${isOut ? 'tl-out' : 'tl-in'}`;
+            const row   = $el('div', { className: `tl-event ${isOut ? 'tl-out' : 'tl-in'}` });
 
             const icoEl = $el('span', { className: 'tl-tool-icon' });
-            icoEl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>';
+            if (ev.toolNum) {
+                icoEl.className   = 'tl-tool-num';
+                icoEl.textContent = ev.toolNum;
+            } else {
+                icoEl.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>';
+            }
 
             const info = $el('div', { className: 'tl-info' });
-
-            const name = $el('span', { className: 'tl-tool-name' });
-            name.textContent = ev.toolNome || '?';
+            const name = $el('span', { className: 'tl-tool-name', textContent: ev.toolNome || '?' });
 
             const action = $el('span', { className: 'tl-action' });
             if (ev.acao === 'alocada_agora') {
-                action.textContent = `🔴 Com ${ev.colaborador || '?'} há ${ev._dias}d`;
-                action.className += ' tl-action-overdue';
+                action.textContent = `Com ${ev.colaborador || '?'} há ${ev._dias}d`;
+                if (ev._dias >= _TOOL_ALERT_DAYS) action.className += ' tl-action-overdue';
             } else if (ev.acao === 'atribuida') {
                 action.textContent = `→ Entregue a ${ev.colaborador || '?'}`;
             } else {
                 action.textContent = `↩ Devolvida${ev.colaborador ? ' por ' + ev.colaborador : ''}`;
             }
 
-            const time = $el('span', { className: 'tl-time' });
-            time.textContent = d.toLocaleTimeString('pt-PT', { hour:'2-digit', minute:'2-digit' });
+            const time = $el('span', { className: 'tl-time', textContent: d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }) });
 
             info.appendChild(name);
             info.appendChild(action);
@@ -693,4 +893,3 @@ async function openToolTimeline() {
         el.innerHTML = '<div class="empty-msg">Erro ao carregar timeline.</div>';
     }
 }
-

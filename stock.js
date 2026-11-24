@@ -16,14 +16,6 @@
 let _stockSort = 'recente'; // 'recente' | 'nome' | 'ref' | 'qtd-asc' | 'qtd-desc' | 'local'
 let _pendingZeroFilter  = false;
 let _bulkCount = 0; // contador de produtos adicionados no lote actual
-let _toolsFilter = 'all';
-function toolsFilterSet(btn, filter) {
-    _toolsFilter = filter;
-    document.querySelectorAll('.tools-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
-    const search = $id('inp-tools-search');
-    if (search) search.value = '';
-    renderTools();
-}
 let _zeroFilterActive  = false; // zero-stock filter está activo (persiste entre navegações)
 
 // Ordenação — dropdown nativo (<select id="sort-select"> na barra de pesquisa).

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// app.js — Gestão Armazém v6.83
+// app.js — Gestão Armazém v6.84
 // Núcleo da aplicação: cache em memória, fila offline/sync, navegação (nav),
 // administração, temas, calculadora de peso, Web Share Target, arranque
 // (DOMContentLoaded) e registo do Service Worker.
@@ -945,30 +945,20 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Delegação de eventos nas ferramentas — um único listener no container
-    const toolsListEl = $id('tools-list');
-    if (toolsListEl) {
-        toolsListEl.addEventListener('contextmenu', e => {
-            const div = e.target.closest('[data-tool-id]');
-            if (!div) return;
-            e.preventDefault();
-            openHistoryModal(div.dataset.toolId, div.dataset.toolNome);
+    // Pesquisa de ferramentas (nº de 4 dígitos, nome ou técnico)
+    const toolsSearchEl = $id('inp-tools-search');
+    const toolsClearEl  = $id('inp-tools-search-clear');
+    if (toolsSearchEl) {
+        const debouncedToolsSearch = _debounce(val => {
+            _toolsSearchQuery = val;
+            renderTools();
+        }, 180);
+        toolsSearchEl.addEventListener('input', e => {
+            const val = e.target.value;
+            if (toolsClearEl) toolsClearEl.classList.toggle('hidden', !val);
+            debouncedToolsSearch(val);
         });
-        let _lpTimer = null;
-        toolsListEl.addEventListener('touchstart', e => {
-            const div = e.target.closest('[data-tool-id]');
-            if (!div) return;
-            _lpTimer = setTimeout(() => openHistoryModal(div.dataset.toolId, div.dataset.toolNome), 600);
-        }, { passive: true });
-        toolsListEl.addEventListener('touchend',  () => clearTimeout(_lpTimer), { passive: true });
-        toolsListEl.addEventListener('touchmove', () => clearTimeout(_lpTimer), { passive: true });
     }
-
-    // Pesquisa de ferramentas (usa _debounce centralizado)
-    $id('inp-tools-search')?.addEventListener('input', _debounce(e => {
-        _toolsFilter = e.target.value.trim() || 'all';
-        renderTools();
-    }, 250));
 
     // Escape fecha o modal ativo
     document.addEventListener('keydown', e => {
@@ -1257,16 +1247,48 @@ document.addEventListener('DOMContentLoaded', () => {
     $id('form-tool-reg')?.addEventListener('submit', async e => {
         e.preventDefault();
         if (!requireManagerAccess()) return;
-        const nome  = $id('reg-tool-name').value.trim().toUpperCase();
-        const payload = { nome, status:'disponivel' };
+        const rawNum = ($id('reg-tool-num')?.value || '').replace(/\D/g, '');
+        let   nome   = $id('reg-tool-name').value.trim().toUpperCase();
+        if (!nome) return;
+
+        let numero = rawNum;
+        if (numero && numero.length !== 4) {
+            showToast('O nº da ferramenta deve ter exactamente 4 dígitos', 'error');
+            $id('reg-tool-num')?.focus();
+            return;
+        }
+        if (!numero) {
+            const parsed = _parseToolIdentity({ nome });
+            if (parsed.numero) {
+                numero = parsed.numero;
+                if (parsed.nome) nome = parsed.nome;
+            }
+        } else {
+            const cleaned = _parseToolIdentity({ numero, nome });
+            if (cleaned.nome) nome = cleaned.nome;
+        }
+
+        if (numero) {
+            const dup = _findDuplicateToolNum(numero);
+            if (dup) {
+                showToast(`Já existe uma ferramenta com o nº ${numero} (${_toolDisplayLabel(dup.tool)})`, 'error');
+                $id('reg-tool-num')?.focus();
+                return;
+            }
+        }
+
+        const payload = { nome, status: 'disponivel' };
+        if (numero) payload.numero = numero;
         try {
-            const res = await apiFetch(`${BASE_URL}/ferramentas.json`, { method:'POST', body:JSON.stringify(payload) });
+            const res = await apiFetch(`${BASE_URL}/ferramentas.json`, { method: 'POST', body: JSON.stringify(payload) });
             if (!cache.ferramentas.data) cache.ferramentas.data = {};
             if (res) { const r = await res.json(); if (r?.name) cache.ferramentas.data[r.name] = payload; }
             else { cache.ferramentas.data[`_tmp_${Date.now()}`] = payload; }
+            if ($id('reg-tool-num')) $id('reg-tool-num').value = '';
             $id('reg-tool-name').value = '';
-            renderAdminTools(); showToast('Ferramenta registada');
-        } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao registar ferramenta','error'); }
+            renderAdminTools(); renderTools(); renderDashboard();
+            showToast(numero ? `Ferramenta #${numero} registada` : 'Ferramenta registada');
+        } catch(_e) { invalidateCache('ferramentas'); showToast('Erro ao registar ferramenta', 'error'); }
     });
 
     // Form: Editar Ferramenta
@@ -1291,8 +1313,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // SW_EXPECTED_VERSION deve bater certo com SW_VERSION em sw.js, senão o
 // client deteta sempre "SW desactualizado" e fica em loop de update.
 // SW_SCRIPT_URL tem de mudar de query string ou o browser não re-baixa o SW.
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.83';
-const SW_SCRIPT_URL = 'sw.js?v=6.83';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.84';
+const SW_SCRIPT_URL = 'sw.js?v=6.84';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados

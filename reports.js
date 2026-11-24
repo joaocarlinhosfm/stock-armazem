@@ -299,7 +299,7 @@ async function _buildSnapshot(mesKey) {
             if (ev.acao !== 'atribuida') return;
             const evTs = _relParseEvTs(ev.data);
             if (evTs < ini || evTs > fim) return;
-            const nome = t.nome || '?';
+            const nome = typeof _toolDisplayLabel === 'function' ? _toolDisplayLabel(t) : (t.nome || '?');
             ferrCount[nome] = (ferrCount[nome] || 0) + 1;
         });
     });
@@ -348,7 +348,7 @@ async function _buildSnapshot(mesKey) {
             const extra = Math.round((fim - lastAtrib) / 86400000);
             if (extra > 0) diasFora += extra;
         }
-        if (diasFora > 0) ferrDias.push({ nome: t.nome, dias: diasFora });
+        if (diasFora > 0) ferrDias.push({ nome: typeof _toolDisplayLabel === 'function' ? _toolDisplayLabel(t) : t.nome, dias: diasFora });
     });
     const topFerrDias = ferrDias.sort((a, b) => b.dias - a.dias).slice(0, 5);
 
@@ -1070,7 +1070,8 @@ async function _relBuildWindow(ndays) {
             if (ev.acao === 'atribuida') {
                 if (evTs > fim) return;
                 lastAtrib = Math.max(evTs, ini);
-                ferrCount[t.nome] = (ferrCount[t.nome] || 0) + (evTs >= ini ? 1 : 0);
+                const tLbl = typeof _toolDisplayLabel === 'function' ? _toolDisplayLabel(t) : t.nome;
+                ferrCount[tLbl] = (ferrCount[tLbl] || 0) + (evTs >= ini ? 1 : 0);
             } else if (ev.acao === 'devolvida' && lastAtrib) {
                 const devTs = Math.min(evTs, fim);
                 if (devTs > lastAtrib) dias += Math.round((devTs - lastAtrib) / 86400000);
@@ -1081,7 +1082,7 @@ async function _relBuildWindow(ndays) {
             const extra = Math.round((fim - lastAtrib) / 86400000);
             if (extra > 0) dias += extra;
         }
-        if (dias > 0) ferrDias.push({ nome: t.nome, dias });
+        if (dias > 0) ferrDias.push({ nome: typeof _toolDisplayLabel === 'function' ? _toolDisplayLabel(t) : t.nome, dias });
     });
     const topFerrDias = ferrDias.sort((a,b) => b.dias - a.dias).slice(0, 5);
     const topFerr = Object.entries(ferrCount).filter(([,c]) => c > 0)

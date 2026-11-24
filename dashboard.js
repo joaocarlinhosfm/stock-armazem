@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// dashboard.js — Gestão Armazém v6.80
+// dashboard.js — Gestão Armazém v6.84
 // Dashboard v4: snapshots diários (/dash-snapshots), KPIs, alertas, gráfico de
 // evolução a 14 dias, garrafas de gases refrigerantes e listas clicáveis.
 //
@@ -275,7 +275,7 @@ function _dvAlerts(c) {
         const mais  = c.atraso.slice().sort((a, b) => _calcDias(b.dataEntrega) - _calcDias(a.dataEntrega))[0];
         out.push({ sev: 'warn', ico: 'tool', act: 'tools',
             title: `${n} ${_dvPl(n, 'ferramenta', 'ferramentas')} fora há ${_DV_ALERTA_DIAS}+ dias`,
-            sub: `${esc(nomes.slice(0, 2).join(', ') || 'Sem colaborador')}${nomes.length > 2 ? ` e mais ${nomes.length - 2}` : ''} · a mais antiga: ${esc(mais.nome || '—')} (${_calcDias(mais.dataEntrega)}d)` });
+            sub: `${esc(nomes.slice(0, 2).join(', ') || 'Sem colaborador')}${nomes.length > 2 ? ` e mais ${nomes.length - 2}` : ''} · a mais antiga: ${esc(typeof _toolDisplayLabel === 'function' ? _toolDisplayLabel(mais) : (mais.nome || '—'))} (${_calcDias(mais.dataEntrega)}d)` });
     }
 
     if (c.semStock > 0) {
@@ -492,7 +492,7 @@ function _dvToolsCard(c) {
         const late = g.dias >= _DV_ALERTA_DIAS;
         return `<button type="button" class="dv4-row" data-dv-act="tools">
             <span class="dv4-avatar">${esc(ini)}</span>
-            <span class="dv4-row-main"><b>${esc(g.colab)}</b><small>${esc(g.tools.map(t => t.nome).join(' · '))}</small></span>
+            <span class="dv4-row-main"><b>${esc(g.colab)}</b><small>${esc(g.tools.map(t => typeof _toolDisplayLabel === 'function' ? _toolDisplayLabel(t) : t.nome).join(' · '))}</small></span>
             <span class="dv4-badge ${late ? 'warn' : 'ok'}">${g.dias}d fora</span>
         </button>`;
     }).join('');
