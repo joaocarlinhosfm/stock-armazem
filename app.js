@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// app.js — Gestão Armazém v6.84
+// app.js — Gestão Armazém v6.85
 // Núcleo da aplicação: cache em memória, fila offline/sync, navegação (nav),
 // administração, temas, calculadora de peso, Web Share Target, arranque
 // (DOMContentLoaded) e registo do Service Worker.
@@ -945,7 +945,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Pesquisa de ferramentas (nº de 4 dígitos, nome ou técnico)
+    // Pesquisa de ferramentas (nº de 3 ou 4 dígitos, nome ou técnico)
     const toolsSearchEl = $id('inp-tools-search');
     const toolsClearEl  = $id('inp-tools-search-clear');
     if (toolsSearchEl) {
@@ -1252,8 +1252,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!nome) return;
 
         let numero = rawNum;
-        if (numero && numero.length !== 4) {
-            showToast('O nº da ferramenta deve ter exactamente 4 dígitos', 'error');
+        if (numero && (numero.length < 3 || numero.length > 4)) {
+            showToast('O nº da ferramenta deve ter 3 ou 4 dígitos', 'error');
             $id('reg-tool-num')?.focus();
             return;
         }
@@ -1313,8 +1313,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // SW_EXPECTED_VERSION deve bater certo com SW_VERSION em sw.js, senão o
 // client deteta sempre "SW desactualizado" e fica em loop de update.
 // SW_SCRIPT_URL tem de mudar de query string ou o browser não re-baixa o SW.
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.84';
-const SW_SCRIPT_URL = 'sw.js?v=6.84';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.85';
+const SW_SCRIPT_URL = 'sw.js?v=6.85';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados

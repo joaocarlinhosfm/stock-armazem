@@ -12,9 +12,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=Fraunces:wght@500;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="base.css?v=6.84">
-    <link rel="stylesheet" href="stock.css?v=6.84">
-    <link rel="stylesheet" href="operacoes.css?v=6.84">
+    <link rel="stylesheet" href="base.css?v=6.85">
+    <link rel="stylesheet" href="stock.css?v=6.85">
+    <link rel="stylesheet" href="operacoes.css?v=6.85">
 </head>
 <body>
 
@@ -107,7 +107,7 @@
                     <div class="ls-btn-spinner hidden" id="ls-spinner"></div>
                 </button>
             </form>
-            <div class="ls-version">v6.84 · Gestão Armazém</div>
+            <div class="ls-version">v6.85 · Gestão Armazém</div>
         </div>
     </div>
 
@@ -423,7 +423,7 @@
             <div class="tools-search-wrap">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--text-muted);flex-shrink:0"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input type="search" id="inp-tools-search" class="tools-search-input"
-                    placeholder="Pesquisar por nº (4 dígitos), nome ou técnico..."
+                    placeholder="Pesquisar por nº, nome ou técnico..."
                     name="tools_search_q" autocomplete="off" data-lpignore="true" data-form-type="other"
                     autocorrect="off" autocapitalize="none" spellcheck="false">
                 <button type="button" id="inp-tools-search-clear" class="tools-search-clear hidden" onclick="toolsSearchClear()" aria-label="Limpar pesquisa">
@@ -662,7 +662,7 @@
                         </div>
                     </div>
                     <form id="form-tool-reg" class="pro-form-inline tool-reg-form" autocomplete="off">
-                        <input type="text" id="reg-tool-num" class="blue-input tool-num-input" placeholder="Nº 0000" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" title="Número único de 4 dígitos" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+                        <input type="text" id="reg-tool-num" class="blue-input tool-num-input" placeholder="Nº 0000" maxlength="4" inputmode="numeric" pattern="[0-9]{3,4}" title="Número único de 3 ou 4 dígitos" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
                         <input type="text" id="reg-tool-name" class="blue-input" placeholder="Nome da ferramenta" required oninput="this.value=this.value.toUpperCase()">
                         <button type="submit" class="btn-primary">+ Registar</button>
                     </form>
@@ -1347,8 +1347,8 @@
             <form id="form-edit-tool" class="pro-form form-edit-modal" autocomplete="off">
                 <input type="hidden" id="edit-tool-id">
                 <div class="form-group">
-                    <label class="tool-reg-label" for="edit-tool-num">Nº IDENTIFICAÇÃO (4 DÍGITOS)</label>
-                    <input type="text" id="edit-tool-num" class="blue-input tool-num-input" placeholder="0000" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+                    <label class="tool-reg-label" for="edit-tool-num">Nº IDENTIFICAÇÃO (3 OU 4 DÍGITOS)</label>
+                    <input type="text" id="edit-tool-num" class="blue-input tool-num-input" placeholder="000 / 0000" maxlength="4" inputmode="numeric" pattern="[0-9]{3,4}" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
                 </div>
                 <div class="form-group">
                     <label class="tool-reg-label" for="edit-tool-name">NOME DA FERRAMENTA</label>
@@ -1971,21 +1971,21 @@
     <!-- Chart.js, Leaflet + MarkerCluster são carregados sob demanda por loadChart() e loadLeaflet() em utils.js -->
     <!-- Módulos extraídos — Fase 1+2+3+4 da modularização -->
     <!-- ORDEM OBRIGATÓRIA: utils → auth → reports → stock → stockimport → backup → tools → settings → clientes → pat-map → pats → guias → encomendas → inventory → dashboard → app (preservada por defer) -->
-    <script defer src="utils.js?v=6.84"></script>
-    <script defer src="auth.js?v=6.84"></script>
-    <script defer src="reports.js?v=6.84"></script>
-    <script defer src="stock.js?v=6.84"></script>
-    <script defer src="stockimport.js?v=6.84"></script>
-    <script defer src="backup.js?v=6.84"></script>
-    <script defer src="tools.js?v=6.84"></script>
-    <script defer src="settings.js?v=6.84"></script>
-    <script defer src="clientes.js?v=6.84"></script>
-    <script defer src="pat-map.js?v=6.84"></script>
-    <script defer src="pats.js?v=6.84"></script>
-    <script defer src="guias.js?v=6.84"></script>
-    <script defer src="encomendas.js?v=6.84"></script>
-    <script defer src="inventory.js?v=6.84"></script>
-    <script defer src="dashboard.js?v=6.84"></script>
-    <script defer src="app.js?v=6.84"></script>
+    <script defer src="utils.js?v=6.85"></script>
+    <script defer src="auth.js?v=6.85"></script>
+    <script defer src="reports.js?v=6.85"></script>
+    <script defer src="stock.js?v=6.85"></script>
+    <script defer src="stockimport.js?v=6.85"></script>
+    <script defer src="backup.js?v=6.85"></script>
+    <script defer src="tools.js?v=6.85"></script>
+    <script defer src="settings.js?v=6.85"></script>
+    <script defer src="clientes.js?v=6.85"></script>
+    <script defer src="pat-map.js?v=6.85"></script>
+    <script defer src="pats.js?v=6.85"></script>
+    <script defer src="guias.js?v=6.85"></script>
+    <script defer src="encomendas.js?v=6.85"></script>
+    <script defer src="inventory.js?v=6.85"></script>
+    <script defer src="dashboard.js?v=6.85"></script>
+    <script defer src="app.js?v=6.85"></script>
 </body>
 </html>

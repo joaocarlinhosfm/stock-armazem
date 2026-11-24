@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// tools.js — Gestão Armazém v6.84
-// Ferramentas (com identificação destacada por nº único de 4 dígitos),
+// tools.js — Gestão Armazém v6.85
+// Ferramentas (com identificação destacada por nº único de 3 ou 4 dígitos),
 // histórico, funcionários, timeline e modais partilhados.
 // Carrega DEPOIS de reports.js e stock.js, ANTES de pats.js.
 //
@@ -26,9 +26,9 @@ function _normToolText(str) {
         .trim();
 }
 
-// Extrai o número único de 4 dígitos e o nome limpo de uma ferramenta.
+// Extrai o número único de 3 ou 4 dígitos e o nome limpo de uma ferramenta.
 // Suporta tanto o campo dedicado `tool.numero` como registos antigos onde o
-// número de 4 dígitos estava dentro de `tool.nome` (ex.: "BERBEQUIM 1042",
+// número de 3 ou 4 dígitos estava dentro de `tool.nome` (ex.: "BERBEQUIM 1042",
 // "1042 - BERBEQUIM", "MANÓMETROS (0321)").
 function _parseToolIdentity(tool) {
     const rawNum  = String(tool?.numero ?? '').trim();
@@ -58,7 +58,7 @@ function _parseToolIdentity(tool) {
             }
         }
     } else if (numero && rawNome) {
-        // Evita repetir o mesmo nº de 4 dígitos se também estiver no nome
+        // Evita repetir o mesmo nº de 3 ou 4 dígitos se também estiver no nome
         const reStart = new RegExp(`^\\s*#?${numero}(?![A-Za-z0-9])\\s*[-–—:\\/·]?\\s*`);
         const reEnd   = new RegExp(`(?:^|[^A-Za-z0-9])${numero}(?:\\)|\\])?\\s*$`);
         nome = nome.replace(reStart, '').replace(reEnd, '');
@@ -81,7 +81,7 @@ function _toolDisplayLabel(tool) {
     return nome || '—';
 }
 
-// Verifica se já existe outra ferramenta com o mesmo nº de 4 dígitos
+// Verifica se já existe outra ferramenta com o mesmo nº de 3 ou 4 dígitos
 function _findDuplicateToolNum(numero, ignoreId = null) {
     if (!numero) return null;
     const data = cache.ferramentas.data || {};
@@ -154,7 +154,7 @@ async function renderTools() {
 
     const qNorm = _normToolText(_toolsSearchQuery);
 
-    // Ordenação por nº de 4 dígitos crescente (ferramentas sem número ficam depois, por nome)
+    // Ordenação por nº de 3 ou 4 dígitos crescente (ferramentas sem número ficam depois, por nome)
     const _sortByNum = ([, a], [, b]) => {
         const ia = _parseToolIdentity(a);
         const ib = _parseToolIdentity(b);
@@ -219,7 +219,7 @@ async function renderTools() {
         card.addEventListener('touchend',  () => clearTimeout(lpTimer), { passive: true });
         card.addEventListener('touchmove', () => clearTimeout(lpTimer), { passive: true });
 
-        // Placa de identificação destacada (nº de 4 dígitos)
+        // Placa de identificação destacada (nº de 3 ou 4 dígitos)
         const idPlate = $el('div', { className: 'tool-id-badge' + (numero ? '' : ' no-num') });
         if (numero) {
             const lbl = $el('span', { className: 'tool-id-prefix', textContent: 'Nº' });
@@ -347,7 +347,9 @@ async function renderAdminTools() {
     const sorted = Object.entries(data).sort(([, a], [, b]) => {
         const ia = _parseToolIdentity(a);
         const ib = _parseToolIdentity(b);
-        if (ia.numero && ib.numero) return ia.numero.localeCompare(ib.numero);
+        if (ia.numero && ib.numero) {
+            return ia.numero.localeCompare(ib.numero, undefined, { numeric: true }) || ia.numero.localeCompare(ib.numero);
+        }
         if (ia.numero) return -1;
         if (ib.numero) return 1;
         return (ia.nome || '').localeCompare(ib.nome || '', 'pt');
@@ -359,7 +361,7 @@ async function renderAdminTools() {
 
         const row = $el('div', { className: 'admin-list-row admin-tool-row' });
 
-        // Identidade: nº de 4 dígitos + nome
+        // Identidade: nº de 3 ou 4 dígitos + nome
         const head = $el('div', { className: 'admin-tool-head' });
         if (numero) {
             const numPill = $el('span', { className: 'tool-admin-num', textContent: `#${numero}` });
@@ -532,12 +534,12 @@ async function saveEditTool() {
     if (!nome) { showToast('Nome obrigatório', 'error'); return; }
 
     let numero = rawNum;
-    if (numero && numero.length !== 4) {
-        showToast('O nº da ferramenta deve ter exactamente 4 dígitos', 'error');
+    if (numero && (numero.length < 3 || numero.length > 4)) {
+        showToast('O nº da ferramenta deve ter 3 ou 4 dígitos', 'error');
         $id('edit-tool-num')?.focus();
         return;
     }
-    // Se deixou o campo nº vazio mas incluiu 4 dígitos no nome, separa automaticamente
+    // Se deixou o campo nº vazio mas incluiu 3 ou 4 dígitos no nome, separa automaticamente
     if (!numero) {
         const parsed = _parseToolIdentity({ nome });
         if (parsed.numero) {
