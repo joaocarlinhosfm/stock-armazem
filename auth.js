@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// auth.js — Hiperfrio v6.61
+// auth.js — Gestão Armazém v6.90
 // Fase 2 da modularização: autenticação, perfis e gestão de utilizadores.
 // Carrega DEPOIS de utils.js e ANTES de app.js.
 //
@@ -77,23 +77,17 @@ function requireManagerAccess({ silent = false } = {}) {
     return false;
 }
 
-// Aplica o perfil à UI — chamado uma vez no boot
+// Referência ao form de login destacado do DOM após boot (para restaurar em switchRole)
+let _detachedLoginForm = null;
+
+// Aplica o perfil à UI — chamado no arranque ou após login
 function applyRole(role) {
     currentRole = role;
     document.body.classList.toggle('worker-mode', role === 'worker');
 
-    let badge = $id('role-badge');
-    if (!badge) {
-        badge = $el('button');
-        badge.id      = 'role-badge';
-        badge.onclick = () => openSwitchRoleModal();
-        document.querySelector('.header-titles')?.appendChild(badge);
-    }
     const savedUser    = localStorage.getItem('hiperfrio-username') || '';
     const displayName  = localStorage.getItem('hiperfrio-displayname') || '';
     const displayLabel = displayName || savedUser || (role === 'worker' ? 'Funcionário' : 'Gestor');
-    badge.textContent = `${displayLabel} ▾`;
-    badge.className   = role === 'worker' ? 'role-badge-worker' : 'role-badge-manager';
 
     const footerUser = $id('menu-footer-username');
     const footerRole = $id('menu-footer-role');
@@ -314,7 +308,8 @@ async function createUser() {
     if (!nameRaw) { showToast('Indica o nome de utilizador', 'error'); return; }
     // BUG FIX: mínimo aumentado para 8 caracteres
     if (!password || password.length < 8) { showToast('Password deve ter pelo menos 8 caracteres', 'error'); return; }
-    if (!/^[a-z0-9._]+$/.test(nameRaw)) { showToast('Nome só pode ter letras, números, ponto e _', 'error'); return; }
+    // Firebase RTDB proíbe '.', '#', '$', '[', ']' nas chaves
+    if (!/^[a-z0-9_-]+$/.test(nameRaw)) { showToast('Nome só pode ter letras, números, _ e - (sem pontos)', 'error'); return; }
 
     const pwHash = await hashPassword(password, nameRaw);
     const url    = await authUrl(`${USERS_BASE_URL}/${nameRaw}.json`);
@@ -422,10 +417,10 @@ function switchRole() {
     modalClose('switch-role-modal');
     localStorage.removeItem(ROLE_KEY);
     currentRole = null;
-    $id('role-badge')?.remove();
     document.body.classList.remove('worker-mode');
     // Invalida cache em memória (cache definido em app.js)
     Object.keys(cache).forEach(k => { cache[k].data = null; cache[k].lastFetch = 0; });
+    if (typeof stopNotasListener === 'function') stopNotasListener();
     clearTimeout(_tokenRenewalTimer);
     _authToken    = null;
     _authTokenExp = 0;
@@ -433,9 +428,32 @@ function switchRole() {
     localStorage.removeItem('hiperfrio-displayname');
     localStorage.removeItem('hiperfrio-users-cache');
     localStorage.removeItem('hiperfrio-session');
-    const u = $id('ls-username'); if (u) u.value = '';
-    const p = $id('ls-password'); if (p) p.value = '';
-    const e = $id('ls-error');    if (e) e.classList.remove('visible');
+
+    // Restaurar o form de login destacado no bootApp() e limpar animação inline do card
+    const card = document.querySelector('.ls-card');
+    if (card) {
+        card.style.transition = '';
+        card.style.opacity    = '';
+        card.style.transform  = '';
+        if (!card.querySelector('.ls-form') && _detachedLoginForm) {
+            const verEl = card.querySelector('.ls-version');
+            if (verEl) card.insertBefore(_detachedLoginForm, verEl);
+            else       card.appendChild(_detachedLoginForm);
+        }
+    }
+
+    const u = $id('ls-username'); if (u) { u.value = ''; lsFieldUpdate(u, 'ls-field-user'); }
+    const p = $id('ls-password'); if (p) { p.value = ''; lsFieldUpdate(p, 'ls-field-pass'); }
+    const e = $id('ls-error');    if (e) { e.textContent = ''; e.classList.remove('visible'); }
+    const btn     = $id('ls-submit-btn');
+    const btnTxt  = $id('ls-btn-text');
+    const spinner = $id('ls-spinner');
+    const fbSpin  = $id('ls-firebase-spinner');
+    if (btn)     btn.disabled = false;
+    if (btnTxt)  btnTxt.textContent = 'Entrar';
+    if (spinner) spinner.classList.add('hidden');
+    if (fbSpin)  fbSpin.style.display = 'none';
+
     const rs = $id('role-screen');
     if (rs) {
         rs.style.opacity = '0';
@@ -465,6 +483,7 @@ async function bootApp() {
         console.warn('bootApp: sem token, continua offline');
     }
     _scheduleTokenRenewal();
+    if (typeof startNotasListener === 'function') startNotasListener();
     // Promise.allSettled: falha individual de uma colecção (ex: /guias)
     // não impede as outras de carregarem. Antes era Promise.all — se o
     // .indexOn estava em falta numa das colecções, todas falhavam em efeito.
@@ -499,6 +518,7 @@ async function bootApp() {
     // de "username" em qualquer <input type="text"> da app (search bars, etc).
     // Fica pendurado num setTimeout para o Chrome já ter guardado as credenciais.
     setTimeout(() => {
+        if (!currentRole) return; // utilizador saiu antes dos 500ms
         const lsForm = document.querySelector('.ls-form');
         if (lsForm && lsForm.parentNode) {
             // Primeiro limpa os valores — alguns Chromium re-indexam ao remover
@@ -506,6 +526,7 @@ async function bootApp() {
             const p = document.getElementById('ls-password');
             if (u) u.value = '';
             if (p) p.value = '';
+            _detachedLoginForm = lsForm;
             lsForm.remove();
         }
     }, 500);

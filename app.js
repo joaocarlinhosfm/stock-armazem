@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// app.js — Gestão Armazém v6.88
+// app.js — Gestão Armazém v6.90
 // Núcleo da aplicação: cache em memória, fila offline/sync, navegação (nav),
 // administração, temas, calculadora de peso, Web Share Target, arranque
 // (DOMContentLoaded) e registo do Service Worker.
@@ -223,7 +223,7 @@ function updateOfflineBanner() {
 // ARQUITECTURA (#18): esta função gere routing + side-effects.
 // Para refactor futuro: separar em _activateView(id) e callbacks por vista.
 function nav(viewId) {
-    if (viewId === 'view-admin' && !requireManagerAccess()) return;
+    if (['view-admin', 'view-register', 'view-bulk'].includes(viewId) && !requireManagerAccess()) return;
 
     // Actualiza título do header
     const pageTitles = {
@@ -891,20 +891,32 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', e => {
         if (e.key !== 'Escape') return;
         const modals = [
-            { id: 'worker-modal',       close: () => modalClose('worker-modal') },
-            { id: 'edit-modal',         close: () => modalClose('edit-modal') },
-            { id: 'confirm-modal',      close: closeConfirmModal },
-            { id: 'switch-role-modal',  close: () => modalClose('switch-role-modal') },
-            { id: 'history-modal',      close: () => modalClose('history-modal') },
-            { id: 'dup-modal',          close: () => modalClose('dup-modal') },
-            { id: 'inv-setup-modal',    close: closeInvSetup },
-            { id: 'inv-modal',          close: closeInventory },
-            { id: 'inv-review-modal',   close: invReviewBack },
-            { id: 'inv-result-modal',   close: () => modalClose('inv-result-modal') },
-            { id: 'timeline-modal',     close: () => modalClose('timeline-modal') },
-            { id: 'edit-tool-modal',    close: () => modalClose('edit-tool-modal') },
-            { id: 'modal-edit-cliente', close: () => modalClose('modal-edit-cliente') },
-            { id: 'gimg-settings-modal',close: closeGimgSettings },
+            { id: 'confirm-modal',       close: closeConfirmModal },
+            { id: 'enc-entrada-modal',   close: () => modalClose('enc-entrada-modal') },
+            { id: 'pat-refs-modal',      close: closePatRefsModal },
+            { id: 'levantar-modal',      close: closeLevantarModal },
+            { id: 'pat-modal',           close: closePatModal },
+            { id: 'pat-detail-modal',    close: () => modalClose('pat-detail-modal') },
+            { id: 'enc-modal',           close: closeEncModal },
+            { id: 'enc-detail-modal',    close: () => modalClose('enc-detail-modal') },
+            { id: 'guia-modal',          close: closeGuiaModal },
+            { id: 'guia-detail-modal',   close: () => modalClose('guia-detail-modal') },
+            { id: 'worker-modal',        close: () => modalClose('worker-modal') },
+            { id: 'edit-modal',          close: () => modalClose('edit-modal') },
+            { id: 'switch-role-modal',   close: () => modalClose('switch-role-modal') },
+            { id: 'history-modal',       close: () => modalClose('history-modal') },
+            { id: 'dup-modal',           close: () => modalClose('dup-modal') },
+            { id: 'inv-partial-modal',   close: () => modalClose('inv-partial-modal') },
+            { id: 'inv-setup-modal',     close: closeInvSetup },
+            { id: 'inv-modal',           close: closeInventory },
+            { id: 'inv-review-modal',    close: invReviewBack },
+            { id: 'inv-result-modal',    close: () => modalClose('inv-result-modal') },
+            { id: 'timeline-modal',      close: () => modalClose('timeline-modal') },
+            { id: 'edit-tool-modal',     close: () => modalClose('edit-tool-modal') },
+            { id: 'modal-edit-cliente',  close: () => modalClose('modal-edit-cliente') },
+            { id: 'gimg-settings-modal', close: closeGimgSettings },
+            { id: 'ocr-settings-modal',  close: () => modalClose('ocr-settings-modal') },
+            { id: 'weight-calc-modal',   close: () => modalClose('weight-calc-modal') },
             { id: 'product-detail-modal',close: () => modalClose('product-detail-modal') },
         ];
         for (const { id, close } of modals) {
@@ -1006,6 +1018,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Delete confirm — chamado pelo openDeleteModal via _deleteProductCallback
     window._deleteProductCallback = async (id, item) => {
+        if (!requireManagerAccess()) return;
         delete cache.stock.data[id];
         renderList(window._searchInputEl?.value || '', false);
         renderDashboard();
@@ -1028,6 +1041,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Form: Novo Produto
     $id('form-add')?.addEventListener('submit', async e => {
         e.preventDefault();
+        if (!requireManagerAccess()) return;
         const btn    = e.target.querySelector('button[type=submit]');
         const codigo = $id('inp-codigo').value.trim().toUpperCase();
         const unidade = $id('inp-unidade').value || 'un';
@@ -1064,6 +1078,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Form: Lote
     $id('form-bulk')?.addEventListener('submit', async e => {
         e.preventDefault();
+        if (!requireManagerAccess()) return;
         const btn    = e.target.querySelector('button[type=submit]');
         const codigo = $id('bulk-codigo').value.trim().toUpperCase();
         const zona   = $id('bulk-loc').value.trim().replace(/\s+/g,'').toUpperCase();
@@ -1107,6 +1122,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Form: Editar Produto
     $id('form-edit')?.addEventListener('submit', async e => {
         e.preventDefault();
+        if (!requireManagerAccess()) return;
         const id      = $id('edit-id').value;
         const btn     = e.target.querySelector('button[type=submit]');
         const unidade = $id('edit-unidade').value || 'un';
@@ -1249,8 +1265,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // SW_EXPECTED_VERSION deve bater certo com SW_VERSION em sw.js, senão o
 // client deteta sempre "SW desactualizado" e fica em loop de update.
 // SW_SCRIPT_URL tem de mudar de query string ou o browser não re-baixa o SW.
-const SW_EXPECTED_VERSION = 'hiperfrio-v6.88';
-const SW_SCRIPT_URL = 'sw.js?v=6.88';
+const SW_EXPECTED_VERSION = 'hiperfrio-v6.90';
+const SW_SCRIPT_URL = 'sw.js?v=6.90';
 
 if ('serviceWorker' in navigator) {
     // Forçar limpeza de SW desactualizados

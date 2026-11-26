@@ -573,7 +573,7 @@ function _dvDraw(el, c, rows) {
     el.innerHTML = _dvHeader()
         + _dvAlertsCard(_dvAlerts(c))
         + `<div class="dv4-kpis">${kpis}</div>`
-        + `<div class="dv4-grid">${_dvChartCard()}${_dvGasCard(c.gases)}${_dvPatsCard(c)}${_dvToolsCard(c)}${_dvEncCard(c)}</div>`;
+        + `<div class="dv4-grid">${typeof _dvNotasCard === 'function' ? _dvNotasCard() : ''}${_dvChartCard()}${_dvGasCard(c.gases)}${_dvPatsCard(c)}${_dvToolsCard(c)}${_dvEncCard(c)}</div>`;
 }
 
 function _dvSkeleton() {
@@ -601,6 +601,7 @@ function _dvAction(act, id) {
         case 'tools':     nav('view-tools'); break;
         case 'enc':       _encNextFilter = id || null; nav('view-encomendas'); break;
         case 'encdetail': if (_encData?.[id]) openEncDetail(id); break;
+        default:          if (typeof notasHandleAction === 'function') notasHandleAction(act, id); break;
     }
 }
 

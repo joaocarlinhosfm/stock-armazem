@@ -6,15 +6,15 @@
     <title>Gestão Armazém</title>
     
     <link rel="manifest" href="manifest.json">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.gstatic.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' data: blob: https://*.firebasedatabase.app https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://api.anthropic.com https://serpapi.com https://*.workers.dev https://nominatim.openstreetmap.org https://*.basemaps.cartocdn.com; font-src https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://serpapi.com https:; worker-src 'self' blob: https://cdn.jsdelivr.net;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.gstatic.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' data: blob: https://*.firebasedatabase.app wss://*.firebasedatabase.app https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://api.anthropic.com https://serpapi.com https://*.workers.dev https://nominatim.openstreetmap.org https://*.basemaps.cartocdn.com; font-src https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://serpapi.com https:; worker-src 'self' blob: https://cdn.jsdelivr.net;">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=Fraunces:wght@500;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="base.css?v=6.88">
-    <link rel="stylesheet" href="stock.css?v=6.88">
-    <link rel="stylesheet" href="operacoes.css?v=6.88">
+    <link rel="stylesheet" href="base.css?v=6.90">
+    <link rel="stylesheet" href="stock.css?v=6.90">
+    <link rel="stylesheet" href="operacoes.css?v=6.90">
 </head>
 <body>
 
@@ -107,7 +107,7 @@
                     <div class="ls-btn-spinner hidden" id="ls-spinner"></div>
                 </button>
             </form>
-            <div class="ls-version">v6.88 · Gestão Armazém</div>
+            <div class="ls-version">v6.90 · Gestão Armazém</div>
         </div>
     </div>
 
@@ -117,7 +117,7 @@
         <span id="offline-pending-count"></span>
     </div>
 
-    <header>
+    <header id="app-header">
         <!-- Logo mark: floco + nome + tagline -->
         <div class="header-logo">
             <div class="header-logo-mark">
@@ -170,7 +170,7 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
                 </button>
                 <div id="avatar-dropdown" class="avatar-dropdown" aria-hidden="true">
-                    <button class="avatar-dd-item" onclick="closeAvatarMenu(); nav('view-admin')" aria-label="Ir para Administração">
+                    <button class="avatar-dd-item" onclick="closeAvatarMenu(); nav('view-admin')" data-manager-only aria-label="Ir para Administração">
                         <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
                         Definições
                     </button>
@@ -345,11 +345,11 @@
                 <div class="enc-toolbar-top">
                     <h2 class="dash-view-title">Encomendas</h2>
                     <div class="enc-toolbar-actions">
-                        <label class="btn-icon-toolbar" for="enc-pdf-file" title="Importar PDF de encomenda" id="enc-pdf-label">
+                        <label class="btn-icon-toolbar" for="enc-pdf-file" title="Importar PDF de encomenda" id="enc-pdf-label" data-manager-only>
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                         </label>
                         <input type="file" id="enc-pdf-file" accept="application/pdf" style="display:none" onchange="encImportPdf(this)">
-                        <button class="btn-primary enc-add-btn" onclick="openNovaEncomenda()" aria-label="Nova Encomenda">
+                        <button class="btn-primary enc-add-btn" onclick="openNovaEncomenda()" data-manager-only aria-label="Nova Encomenda">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                             </svg>
@@ -376,11 +376,11 @@
                 <div class="guias-toolbar-top">
                     <h2 class="dash-view-title">Guias Técnicos</h2>
                     <div class="guias-toolbar-actions">
-                        <label class="btn-icon-toolbar" for="guia-pdf-file" title="Importar PDF de guia" id="guia-pdf-label">
+                        <label class="btn-icon-toolbar" for="guia-pdf-file" title="Importar PDF de guia" id="guia-pdf-label" data-manager-only>
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                         </label>
                         <input type="file" id="guia-pdf-file" accept="application/pdf" style="display:none" onchange="guiaImportPdf(this)">
-                        <button class="btn-primary guias-add-btn" onclick="openNovaGuia()" aria-label="Nova Guia">
+                        <button class="btn-primary guias-add-btn" onclick="openNovaGuia()" data-manager-only aria-label="Nova Guia">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" width="13" height="13" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                             </svg>
@@ -735,7 +735,7 @@
                     <div class="user-create-row">
                         <div class="user-create-field">
                             <label class="enc-label">Nome de utilizador</label>
-                            <input id="new-user-name" class="blue-input" type="text" placeholder="ex: joao.silva"
+                            <input id="new-user-name" class="blue-input" type="text" placeholder="ex: joao_silva"
                                 autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
                         </div>
                         <div class="user-create-field">
@@ -1561,6 +1561,7 @@
     <!-- XLSX carregado sob pedido via loadXlsx() em app.js -->
     <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
     <!-- App Check: descomenta após configurar no Firebase Console -->
     <!-- <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check-compat.js"></script> -->
     <script>
@@ -1576,6 +1577,7 @@
                 databaseURL: "https://stock-f477e-default-rtdb.europe-west1.firebasedatabase.app",
                 projectId:   "stock-f477e",
             });
+            window.db = firebase.database();
 
             // App Check — descomenta e substitui SITE_KEY após configurar no Firebase Console
             // firebase.appCheck().activate('SITE_KEY_RECAPTCHA_V3', true);
@@ -1798,7 +1800,7 @@
             <div id="enc-detail-linhas" class="enc-detail-linhas"></div>
             <div class="modal-footer" style="justify-content:flex-end;gap:8px">
                 <button class="btn-cancel" onclick="modalClose('enc-detail-modal')">Fechar</button>
-                <button class="btn-danger" id="enc-detail-delete-btn" onclick="deleteEncomenda()"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Apagar</button>
+                <button class="btn-danger" id="enc-detail-delete-btn" onclick="deleteEncomenda()" data-manager-only><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Apagar</button>
             </div>
         </div>
     </div>
@@ -1867,7 +1869,7 @@
             <div id="guia-detail-linhas" class="enc-detail-linhas"></div>
             <div class="modal-footer" style="justify-content:flex-end;gap:8px">
                 <button class="btn-cancel" onclick="modalClose('guia-detail-modal')">Fechar</button>
-                <button class="btn-danger" onclick="deleteGuia()"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Apagar</button>
+                <button class="btn-danger" onclick="deleteGuia()" data-manager-only><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Apagar</button>
             </div>
         </div>
     </div>
@@ -1978,22 +1980,23 @@
 
     <!-- Chart.js, Leaflet + MarkerCluster são carregados sob demanda por loadChart() e loadLeaflet() em utils.js -->
     <!-- Módulos extraídos — Fase 1+2+3+4 da modularização -->
-    <!-- ORDEM OBRIGATÓRIA: utils → auth → reports → stock → stockimport → backup → tools → settings → clientes → pat-map → pats → guias → encomendas → inventory → dashboard → app (preservada por defer) -->
-    <script defer src="utils.js?v=6.88"></script>
-    <script defer src="auth.js?v=6.88"></script>
-    <script defer src="reports.js?v=6.88"></script>
-    <script defer src="stock.js?v=6.88"></script>
-    <script defer src="stockimport.js?v=6.88"></script>
-    <script defer src="backup.js?v=6.88"></script>
-    <script defer src="tools.js?v=6.88"></script>
-    <script defer src="settings.js?v=6.88"></script>
-    <script defer src="clientes.js?v=6.88"></script>
-    <script defer src="pat-map.js?v=6.88"></script>
-    <script defer src="pats.js?v=6.88"></script>
-    <script defer src="guias.js?v=6.88"></script>
-    <script defer src="encomendas.js?v=6.88"></script>
-    <script defer src="inventory.js?v=6.88"></script>
-    <script defer src="dashboard.js?v=6.88"></script>
-    <script defer src="app.js?v=6.88"></script>
+    <!-- ORDEM OBRIGATÓRIA: utils → auth → reports → stock → stockimport → backup → tools → settings → clientes → pat-map → pats → guias → encomendas → inventory → notas → dashboard → app (preservada por defer) -->
+    <script defer src="utils.js?v=6.90"></script>
+    <script defer src="auth.js?v=6.90"></script>
+    <script defer src="reports.js?v=6.90"></script>
+    <script defer src="stock.js?v=6.90"></script>
+    <script defer src="stockimport.js?v=6.90"></script>
+    <script defer src="backup.js?v=6.90"></script>
+    <script defer src="tools.js?v=6.90"></script>
+    <script defer src="settings.js?v=6.90"></script>
+    <script defer src="clientes.js?v=6.90"></script>
+    <script defer src="pat-map.js?v=6.90"></script>
+    <script defer src="pats.js?v=6.90"></script>
+    <script defer src="guias.js?v=6.90"></script>
+    <script defer src="encomendas.js?v=6.90"></script>
+    <script defer src="inventory.js?v=6.90"></script>
+    <script defer src="notas.js?v=6.90"></script>
+    <script defer src="dashboard.js?v=6.90"></script>
+    <script defer src="app.js?v=6.90"></script>
 </body>
 </html>

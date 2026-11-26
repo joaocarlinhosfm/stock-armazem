@@ -1,5 +1,5 @@
 // ───────────────────────────────────────
-// backup.js — Hiperfrio v6.77
+// backup.js — Gestão Armazém v6.90
 // Cópia de segurança completa (JSON): Administração → Definições → Dados.
 // Descarrega TODAS as coleções para um único ficheiro no dispositivo.
 // Carrega DEPOIS de stockimport.js.
@@ -14,7 +14,7 @@
 
 const _BK_COLLECTIONS = [
     'stock', 'pedidos', 'ferramentas', 'clientes', 'funcionarios', 'guias',
-    'encomendas', 'relatorios', 'movimentos', 'dash-snapshots', 'inv-resume',
+    'encomendas', 'notas_rapidas', 'relatorios', 'movimentos', 'dash-snapshots', 'inv-resume',
     'geocode-cache', 'config',
 ];
 const _BK_LAST_KEY = 'hiperfrio-last-backup';   // chave interna (não renomear)
